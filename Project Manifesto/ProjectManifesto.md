@@ -89,6 +89,8 @@ A structured screening, verification, and approval process to reduce failed adop
 
 ## 5. Core User Flow (BPMN and Text-Based BPMN Summary)
 
+![](images/PAWSTER_BPMN.png)
+
 ### 1. Login / Registration Screen
 - **Actions:**  
   - Enter Email / Password to log in  
@@ -202,6 +204,7 @@ A structured screening, verification, and approval process to reduce failed adop
 
 ## 6. High Level Data Schema
 
+![](images/PAWSTER_ERD.png)
 ---
 ## 7. Proposed Tech Stack
 - **Frontend:** HTML, CSS, JavaScript (Thymeleaf optional if using Spring Boot)  
