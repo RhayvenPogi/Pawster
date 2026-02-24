@@ -1,6 +1,4 @@
-/* ════════════════════════════════════
-   MESH GRADIENT — mouse parallax
-════════════════════════════════════ */
+
 const orbs = [
   { el: document.getElementById('o1'), fx:  0.10, fy:  0.07 },
   { el: document.getElementById('o2'), fx: -0.12, fy:  0.09 },
@@ -29,10 +27,6 @@ function animateMesh() {
 
 animateMesh();
 
-/* ════════════════════════════════════
-   DOG CURSOR — tiny walking dog
-   chases the mouse pointer
-════════════════════════════════════ */
 (function () {
 
   var style = document.createElement('style');
@@ -202,9 +196,6 @@ animateMesh();
 
 }());
 
-/* ════════════════════════════════════
-   LOGIN FORM
-════════════════════════════════════ */
 const loginForm     = document.getElementById('loginForm');
 const usernameInput = document.getElementById('username');
 const emailInput    = document.getElementById('email');
