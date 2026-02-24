@@ -9,9 +9,7 @@
 </head>
 <body>
 
-  <!-- ═══════════════════════════════
-       MESH GRADIENT BACKGROUND
-  ════════════════════════════════ -->
+  <!-- MESH GRADIENT BACKGROUND -->
   <div class="mesh-container">
     <div class="mesh-base"></div>
     <div class="orb-wrap orb-wrap-1"><div class="orb" id="o1"></div></div>
@@ -25,24 +23,114 @@
     <div class="vignette"></div>
   </div>
 
-  <!-- ═══════════════════════════════
-       NAVBAR
-  ════════════════════════════════ -->
+  <!-- NAVBAR -->
   <nav class="navbar">
     <button class="nav-signin">Sign in</button>
     <button class="nav-register" onclick="window.location.href='register.html'">Register</button>
     <a href="index.html" class="nav-logo-wrap">
-      <img src="logo.png" alt="Pawster Logo" />
+      <!--
+        ┌─────────────────────────────────┐
+        │  LOGO  ·  replace src="logo.png"│
+        │  Shown at 70 × 70 px           │
+        └─────────────────────────────────┘
+      -->
+      <img src="images/logo.png" alt="Pawster Logo" />
     </a>
   </nav>
 
-  <!-- ═══════════════════════════════
-       PAGE WRAPPER
-  ════════════════════════════════ -->
+  <!-- PAGE -->
   <div class="page">
 
-    <!-- LEFT PANEL -->
+    <!-- ═══════════════ LEFT PANEL ═══════════════ -->
     <div class="left-panel">
+
+      <!--
+        ╔═══════════════════════════════════════════════════════════╗
+        ║  PAW PRINT LAYER  ·  z-index: 5                          ║
+        ║  Stacking order:  paws(5) → dog(10) → text(20)           ║
+        ║                                                           ║
+        ║  HOW TO CUSTOMIZE EACH PAW:                              ║
+        ║  • SIZE   → change width/height on the <svg> element     ║
+        ║             OR change width/height in .paw-N in CSS      ║
+        ║  • POSITION → edit top/left/bottom/right in .paw-N CSS   ║
+        ║  • COLOR/OPACITY → edit fill: rgba(...) in .paw-N CSS    ║
+        ║  • ROTATION → edit transform: rotate(...) in .paw-N CSS  ║
+        ║                                                           ║
+        ║  SVG paw anatomy:                                         ║
+        ║   · 1 large ellipse = main palm pad                      ║
+        ║   · 4 smaller ellipses = toe beans                       ║
+        ╚═══════════════════════════════════════════════════════════╝
+      -->
+      <div class="paw-layer">
+
+        <!-- ── PAW 1 ── top-left · 120px · dark olive · rotate -8deg -->
+        <svg class="paw paw-1" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="50" cy="66" rx="24" ry="21"/>
+          <ellipse cx="25" cy="43" rx="11" ry="14" transform="rotate(-14 25 43)"/>
+          <ellipse cx="43" cy="33" rx="11" ry="14" transform="rotate(-5 43 33)"/>
+          <ellipse cx="62" cy="33" rx="11" ry="14" transform="rotate(5 62 33)"/>
+          <ellipse cx="78" cy="43" rx="10" ry="13" transform="rotate(14 78 43)"/>
+        </svg>
+
+        <!-- ── PAW 2 ── mid-left · 85px · dark olive · rotate +6deg -->
+        <svg class="paw paw-2" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="50" cy="66" rx="24" ry="21"/>
+          <ellipse cx="25" cy="43" rx="11" ry="14" transform="rotate(-14 25 43)"/>
+          <ellipse cx="43" cy="33" rx="11" ry="14" transform="rotate(-5 43 33)"/>
+          <ellipse cx="62" cy="33" rx="11" ry="14" transform="rotate(5 62 33)"/>
+          <ellipse cx="78" cy="43" rx="10" ry="13" transform="rotate(14 78 43)"/>
+        </svg>
+
+        <!-- ── PAW 3 ── bottom-left huge · 210px · faded warm orange · rotate -18deg -->
+        <svg class="paw paw-3" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="50" cy="66" rx="24" ry="21"/>
+          <ellipse cx="25" cy="43" rx="11" ry="14" transform="rotate(-14 25 43)"/>
+          <ellipse cx="43" cy="33" rx="11" ry="14" transform="rotate(-5 43 33)"/>
+          <ellipse cx="62" cy="33" rx="11" ry="14" transform="rotate(5 62 33)"/>
+          <ellipse cx="78" cy="43" rx="10" ry="13" transform="rotate(14 78 43)"/>
+        </svg>
+
+        <!-- ── PAW 4 ── right-of-dog small · 55px · warm orange · rotate -14deg -->
+        <svg class="paw paw-4" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="50" cy="66" rx="24" ry="21"/>
+          <ellipse cx="25" cy="43" rx="11" ry="14" transform="rotate(-14 25 43)"/>
+          <ellipse cx="43" cy="33" rx="11" ry="14" transform="rotate(-5 43 33)"/>
+          <ellipse cx="62" cy="33" rx="11" ry="14" transform="rotate(5 62 33)"/>
+          <ellipse cx="78" cy="43" rx="10" ry="13" transform="rotate(14 78 43)"/>
+        </svg>
+
+        <!-- ── PAW 5 ── right-of-dog large · 160px · bright warm orange · rotate +13deg -->
+        <svg class="paw paw-5" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="50" cy="66" rx="24" ry="21"/>
+          <ellipse cx="25" cy="43" rx="11" ry="14" transform="rotate(-14 25 43)"/>
+          <ellipse cx="43" cy="33" rx="11" ry="14" transform="rotate(-5 43 33)"/>
+          <ellipse cx="62" cy="33" rx="11" ry="14" transform="rotate(5 62 33)"/>
+          <ellipse cx="78" cy="43" rx="10" ry="13" transform="rotate(14 78 43)"/>
+        </svg>
+
+        <!-- ── PAW 6 ── behind dog upper · 60px · faded olive · rotate -5deg -->
+        <svg class="paw paw-6" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="50" cy="66" rx="24" ry="21"/>
+          <ellipse cx="25" cy="43" rx="11" ry="14" transform="rotate(-14 25 43)"/>
+          <ellipse cx="43" cy="33" rx="11" ry="14" transform="rotate(-5 43 33)"/>
+          <ellipse cx="62" cy="33" rx="11" ry="14" transform="rotate(5 62 33)"/>
+          <ellipse cx="78" cy="43" rx="10" ry="13" transform="rotate(14 78 43)"/>
+        </svg>
+
+      </div><!-- /.paw-layer -->
+
+      <!--
+        ┌─────────────────────────────────────────┐
+        │  DOG MASCOT  ·  z-index: 10             │
+        │  Replace src="dog.png"                  │
+        │  Use transparent PNG, portrait crop     │
+        │  Displayed: height 82vh, max 760px      │
+        │  Position: bottom-left of left panel    │
+        └─────────────────────────────────────────┘
+      -->
+      <img src="images/dog.png" alt="Pawster Dog Mascot" class="dog-img" />
+
+      <!-- HERO TEXT  ·  z-index: 20  ·  always IN FRONT of dog -->
       <div class="hero-text">
         <h1 class="hero-title">Every Pet<br/>Deserves Love</h1>
         <p class="hero-subtitle">
@@ -50,10 +138,14 @@
           organizations making a real difference in animals' lives.
         </p>
       </div>
-      <img src="dog.png" alt="Pawster Dog Mascot" class="dog-img" />
-    </div>
 
-    <!-- RIGHT PANEL -->
+    </div><!-- /.left-panel -->
+
+    <!-- ═══════════════ RIGHT PANEL ═══════════════
+         Low-opacity frosted container
+         Background mesh shows through
+         Centered vertically, ~420px wide
+    ════════════════════════════════════════════ -->
     <div class="right-panel">
 
       <h2 class="form-title">Welcome Back!</h2>
@@ -128,8 +220,9 @@
         <a href="register.html" class="footer-link">Create Account!</a>
       </p>
 
-    </div>
-  </div>
+    </div><!-- /.right-panel -->
+
+  </div><!-- /.page -->
 
   <script src="login.js"></script>
 </body>
