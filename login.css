@@ -5,10 +5,118 @@
   box-sizing: border-box;
 }
 
+:root {
+  --c1: #588B41;
+  --c2: #B45A22;
+  --c3: #e8e0d0;
+  --c4: #588B41;
+  --c5: #B45A22;
+  --c6: #d4c9b0;
+}
+
 html, body {
   height: 100%;
   font-family: 'Nunito', sans-serif;
   overflow: hidden;
+  background: #EDDABB;
+}
+
+/* ════════════════════════════════════
+   MESH GRADIENT BACKGROUND
+════════════════════════════════════ */
+.mesh-container {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.mesh-base {
+  position: absolute;
+  inset: 0;
+  background: #EDDABB;
+}
+
+.orb-wrap {
+  position: absolute;
+  border-radius: 50%;
+}
+
+.orb {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  filter: blur(110px);
+  mix-blend-mode: multiply;
+  opacity: 0.7;
+}
+
+.orb-wrap-1 {
+  width: 1100px; height: 1100px;
+  top: -25%; left: -20%;
+  background: radial-gradient(circle, var(--c1) 0%, transparent 70%);
+  animation: float1 8s ease-in-out infinite;
+}
+
+.orb-wrap-2 {
+  width: 1000px; height: 1000px;
+  top: 10%; right: -20%;
+  background: radial-gradient(circle, var(--c2) 0%, transparent 70%);
+  animation: float2 10s ease-in-out infinite;
+}
+
+.orb-wrap-3 {
+  width: 950px; height: 950px;
+  bottom: -20%; left: 10%;
+  background: radial-gradient(circle, var(--c3) 0%, transparent 60%);
+  animation: float3 7s ease-in-out infinite;
+}
+
+.orb-wrap-4 {
+  width: 900px; height: 900px;
+  top: 30%; left: 25%;
+  background: radial-gradient(circle, var(--c4) 0%, transparent 70%);
+  animation: float4 9s ease-in-out infinite;
+}
+
+.orb-wrap-5 {
+  width: 850px; height: 850px;
+  bottom: 0%; right: -5%;
+  background: radial-gradient(circle, var(--c5) 0%, transparent 70%);
+  animation: float5 11s ease-in-out infinite;
+}
+
+.orb-wrap-6 {
+  width: 800px; height: 800px;
+  top: 5%; left: 35%;
+  background: radial-gradient(circle, var(--c6) 0%, transparent 70%);
+  animation: float6 8.5s ease-in-out infinite;
+}
+
+.mesh-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(100,70,30,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(100,70,30,0.04) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+
+.grain {
+  position: absolute;
+  inset: -50%;
+  width: 200%;
+  height: 200%;
+  opacity: 0.06;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 256px 256px;
+  animation: grain 0.4s steps(1) infinite;
+}
+
+.vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 50%, transparent 40%, rgba(150,100,40,0.2) 100%);
 }
 
 /* ════════════════════════════════════
@@ -35,7 +143,6 @@ html, body {
   color: #1c4f09;
   padding: 0.2rem 0.4rem 0.3rem;
   cursor: pointer;
-  letter-spacing: 0.01em;
 }
 
 .nav-register {
@@ -67,16 +174,18 @@ html, body {
 }
 
 /* ════════════════════════════════════
-   PAGE — two column flex
+   PAGE LAYOUT
 ════════════════════════════════════ */
 .page {
+  position: relative;
+  z-index: 10;
   display: flex;
   height: 100vh;
   width: 100vw;
 }
 
 /* ════════════════════════════════════
-   LEFT PANEL
+   LEFT PANEL — transparent over mesh
 ════════════════════════════════════ */
 .left-panel {
   flex: 1;
@@ -87,24 +196,7 @@ html, body {
   justify-content: flex-start;
   padding-top: 3.5rem;
   overflow: hidden;
-
-  /* Green to orange gradient — exactly like the screenshot */
-  background:
-    radial-gradient(ellipse at 60% 10%,  #b5d96a 0%,  transparent 50%),
-    radial-gradient(ellipse at 10% 50%,  #5aaa1a 0%,  transparent 55%),
-    radial-gradient(ellipse at 80% 90%,  #e8a030 0%,  transparent 50%),
-    radial-gradient(ellipse at 20% 100%, #e07820 0%,  transparent 55%),
-    #a8d050;
-}
-
-/* Paw watermarks */
-.left-panel::before,
-.left-panel::after {
-  content: '';
-  position: absolute;
-  border-radius: 50%;
-  opacity: 0.18;
-  background: #c8a040;
+  background: transparent;
 }
 
 .hero-text {
@@ -122,20 +214,21 @@ html, body {
   line-height: 1.0;
   text-transform: uppercase;
   letter-spacing: -0.5px;
+  text-shadow: 0 2px 12px rgba(255,255,255,0.3);
 }
 
 .hero-subtitle {
   margin-top: 1.1rem;
   font-size: 1rem;
   font-weight: 700;
-  color: #2a5e10;
+  color: #1c4f09;
   line-height: 1.65;
   max-width: 400px;
   margin-left: auto;
   margin-right: auto;
+  text-shadow: 0 1px 6px rgba(255,255,255,0.4);
 }
 
-/* Dog mascot — bottom-centered, large */
 .dog-img {
   position: absolute;
   bottom: 0;
@@ -146,19 +239,11 @@ html, body {
   width: auto;
   object-fit: contain;
   z-index: 3;
-  filter: drop-shadow(0 8px 24px rgba(0,0,0,0.12));
-}
-
-/* Decorative paw shapes behind the dog */
-.left-panel .paw-deco {
-  position: absolute;
-  background: #c8a040;
-  opacity: 0.22;
-  border-radius: 50%;
+  filter: drop-shadow(0 8px 24px rgba(0,0,0,0.15));
 }
 
 /* ════════════════════════════════════
-   RIGHT PANEL
+   RIGHT PANEL — frosted glass card
 ════════════════════════════════════ */
 .right-panel {
   width: 520px;
@@ -169,8 +254,12 @@ html, body {
   padding: 2rem 3.2rem 2rem 3rem;
   overflow-y: auto;
 
-  /* Warm cream gradient — matches screenshot right side */
-  background: linear-gradient(170deg, #fef8ec 0%, #f5e8c0 45%, #edd9a0 100%);
+  /* Frosted glass over the mesh */
+  background: rgba(255, 248, 230, 0.72);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-left: 1px solid rgba(255, 240, 200, 0.6);
+  box-shadow: -8px 0 40px rgba(180, 120, 40, 0.12);
 }
 
 /* ════════════════════════════════════
@@ -206,13 +295,13 @@ html, body {
 }
 
 .alert-error {
-  background: #fde8e8;
+  background: rgba(253, 232, 232, 0.9);
   color: #b83030;
   border: 1px solid #f0a0a0;
 }
 
 .alert-success {
-  background: #e6f5dc;
+  background: rgba(230, 245, 220, 0.9);
   color: #276010;
   border: 1px solid #90d060;
 }
@@ -225,7 +314,6 @@ html, body {
   margin-bottom: 1.3rem;
 }
 
-/* Floating label — sits on top of the border line */
 .field-label {
   position: absolute;
   top: -0.58rem;
@@ -236,12 +324,11 @@ html, body {
   text-transform: uppercase;
   font-style: italic;
   color: #2a5e10;
-
-  /* background matches the right panel gradient — hides the border behind the label */
-  background: linear-gradient(to bottom, #fef5e4, #f2e2b0);
+  background: rgba(255, 245, 220, 0.95);
   padding: 0 0.35rem;
   line-height: 1.2;
   z-index: 1;
+  border-radius: 3px;
 }
 
 .field-input {
@@ -250,13 +337,13 @@ html, body {
   padding: 0.85rem 1rem;
   border: 2px solid #5aaa30;
   border-radius: 10px;
-  background: transparent;
+  background: rgba(255, 250, 235, 0.6);
   font-family: 'Nunito', sans-serif;
   font-size: 0.95rem;
   font-weight: 600;
   color: #222;
   outline: none;
-  transition: border-color 0.18s, box-shadow 0.18s;
+  transition: border-color 0.18s, box-shadow 0.18s, background 0.18s;
 }
 
 .field-input::placeholder {
@@ -267,6 +354,7 @@ html, body {
 
 .field-input:focus {
   border-color: #1c4f09;
+  background: rgba(255, 252, 240, 0.85);
   box-shadow: 0 0 0 3px rgba(28, 79, 9, 0.1);
 }
 
@@ -285,7 +373,7 @@ html, body {
 }
 
 /* ════════════════════════════════════
-   REMEMBER ME + FORGOT PASSWORD
+   REMEMBER + FORGOT
 ════════════════════════════════════ */
 .form-row {
   display: flex;
@@ -310,7 +398,6 @@ html, body {
   height: 20px;
   accent-color: #1c4f09;
   cursor: pointer;
-  border-radius: 4px;
 }
 
 .forgot-btn {
@@ -352,7 +439,7 @@ html, body {
 .signin-btn:hover:not(:disabled) {
   background: #143806;
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(28, 79, 9, 0.28);
+  box-shadow: 0 6px 20px rgba(28, 79, 9, 0.35);
 }
 
 .signin-btn:disabled {
@@ -373,7 +460,7 @@ html, body {
 .divider-line {
   flex: 1;
   height: 1.5px;
-  background: #c0a060;
+  background: rgba(160, 120, 60, 0.5);
 }
 
 .divider-text {
@@ -397,24 +484,26 @@ html, body {
   width: 62px;
   height: 62px;
   border-radius: 14px;
-  border: 1.5px solid #d8c888;
-  background: #fff;
+  border: 1.5px solid rgba(200, 170, 100, 0.6);
+  background: rgba(255, 255, 255, 0.8);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.18s;
   box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+  backdrop-filter: blur(6px);
 }
 
 .social-btn:hover {
   border-color: #a09060;
   transform: translateY(-2px);
   box-shadow: 0 6px 18px rgba(0,0,0,0.13);
+  background: rgba(255, 255, 255, 0.95);
 }
 
 /* ════════════════════════════════════
-   FOOTER TEXT
+   FOOTER
 ════════════════════════════════════ */
 .footer-text {
   text-align: center;
@@ -433,4 +522,47 @@ html, body {
 
 .footer-link:hover {
   text-decoration: underline;
+}
+
+/* ════════════════════════════════════
+   MESH KEYFRAMES
+════════════════════════════════════ */
+@keyframes float1 {
+  0%,100% { transform: translate(0,0) scale(1); }
+  33%     { transform: translate(12%,16%) scale(1.15); }
+  66%     { transform: translate(-8%,8%) scale(0.9); }
+}
+
+@keyframes float2 {
+  0%,100% { transform: translate(0,0) scale(1); }
+  33%     { transform: translate(-14%,10%) scale(0.9); }
+  66%     { transform: translate(8%,-15%) scale(1.15); }
+}
+
+@keyframes float3 {
+  0%,100% { transform: translate(0,0) scale(1); }
+  25%     { transform: translate(14%,-10%) scale(1.12); }
+  75%     { transform: translate(-10%,8%) scale(0.9); }
+}
+
+@keyframes float4 {
+  0%,100% { transform: translate(0,0) scale(1); }
+  50%     { transform: translate(-15%,-12%) scale(1.18); }
+}
+
+@keyframes float5 {
+  0%,100% { transform: translate(0,0) scale(1); }
+  40%     { transform: translate(-10%,-18%) scale(1.1); }
+  80%     { transform: translate(8%,-8%) scale(0.9); }
+}
+
+@keyframes float6 {
+  0%,100% { transform: translate(0,0) scale(1); }
+  30%     { transform: translate(15%,12%) scale(1.15); }
+  70%     { transform: translate(-8%,18%) scale(0.88); }
+}
+
+@keyframes grain {
+  0%,100% { transform: translate(0,0); }
+  50%     { transform: translate(-2%,2%); }
 }

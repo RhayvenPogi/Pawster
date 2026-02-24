@@ -10,6 +10,22 @@
 <body>
 
   <!-- ═══════════════════════════════
+       MESH GRADIENT BACKGROUND
+  ════════════════════════════════ -->
+  <div class="mesh-container">
+    <div class="mesh-base"></div>
+    <div class="orb-wrap orb-wrap-1"><div class="orb" id="o1"></div></div>
+    <div class="orb-wrap orb-wrap-2"><div class="orb" id="o2"></div></div>
+    <div class="orb-wrap orb-wrap-3"><div class="orb" id="o3"></div></div>
+    <div class="orb-wrap orb-wrap-4"><div class="orb" id="o4"></div></div>
+    <div class="orb-wrap orb-wrap-5"><div class="orb" id="o5"></div></div>
+    <div class="orb-wrap orb-wrap-6"><div class="orb" id="o6"></div></div>
+    <div class="mesh-grid"></div>
+    <div class="grain"></div>
+    <div class="vignette"></div>
+  </div>
+
+  <!-- ═══════════════════════════════
        NAVBAR
   ════════════════════════════════ -->
   <nav class="navbar">
@@ -27,7 +43,6 @@
 
     <!-- LEFT PANEL -->
     <div class="left-panel">
-
       <div class="hero-text">
         <h1 class="hero-title">Every Pet<br/>Deserves Love</h1>
         <p class="hero-subtitle">
@@ -35,10 +50,7 @@
           organizations making a real difference in animals' lives.
         </p>
       </div>
-
-      <!-- Replace dog.png with your mascot image -->
       <img src="dog.png" alt="Pawster Dog Mascot" class="dog-img" />
-
     </div>
 
     <!-- RIGHT PANEL -->
@@ -49,34 +61,29 @@
         Sign in to continue your journey of making a difference in an animal's life
       </p>
 
-      <!-- Error / Success alerts -->
       <div class="alert alert-error"   id="alertError"   style="display:none;"></div>
       <div class="alert alert-success" id="alertSuccess" style="display:none;"></div>
 
       <form id="loginForm" novalidate>
 
-        <!-- Username -->
         <div class="field">
           <label class="field-label" for="username">Username</label>
           <input class="field-input" type="text" id="username" placeholder="Enter username..." />
           <span class="field-error" id="usernameError"></span>
         </div>
 
-        <!-- Email -->
         <div class="field">
           <label class="field-label" for="email">Email</label>
           <input class="field-input" type="email" id="email" placeholder="Enter email..." />
           <span class="field-error" id="emailError"></span>
         </div>
 
-        <!-- Password -->
         <div class="field">
           <label class="field-label" for="password">Password</label>
           <input class="field-input" type="password" id="password" placeholder="Enter password..." />
           <span class="field-error" id="passwordError"></span>
         </div>
 
-        <!-- Remember me + Forgot password -->
         <div class="form-row">
           <label class="remember-label">
             <input type="checkbox" id="remember" class="remember-check" />
@@ -85,19 +92,16 @@
           <button type="button" class="forgot-btn" id="forgotBtn">Forgot password?</button>
         </div>
 
-        <!-- Sign in button -->
         <button type="submit" class="signin-btn" id="submitBtn">Sign in</button>
 
       </form>
 
-      <!-- Or continue with -->
       <div class="divider">
         <span class="divider-line"></span>
         <span class="divider-text">Or continue with</span>
         <span class="divider-line"></span>
       </div>
 
-      <!-- Social buttons -->
       <div class="social-row">
         <button class="social-btn" title="Google">
           <svg width="22" height="22" viewBox="0 0 24 24">

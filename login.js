@@ -1,3 +1,37 @@
+/* ════════════════════════════════════
+   MESH GRADIENT — mouse parallax
+════════════════════════════════════ */
+const orbs = [
+  { el: document.getElementById('o1'), fx:  0.10, fy:  0.07 },
+  { el: document.getElementById('o2'), fx: -0.12, fy:  0.09 },
+  { el: document.getElementById('o3'), fx:  0.14, fy: -0.08 },
+  { el: document.getElementById('o4'), fx: -0.08, fy: -0.11 },
+  { el: document.getElementById('o5'), fx:  0.09, fy:  0.13 },
+  { el: document.getElementById('o6'), fx: -0.13, fy:  0.07 },
+];
+
+let mx = 0, my = 0, cx = 0, cy = 0;
+
+document.addEventListener('mousemove', function (e) {
+  mx = (e.clientX / window.innerWidth  - 0.5) * 80;
+  my = (e.clientY / window.innerHeight - 0.5) * 80;
+});
+
+function animateMesh() {
+  cx += (mx - cx) * 0.08;
+  cy += (my - cy) * 0.08;
+  orbs.forEach(function ({ el, fx, fy }) {
+    el.style.marginLeft = (cx * fx) + 'px';
+    el.style.marginTop  = (cy * fy) + 'px';
+  });
+  requestAnimationFrame(animateMesh);
+}
+
+animateMesh();
+
+/* ════════════════════════════════════
+   LOGIN FORM
+════════════════════════════════════ */
 const loginForm     = document.getElementById('loginForm');
 const usernameInput = document.getElementById('username');
 const emailInput    = document.getElementById('email');
