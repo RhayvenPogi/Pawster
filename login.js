@@ -30,6 +30,179 @@ function animateMesh() {
 animateMesh();
 
 /* ════════════════════════════════════
+   DOG CURSOR — tiny walking dog
+   chases the mouse pointer
+════════════════════════════════════ */
+(function () {
+
+  var style = document.createElement('style');
+  style.textContent = [
+    '*, *::before, *::after { cursor: none !important; }',
+
+    '#dog-cursor {',
+    '  position: fixed;',
+    '  z-index: 99999;',
+    '  pointer-events: none;',
+    '  width: 28px;',
+    '  height: 28px;',
+    '  transform: translate(-50%, -50%);',
+    '}',
+
+    '#dog-cursor svg { overflow: visible; }',
+
+    '@keyframes legFrontWalk {',
+    '  0%,100% { transform-origin: 30px 28px; transform: rotate(-22deg); }',
+    '  50%      { transform-origin: 30px 28px; transform: rotate(22deg);  }',
+    '}',
+    '@keyframes legBackWalk {',
+    '  0%,100% { transform-origin: 14px 28px; transform: rotate(22deg);  }',
+    '  50%      { transform-origin: 14px 28px; transform: rotate(-22deg); }',
+    '}',
+    '@keyframes tailWag {',
+    '  0%,100% { transform-origin: 8px 18px; transform: rotate(-18deg); }',
+    '  50%      { transform-origin: 8px 18px; transform: rotate(18deg);  }',
+    '}',
+    '@keyframes bodyBob {',
+    '  0%,100% { transform: translateY(0px);  }',
+    '  50%      { transform: translateY(-1.5px); }',
+    '}',
+    '@keyframes earFlop {',
+    '  0%,100% { transform-origin: 36px 10px; transform: rotate(0deg); }',
+    '  50%      { transform-origin: 36px 10px; transform: rotate(8deg); }',
+    '}',
+    '@keyframes sitSettle {',
+    '  0%   { transform: translateY(0px);  }',
+    '  40%  { transform: translateY(-3px); }',
+    '  100% { transform: translateY(0px);  }',
+    '}',
+    '@keyframes pawTap {',
+    '  0%,100% { transform-origin: 30px 28px; transform: rotate(0deg);   }',
+    '  50%      { transform-origin: 30px 28px; transform: rotate(-30deg); }',
+    '}',
+
+    '#dog-cursor.walking #dog-body      { animation: bodyBob      0.28s ease-in-out infinite; }',
+    '#dog-cursor.walking #dog-leg-front { animation: legFrontWalk 0.28s ease-in-out infinite; }',
+    '#dog-cursor.walking #dog-leg-back  { animation: legBackWalk  0.28s ease-in-out infinite; }',
+    '#dog-cursor.walking #dog-tail      { animation: tailWag      0.28s ease-in-out infinite; }',
+    '#dog-cursor.walking #dog-ear       { animation: earFlop      0.32s ease-in-out infinite; }',
+
+    '#dog-cursor.idle #dog-tail { animation: tailWag 0.6s ease-in-out infinite; }',
+
+    '#dog-cursor.clicking #dog-body      { animation: sitSettle 0.2s ease-out forwards; }',
+    '#dog-cursor.clicking #dog-leg-front { animation: pawTap    0.18s ease-in-out 2;    }',
+  ].join('\n');
+  document.head.appendChild(style);
+
+  var cursorEl = document.createElement('div');
+  cursorEl.id = 'dog-cursor';
+
+  cursorEl.innerHTML = [
+    '<svg id="dog-svg" width="54" height="54" viewBox="0 0 54 54" xmlns="http://www.w3.org/2000/svg">',
+
+    '<ellipse cx="27" cy="50" rx="14" ry="3" fill="rgba(0,0,0,0.13)" />',
+
+    '<g id="dog-tail">',
+    '  <path d="M10 22 Q2 14 6 8 Q10 4 12 10 Q10 16 14 20Z"',
+    '    fill="#c8a06a" stroke="#7a5530" stroke-width="1.2" stroke-linejoin="round"/>',
+    '</g>',
+
+    '<g id="dog-body">',
+
+    '<g id="dog-leg-back">',
+    '  <rect x="11" y="30" width="6" height="14" rx="3" fill="#b8904a" stroke="#7a5530" stroke-width="1"/>',
+    '  <ellipse cx="14" cy="44" rx="5" ry="3" fill="#a07838" stroke="#7a5530" stroke-width="1"/>',
+    '</g>',
+
+    '<rect x="10" y="16" width="28" height="18" rx="9" fill="#d4a96a" stroke="#7a5530" stroke-width="1.5"/>',
+    '<ellipse cx="24" cy="28" rx="9" ry="5" fill="#f0d090" opacity="0.7"/>',
+
+    '<g id="dog-leg-front">',
+    '  <rect x="27" y="30" width="6" height="14" rx="3" fill="#c8a06a" stroke="#7a5530" stroke-width="1"/>',
+    '  <ellipse cx="30" cy="44" rx="5" ry="3" fill="#a07838" stroke="#7a5530" stroke-width="1"/>',
+    '</g>',
+
+    '<rect x="30" y="12" width="10" height="12" rx="5" fill="#c89850" stroke="#7a5530" stroke-width="1.2"/>',
+    '<ellipse cx="38" cy="10" rx="10" ry="9" fill="#d4a96a" stroke="#7a5530" stroke-width="1.5"/>',
+    '<ellipse cx="46" cy="13" rx="5" ry="4" fill="#e8c080" stroke="#7a5530" stroke-width="1"/>',
+    '<ellipse cx="50" cy="12" rx="2.2" ry="1.8" fill="#4a2a10"/>',
+    '<circle cx="42" cy="8" r="2.2" fill="#2a1a08"/>',
+    '<circle cx="42.8" cy="7.3" r="0.7" fill="#fff"/>',
+
+    '<g id="dog-ear">',
+    '  <path d="M36 4 Q40 0 44 3 Q42 8 38 9Z"',
+    '    fill="#b87840" stroke="#7a5530" stroke-width="1" stroke-linejoin="round"/>',
+    '</g>',
+
+    '<rect x="31" y="16" width="10" height="3.5" rx="1.8" fill="#2a7a40" stroke="#1a5030" stroke-width="0.8"/>',
+    '<circle cx="36" cy="17.8" r="1.2" fill="#f0c830"/>',
+
+    '</g>',
+    '</svg>',
+  ].join('');
+
+  document.body.appendChild(cursorEl);
+
+  var mouseX = window.innerWidth  / 2;
+  var mouseY = window.innerHeight / 2;
+  var dogX   = mouseX;
+  var dogY   = mouseY;
+  var facingRight = true;
+  var isClicking  = false;
+
+  var STOP_DIST = 5;
+  var SPEED     = 0.13;
+  var WALK_DIST = 7;
+
+  document.addEventListener('mousemove', function (e) {
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+  });
+
+  document.addEventListener('mousedown', function () {
+    isClicking = true;
+    setClass('clicking');
+    setTimeout(function () { isClicking = false; }, 300);
+  });
+
+  function setFacing(right) {
+    if (right === facingRight) return;
+    facingRight = right;
+    var svg = document.getElementById('dog-svg');
+    svg.style.transform = right ? 'scaleX(1)' : 'scaleX(-1)';
+  }
+
+  function setClass(cls) { cursorEl.className = cls; }
+
+  function loop() {
+    if (!isClicking) {
+      var dx   = mouseX - dogX;
+      var dy   = mouseY - dogY;
+      var dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist > STOP_DIST) {
+        var speed = Math.min(dist * SPEED, 18);
+        dogX += (dx / dist) * speed;
+        dogY += (dy / dist) * speed;
+        setFacing(dx > 0);
+        setClass(dist > WALK_DIST ? 'walking' : 'idle');
+      } else {
+        setClass('idle');
+      }
+    }
+
+    cursorEl.style.left = dogX + 'px';
+    cursorEl.style.top  = dogY + 'px';
+    requestAnimationFrame(loop);
+  }
+
+  cursorEl.style.left = dogX + 'px';
+  cursorEl.style.top  = dogY + 'px';
+  setClass('idle');
+  loop();
+
+}());
+
+/* ════════════════════════════════════
    LOGIN FORM
 ════════════════════════════════════ */
 const loginForm     = document.getElementById('loginForm');
