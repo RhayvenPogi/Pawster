@@ -1,0 +1,436 @@
+/* ─── Reset ─── */
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  font-family: 'Nunito', sans-serif;
+  overflow: hidden;
+}
+
+/* ════════════════════════════════════
+   NAVBAR
+════════════════════════════════════ */
+.navbar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.8rem;
+}
+
+.nav-signin {
+  background: none;
+  border: none;
+  border-bottom: 2.5px solid #1c4f09;
+  font-family: 'Nunito', sans-serif;
+  font-size: 1rem;
+  font-weight: 800;
+  color: #1c4f09;
+  padding: 0.2rem 0.4rem 0.3rem;
+  cursor: pointer;
+  letter-spacing: 0.01em;
+}
+
+.nav-register {
+  background: #1c4f09;
+  color: #fff;
+  border: none;
+  border-radius: 50px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 1rem;
+  font-weight: 800;
+  padding: 0.55rem 1.8rem;
+  cursor: pointer;
+  transition: background 0.18s;
+}
+
+.nav-register:hover {
+  background: #143806;
+}
+
+.nav-logo-wrap {
+  display: flex;
+  align-items: center;
+}
+
+.nav-logo-wrap img {
+  width: 46px;
+  height: 46px;
+  object-fit: contain;
+}
+
+/* ════════════════════════════════════
+   PAGE — two column flex
+════════════════════════════════════ */
+.page {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+}
+
+/* ════════════════════════════════════
+   LEFT PANEL
+════════════════════════════════════ */
+.left-panel {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: 3.5rem;
+  overflow: hidden;
+
+  /* Green to orange gradient — exactly like the screenshot */
+  background:
+    radial-gradient(ellipse at 60% 10%,  #b5d96a 0%,  transparent 50%),
+    radial-gradient(ellipse at 10% 50%,  #5aaa1a 0%,  transparent 55%),
+    radial-gradient(ellipse at 80% 90%,  #e8a030 0%,  transparent 50%),
+    radial-gradient(ellipse at 20% 100%, #e07820 0%,  transparent 55%),
+    #a8d050;
+}
+
+/* Paw watermarks */
+.left-panel::before,
+.left-panel::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0.18;
+  background: #c8a040;
+}
+
+.hero-text {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  padding: 0 2rem;
+  max-width: 560px;
+}
+
+.hero-title {
+  font-size: clamp(2.6rem, 4.5vw, 4rem);
+  font-weight: 900;
+  color: #1c4f09;
+  line-height: 1.0;
+  text-transform: uppercase;
+  letter-spacing: -0.5px;
+}
+
+.hero-subtitle {
+  margin-top: 1.1rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #2a5e10;
+  line-height: 1.65;
+  max-width: 400px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Dog mascot — bottom-centered, large */
+.dog-img {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  height: 76%;
+  max-height: 600px;
+  width: auto;
+  object-fit: contain;
+  z-index: 3;
+  filter: drop-shadow(0 8px 24px rgba(0,0,0,0.12));
+}
+
+/* Decorative paw shapes behind the dog */
+.left-panel .paw-deco {
+  position: absolute;
+  background: #c8a040;
+  opacity: 0.22;
+  border-radius: 50%;
+}
+
+/* ════════════════════════════════════
+   RIGHT PANEL
+════════════════════════════════════ */
+.right-panel {
+  width: 520px;
+  min-width: 480px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 2rem 3.2rem 2rem 3rem;
+  overflow-y: auto;
+
+  /* Warm cream gradient — matches screenshot right side */
+  background: linear-gradient(170deg, #fef8ec 0%, #f5e8c0 45%, #edd9a0 100%);
+}
+
+/* ════════════════════════════════════
+   FORM HEADING
+════════════════════════════════════ */
+.form-title {
+  font-size: 2.4rem;
+  font-weight: 900;
+  color: #1c4f09;
+  text-align: center;
+  margin-bottom: 0.45rem;
+  line-height: 1.1;
+}
+
+.form-subtitle {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #3a6020;
+  text-align: center;
+  line-height: 1.55;
+  margin-bottom: 1.8rem;
+}
+
+/* ════════════════════════════════════
+   ALERTS
+════════════════════════════════════ */
+.alert {
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.alert-error {
+  background: #fde8e8;
+  color: #b83030;
+  border: 1px solid #f0a0a0;
+}
+
+.alert-success {
+  background: #e6f5dc;
+  color: #276010;
+  border: 1px solid #90d060;
+}
+
+/* ════════════════════════════════════
+   FORM FIELDS
+════════════════════════════════════ */
+.field {
+  position: relative;
+  margin-bottom: 1.3rem;
+}
+
+/* Floating label — sits on top of the border line */
+.field-label {
+  position: absolute;
+  top: -0.58rem;
+  left: 0.85rem;
+  font-size: 0.73rem;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  font-style: italic;
+  color: #2a5e10;
+
+  /* background matches the right panel gradient — hides the border behind the label */
+  background: linear-gradient(to bottom, #fef5e4, #f2e2b0);
+  padding: 0 0.35rem;
+  line-height: 1.2;
+  z-index: 1;
+}
+
+.field-input {
+  display: block;
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border: 2px solid #5aaa30;
+  border-radius: 10px;
+  background: transparent;
+  font-family: 'Nunito', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #222;
+  outline: none;
+  transition: border-color 0.18s, box-shadow 0.18s;
+}
+
+.field-input::placeholder {
+  color: #a09060;
+  font-style: italic;
+  font-weight: 600;
+}
+
+.field-input:focus {
+  border-color: #1c4f09;
+  box-shadow: 0 0 0 3px rgba(28, 79, 9, 0.1);
+}
+
+.field-input.error {
+  border-color: #d04040;
+}
+
+.field-error {
+  display: block;
+  font-size: 0.77rem;
+  font-weight: 700;
+  color: #c03030;
+  margin-top: 0.3rem;
+  padding-left: 0.2rem;
+  min-height: 1rem;
+}
+
+/* ════════════════════════════════════
+   REMEMBER ME + FORGOT PASSWORD
+════════════════════════════════════ */
+.form-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.4rem;
+}
+
+.remember-label {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #222;
+  cursor: pointer;
+  user-select: none;
+}
+
+.remember-check {
+  width: 20px;
+  height: 20px;
+  accent-color: #1c4f09;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.forgot-btn {
+  background: none;
+  border: none;
+  font-family: 'Nunito', sans-serif;
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: #c87820;
+  cursor: pointer;
+  padding: 0;
+  transition: opacity 0.15s;
+}
+
+.forgot-btn:hover {
+  text-decoration: underline;
+  opacity: 0.85;
+}
+
+/* ════════════════════════════════════
+   SIGN IN BUTTON
+════════════════════════════════════ */
+.signin-btn {
+  display: block;
+  width: 100%;
+  padding: 1.05rem;
+  background: #1c4f09;
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: background 0.18s, transform 0.15s, box-shadow 0.15s;
+}
+
+.signin-btn:hover:not(:disabled) {
+  background: #143806;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(28, 79, 9, 0.28);
+}
+
+.signin-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+/* ════════════════════════════════════
+   DIVIDER
+════════════════════════════════════ */
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1.3rem 0;
+}
+
+.divider-line {
+  flex: 1;
+  height: 1.5px;
+  background: #c0a060;
+}
+
+.divider-text {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #6a7a50;
+  white-space: nowrap;
+}
+
+/* ════════════════════════════════════
+   SOCIAL BUTTONS
+════════════════════════════════════ */
+.social-row {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 1.3rem;
+}
+
+.social-btn {
+  width: 62px;
+  height: 62px;
+  border-radius: 14px;
+  border: 1.5px solid #d8c888;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.18s;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+}
+
+.social-btn:hover {
+  border-color: #a09060;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.13);
+}
+
+/* ════════════════════════════════════
+   FOOTER TEXT
+════════════════════════════════════ */
+.footer-text {
+  text-align: center;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #3a6020;
+}
+
+.footer-link {
+  color: #c87820;
+  font-style: italic;
+  font-weight: 800;
+  text-decoration: none;
+  margin-left: 0.2rem;
+}
+
+.footer-link:hover {
+  text-decoration: underline;
+}
