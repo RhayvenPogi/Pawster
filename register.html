@@ -36,6 +36,36 @@
     </a>
   </nav>
 
+  <div id="termsModal" class="modal-overlay" role="dialog" aria-modal="true" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-header-icon">
+        <svg width="28" height="28" viewBox="0 0 100 100" fill="#5a8a30"><ellipse cx="50" cy="66" rx="24" ry="21"/><ellipse cx="25" cy="43" rx="11" ry="14" transform="rotate(-14 25 43)"/><ellipse cx="43" cy="33" rx="11" ry="14" transform="rotate(-5 43 33)"/><ellipse cx="62" cy="33" rx="11" ry="14" transform="rotate(5 62 33)"/><ellipse cx="78" cy="43" rx="10" ry="13" transform="rotate(14 78 43)"/></svg>
+      </div>
+      <div>
+        <h2 class="modal-title">Terms of Service &amp; Privacy Policy</h2>
+        <p class="modal-subtitle">Pawster &mdash; Last updated March 2026</p>
+      </div>
+      <button class="modal-close" id="modalClose">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-section"><h3>1. Acceptance of Terms</h3><p>By creating an account on Pawster, you agree to these Terms and our Privacy Policy.</p></div>
+      <div class="modal-section"><h3>2. Purpose</h3><p>Pawster connects adopters with rescue organizations. We are not responsible for individual shelter or adopter actions.</p></div>
+      <div class="modal-section"><h3>3. Eligibility</h3><p>You must be at least 18 years of age to register.</p></div>
+      <div class="modal-section"><h3>4. Identity Verification</h3><p>Your government-issued ID is stored securely and only accessible to authorized Pawster staff.</p></div>
+      <div class="modal-section"><h3>5. User Responsibilities</h3><p>You agree to provide accurate information and are responsible for your account security.</p></div>
+      <div class="modal-section"><h3>6. Privacy &amp; Data Use</h3><p>We do not sell your data. We collect:</p><ul><li>Name, email, phone &mdash; for account management</li><li>Address &mdash; to match you with nearby animals</li><li>Government ID &mdash; identity verification only</li></ul></div>
+      <div class="modal-section"><h3>7. Prohibited Conduct</h3><p>You may not use Pawster for unlawful purposes, to harm animals or users, or to submit false information.</p></div>
+      <div class="modal-section"><h3>8. Termination</h3><p>We may suspend accounts that violate these Terms or pose a risk to animal welfare.</p></div>
+      <div class="modal-section"><h3>9. Limitation of Liability</h3><p>Pawster is provided "as is." We are not liable for damages from platform use.</p></div>
+      <div class="modal-section"><h3>10. Contact</h3><p>Questions? Email <a href="mailto:support@pawster.com" class="modal-link">support@pawster.com</a>.</p></div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-btn-decline" id="modalDecline">Decline</button>
+      <button class="modal-btn-accept" id="modalAccept">I Accept</button>
+    </div>
+  </div>
+</div>
   <!-- ═══════════════════════════════
        PAGE WRAPPER
   ════════════════════════════════ -->
@@ -249,7 +279,7 @@
           <input type="checkbox" id="termsCheck" class="terms-check" />
           <span>
             I agree the
-            <a href="terms.html" class="terms-link">Terms of Service and Privacy</a>
+            <a href="#" class="terms-link" id="termsLink">Terms of Service and Privacy Policy</a>
             and understand that my information will be used to evaluate my adoption readiness
           </span>
         </label>

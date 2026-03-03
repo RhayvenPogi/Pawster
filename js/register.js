@@ -486,6 +486,8 @@ function clearAlerts() {
   }
 }
 
+
+
 /* ════════════════════════════════════
    CLEAR ERRORS ON INPUT
 ════════════════════════════════════ */
@@ -499,3 +501,48 @@ document.querySelectorAll('.field-input').forEach(function (input) {
     }
   });
 });
+
+/* ════════════════════════════════════
+   TERMS & CONDITIONS MODAL
+════════════════════════════════════ */
+(function () {
+  var modal      = document.getElementById('termsModal');
+  var termsLink  = document.getElementById('termsLink');
+  var closeBtn   = document.getElementById('modalClose');
+  var declineBtn = document.getElementById('modalDecline');
+  var acceptBtn  = document.getElementById('modalAccept');
+  var termsCheck = document.getElementById('termsCheck');
+
+  function openModal(e) {
+    e.preventDefault();
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  }
+  function closeModal() {
+    modal.style.display = 'none';
+    document.body.style.overflow = '';
+  }
+
+  termsLink.addEventListener('click', openModal);
+  closeBtn.addEventListener('click', closeModal);
+
+  declineBtn.addEventListener('click', function () {
+    termsCheck.checked = false;
+    closeModal();
+  });
+
+  acceptBtn.addEventListener('click', function () {
+    termsCheck.checked = true;
+    var err = document.getElementById('termsError');
+    if (err) err.textContent = '';
+    closeModal();
+  });
+
+  modal.addEventListener('click', function (e) {
+    if (e.target === modal) closeModal();
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && modal.style.display === 'flex') closeModal();
+  });
+}());
