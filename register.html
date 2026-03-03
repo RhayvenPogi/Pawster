@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,27 +8,34 @@
   <link rel="stylesheet" href="css/register.css" />
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
 </head>
+
 <body>
 
-  <!-- ═══════════════════════════════
-       MESH BACKGROUND
-  ════════════════════════════════ -->
   <div class="mesh-container">
     <div class="mesh-base"></div>
-    <div class="orb-wrap orb-wrap-1"><div class="orb" id="o1"></div></div>
-    <div class="orb-wrap orb-wrap-2"><div class="orb" id="o2"></div></div>
-    <div class="orb-wrap orb-wrap-3"><div class="orb" id="o3"></div></div>
-    <div class="orb-wrap orb-wrap-4"><div class="orb" id="o4"></div></div>
-    <div class="orb-wrap orb-wrap-5"><div class="orb" id="o5"></div></div>
-    <div class="orb-wrap orb-wrap-6"><div class="orb" id="o6"></div></div>
+    <div class="orb-wrap orb-wrap-1">
+      <div class="orb" id="o1"></div>
+    </div>
+    <div class="orb-wrap orb-wrap-2">
+      <div class="orb" id="o2"></div>
+    </div>
+    <div class="orb-wrap orb-wrap-3">
+      <div class="orb" id="o3"></div>
+    </div>
+    <div class="orb-wrap orb-wrap-4">
+      <div class="orb" id="o4"></div>
+    </div>
+    <div class="orb-wrap orb-wrap-5">
+      <div class="orb" id="o5"></div>
+    </div>
+    <div class="orb-wrap orb-wrap-6">
+      <div class="orb" id="o6"></div>
+    </div>
     <div class="mesh-grid"></div>
     <div class="grain"></div>
     <div class="vignette"></div>
   </div>
 
-  <!-- ═══════════════════════════════
-       NAVBAR
-  ════════════════════════════════ -->
   <nav class="navbar">
     <button class="nav-signin" onclick="window.location.href='login.html'">Sign in</button>
     <button class="nav-register">Register</button>
@@ -37,38 +45,78 @@
   </nav>
 
   <div id="termsModal" class="modal-overlay" role="dialog" aria-modal="true" style="display:none;">
-  <div class="modal-box">
-    <div class="modal-header">
-      <div class="modal-header-icon">
-        <svg width="28" height="28" viewBox="0 0 100 100" fill="#5a8a30"><ellipse cx="50" cy="66" rx="24" ry="21"/><ellipse cx="25" cy="43" rx="11" ry="14" transform="rotate(-14 25 43)"/><ellipse cx="43" cy="33" rx="11" ry="14" transform="rotate(-5 43 33)"/><ellipse cx="62" cy="33" rx="11" ry="14" transform="rotate(5 62 33)"/><ellipse cx="78" cy="43" rx="10" ry="13" transform="rotate(14 78 43)"/></svg>
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="modal-header-icon">
+          <svg width="28" height="28" viewBox="0 0 100 100" fill="#5a8a30">
+            <ellipse cx="50" cy="66" rx="24" ry="21" />
+            <ellipse cx="25" cy="43" rx="11" ry="14" transform="rotate(-14 25 43)" />
+            <ellipse cx="43" cy="33" rx="11" ry="14" transform="rotate(-5 43 33)" />
+            <ellipse cx="62" cy="33" rx="11" ry="14" transform="rotate(5 62 33)" />
+            <ellipse cx="78" cy="43" rx="10" ry="13" transform="rotate(14 78 43)" />
+          </svg>
+        </div>
+        <div>
+          <h2 class="modal-title">Terms of Service &amp; Privacy Policy</h2>
+          <p class="modal-subtitle">Pawster &mdash; Last updated March 2026</p>
+        </div>
+        <button class="modal-close" id="modalClose">&times;</button>
       </div>
-      <div>
-        <h2 class="modal-title">Terms of Service &amp; Privacy Policy</h2>
-        <p class="modal-subtitle">Pawster &mdash; Last updated March 2026</p>
+      <div class="modal-body">
+        <div class="modal-section">
+          <h3>1. Acceptance of Terms</h3>
+          <p>By creating an account on Pawster, you agree to these Terms and our Privacy Policy.</p>
+        </div>
+        <div class="modal-section">
+          <h3>2. Purpose</h3>
+          <p>Pawster connects adopters with rescue organizations. We are not responsible for individual shelter or
+            adopter actions.</p>
+        </div>
+        <div class="modal-section">
+          <h3>3. Eligibility</h3>
+          <p>You must be at least 18 years of age to register.</p>
+        </div>
+        <div class="modal-section">
+          <h3>4. Identity Verification</h3>
+          <p>Your government-issued ID is stored securely and only accessible to authorized Pawster staff.</p>
+        </div>
+        <div class="modal-section">
+          <h3>5. User Responsibilities</h3>
+          <p>You agree to provide accurate information and are responsible for your account security.</p>
+        </div>
+        <div class="modal-section">
+          <h3>6. Privacy &amp; Data Use</h3>
+          <p>We do not sell your data. We collect:</p>
+          <ul>
+            <li>Name, email, phone &mdash; for account management</li>
+            <li>Address &mdash; to match you with nearby animals</li>
+            <li>Government ID &mdash; identity verification only</li>
+          </ul>
+        </div>
+        <div class="modal-section">
+          <h3>7. Prohibited Conduct</h3>
+          <p>You may not use Pawster for unlawful purposes, to harm animals or users, or to submit false information.
+          </p>
+        </div>
+        <div class="modal-section">
+          <h3>8. Termination</h3>
+          <p>We may suspend accounts that violate these Terms or pose a risk to animal welfare.</p>
+        </div>
+        <div class="modal-section">
+          <h3>9. Limitation of Liability</h3>
+          <p>Pawster is provided "as is." We are not liable for damages from platform use.</p>
+        </div>
+        <div class="modal-section">
+          <h3>10. Contact</h3>
+          <p>Questions? Email <a href="mailto:support@pawster.com" class="modal-link">support@pawster.com</a>.</p>
+        </div>
       </div>
-      <button class="modal-close" id="modalClose">&times;</button>
-    </div>
-    <div class="modal-body">
-      <div class="modal-section"><h3>1. Acceptance of Terms</h3><p>By creating an account on Pawster, you agree to these Terms and our Privacy Policy.</p></div>
-      <div class="modal-section"><h3>2. Purpose</h3><p>Pawster connects adopters with rescue organizations. We are not responsible for individual shelter or adopter actions.</p></div>
-      <div class="modal-section"><h3>3. Eligibility</h3><p>You must be at least 18 years of age to register.</p></div>
-      <div class="modal-section"><h3>4. Identity Verification</h3><p>Your government-issued ID is stored securely and only accessible to authorized Pawster staff.</p></div>
-      <div class="modal-section"><h3>5. User Responsibilities</h3><p>You agree to provide accurate information and are responsible for your account security.</p></div>
-      <div class="modal-section"><h3>6. Privacy &amp; Data Use</h3><p>We do not sell your data. We collect:</p><ul><li>Name, email, phone &mdash; for account management</li><li>Address &mdash; to match you with nearby animals</li><li>Government ID &mdash; identity verification only</li></ul></div>
-      <div class="modal-section"><h3>7. Prohibited Conduct</h3><p>You may not use Pawster for unlawful purposes, to harm animals or users, or to submit false information.</p></div>
-      <div class="modal-section"><h3>8. Termination</h3><p>We may suspend accounts that violate these Terms or pose a risk to animal welfare.</p></div>
-      <div class="modal-section"><h3>9. Limitation of Liability</h3><p>Pawster is provided "as is." We are not liable for damages from platform use.</p></div>
-      <div class="modal-section"><h3>10. Contact</h3><p>Questions? Email <a href="mailto:support@pawster.com" class="modal-link">support@pawster.com</a>.</p></div>
-    </div>
-    <div class="modal-footer">
-      <button class="modal-btn-decline" id="modalDecline">Decline</button>
-      <button class="modal-btn-accept" id="modalAccept">I Accept</button>
+      <div class="modal-footer">
+        <button class="modal-btn-decline" id="modalDecline">Decline</button>
+        <button class="modal-btn-accept" id="modalAccept">I Accept</button>
+      </div>
     </div>
   </div>
-</div>
-  <!-- ═══════════════════════════════
-       PAGE WRAPPER
-  ════════════════════════════════ -->
   <div class="page">
 
     <!-- LEFT PANEL -->
@@ -77,46 +125,46 @@
       <!-- PAW PRINTS DECORATION -->
       <div class="paw-layer">
         <svg class="paw paw-1" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-          <ellipse cx="50" cy="66" rx="24" ry="21"/>
-          <ellipse cx="25" cy="43" rx="11" ry="14" transform="rotate(-14 25 43)"/>
-          <ellipse cx="43" cy="33" rx="11" ry="14" transform="rotate(-5 43 33)"/>
-          <ellipse cx="62" cy="33" rx="11" ry="14" transform="rotate(5 62 33)"/>
-          <ellipse cx="78" cy="43" rx="10" ry="13" transform="rotate(14 78 43)"/>
+          <ellipse cx="50" cy="66" rx="24" ry="21" />
+          <ellipse cx="25" cy="43" rx="11" ry="14" transform="rotate(-14 25 43)" />
+          <ellipse cx="43" cy="33" rx="11" ry="14" transform="rotate(-5 43 33)" />
+          <ellipse cx="62" cy="33" rx="11" ry="14" transform="rotate(5 62 33)" />
+          <ellipse cx="78" cy="43" rx="10" ry="13" transform="rotate(14 78 43)" />
         </svg>
         <svg class="paw paw-2" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-          <ellipse cx="50" cy="66" rx="24" ry="21"/>
-          <ellipse cx="25" cy="43" rx="11" ry="14" transform="rotate(-14 25 43)"/>
-          <ellipse cx="43" cy="33" rx="11" ry="14" transform="rotate(-5 43 33)"/>
-          <ellipse cx="62" cy="33" rx="11" ry="14" transform="rotate(5 62 33)"/>
-          <ellipse cx="78" cy="43" rx="10" ry="13" transform="rotate(14 78 43)"/>
+          <ellipse cx="50" cy="66" rx="24" ry="21" />
+          <ellipse cx="25" cy="43" rx="11" ry="14" transform="rotate(-14 25 43)" />
+          <ellipse cx="43" cy="33" rx="11" ry="14" transform="rotate(-5 43 33)" />
+          <ellipse cx="62" cy="33" rx="11" ry="14" transform="rotate(5 62 33)" />
+          <ellipse cx="78" cy="43" rx="10" ry="13" transform="rotate(14 78 43)" />
         </svg>
         <svg class="paw paw-3" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-          <ellipse cx="50" cy="66" rx="24" ry="21"/>
-          <ellipse cx="25" cy="43" rx="11" ry="14" transform="rotate(-14 25 43)"/>
-          <ellipse cx="43" cy="33" rx="11" ry="14" transform="rotate(-5 43 33)"/>
-          <ellipse cx="62" cy="33" rx="11" ry="14" transform="rotate(5 62 33)"/>
-          <ellipse cx="78" cy="43" rx="10" ry="13" transform="rotate(14 78 43)"/>
+          <ellipse cx="50" cy="66" rx="24" ry="21" />
+          <ellipse cx="25" cy="43" rx="11" ry="14" transform="rotate(-14 25 43)" />
+          <ellipse cx="43" cy="33" rx="11" ry="14" transform="rotate(-5 43 33)" />
+          <ellipse cx="62" cy="33" rx="11" ry="14" transform="rotate(5 62 33)" />
+          <ellipse cx="78" cy="43" rx="10" ry="13" transform="rotate(14 78 43)" />
         </svg>
         <svg class="paw paw-4" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-          <ellipse cx="50" cy="66" rx="24" ry="21"/>
-          <ellipse cx="25" cy="43" rx="11" ry="14" transform="rotate(-14 25 43)"/>
-          <ellipse cx="43" cy="33" rx="11" ry="14" transform="rotate(-5 43 33)"/>
-          <ellipse cx="62" cy="33" rx="11" ry="14" transform="rotate(5 62 33)"/>
-          <ellipse cx="78" cy="43" rx="10" ry="13" transform="rotate(14 78 43)"/>
+          <ellipse cx="50" cy="66" rx="24" ry="21" />
+          <ellipse cx="25" cy="43" rx="11" ry="14" transform="rotate(-14 25 43)" />
+          <ellipse cx="43" cy="33" rx="11" ry="14" transform="rotate(-5 43 33)" />
+          <ellipse cx="62" cy="33" rx="11" ry="14" transform="rotate(5 62 33)" />
+          <ellipse cx="78" cy="43" rx="10" ry="13" transform="rotate(14 78 43)" />
         </svg>
         <svg class="paw paw-5" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-          <ellipse cx="50" cy="66" rx="24" ry="21"/>
-          <ellipse cx="25" cy="43" rx="11" ry="14" transform="rotate(-14 25 43)"/>
-          <ellipse cx="43" cy="33" rx="11" ry="14" transform="rotate(-5 43 33)"/>
-          <ellipse cx="62" cy="33" rx="11" ry="14" transform="rotate(5 62 33)"/>
-          <ellipse cx="78" cy="43" rx="10" ry="13" transform="rotate(14 78 43)"/>
+          <ellipse cx="50" cy="66" rx="24" ry="21" />
+          <ellipse cx="25" cy="43" rx="11" ry="14" transform="rotate(-14 25 43)" />
+          <ellipse cx="43" cy="33" rx="11" ry="14" transform="rotate(-5 43 33)" />
+          <ellipse cx="62" cy="33" rx="11" ry="14" transform="rotate(5 62 33)" />
+          <ellipse cx="78" cy="43" rx="10" ry="13" transform="rotate(14 78 43)" />
         </svg>
         <svg class="paw paw-6" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-          <ellipse cx="50" cy="66" rx="24" ry="21"/>
-          <ellipse cx="25" cy="43" rx="11" ry="14" transform="rotate(-14 25 43)"/>
-          <ellipse cx="43" cy="33" rx="11" ry="14" transform="rotate(-5 43 33)"/>
-          <ellipse cx="62" cy="33" rx="11" ry="14" transform="rotate(5 62 33)"/>
-          <ellipse cx="78" cy="43" rx="10" ry="13" transform="rotate(14 78 43)"/>
+          <ellipse cx="50" cy="66" rx="24" ry="21" />
+          <ellipse cx="25" cy="43" rx="11" ry="14" transform="rotate(-14 25 43)" />
+          <ellipse cx="43" cy="33" rx="11" ry="14" transform="rotate(-5 43 33)" />
+          <ellipse cx="62" cy="33" rx="11" ry="14" transform="rotate(5 62 33)" />
+          <ellipse cx="78" cy="43" rx="10" ry="13" transform="rotate(14 78 43)" />
         </svg>
       </div>
 
@@ -125,7 +173,7 @@
 
       <!-- HERO TEXT -->
       <div class="hero-text">
-        <h1 class="hero-title">Welcome to<br/>Pawster!</h1>
+        <h1 class="hero-title">Welcome to<br />Pawster!</h1>
         <p class="hero-subtitle">
           Join our community and start making a difference in rescued animals' lives.
         </p>
@@ -139,7 +187,6 @@
       <h2 class="form-title">Create Your Account</h2>
       <p class="form-subtitle">Join our community and start making a difference</p>
 
-      <!-- STEPPER -->
       <div class="stepper">
         <div class="step" id="step-dot-1">
           <div class="step-circle active" id="circle-1">1</div>
@@ -158,12 +205,10 @@
       </div>
 
       <!-- Alert -->
-      <div class="alert alert-error"   id="alertError"   style="display:none;"></div>
+      <div class="alert alert-error" id="alertError" style="display:none;"></div>
       <div class="alert alert-success" id="alertSuccess" style="display:none;"></div>
 
-      <!-- ══════════════════════════
-           STEP 1 — Personal Info
-      ══════════════════════════ -->
+      <!--STEP 1 -->
       <div id="step1">
 
         <div class="field-row">
@@ -208,9 +253,7 @@
 
       </div>
 
-      <!-- ══════════════════════════
-           STEP 2 — Location
-      ══════════════════════════ -->
+     <!--STEP 2 -->
       <div id="step2" style="display:none;">
 
         <div class="field">
@@ -246,16 +289,15 @@
 
       </div>
 
-      <!-- ══════════════════════════
-           STEP 3 — Verification
-      ══════════════════════════ -->
+      <!--STEP 3 -->
       <div id="step3" style="display:none;">
 
         <div class="field">
           <label class="upload-section-label">Government-Issued ID</label>
           <label class="upload-btn" for="idFile">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4a6741" stroke-width="2">
-              <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <path d="M3 9h18M9 21V9" />
             </svg>
             Choose File
             <input type="file" id="idFile" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" />
@@ -302,5 +344,5 @@
 
   <script src="js/register.js"></script>
 </body>
-</html>
 
+</html>

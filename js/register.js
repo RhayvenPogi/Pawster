@@ -1,6 +1,3 @@
-/* ════════════════════════════════════
-   MESH BACKGROUND ANIMATION
-════════════════════════════════════ */
 const orbs = [
   { el: document.getElementById('o1'), fx:  0.10, fy:  0.07 },
   { el: document.getElementById('o2'), fx: -0.12, fy:  0.09 },
@@ -29,9 +26,7 @@ function animateMesh() {
 
 animateMesh();
 
-/* ════════════════════════════════════
-   CUSTOM DOG CURSOR
-════════════════════════════════════ */
+
 (function () {
 
   var style = document.createElement('style');
@@ -202,17 +197,13 @@ animateMesh();
 
 }());
 
-/* ════════════════════════════════════
-   REGISTRATION LOGIC
-════════════════════════════════════ */
+
 let currentStep = 1;
 
 const alertError   = document.getElementById('alertError');
 const alertSuccess = document.getElementById('alertSuccess');
 
-/* ════════════════════════════════════
-   STEPPER NAVIGATION
-════════════════════════════════════ */
+
 function goToStep(step) {
   try {
     if (step > currentStep && !validateStep(currentStep)) return;
@@ -256,9 +247,6 @@ function updateStepper(step) {
   }
 }
 
-/* ════════════════════════════════════
-   VALIDATION PER STEP
-════════════════════════════════════ */
 function validateStep(step) {
   try {
     clearFieldErrors();
@@ -347,12 +335,7 @@ function validateStep(step) {
   }
 }
 
-/* ════════════════════════════════════
-   SUBMIT (Step 3)
-════════════════════════════════════ */
-/* ════════════════════════════════════
-   SUBMIT (Step 3) - REWRITTEN
-════════════════════════════════════ */
+
 function submitForm() {
   try {
     clearFieldErrors();
@@ -415,9 +398,7 @@ function submitForm() {
   }
 }
 
-/* ════════════════════════════════════
-   FILE INPUT LABEL UPDATE
-════════════════════════════════════ */
+
 document.getElementById('idFile').addEventListener('change', function () {
   try {
     const status = document.getElementById('uploadStatus');
@@ -433,9 +414,6 @@ document.getElementById('idFile').addEventListener('change', function () {
   }
 });
 
-/* ════════════════════════════════════
-   HELPERS
-════════════════════════════════════ */
 function setError(errorId, inputEl, message) {
   try {
     document.getElementById(errorId).textContent = message;
@@ -488,9 +466,6 @@ function clearAlerts() {
 
 
 
-/* ════════════════════════════════════
-   CLEAR ERRORS ON INPUT
-════════════════════════════════════ */
 document.querySelectorAll('.field-input').forEach(function (input) {
   input.addEventListener('input', function () {
     try {
@@ -502,9 +477,6 @@ document.querySelectorAll('.field-input').forEach(function (input) {
   });
 });
 
-/* ════════════════════════════════════
-   TERMS & CONDITIONS MODAL
-════════════════════════════════════ */
 (function () {
   var modal      = document.getElementById('termsModal');
   var termsLink  = document.getElementById('termsLink');
