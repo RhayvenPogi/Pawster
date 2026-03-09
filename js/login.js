@@ -184,31 +184,35 @@ if (loginForm) {
             method: 'POST',
             body: formData
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showSuccess(data.message);
-                if (rememberInput.checked) {
-                    localStorage.setItem('pawster_email', emailInput.value.trim());
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showSuccess(data.message);
+                    if (rememberInput.checked) {
+                        localStorage.setItem('pawster_email', emailInput.value.trim());
+                    } else {
+                        localStorage.removeItem('pawster_email');
+                    }
+                    setTimeout(() => {
+                        // Redirecting to dashboard in the root or php folder depending on your setup
+                        if (data.role === 'admin') {
+                            window.location.href = 'php/admin_dashboard.php';
+                        } else {
+                            window.location.href = 'php/user_dashboard.php';
+                        }
+                    }, 1500);
                 } else {
-                    localStorage.removeItem('pawster_email');
+                    showError(data.message);
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Sign in';
                 }
-                setTimeout(() => {
-                    // Redirecting to dashboard in the root or php folder depending on your setup
-                    window.location.href = 'php/dashboard.php';
-                }, 1500);
-            } else {
-                showError(data.message);
+            })
+            .catch(error => {
+                console.error('Fetch error:', error);
+                showError('Server connection failed.');
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Sign in';
-            }
-        })
-        .catch(error => {
-            console.error('Fetch error:', error);
-            showError('Server connection failed.');
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Sign in';
-        });
+            });
     });
 }
 
