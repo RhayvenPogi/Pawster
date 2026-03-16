@@ -321,11 +321,11 @@ $dashLink = $isAdmin ? 'dashboard/admin_dashboard.php' : 'dashboard/user_dashboa
   </a>
   <div class="nav-links">
     <a class="nav-link active" href="index.php"><i class="fas fa-house"></i> Home</a>
-    <a class="nav-link" href="#pets"><i class="fas fa-search"></i> Find a Pet</a>
-    <a class="nav-link" href="#how"><i class="fas fa-info-circle"></i> How It Works</a>
-    <a class="nav-link" href="#rehome"><i class="fas fa-home"></i> Rehome</a>
+    <a class="nav-link" href="find_a_pet.php"><i class="fas fa-search"></i> Find a Pet</a>
+    <a class="nav-link" href="how_it_works.php"><i class="fas fa-info-circle"></i> How It Works</a>
+    <a class="nav-link" href="rehome.php"><i class="fas fa-home"></i> Rehome</a>
     <a class="nav-link missing-link" href="missing.php"><i class="fas fa-search-location"></i> Missing Pets</a>
-    <a class="nav-link" href="#about"><i class="fas fa-paw"></i> About</a>
+    <a class="nav-link" href="about.php"><i class="fas fa-paw"></i> About</a>
   </div>
   <div class="nav-right">
     <?php if ($loggedIn): ?>
@@ -346,6 +346,7 @@ $dashLink = $isAdmin ? 'dashboard/admin_dashboard.php' : 'dashboard/user_dashboa
           </div>
           <div class="pd-divider"></div>
           <a class="pd-item" href="<?= $dashLink ?>"><i class="fas fa-th-large"></i>My Dashboard</a>
+          <a class="pd-item" href="user_dashboard.php"><i class="fas fa-cog"></i>Settings</a>
           <a class="pd-item" href="missing.php"><i class="fas fa-search-location"></i>Missing Pets</a>
           <?php if ($isAdmin): ?>
           <a class="pd-item" href="dashboard/admin_dashboard.php"><i class="fas fa-shield-alt"></i>Admin Panel</a>
@@ -371,6 +372,7 @@ $dashLink = $isAdmin ? 'dashboard/admin_dashboard.php' : 'dashboard/user_dashboa
   </div>
   <div class="wb-actions">
     <a class="wb-btn" href="<?= $dashLink ?>"><i class="fas fa-th-large"></i> Dashboard</a>
+    <a class="wb-btn" href="user_dashboard.php"><i class="fas fa-cog"></i> Settings</a>
     <a class="wb-btn wb-btn-orange" href="missing.php"><i class="fas fa-search-location"></i> Missing Pets</a>
   </div>
 </div>

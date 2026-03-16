@@ -1,0 +1,24 @@
+/* =============================================
+   PAWSTER — FIND A PET
+   find_a_pet.css
+   ============================================= */
+
+.animals-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1.2rem;margin-top:2rem;}
+    .animal-card{background:var(--surface);backdrop-filter:blur(14px);border:1.5px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);transition:transform 0.22s,box-shadow 0.22s,border-color 0.22s;cursor:pointer;}
+    .animal-card:hover{transform:translateY(-5px);box-shadow:var(--shadow-lg);border-color:rgba(90,170,48,0.42);}
+    .ac-img{height:180px;display:flex;align-items:center;justify-content:center;font-size:5rem;background:linear-gradient(135deg,rgba(255,248,220,0.6),rgba(255,240,200,0.4));border-bottom:1.5px solid var(--border);position:relative;}
+    .ac-status{position:absolute;top:10px;right:10px;padding:3px 10px;border-radius:50px;font-size:10px;font-weight:800;text-transform:uppercase;}
+    .s-available{background:rgba(88,139,65,0.88);color:#fff;}
+    .s-pending  {background:rgba(180,90,34,0.88);color:#fff;}
+    .s-adopted  {background:rgba(100,100,100,0.8);color:#fff;}
+    .ac-body{padding:1rem 1.1rem 1.2rem;}
+    .ac-name{font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:800;color:var(--green-dark);}
+    .ac-meta{font-size:0.72rem;font-weight:700;color:var(--text-muted);margin-top:0.2rem;font-family:'DM Mono',monospace;}
+    .ac-btn{display:flex;align-items:center;justify-content:center;gap:0.4rem;margin-top:0.85rem;padding:0.55rem;background:rgba(28,79,9,0.08);border:1.5px solid rgba(90,170,48,0.3);border-radius:9px;font-size:0.78rem;font-weight:800;color:var(--green-mid);transition:all 0.18s;cursor:pointer;width:100%;font-family:'Nunito',sans-serif;}
+    .animal-card:hover .ac-btn{background:var(--green-mid);color:#fff;border-color:var(--green-mid);}
+    .filter-bar{background:var(--surface);backdrop-filter:blur(14px);border:1.5px solid var(--border);border-radius:var(--radius);padding:1.2rem 1.4rem;display:flex;gap:1rem;align-items:center;flex-wrap:wrap;margin-bottom:0.5rem;}
+    .filter-bar input,.filter-bar select{background:rgba(255,250,232,0.7);border:1.5px solid var(--border);border-radius:10px;padding:0.6rem 0.9rem;font-family:'Nunito',sans-serif;font-size:0.86rem;font-weight:600;color:var(--text);outline:none;transition:all 0.18s;}
+    .filter-bar input{flex:1;min-width:180px;}
+    .filter-bar input:focus,.filter-bar select:focus{border-color:var(--green-border);box-shadow:0 0 0 3px rgba(90,170,48,0.12);}
+    .empty-state{text-align:center;padding:4rem 2rem;color:var(--text-muted);}
+    .empty-state i{font-size:3rem;opacity:0.3;display:block;margin-bottom:1rem;}
