@@ -198,7 +198,7 @@ if (loginForm) {
                         if (data.role === 'admin') {
                             window.location.href = 'php/admin_dashboard.php';
                         } else {
-                            window.location.href = 'php/user_dashboard.php';
+                            window.location.href = 'php/index.php';
                         }
                     }, 1500);
                 } else {
