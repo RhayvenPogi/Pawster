@@ -93,22 +93,22 @@ animateMesh();
     loop();
 }());
 
-// --- 3. Login Logic (Email/Password Only) ---
-const loginForm = document.getElementById('loginForm');
-const emailInput = document.getElementById('email');
+// --- 3. Login Logic ---
+const loginForm     = document.getElementById('loginForm');
+const emailInput    = document.getElementById('email');
 const passwordInput = document.getElementById('password');
 const rememberInput = document.getElementById('remember');
-const emailError = document.getElementById('emailError');
+const emailError    = document.getElementById('emailError');
 const passwordError = document.getElementById('passwordError');
-const alertError = document.getElementById('alertError');
-const alertSuccess = document.getElementById('alertSuccess');
-const submitBtn = document.getElementById('submitBtn');
+const alertError    = document.getElementById('alertError');
+const alertSuccess  = document.getElementById('alertSuccess');
+const submitBtn     = document.getElementById('submitBtn');
 
 function validate() {
     let valid = true;
-    if (emailError) emailError.textContent = '';
+    if (emailError)    emailError.textContent    = '';
     if (passwordError) passwordError.textContent = '';
-    if (emailInput) emailInput.classList.remove('error');
+    if (emailInput)    emailInput.classList.remove('error');
     if (passwordInput) passwordInput.classList.remove('error');
 
     if (emailInput && !emailInput.value.trim()) {
@@ -130,27 +130,18 @@ function validate() {
 }
 
 function clearAlerts() {
-    if (alertError) alertError.style.display = 'none';
+    if (alertError)   alertError.style.display   = 'none';
     if (alertSuccess) alertSuccess.style.display = 'none';
 }
-
 function showSuccess(msg) {
-    if (alertSuccess) {
-        alertSuccess.textContent = msg;
-        alertSuccess.style.display = 'block';
-    }
-    if (alertError) alertError.style.display = 'none';
+    if (alertSuccess) { alertSuccess.textContent = msg; alertSuccess.style.display = 'block'; }
+    if (alertError)   alertError.style.display = 'none';
 }
-
 function showError(msg) {
-    if (alertError) {
-        alertError.textContent = msg;
-        alertError.style.display = 'block';
-    }
+    if (alertError) { alertError.textContent = msg; alertError.style.display = 'block'; }
     if (alertSuccess) alertSuccess.style.display = 'none';
 }
 
-// Attach listeners only if elements exist (Dashboard safety)
 if (emailInput) {
     emailInput.addEventListener('input', () => {
         emailError.textContent = '';
@@ -158,7 +149,6 @@ if (emailInput) {
         clearAlerts();
     });
 }
-
 if (passwordInput) {
     passwordInput.addEventListener('input', () => {
         passwordError.textContent = '';
@@ -173,45 +163,51 @@ if (loginForm) {
         e.preventDefault();
         if (!validate()) return;
 
-        submitBtn.disabled = true;
+        submitBtn.disabled    = true;
         submitBtn.textContent = 'Signing in...';
 
         const formData = new FormData();
-        formData.append('email', emailInput.value.trim());
+        formData.append('email',    emailInput.value.trim());
         formData.append('password', passwordInput.value);
 
-        fetch('php/login.php', {
-            method: 'POST',
-            body: formData
-        })
-            .then(response => response.json())
-            .then(data => {
+        fetch('php/login.php', { method: 'POST', body: formData })
+
+            // Read raw text first — if PHP prints a warning before the JSON
+            // response.json() would crash. This way we strip it and still parse.
+            .then(response => response.text())
+            .then(raw => {
+                const jsonStart = raw.indexOf('{');
+                if (jsonStart === -1) {
+                    const preview = raw.replace(/<[^>]+>/g, '').trim().slice(0, 150);
+                    showError('Server error: ' + (preview || 'Unexpected response.'));
+                    submitBtn.disabled = false; submitBtn.textContent = 'Sign in';
+                    return;
+                }
+
+                const data = JSON.parse(raw.slice(jsonStart));
+
                 if (data.success) {
                     showSuccess(data.message);
-                    if (rememberInput.checked) {
+                    if (rememberInput && rememberInput.checked) {
                         localStorage.setItem('pawster_email', emailInput.value.trim());
                     } else {
                         localStorage.removeItem('pawster_email');
                     }
                     setTimeout(() => {
-                        // Redirecting to dashboard in the root or php folder depending on your setup
-                        if (data.role === 'admin') {
-                            window.location.href = 'php/admin_dashboard.php';
-                        } else {
-                            window.location.href = 'php/user_dashboard.php';
-                        }
+                        // Use the redirect path the server tells us
+                        // admin  → php/admin_dashboard.php
+                        // user   → php/index.php
+                        window.location.href = data.redirect;
                     }, 1500);
                 } else {
                     showError(data.message);
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = 'Sign in';
+                    submitBtn.disabled = false; submitBtn.textContent = 'Sign in';
                 }
             })
             .catch(error => {
                 console.error('Fetch error:', error);
-                showError('Server connection failed.');
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Sign in';
+                showError('Server connection failed. Please try again.');
+                submitBtn.disabled = false; submitBtn.textContent = 'Sign in';
             });
     });
 }
