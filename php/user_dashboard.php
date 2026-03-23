@@ -8,6 +8,12 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+// Block direct access — this file must be included, not accessed directly
+if (basename($_SERVER['PHP_SELF']) === 'user_dashboard.php') {
+    header('Location: index.php');
+    exit;
+}
+
 if (empty($_SESSION['user_id'])) {
     return;
 }

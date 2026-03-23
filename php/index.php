@@ -109,16 +109,16 @@ $email = htmlspecialchars($_SESSION['email'] ?? '');
           </div>
           <div class="pd-divider"></div>
           <?php if ($isAdmin): ?>
-            <a class="pd-item" href="admin_dashboard.php"><i class="fas fa-th-large"></i>My Dashboard</a>
+            <a class="pd-item" href="admin_dashboard.php"><i class="fas fa-th-large"></i> My Dashboard</a>
           <?php else: ?>
-            <a class="pd-item" href="#" onclick="openDashboard();return false;"><i class="fas fa-th-large"></i>My Dashboard</a>
+            <a class="pd-item" href="#" onclick="openDashboard();return false;"><i class="fas fa-th-large"></i> My Dashboard</a>
           <?php endif; ?>
-          <a class="pd-item" href="missing.php"><i class="fas fa-search-location"></i>Missing Pets</a>
+          <a class="pd-item" href="missing.php"><i class="fas fa-search-location"></i> Missing Pets</a>
           <?php if ($isAdmin): ?>
-            <a class="pd-item" href="admin_dashboard.php"><i class="fas fa-shield-alt"></i>Admin Panel</a>
+            <a class="pd-item" href="admin_dashboard.php"><i class="fas fa-shield-alt"></i> Admin Panel</a>
           <?php endif; ?>
           <div class="pd-divider"></div>
-          <a class="pd-item danger" href="logout.php"><i class="fas fa-sign-out-alt"></i>Log Out</a>
+          <a class="pd-item danger" href="logout.php"><i class="fas fa-sign-out-alt"></i> Log Out</a>
         </div>
       </div>
       <a class="nav-logout" href="logout.php"><i class="fas fa-sign-out-alt"></i> Log Out</a>
