@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "php"
+		},
+		{
+			"path": "react"
+		},
+		{
+			"path": "sb"
+		}
+	],
+	"settings": {
+		"java.compile.nullAnalysis.mode": "automatic"
+	}
+}
