@@ -8,6 +8,9 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
   <link rel="stylesheet" href="../css/pawster_pages.css"/>
   <link rel="stylesheet" href="../css/about.css"/>
+  <?php if ($loggedIn && !$isAdmin): ?>
+  <link rel="stylesheet" href="../css/user_dashboard.css"/>
+  <?php endif; ?>
 </head>
 <body>
 <div class="mesh-bg">
@@ -26,7 +29,6 @@
 
 <div class="page-wrap">
 
-  <!-- Mission -->
   <div class="sec-lbl reveal">Why We Exist</div>
   <h2 class="sec-title reveal reveal-d1">Our <em>Mission</em></h2>
   <p class="sec-sub reveal reveal-d2">Pawster was founded on the belief that every animal deserves a safe, loving home. We make adoption accessible, transparent, and joyful for families across Ilocos Norte, Ilocos Sur, La Union, and Pangasinan.</p>
@@ -54,7 +56,6 @@
     </div>
   </div>
 
-  <!-- Our Story -->
   <div style="margin-top:3rem;background:var(--surface);backdrop-filter:blur(14px);border:1.5px solid var(--border);border-radius:var(--radius);padding:2.5rem;box-shadow:var(--shadow)" class="reveal">
     <div class="sec-lbl" style="margin-bottom:0.7rem">How It All Started</div>
     <h2 class="sec-title" style="margin-bottom:1rem">Our <em>Story</em></h2>
@@ -66,7 +67,6 @@
     </p>
   </div>
 
-  <!-- Impact Stats -->
   <div style="margin-top:3rem">
     <div class="sec-lbl reveal">By the Numbers</div>
     <h2 class="sec-title reveal reveal-d1">Our <em>Impact</em></h2>
@@ -78,7 +78,6 @@
     </div>
   </div>
 
-  <!-- Team -->
   <div style="margin-top:3rem">
     <div class="sec-lbl reveal">The People Behind Pawster</div>
     <h2 class="sec-title reveal reveal-d1">Meet the <em>Team</em></h2>
@@ -104,7 +103,6 @@
     </div>
   </div>
 
-  <!-- Values -->
   <div style="margin-top:3rem">
     <div class="sec-lbl reveal">What We Stand For</div>
     <h2 class="sec-title reveal reveal-d1">Our <em>Values</em></h2>
@@ -132,7 +130,6 @@
     </div>
   </div>
 
-  <!-- Contact -->
   <div style="margin-top:3rem" id="contact">
     <div class="sec-lbl reveal">Get in Touch</div>
     <h2 class="sec-title reveal reveal-d1">Contact <em>Us</em></h2>
@@ -156,7 +153,6 @@
     </div>
   </div>
 
-  <!-- CTA -->
   <div style="text-align:center;margin-top:4rem;padding:3rem 2rem;background:var(--surface);backdrop-filter:blur(14px);border:1.5px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)" class="reveal">
     <div style="font-size:2.5rem;margin-bottom:1rem">🐾</div>
     <h2 style="font-family:'Playfair Display',serif;font-size:1.8rem;font-weight:900;color:var(--green-dark);margin-bottom:0.7rem">Join Our Mission</h2>
@@ -167,18 +163,30 @@
     </div>
   </div>
 
-</div><!-- /page-wrap -->
+</div>
 
 <footer class="site-footer">
   <div class="footer-inner">
     <div><div class="footer-logo"><i class="fas fa-paw"></i> Pawster</div><p class="footer-desc">Connecting loving homes with animals in need across the Ilocos Region.</p></div>
     <div class="footer-col"><h4>Navigate</h4><a href="index.php">Home</a><a href="find_a_pet.php">Find a Pet</a><a href="how_it_works.php">How It Works</a><a href="missing.php">Missing Pets</a></div>
-    <div class="footer-col"><h4>Actions</h4><a href="rehome.php">Rehome a Pet</a><a href="about.php">About Us</a><?php if($loggedInNav):?><a href="<?=$navDash?>">My Dashboard</a><?php else:?><a href="login.php">Log In</a><?php endif;?></div>
+    <div class="footer-col"><h4>Actions</h4><a href="rehome.php">Rehome a Pet</a><a href="about.php">About Us</a>
+      <?php if ($loggedInNav): ?>
+        <?php if ($isAdmin): ?>
+          <a href="admin_dashboard.php">My Dashboard</a>
+        <?php else: ?>
+          <a href="#" onclick="openDashboard();return false;">My Dashboard</a>
+        <?php endif; ?>
+      <?php else: ?>
+        <a href="login.php">Log In</a>
+      <?php endif; ?>
+    </div>
   </div>
   <div class="footer-bottom">&copy; 2025 Pawster. All rights reserved.</div>
 </footer>
 
 <script src="../js/about.js"></script>
-<script src="../js/pawster_pages.js"></script>   
+<script src="../js/pawster_pages.js"></script>
+
+<?php if ($loggedIn && !$isAdmin) { include 'user_dashboard.php'; } ?>
 </body>
 </html>

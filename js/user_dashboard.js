@@ -1,17 +1,47 @@
 /* =============================================
    PAWSTER — USER DASHBOARD
-   user_dashboard.js
+   js/user_dashboard.js
    ============================================= */
 
 document.addEventListener('DOMContentLoaded', () => {
   initDropdown();
+  initAppDropdown();
   initModals();
   initParallax();
   initDogCursor();
 });
 
 /* ══════════════════════════════════════════
-   DROPDOWN
+   SECTION SWITCHER
+══════════════════════════════════════════ */
+function showSection(name) {
+  // hide all sections
+  document.querySelectorAll('.dash-section').forEach(s => s.classList.remove('active'));
+
+  // show target
+  const el = document.getElementById('section-' + name);
+  if (el) el.classList.add('active');
+
+  // sync nav highlights
+  document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+  const appBtn = document.getElementById('appDropBtn');
+  if (appBtn) appBtn.classList.remove('sect-active');
+
+  if (name === 'overview') {
+    const dl = document.querySelector('.nav-link[href="user_dashboard.php"]');
+    if (dl) dl.classList.add('active');
+  }
+  if (name === 'favourites') {
+    const fl = document.getElementById('favNavLink');
+    if (fl) fl.classList.add('active');
+  }
+  if (name === 'adopted' || name === 'rehome') {
+    if (appBtn) appBtn.classList.add('sect-active');
+  }
+}
+
+/* ══════════════════════════════════════════
+   AVATAR DROPDOWN
 ══════════════════════════════════════════ */
 function initDropdown() {
   const btn  = document.getElementById('avatarBtn');
@@ -22,6 +52,8 @@ function initDropdown() {
     e.stopPropagation();
     const isOpen = drop.classList.toggle('open');
     btn.classList.toggle('open', isOpen);
+    // close app dropdown if open
+    closeAppDrop();
   });
 
   document.addEventListener('click', () => {
@@ -31,21 +63,35 @@ function initDropdown() {
 }
 
 /* ══════════════════════════════════════════
+   APPLICATIONS DROPDOWN
+══════════════════════════════════════════ */
+function initAppDropdown() {
+  document.addEventListener('click', e => {
+    const wrap = document.getElementById('appDropWrap');
+    if (wrap && !wrap.contains(e.target)) closeAppDrop();
+  });
+}
+
+function toggleAppDrop() {
+  const btn  = document.getElementById('appDropBtn');
+  const menu = document.getElementById('appSubMenu');
+  if (!btn || !menu) return;
+  const open = menu.classList.toggle('open');
+  btn.classList.toggle('open', open);
+}
+
+function closeAppDrop() {
+  const menu = document.getElementById('appSubMenu');
+  const btn  = document.getElementById('appDropBtn');
+  if (menu) menu.classList.remove('open');
+  if (btn)  btn.classList.remove('open');
+}
+
+/* ══════════════════════════════════════════
    MODALS
 ══════════════════════════════════════════ */
 function initModals() {
-  // Close on overlay click
-  document.getElementById('mEdit')?.addEventListener('click', e => {
-    if (e.target === e.currentTarget) closeAll();
-  });
-  document.getElementById('mPwd')?.addEventListener('click', e => {
-    if (e.target === e.currentTarget) closeAll();
-  });
-
-  // Escape key
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') closeAll();
-  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAll(); });
 }
 
 function openEdit() {
@@ -87,16 +133,13 @@ function saveEdit() {
   const ln = document.getElementById('eLast').value.trim();
   const em = document.getElementById('eEmail').value.trim();
 
-  // Clear errors
-  ['eFirstErr','eLastErr','eEmailErr'].forEach(id => setText(id, ''));
+  ['eFirstErr', 'eLastErr', 'eEmailErr'].forEach(id => setText(id, ''));
 
   let ok = true;
-  if (!fn) { setText('eFirstErr', 'Required.');       ok = false; }
-  if (!ln) { setText('eLastErr',  'Required.');       ok = false; }
-  if (!em) { setText('eEmailErr', 'Required.');       ok = false; }
-  else if (!/\S+@\S+\.\S+/.test(em)) {
-    setText('eEmailErr', 'Invalid email.'); ok = false;
-  }
+  if (!fn) { setText('eFirstErr', 'Required.'); ok = false; }
+  if (!ln) { setText('eLastErr',  'Required.'); ok = false; }
+  if (!em) { setText('eEmailErr', 'Required.'); ok = false; }
+  else if (!/\S+@\S+\.\S+/.test(em)) { setText('eEmailErr', 'Invalid email.'); ok = false; }
   if (!ok) return;
 
   const fd = new FormData();
@@ -130,12 +173,12 @@ function savePwd() {
   const nw   = document.getElementById('pNew').value;
   const conf = document.getElementById('pConf').value;
 
-  ['pCurErr','pNewErr','pConfErr'].forEach(id => setText(id, ''));
+  ['pCurErr', 'pNewErr', 'pConfErr'].forEach(id => setText(id, ''));
 
   let ok = true;
-  if (!cur)          { setText('pCurErr',  'Required.');                ok = false; }
-  if (nw.length < 8) { setText('pNewErr',  'Min 8 characters.');        ok = false; }
-  if (nw !== conf)   { setText('pConfErr', 'Passwords do not match.');  ok = false; }
+  if (!cur)          { setText('pCurErr',  'Required.');               ok = false; }
+  if (nw.length < 8) { setText('pNewErr',  'Min 8 characters.');       ok = false; }
+  if (nw !== conf)   { setText('pConfErr', 'Passwords do not match.'); ok = false; }
   if (!ok) return;
 
   const fd = new FormData();
@@ -149,8 +192,7 @@ function savePwd() {
       if (d.success) {
         toast('Password changed!', 'ok');
         closeAll();
-        // Clear fields
-        ['pCur','pNew','pConf'].forEach(id => {
+        ['pCur', 'pNew', 'pConf'].forEach(id => {
           const el = document.getElementById(id);
           if (el) el.value = '';
         });
@@ -176,9 +218,6 @@ function toast(msg, type = 'ok') {
   setTimeout(() => el.remove(), 3500);
 }
 
-/* ══════════════════════════════════════════
-   UTILITY
-══════════════════════════════════════════ */
 function setText(id, val) {
   const el = document.getElementById(id);
   if (el) el.textContent = val;
@@ -189,22 +228,22 @@ function setText(id, val) {
 ══════════════════════════════════════════ */
 function initParallax() {
   const orbs = [
-    { el: document.querySelector('.orb-1'), fx:  0.09, fy:  0.06 },
-    { el: document.querySelector('.orb-2'), fx: -0.11, fy:  0.08 },
-    { el: document.querySelector('.orb-3'), fx:  0.12, fy: -0.07 },
-    { el: document.querySelector('.orb-4'), fx: -0.08, fy: -0.10 },
+    { el: document.querySelector('.orb-1'), fx:  0.07, fy:  0.05 },
+    { el: document.querySelector('.orb-2'), fx: -0.09, fy:  0.06 },
+    { el: document.querySelector('.orb-3'), fx:  0.10, fy: -0.05 },
+    { el: document.querySelector('.orb-4'), fx: -0.06, fy: -0.08 },
   ];
 
   let mx = 0, my = 0, cx = 0, cy = 0;
 
   document.addEventListener('mousemove', e => {
-    mx = (e.clientX / innerWidth  - 0.5) * 80;
-    my = (e.clientY / innerHeight - 0.5) * 80;
+    mx = (e.clientX / innerWidth  - 0.5) * 70;
+    my = (e.clientY / innerHeight - 0.5) * 70;
   });
 
   (function anim() {
-    cx += (mx - cx) * 0.08;
-    cy += (my - cy) * 0.08;
+    cx += (mx - cx) * 0.07;
+    cy += (my - cy) * 0.07;
     orbs.forEach(({ el, fx, fy }) => {
       if (el) {
         el.style.marginLeft = (cx * fx) + 'px';
@@ -226,10 +265,7 @@ function initDogCursor() {
   let dX = mX, dY = mY;
   let facingRight = true, isClicking = false;
 
-  document.addEventListener('mousemove', e => {
-    mX = e.clientX;
-    mY = e.clientY;
-  });
+  document.addEventListener('mousemove', e => { mX = e.clientX; mY = e.clientY; });
 
   document.addEventListener('mousedown', () => {
     isClicking = true;

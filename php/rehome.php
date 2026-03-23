@@ -8,6 +8,9 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
   <link rel="stylesheet" href="../css/pawster_pages.css"/>
   <link rel="stylesheet" href="../css/rehome.css"/>
+  <?php if ($loggedIn && !$isAdmin): ?>
+  <link rel="stylesheet" href="../css/user_dashboard.css"/>
+  <?php endif; ?>
 </head>
 <body>
 <div class="mesh-bg">
@@ -27,7 +30,6 @@
 <div class="page-wrap">
   <div class="rehome-layout">
 
-    <!-- FORM CARD -->
     <div class="rehome-form-card reveal">
       <h3><i class="fas fa-house-heart" style="color:var(--c2)"></i> Rehoming Request Form</h3>
 
@@ -73,7 +75,7 @@
               </div>
             </div>
 
-          </div><!-- /form-grid -->
+          </div>
           <div style="margin-top:1.5rem;display:flex;gap:0.8rem;flex-wrap:wrap">
             <button type="submit" class="btn-orange" style="flex:1;justify-content:center;min-width:180px">
               <i class="fas fa-paper-plane"></i> Submit Rehoming Request
@@ -93,7 +95,6 @@
       </div>
     </div>
 
-    <!-- SIDEBAR -->
     <div class="rehome-sidebar">
       <div class="aside-card reveal">
         <h4><i class="fas fa-list-ol"></i> What Happens Next</h4>
@@ -134,18 +135,30 @@
     </div>
 
   </div>
-</div><!-- /page-wrap -->
+</div>
 
 <footer class="site-footer">
   <div class="footer-inner">
     <div><div class="footer-logo"><i class="fas fa-paw"></i> Pawster</div><p class="footer-desc">Connecting loving homes with animals in need across the Ilocos Region.</p></div>
     <div class="footer-col"><h4>Navigate</h4><a href="index.php">Home</a><a href="find_a_pet.php">Find a Pet</a><a href="how_it_works.php">How It Works</a><a href="missing.php">Missing Pets</a></div>
-    <div class="footer-col"><h4>Actions</h4><a href="rehome.php">Rehome a Pet</a><a href="about.php">About Us</a><?php if($loggedInNav):?><a href="<?=$navDash?>">My Dashboard</a><?php else:?><a href="login.php">Log In</a><?php endif;?></div>
+    <div class="footer-col"><h4>Actions</h4><a href="rehome.php">Rehome a Pet</a><a href="about.php">About Us</a>
+      <?php if ($loggedInNav): ?>
+        <?php if ($isAdmin): ?>
+          <a href="admin_dashboard.php">My Dashboard</a>
+        <?php else: ?>
+          <a href="#" onclick="openDashboard();return false;">My Dashboard</a>
+        <?php endif; ?>
+      <?php else: ?>
+        <a href="login.php">Log In</a>
+      <?php endif; ?>
+    </div>
   </div>
   <div class="footer-bottom">&copy; 2025 Pawster. All rights reserved.</div>
 </footer>
 
 <script src="../js/rehome.js"></script>
-<script src="../js/pawster_pages.js"></script>   
+<script src="../js/pawster_pages.js"></script>
+
+<?php if ($loggedIn && !$isAdmin) { include 'user_dashboard.php'; } ?>
 </body>
 </html>

@@ -345,7 +345,7 @@ $db_avatar = htmlspecialchars($profile_row['avatar']   ?? $avatar);
   </nav>
 
   <div class="sb-bottom">
-    <a href="../index.html" class="sb-back-link" title="Back to Site">
+    <a href="../php/index.php" class="sb-back-link" title="Back to Site">
       <i class="fas fa-arrow-left"></i><span>Back to Site</span>
     </a>
     <a href="logout.php" class="sb-logout-link" title="Logout">
@@ -379,7 +379,7 @@ $db_avatar = htmlspecialchars($profile_row['avatar']   ?? $avatar);
         <i class="fas fa-bell"></i>
         <span class="notif-dot" id="notif-dot" style="display:none"></span>
       </button>
-      <button class="tb-btn tb-site-btn" onclick="window.open('../index.html','_blank')">
+      <button class="tb-btn tb-site-btn" onclick="window.open('../php/index.php','_blank')">
         <i class="fas fa-external-link-alt"></i> View Site
       </button>
       <div class="tb-profile" id="tb-profile" onclick="toggleProfileDrop()">
@@ -644,6 +644,7 @@ $db_avatar = htmlspecialchars($profile_row['avatar']   ?? $avatar);
                 <button class="map-ctrl-btn" onclick="resetMapView()" title="Reset View"><i class="fas fa-compress-arrows-alt"></i></button>
               </div>
             </div>
+
 
             <!-- Map container (Leaflet renders here) -->
             <div class="map-canvas-wrap">

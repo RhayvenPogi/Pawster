@@ -1,27 +1,19 @@
 <?php
 /* =============================================
    PAWSTER — HOMEPAGE
-   php/index.php  ← lives in php/ folder
-   All paths relative to php/ (../css, ../images, etc.)
+   php/index.php
    ============================================= */
 session_start();
-
 $loggedIn  = isset($_SESSION['user_id']);
 $isAdmin   = $loggedIn && ($_SESSION['role'] ?? '') === 'admin';
-
 $firstName = '';
 $initials  = '';
 if ($loggedIn) {
     $firstName = htmlspecialchars($_SESSION['first_name'] ?? 'User');
     $lastName  = htmlspecialchars($_SESSION['last_name']  ?? '');
-    $initials  = strtoupper(
-        substr($_SESSION['first_name'] ?? 'U', 0, 1) .
-        substr($_SESSION['last_name']  ?? '',  0, 1)
-    );
+    $initials  = strtoupper(substr($_SESSION['first_name'] ?? 'U', 0, 1) . substr($_SESSION['last_name'] ?? '', 0, 1));
 }
-
-$dashLink = $isAdmin ? 'admin_dashboard.php' : 'user_dashboard.php';
-$email    = htmlspecialchars($_SESSION['email'] ?? '');
+$email = htmlspecialchars($_SESSION['email'] ?? '');
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -32,10 +24,54 @@ $email    = htmlspecialchars($_SESSION['email'] ?? '');
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,800;0,900;1,700;1,800;1,900&family=Nunito:ital,wght@0,400;0,600;0,700;0,800;0,900;1,700;1,800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
   <link rel="stylesheet" href="../css/index.css"/>
+  <?php if ($loggedIn && !$isAdmin): ?>
+  <link rel="stylesheet" href="../css/user_dashboard.css"/>
+  <?php endif; ?>
+  <style>
+  .hero-right{flex-shrink:0;width:380px;animation:heroCardIn 0.9s cubic-bezier(.22,.68,0,1.1) 0.35s both;}
+  @keyframes heroCardIn{from{opacity:0;transform:translateY(32px) scale(0.94)}to{opacity:1;transform:translateY(0) scale(1)}}
+  .hero-pet-card{position:relative;width:100%;height:520px;border-radius:28px;overflow:hidden;background:#12100a;box-shadow:0 24px 64px rgba(40,20,5,.40),0 8px 24px rgba(40,20,5,.22),0 0 0 1.5px rgba(255,220,100,.12) inset;cursor:pointer;animation:cardFloat 6s ease-in-out infinite;transition:transform 0.55s cubic-bezier(.22,.68,0,1.15),box-shadow 0.55s ease;}
+  @keyframes cardFloat{0%,100%{transform:translateY(0px) rotate(0deg)}33%{transform:translateY(-8px) rotate(0.4deg)}66%{transform:translateY(-4px) rotate(-0.3deg)}}
+  .hero-pet-card:hover{animation-play-state:paused;transform:translateY(-12px) scale(1.025) rotate(0deg);box-shadow:0 40px 80px rgba(40,20,5,.50),0 12px 32px rgba(40,20,5,.28),0 0 0 1.5px rgba(255,220,100,.22) inset;}
+  .hpc-photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;transition:opacity 0.7s cubic-bezier(.4,0,.2,1),transform 0.7s cubic-bezier(.4,0,.2,1);transform:scale(1.0);}
+  .hero-pet-card:hover .hpc-photo{opacity:0;transform:scale(1.06);}
+  .hpc-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:2;opacity:0;transition:opacity 0.7s cubic-bezier(.4,0,.2,1);}
+  .hero-pet-card:hover .hpc-video{opacity:1;}
+  .hpc-scrim{position:absolute;inset:0;z-index:3;background:linear-gradient(to top,rgba(8,5,1,.88) 0%,rgba(8,5,1,.30) 45%,transparent 70%);pointer-events:none;}
+  .hpc-dots{position:absolute;top:18px;right:18px;z-index:8;display:flex;gap:6px;align-items:center;}
+  .hpc-dot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.35);border:1.5px solid rgba(255,255,255,.25);cursor:pointer;transition:background 0.25s,transform 0.25s,width 0.35s cubic-bezier(.22,.68,0,1.3);}
+  .hpc-dot.active{background:#fff;border-color:#fff;width:22px;border-radius:4px;}
+  .hpc-live{position:absolute;top:18px;left:18px;z-index:8;display:flex;align-items:center;gap:6px;background:rgba(10,6,2,.55);backdrop-filter:blur(10px);border:1px solid rgba(255,220,80,.20);border-radius:20px;padding:4px 11px 4px 7px;font-size:.58rem;font-weight:800;color:rgba(255,235,150,.90);text-transform:uppercase;letter-spacing:.07em;opacity:0;transform:translateX(-6px);transition:opacity 0.4s ease 0.15s,transform 0.4s ease 0.15s;pointer-events:none;}
+  .hpc-live-dot{width:6px;height:6px;border-radius:50%;background:#ff5050;box-shadow:0 0 8px #ff3030;animation:livePulse 1.5s ease infinite;flex-shrink:0;}
+  @keyframes livePulse{0%,100%{box-shadow:0 0 6px #ff3030;opacity:1}50%{box-shadow:0 0 14px #ff2020;opacity:.7}}
+  .hero-pet-card:hover .hpc-live{opacity:1;transform:translateX(0);}
+  .hpc-info{position:absolute;bottom:0;left:0;right:0;z-index:5;padding:0 22px 22px;}
+  .hpc-species{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.10);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.15);border-radius:20px;padding:3px 10px;font-size:.60rem;font-weight:800;color:rgba(255,240,190,.80);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;transform:translateY(6px);opacity:.85;transition:transform 0.45s cubic-bezier(.22,.68,0,1.15),opacity 0.45s ease;}
+  .hero-pet-card:hover .hpc-species{transform:translateY(0);opacity:1;}
+  .hpc-name{font-family:'Playfair Display',serif;font-size:2.2rem;font-weight:900;color:#fff;line-height:1.1;letter-spacing:-.5px;text-shadow:0 2px 16px rgba(0,0,0,.5);transform:translateY(4px);transition:transform 0.45s cubic-bezier(.22,.68,0,1.15) 0.05s;}
+  .hero-pet-card:hover .hpc-name{transform:translateY(0);}
+  .hpc-breed{font-size:.75rem;font-weight:700;color:rgba(255,230,160,.60);font-family:'DM Mono',monospace;margin-top:4px;transform:translateY(4px);transition:transform 0.45s cubic-bezier(.22,.68,0,1.15) 0.08s;}
+  .hero-pet-card:hover .hpc-breed{transform:translateY(0);}
+  .hpc-badge{margin-top:12px;display:inline-flex;align-items:center;gap:6px;padding:5px 12px 5px 8px;border-radius:20px;font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;background:rgba(70,190,30,.18);color:#9de860;border:1px solid rgba(80,200,30,.32);transform:translateY(8px);opacity:0;transition:transform 0.45s cubic-bezier(.22,.68,0,1.15) 0.12s,opacity 0.35s ease 0.12s;}
+  .hpc-badge::before{content:'';width:6px;height:6px;border-radius:50%;background:#6cde28;box-shadow:0 0 7px #6cde28;flex-shrink:0;animation:dotPulse 2s ease infinite;}
+  .hpc-badge.pending{background:rgba(180,90,30,.18);color:#f0a060;border-color:rgba(200,100,25,.30);}
+  .hpc-badge.pending::before{background:#e07820;box-shadow:0 0 7px #e07820;}
+  .hero-pet-card:hover .hpc-badge{opacity:1;transform:translateY(0);}
+  .hpc-cta{position:absolute;bottom:22px;right:22px;z-index:6;display:inline-flex;align-items:center;gap:7px;background:#fff;color:#15100a;font-family:'Nunito',sans-serif;font-size:.78rem;font-weight:900;padding:9px 16px;border-radius:50px;text-decoration:none;letter-spacing:.02em;box-shadow:0 4px 20px rgba(0,0,0,.35);transform:translateY(14px);opacity:0;transition:transform 0.50s cubic-bezier(.22,.68,0,1.25) 0.10s,opacity 0.35s ease 0.10s,background 0.2s,color 0.2s;}
+  .hpc-cta:hover{background:#6cde28;color:#0a1a04;}
+  .hero-pet-card:hover .hpc-cta{opacity:1;transform:translateY(0);}
+  .fp-card{border-radius:20px;overflow:hidden;border:1.5px solid var(--border);box-shadow:var(--shadow);background:var(--surface);transition:transform 0.38s cubic-bezier(.22,.68,0,1.2),box-shadow 0.38s ease,border-color 0.25s;cursor:pointer;}
+  .fp-card:hover{transform:translateY(-7px);box-shadow:var(--shadow-lg);border-color:rgba(90,170,48,.55);}
+  .fp-img{height:185px;overflow:hidden;display:block;position:relative;background:#2a1e0a;border-bottom:1.5px solid var(--border);}
+  .fp-img img{width:100%;height:100%;object-fit:cover;display:block;transition:transform 0.55s cubic-bezier(.22,.68,0,1.15);}
+  .fp-card:hover .fp-img img{transform:scale(1.08);}
+  .fp-species{position:absolute;top:10px;left:10px;z-index:2;background:rgba(10,6,2,.55);backdrop-filter:blur(8px);color:#f0e0b0;font-size:.60rem;font-weight:800;padding:3px 9px;border-radius:20px;border:1px solid rgba(255,220,120,.20);text-transform:uppercase;letter-spacing:.05em;}
+  .fp-avail{position:absolute;top:10px;right:10px;z-index:2;background:rgba(10,6,2,.55);backdrop-filter:blur(8px);color:#9de860;font-size:.58rem;font-weight:800;padding:3px 8px 3px 6px;border-radius:20px;border:1px solid rgba(90,200,40,.22);display:inline-flex;align-items:center;gap:4px;text-transform:uppercase;letter-spacing:.05em;}
+  .fp-avail::before{content:'';width:5px;height:5px;border-radius:50%;background:#6cde28;box-shadow:0 0 5px #6cde28;display:inline-block;flex-shrink:0;}
+  </style>
 </head>
 <body>
 
-<!-- MESH BACKGROUND -->
 <div class="mesh-bg">
   <div class="mesh-base"></div>
   <div class="orb orb-1"></div><div class="orb orb-2"></div>
@@ -72,10 +108,14 @@ $email    = htmlspecialchars($_SESSION['email'] ?? '');
             <div><strong><?= $firstName ?></strong><span><?= $email ?></span></div>
           </div>
           <div class="pd-divider"></div>
-          <a class="pd-item" href="<?= $dashLink ?>"><i class="fas fa-th-large"></i>My Dashboard</a>
+          <?php if ($isAdmin): ?>
+            <a class="pd-item" href="admin_dashboard.php"><i class="fas fa-th-large"></i>My Dashboard</a>
+          <?php else: ?>
+            <a class="pd-item" href="#" onclick="openDashboard();return false;"><i class="fas fa-th-large"></i>My Dashboard</a>
+          <?php endif; ?>
           <a class="pd-item" href="missing.php"><i class="fas fa-search-location"></i>Missing Pets</a>
           <?php if ($isAdmin): ?>
-          <a class="pd-item" href="admin_dashboard.php"><i class="fas fa-shield-alt"></i>Admin Panel</a>
+            <a class="pd-item" href="admin_dashboard.php"><i class="fas fa-shield-alt"></i>Admin Panel</a>
           <?php endif; ?>
           <div class="pd-divider"></div>
           <a class="pd-item danger" href="logout.php"><i class="fas fa-sign-out-alt"></i>Log Out</a>
@@ -90,14 +130,17 @@ $email    = htmlspecialchars($_SESSION['email'] ?? '');
 </nav>
 
 <?php if ($loggedIn): ?>
-<!-- WELCOME BANNER (only shown when logged in) -->
 <div class="welcome-banner">
   <div class="wb-left">
     <span class="wb-paw">🐾</span>
     <span class="wb-text">Welcome back, <em><?= $firstName ?></em>! Ready to find a new friend today?</span>
   </div>
   <div class="wb-actions">
-    <a class="wb-btn" href="<?= $dashLink ?>"><i class="fas fa-th-large"></i> Dashboard</a>
+    <?php if ($isAdmin): ?>
+      <a class="wb-btn" href="admin_dashboard.php"><i class="fas fa-th-large"></i> Dashboard</a>
+    <?php else: ?>
+      <a class="wb-btn" href="#" onclick="openDashboard();return false;"><i class="fas fa-th-large"></i> Dashboard</a>
+    <?php endif; ?>
     <a class="wb-btn wb-btn-orange" href="missing.php"><i class="fas fa-search-location"></i> Missing Pets</a>
   </div>
 </div>
@@ -112,7 +155,11 @@ $email    = htmlspecialchars($_SESSION['email'] ?? '');
     <div class="hero-actions">
       <a class="btn-primary" href="#pets"><i class="fas fa-search"></i> Browse Animals</a>
       <?php if ($loggedIn): ?>
-        <a class="btn-secondary" href="<?= $dashLink ?>"><i class="fas fa-th-large"></i> My Dashboard</a>
+        <?php if ($isAdmin): ?>
+          <a class="btn-secondary" href="admin_dashboard.php"><i class="fas fa-th-large"></i> My Dashboard</a>
+        <?php else: ?>
+          <a class="btn-secondary" href="#" onclick="openDashboard();return false;"><i class="fas fa-th-large"></i> My Dashboard</a>
+        <?php endif; ?>
         <a class="btn-orange" href="missing.php"><i class="fas fa-search-location"></i> Missing Pets</a>
       <?php else: ?>
         <a class="btn-secondary" href="register.php"><i class="fas fa-user-plus"></i> Create Account</a>
@@ -127,28 +174,28 @@ $email    = htmlspecialchars($_SESSION['email'] ?? '');
     </div>
   </div>
   <div class="hero-right">
-    <div class="pet-card tall featured">
-      <span class="pet-emoji">🐕</span>
-      <div class="pet-name">Bruno</div>
-      <div class="pet-breed">Labrador Mix · 2 yrs</div>
-      <span class="pet-badge">Available</span>
-    </div>
-    <div class="pet-card">
-      <span class="pet-emoji" style="font-size:2.4rem;animation-delay:1s">🐈</span>
-      <div class="pet-name">Luna</div>
-      <div class="pet-breed">Tabby · 1 yr</div>
-      <span class="pet-badge">Available</span>
-    </div>
-    <div class="pet-card">
-      <span class="pet-emoji" style="font-size:2.4rem;animation-delay:2s">🐇</span>
-      <div class="pet-name">Coco</div>
-      <div class="pet-breed">Rabbit · 6 mos</div>
-      <span class="pet-badge orange">Pending</span>
+    <div class="hero-pet-card" id="heroPetCard">
+      <img class="hpc-photo" id="hpcPhoto" src="https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=760&h=1040&fit=crop&auto=format" alt="Bruno"/>
+      <video class="hpc-video" id="hpcVideo" muted loop playsinline preload="none"></video>
+      <div class="hpc-scrim"></div>
+      <div class="hpc-live" id="hpcLive"><div class="hpc-live-dot"></div>Live Preview</div>
+      <div class="hpc-dots" id="hpcDots">
+        <div class="hpc-dot active" data-index="0"></div>
+        <div class="hpc-dot" data-index="1"></div>
+        <div class="hpc-dot" data-index="2"></div>
+      </div>
+      <div class="hpc-info">
+        <div class="hpc-species" id="hpcSpecies">🐕 Dog</div>
+        <div class="hpc-name" id="hpcName">Bruno</div>
+        <div class="hpc-breed" id="hpcBreed">Labrador Mix · 2 yrs · Laoag City</div>
+        <span class="hpc-badge" id="hpcBadge">Available</span>
+      </div>
+      <a class="hpc-cta" href="find_a_pet.php"><i class="fas fa-heart"></i> Adopt Now</a>
     </div>
   </div>
 </section>
 
-<!-- HOW IT WORKS (HOMEPAGE PREVIEW) -->
+<!-- HOW IT WORKS -->
 <section class="section" id="how">
   <div class="sec-tag reveal"><i class="fas fa-list-ol"></i> Simple Process</div>
   <h2 class="sec-title reveal reveal-delay-1">How <em>Adoption</em> Works</h2>
@@ -207,46 +254,24 @@ $email    = htmlspecialchars($_SESSION['email'] ?? '');
   <p class="sec-sub reveal reveal-delay-2">These wonderful animals are ready to meet you.</p>
   <div class="pets-grid">
     <div class="fp-card reveal reveal-delay-1">
-      <div class="fp-img">🐕</div>
-      <div class="fp-body">
-        <div class="fp-name">Bruno</div>
-        <div class="fp-meta">Labrador Mix · Male · 2 yrs · Laoag City</div>
-        <div class="fp-tags"><span class="fp-tag green">Healthy</span><span class="fp-tag blue">Friendly</span><span class="fp-tag amber">Vaccinated</span></div>
-        <a class="fp-adopt-btn" href="find_a_pet.php"><i class="fas fa-heart"></i> Adopt Bruno</a>
-      </div>
+      <div class="fp-img"><span class="fp-species">🐕 Dog</span><span class="fp-avail">Available</span><img src="https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=400&h=220&fit=crop&auto=format" alt="Bruno" loading="lazy"/></div>
+      <div class="fp-body"><div class="fp-name">Bruno</div><div class="fp-meta">Labrador Mix · Male · 2 yrs · Laoag City</div><div class="fp-tags"><span class="fp-tag green">Healthy</span><span class="fp-tag blue">Friendly</span><span class="fp-tag amber">Vaccinated</span></div><a class="fp-adopt-btn" href="find_a_pet.php"><i class="fas fa-heart"></i> Adopt Bruno</a></div>
     </div>
     <div class="fp-card reveal reveal-delay-2">
-      <div class="fp-img">🐈</div>
-      <div class="fp-body">
-        <div class="fp-name">Luna</div>
-        <div class="fp-meta">Tabby Cat · Female · 1 yr · Vigan City</div>
-        <div class="fp-tags"><span class="fp-tag green">Healthy</span><span class="fp-tag orange">Playful</span></div>
-        <a class="fp-adopt-btn" href="find_a_pet.php"><i class="fas fa-heart"></i> Adopt Luna</a>
-      </div>
+      <div class="fp-img"><span class="fp-species">🐈 Cat</span><span class="fp-avail">Available</span><img src="https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=400&h=220&fit=crop&auto=format" alt="Luna" loading="lazy"/></div>
+      <div class="fp-body"><div class="fp-name">Luna</div><div class="fp-meta">Tabby Cat · Female · 1 yr · Vigan City</div><div class="fp-tags"><span class="fp-tag green">Healthy</span><span class="fp-tag orange">Playful</span></div><a class="fp-adopt-btn" href="find_a_pet.php"><i class="fas fa-heart"></i> Adopt Luna</a></div>
     </div>
     <div class="fp-card reveal reveal-delay-3">
-      <div class="fp-img">🐩</div>
-      <div class="fp-body">
-        <div class="fp-name">Mochi</div>
-        <div class="fp-meta">Shih Tzu · Female · 3 yrs · San Fernando</div>
-        <div class="fp-tags"><span class="fp-tag green">Healthy</span><span class="fp-tag blue">Calm</span><span class="fp-tag amber">Vaccinated</span></div>
-        <a class="fp-adopt-btn" href="find_a_pet.php"><i class="fas fa-heart"></i> Adopt Mochi</a>
-      </div>
+      <div class="fp-img"><span class="fp-species">🐕 Dog</span><span class="fp-avail">Available</span><img src="https://images.unsplash.com/photo-1552053831-71594a27632d?w=400&h=220&fit=crop&auto=format" alt="Mochi" loading="lazy"/></div>
+      <div class="fp-body"><div class="fp-name">Mochi</div><div class="fp-meta">Shih Tzu · Female · 3 yrs · San Fernando</div><div class="fp-tags"><span class="fp-tag green">Healthy</span><span class="fp-tag blue">Calm</span><span class="fp-tag amber">Vaccinated</span></div><a class="fp-adopt-btn" href="find_a_pet.php"><i class="fas fa-heart"></i> Adopt Mochi</a></div>
     </div>
     <div class="fp-card reveal reveal-delay-4">
-      <div class="fp-img">🐈‍⬛</div>
-      <div class="fp-body">
-        <div class="fp-name">Shadow</div>
-        <div class="fp-meta">Black Cat · Male · 2 yrs · Dagupan City</div>
-        <div class="fp-tags"><span class="fp-tag green">Healthy</span><span class="fp-tag orange">Independent</span></div>
-        <a class="fp-adopt-btn" href="find_a_pet.php"><i class="fas fa-heart"></i> Adopt Shadow</a>
-      </div>
+      <div class="fp-img"><span class="fp-species">🐈 Cat</span><span class="fp-avail">Available</span><img src="https://images.unsplash.com/photo-1611915387288-fd8d2f5f928b?w=400&h=220&fit=crop&auto=format" alt="Shadow" loading="lazy"/></div>
+      <div class="fp-body"><div class="fp-name">Shadow</div><div class="fp-meta">Black Cat · Male · 2 yrs · Dagupan City</div><div class="fp-tags"><span class="fp-tag green">Healthy</span><span class="fp-tag orange">Independent</span></div><a class="fp-adopt-btn" href="find_a_pet.php"><i class="fas fa-heart"></i> Adopt Shadow</a></div>
     </div>
   </div>
   <div style="text-align:center;margin-top:2.2rem" class="reveal">
-    <a class="btn-secondary" href="find_a_pet.php" style="display:inline-flex">
-      <i class="fas fa-search"></i> Browse All Animals
-    </a>
+    <a class="btn-secondary" href="find_a_pet.php" style="display:inline-flex"><i class="fas fa-search"></i> Browse All Animals</a>
   </div>
 </section>
 
@@ -294,7 +319,11 @@ $email    = htmlspecialchars($_SESSION['email'] ?? '');
     <p class="cta-sub">Join hundreds of families across the Ilocos Region who have opened their hearts and homes.</p>
     <div class="cta-btns">
       <?php if ($loggedIn): ?>
-        <a class="btn-primary" href="<?= $dashLink ?>"><i class="fas fa-th-large"></i> Go to Dashboard</a>
+        <?php if ($isAdmin): ?>
+          <a class="btn-primary" href="admin_dashboard.php"><i class="fas fa-th-large"></i> Go to Dashboard</a>
+        <?php else: ?>
+          <a class="btn-primary" href="#" onclick="openDashboard();return false;"><i class="fas fa-th-large"></i> Go to Dashboard</a>
+        <?php endif; ?>
         <a class="btn-secondary" href="missing.php" style="display:inline-flex"><i class="fas fa-search-location"></i> Missing Pets</a>
       <?php else: ?>
         <a class="btn-primary" href="register.php"><i class="fas fa-paw"></i> Create Free Account</a>
@@ -318,11 +347,15 @@ $email    = htmlspecialchars($_SESSION['email'] ?? '');
       <a class="footer-link" href="how_it_works.php">How It Works</a>
       <a class="footer-link" href="missing.php">Missing Pets</a>
       <?php if (!$loggedIn): ?>
-      <a class="footer-link" href="register.php">Create Account</a>
-      <a class="footer-link" href="login.php">Log In</a>
+        <a class="footer-link" href="register.php">Create Account</a>
+        <a class="footer-link" href="login.php">Log In</a>
       <?php else: ?>
-      <a class="footer-link" href="<?= $dashLink ?>">My Dashboard</a>
-      <a class="footer-link" href="logout.php">Log Out</a>
+        <?php if ($isAdmin): ?>
+          <a class="footer-link" href="admin_dashboard.php">My Dashboard</a>
+        <?php else: ?>
+          <a class="footer-link" href="#" onclick="openDashboard();return false;">My Dashboard</a>
+        <?php endif; ?>
+        <a class="footer-link" href="logout.php">Log Out</a>
       <?php endif; ?>
     </div>
     <div>
@@ -372,39 +405,63 @@ $email    = htmlspecialchars($_SESSION['email'] ?? '');
   </svg>
 </div>
 
+<?php
+// ── Include dashboard popup for regular (non-admin) users only ──
+if ($loggedIn && !$isAdmin) {
+    include 'user_dashboard.php';
+}
+?>
+
 <script>
-// Dog cursor
+/* ── Dog cursor ── */
 (function(){
-  const el=document.getElementById('dc');
-  let mX=innerWidth/2,mY=innerHeight/2,dX=mX,dY=mY,fr=true,ic=false;
-  document.addEventListener('mousemove',e=>{mX=e.clientX;mY=e.clientY;});
-  document.addEventListener('mousedown',()=>{ic=true;el.className='clicking';setTimeout(()=>{ic=false;},300);});
+  var el=document.getElementById('dc');
+  var mX=innerWidth/2,mY=innerHeight/2,dX=mX,dY=mY,fr=true,ic=false;
+  document.addEventListener('mousemove',function(e){mX=e.clientX;mY=e.clientY;});
+  document.addEventListener('mousedown',function(){ic=true;el.className='clicking';setTimeout(function(){ic=false;},300);});
   (function loop(){
-    if(!ic){const dx=mX-dX,dy=mY-dY,d=Math.sqrt(dx*dx+dy*dy);
+    if(!ic){var dx=mX-dX,dy=mY-dY,d=Math.sqrt(dx*dx+dy*dy);
     if(d>5){dX+=(dx/d)*Math.min(d*.13,18);dY+=(dy/d)*Math.min(d*.13,18);
-    const right=dx>0;if(right!==fr){fr=right;document.getElementById('dog-svg').style.transform=fr?'scaleX(1)':'scaleX(-1)';}
+    var right=dx>0;if(right!==fr){fr=right;document.getElementById('dog-svg').style.transform=fr?'scaleX(1)':'scaleX(-1)';}
     el.className=d>7?'walking':'idle';}else{el.className='idle';}}
     el.style.left=dX+'px';el.style.top=dY+'px';requestAnimationFrame(loop);
   })();
 }());
-// Orb parallax
+/* ── Orb parallax ── */
 (function(){
-  const orbs=[{el:document.querySelector('.orb-1'),fx:.08,fy:.06},{el:document.querySelector('.orb-2'),fx:-.10,fy:.07},{el:document.querySelector('.orb-3'),fx:.11,fy:-.06},{el:document.querySelector('.orb-4'),fx:-.07,fy:-.09}];
-  let mx=0,my=0,cx=0,cy=0;
-  document.addEventListener('mousemove',e=>{mx=(e.clientX/innerWidth-.5)*70;my=(e.clientY/innerHeight-.5)*70;});
-  (function anim(){cx+=(mx-cx)*.07;cy+=(my-cy)*.07;orbs.forEach(({el,fx,fy})=>{if(el){el.style.marginLeft=(cx*fx)+'px';el.style.marginTop=(cy*fy)+'px';}});requestAnimationFrame(anim);})();
+  var orbs=[{el:document.querySelector('.orb-1'),fx:.08,fy:.06},{el:document.querySelector('.orb-2'),fx:-.10,fy:.07},{el:document.querySelector('.orb-3'),fx:.11,fy:-.06},{el:document.querySelector('.orb-4'),fx:-.07,fy:-.09}];
+  var mx=0,my=0,cx=0,cy=0;
+  document.addEventListener('mousemove',function(e){mx=(e.clientX/innerWidth-.5)*70;my=(e.clientY/innerHeight-.5)*70;});
+  (function anim(){cx+=(mx-cx)*.07;cy+=(my-cy)*.07;orbs.forEach(function(o){if(o.el){o.el.style.marginLeft=(cx*o.fx)+'px';o.el.style.marginTop=(cy*o.fy)+'px';}});requestAnimationFrame(anim);})();
 }());
-// Scroll reveal
+/* ── Scroll reveal ── */
 (function(){
-  const io=new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');}});},{threshold:0.12});
-  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+  var io=new IntersectionObserver(function(entries){entries.forEach(function(e){if(e.isIntersecting)e.target.classList.add('visible');});},{threshold:0.12});
+  document.querySelectorAll('.reveal').forEach(function(el){io.observe(el);});
 }());
-// Nav dropdown
+/* ── Nav dropdown ── */
 (function(){
-  const btn=document.getElementById('avatarBtn'),drop=document.getElementById('profileDrop');
+  var btn=document.getElementById('avatarBtn'),drop=document.getElementById('profileDrop');
   if(!btn||!drop)return;
-  btn.addEventListener('click',e=>{e.stopPropagation();const o=drop.classList.toggle('open');btn.classList.toggle('open',o);});
-  document.addEventListener('click',()=>{drop.classList.remove('open');btn.classList.remove('open');});
+  btn.addEventListener('click',function(e){e.stopPropagation();var o=drop.classList.toggle('open');btn.classList.toggle('open',o);});
+  document.addEventListener('click',function(){drop.classList.remove('open');if(btn)btn.classList.remove('open');});
+}());
+/* ── Hero card ── */
+(function(){
+  var pets=[
+    {name:'Bruno',breed:'Labrador Mix · 2 yrs · Laoag City',species:'🐕 Dog',status:'available',photo:'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=760&h=1040&fit=crop&auto=format',video:'https://videos.pexels.com/video-files/3195394/3195394-sd_640_360_25fps.mp4'},
+    {name:'Luna',breed:'Tabby Cat · 1 yr · Vigan City',species:'🐈 Cat',status:'available',photo:'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=760&h=1040&fit=crop&auto=format',video:'https://videos.pexels.com/video-files/4958792/4958792-sd_640_360_24fps.mp4'},
+    {name:'Coco',breed:'Rabbit · 6 mos · San Fernando',species:'🐇 Rabbit',status:'pending',photo:'https://images.unsplash.com/photo-1585110396000-c9ffd4e4b308?w=760&h=1040&fit=crop&auto=format',video:'https://videos.pexels.com/video-files/3195386/3195386-sd_640_360_25fps.mp4'}
+  ];
+  var card=document.getElementById('heroPetCard'),photo=document.getElementById('hpcPhoto'),video=document.getElementById('hpcVideo');
+  var nameEl=document.getElementById('hpcName'),breedEl=document.getElementById('hpcBreed'),speciesEl=document.getElementById('hpcSpecies'),badgeEl=document.getElementById('hpcBadge');
+  var dots=document.querySelectorAll('.hpc-dot'),current=0,videoLoaded=[false,false,false],isHovering=false;
+  function switchPet(idx){if(idx===current)return;photo.style.transition='opacity 0.4s ease,transform 0.5s ease';photo.style.opacity='0';photo.style.transform='scale(1.04)';setTimeout(function(){current=idx;var p=pets[idx];photo.src=p.photo;nameEl.textContent=p.name;breedEl.textContent=p.breed;speciesEl.textContent=p.species;badgeEl.textContent=p.status==='pending'?'Pending':'Available';badgeEl.className='hpc-badge'+(p.status==='pending'?' pending':'');dots.forEach(function(d,i){d.classList.toggle('active',i===idx);});photo.style.opacity='1';photo.style.transform='scale(1.0)';if(isHovering){video.pause();video.innerHTML='';videoLoaded[idx]=false;loadAndPlayVideo(idx);}},220);}
+  function loadAndPlayVideo(idx){if(!videoLoaded[idx]){video.innerHTML='';var src=document.createElement('source');src.src=pets[idx].video;src.type='video/mp4';video.appendChild(src);video.load();videoLoaded[idx]=true;}var p=video.play();if(p&&p.catch)p.catch(function(){});}
+  card.addEventListener('mouseenter',function(){isHovering=true;loadAndPlayVideo(current);});
+  card.addEventListener('mouseleave',function(){isHovering=false;video.pause();video.currentTime=0;});
+  dots.forEach(function(dot){dot.addEventListener('click',function(e){e.stopPropagation();switchPet(parseInt(dot.getAttribute('data-index')));});});
+  setInterval(function(){if(!isHovering)switchPet((current+1)%pets.length);},4000);
 }());
 </script>
 </body>

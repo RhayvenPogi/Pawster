@@ -3,9 +3,9 @@ session_start();
 $activePage  = 'missing';
 $loggedIn    = isset($_SESSION['user_id']);
 $isAdminNav  = $loggedIn && ($_SESSION['role'] ?? '') === 'admin';
+$isAdmin     = $isAdminNav; // alias so dashboard include works
 $navFirst    = htmlspecialchars($_SESSION['first_name'] ?? '');
 $navInit     = strtoupper(substr($_SESSION['first_name'] ?? 'U', 0, 1) . substr($_SESSION['last_name'] ?? '', 0, 1));
-$navDash     = $isAdminNav ? 'admin_dashboard.php' : 'user_dashboard.php';
 $navEmail    = htmlspecialchars($_SESSION['email'] ?? '');
 $initials    = $navInit;
 $loggedInNav = $loggedIn;
@@ -20,24 +20,21 @@ $loggedInNav = $loggedIn;
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
   <link rel="stylesheet" href="../css/pawster_pages.css"/>
   <link rel="stylesheet" href="../css/missing.css"/>
+  <?php if ($loggedIn && !$isAdminNav): ?>
+  <link rel="stylesheet" href="../css/user_dashboard.css"/>
+  <?php endif; ?>
   <style>
-    /* ══════════════════════════════════════════
-       VISIBILITY FIX — nothing on this page
-       should ever be invisible
-    ══════════════════════════════════════════ */
     body, body * {
       opacity: 1 !important;
       transform: none !important;
       visibility: visible !important;
     }
-    /* Re-allow transitions that should animate */
     .post-img-wrap img       { transition: transform 0.35s !important; }
     .pact-btn, .fpill,
     .btn-post, .btn-o        { transition: all 0.2s !important; }
     .mover                   { transition: none !important; }
     @keyframes spin          { to { transform: rotate(360deg) !important; } }
 
-    /* ── HERO ── */
     .missing-hero {
       position: relative; z-index: 10;
       background: linear-gradient(135deg, var(--green-mid), #2a6010);
@@ -76,7 +73,6 @@ $loggedInNav = $loggedIn;
     }
     .btn-o:hover { background: rgba(255,255,255,0.25) !important; transform: translateY(-3px) !important; }
 
-    /* ── STAT STRIP ── */
     .missing-strip { position: relative; z-index: 10; background: rgba(26,74,8,0.95); padding: 1.2rem 2rem; }
     .missing-strip-in { max-width: 900px; margin: 0 auto; display: flex; align-items: center; justify-content: center; gap: 3rem; flex-wrap: wrap; }
     .mstrip-stat { text-align: center; }
@@ -84,24 +80,20 @@ $loggedInNav = $loggedIn;
     .mstrip-lbl { font-size: 0.68rem; color: rgba(255,255,255,0.65); text-transform: uppercase; letter-spacing: 0.07em; margin-top: 0.3rem; }
     .mstrip-div { width: 1px; height: 40px; background: rgba(255,255,255,0.2); }
 
-    /* ── FILTER BAR ── */
     .missing-fbar { position: sticky; top: var(--nav-h); z-index: 100; background: rgba(255,252,240,0.97); backdrop-filter: blur(14px); border-bottom: 1.5px solid var(--border); padding: 1rem 2rem; }
     .missing-fbar-inner { max-width: 1100px; margin: 0 auto; display: flex; gap: 0.8rem; align-items: center; flex-wrap: wrap; }
     .filter-pills { display: flex; gap: 6px; }
     .fpill { padding: 0.45rem 1.1rem; border-radius: 50px; border: 1.5px solid var(--border); background: rgba(255,248,220,0.8); font-size: 0.8rem; font-weight: 700; color: var(--text-mid); cursor: pointer; font-family: 'Nunito', sans-serif; }
     .fpill:hover, .fpill.active { background: var(--green-mid); color: #fff; border-color: var(--green-mid); }
     .fpill.orange:hover, .fpill.orange.active { background: var(--c2); border-color: var(--c2); color: #fff; }
-    /* .sw = original search wrapper class */
     .sw { display: flex; align-items: center; gap: 0.6rem; background: rgba(255,250,232,0.8); border: 1.5px solid var(--border); border-radius: 10px; padding: 0 0.9rem; }
     .sw i { color: var(--text-muted); font-size: 0.85rem; flex-shrink: 0; }
     .sw input { flex: 1; border: none; background: transparent; padding: 0.6rem 0; font-family: 'Nunito', sans-serif; font-size: 0.86rem; font-weight: 600; color: var(--text); outline: none; }
     .fsel { background: rgba(255,250,232,0.8); border: 1.5px solid var(--border); border-radius: 10px; padding: 0.6rem 0.9rem; font-family: 'Nunito', sans-serif; font-size: 0.84rem; font-weight: 600; color: var(--text); outline: none; cursor: pointer; }
 
-    /* ── LAYOUT ── */
     .missing-layout { position: relative; z-index: 10; max-width: 1100px; margin: 0 auto; padding: 2rem 2rem 5rem; display: grid; grid-template-columns: 1fr 300px; gap: 2rem; align-items: start; }
     .feed { display: flex; flex-direction: column; gap: 1.2rem; }
 
-    /* ── SIDEBAR ── */
     .missing-sidebar { display: flex; flex-direction: column; gap: 1.2rem; }
     .sidebar-card { background: rgba(255,252,235,0.95); backdrop-filter: blur(14px); border-radius: var(--radius); border: 1.5px solid var(--border); overflow: hidden; box-shadow: var(--shadow); }
     .sidebar-card-head { padding: 1rem 1.2rem 0.75rem; border-bottom: 1.5px solid var(--border); font-family: 'Playfair Display', serif; font-size: 1rem; font-weight: 800; color: var(--green-dark); display: flex; align-items: center; gap: 0.6rem; }
@@ -117,11 +109,9 @@ $loggedInNav = $loggedIn;
     .rfi-name { font-weight: 800; font-size: 0.84rem; color: var(--green-dark); }
     .rfi-loc { font-size: 0.7rem; color: var(--text-muted); font-weight: 700; }
     .rfi-badge { margin-left: auto; background: rgba(88,139,65,0.12); color: var(--c1); font-size: 0.65rem; font-weight: 800; padding: 3px 9px; border-radius: 50px; }
-    /* .btn-p from original */
     .btn-p { display: inline-flex; align-items: center; gap: 0.5rem; background: var(--green-mid); color: #fff; border: none; padding: 0.65rem 1.2rem; border-radius: 10px; font-size: 0.84rem; font-weight: 800; cursor: pointer; font-family: 'Nunito', sans-serif; box-shadow: 0 3px 12px rgba(28,79,9,0.28); }
     .btn-p:hover { background: #143806; }
 
-    /* ── POST CARD ── */
     .post-card { background: rgba(255,252,235,0.95); backdrop-filter: blur(14px); border-radius: var(--radius); border: 1.5px solid var(--border); overflow: hidden; box-shadow: var(--shadow); }
     .post-card:hover { box-shadow: var(--shadow-lg); border-color: var(--border-strong); }
     .post-head { display: flex; align-items: center; gap: 12px; padding: 1rem 1.2rem 0.75rem; }
@@ -156,7 +146,6 @@ $loggedInNav = $loggedIn;
     .pact-delete { padding: 0.45rem 0.9rem; border-radius: 50px; border: 1.5px solid rgba(220,50,50,0.25); background: rgba(220,50,50,0.05); color: #c03030; font-size: 0.78rem; font-weight: 700; cursor: pointer; font-family: 'Nunito', sans-serif; }
     .pact-delete:hover { background: #c03030; color: #fff; border-color: #c03030; }
 
-    /* ── COMMENTS ── */
     .comments-section { display: none; padding: 0 1.2rem 1rem; }
     .comments-section.open { display: block; }
     .comments-divider { height: 1.5px; background: var(--border); margin-bottom: 0.9rem; }
@@ -175,7 +164,6 @@ $loggedInNav = $loggedIn;
     .login-to-comment { text-align: center; font-size: 0.8rem; color: var(--text-muted); padding: 0.5rem 0; font-weight: 700; }
     .login-to-comment a { color: var(--c1); }
 
-    /* ── LOAD MORE / STATES ── */
     .load-more-wrap { text-align: center; }
     .load-more-btn { background: rgba(255,248,220,0.8); border: 1.5px solid var(--border); color: var(--text-mid); padding: 0.7rem 2rem; border-radius: 50px; font-size: 0.88rem; font-weight: 700; cursor: pointer; font-family: 'Nunito', sans-serif; }
     .load-more-btn:hover { background: var(--green-mid); color: #fff; border-color: var(--green-mid); }
@@ -187,7 +175,6 @@ $loggedInNav = $loggedIn;
     .feed-loading i { font-size: 1.5rem; animation: spin 0.8s linear infinite !important; margin-right: 0.5rem; }
     @keyframes spin { to { transform: rotate(360deg) !important; } }
 
-    /* ── MODAL — original classes: .mover .mbox .mhead .mbody .fgrid .fg ── */
     .mover { display: none; position: fixed; inset: 0; z-index: 10000; background: rgba(180,140,60,0.22); backdrop-filter: blur(8px); align-items: center; justify-content: center; padding: 1.5rem; }
     .mover.open { display: flex; }
     .mbox { background: rgba(255,252,235,0.98); border: 1.5px solid var(--border-strong); border-radius: 18px; width: 100%; max-width: 600px; max-height: 90vh; display: flex; flex-direction: column; box-shadow: var(--shadow-lg); overflow: hidden; }
@@ -212,7 +199,6 @@ $loggedInNav = $loggedIn;
     .photo-preview-wrap img { width: 100%; max-height: 200px; object-fit: cover; display: block; }
     .photo-remove { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.55); color: #fff; border: none; border-radius: 50%; width: 26px; height: 26px; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 
-    /* ── FOOTER — original classes ── */
     footer { position: relative; z-index: 10; background: rgba(26,74,8,0.95); color: #fff; padding: 3rem 2rem 1.5rem; margin-top: 4rem; }
     .foot-in { max-width: 1100px; margin: 0 auto; }
     .foot-top { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 3rem; margin-bottom: 2rem; }
@@ -234,7 +220,6 @@ $loggedInNav = $loggedIn;
 </head>
 <body>
 
-<!-- Mesh background — same as all other pages -->
 <div class="mesh-bg">
   <div class="mesh-base"></div>
   <div class="orb orb-1"></div><div class="orb orb-2"></div>
@@ -244,10 +229,8 @@ $loggedInNav = $loggedIn;
 
 <div id="toast-w"></div>
 
-<!-- Consistent nav from nav.php -->
 <?php require_once 'nav.php'; ?>
 
-<!-- HERO — your exact original -->
 <div class="missing-hero">
   <div class="sec-tag"><i class="fas fa-search-location"></i> Community Reports</div>
   <h1>Missing <span>&amp;</span> Found Pets</h1>
@@ -269,7 +252,6 @@ $loggedInNav = $loggedIn;
   </div>
 </div>
 
-<!-- STATS STRIP — your exact original -->
 <div class="missing-strip">
   <div class="missing-strip-in">
     <div class="mstrip-stat"><div class="mstrip-val" id="stat-total">—</div><div class="mstrip-lbl">Total Reports</div></div>
@@ -280,7 +262,6 @@ $loggedInNav = $loggedIn;
   </div>
 </div>
 
-<!-- FILTER BAR — your exact original -->
 <div class="missing-fbar">
   <div class="missing-fbar-inner">
     <div class="filter-pills">
@@ -303,7 +284,6 @@ $loggedInNav = $loggedIn;
   </div>
 </div>
 
-<!-- MAIN LAYOUT — your exact original -->
 <div class="missing-layout">
   <div>
     <div class="feed" id="feed">
@@ -348,7 +328,6 @@ $loggedInNav = $loggedIn;
   </aside>
 </div>
 
-<!-- POST MODAL — your exact original classes -->
 <div class="mover" id="post-modal">
   <div class="mbox">
     <div class="mhead">
@@ -358,38 +337,19 @@ $loggedInNav = $loggedIn;
     <div class="mbody">
       <form id="post-form" onsubmit="submitPost(event)">
         <div class="fgrid">
-          <div class="fg">
-            <label>Pet Name *</label>
-            <input type="text" id="pf-name" required placeholder="e.g. Max"/>
-          </div>
-          <div class="fg">
-            <label>Animal Type *</label>
+          <div class="fg"><label>Pet Name *</label><input type="text" id="pf-name" required placeholder="e.g. Max"/></div>
+          <div class="fg"><label>Animal Type *</label>
             <select id="pf-type" required>
               <option value="Dog">Dog</option><option value="Cat">Cat</option>
               <option value="Bird">Bird</option><option value="Rabbit">Rabbit</option>
               <option value="Other">Other</option>
             </select>
           </div>
-          <div class="fg">
-            <label>Breed</label>
-            <input type="text" id="pf-breed" placeholder="e.g. Labrador"/>
-          </div>
-          <div class="fg">
-            <label>Color / Markings</label>
-            <input type="text" id="pf-color" placeholder="e.g. Brown with white patch"/>
-          </div>
-          <div class="fg full">
-            <label>Last Seen Location *</label>
-            <input type="text" id="pf-location" required placeholder="e.g. Near SM Laoag, Ilocos Norte"/>
-          </div>
-          <div class="fg full">
-            <label>Description *</label>
-            <textarea id="pf-desc" required placeholder="Describe your pet, when they went missing, any distinctive features…" style="min-height:90px"></textarea>
-          </div>
-          <div class="fg full">
-            <label>Contact Number / Info *</label>
-            <input type="text" id="pf-contact" required placeholder="e.g. 09XX-XXX-XXXX"/>
-          </div>
+          <div class="fg"><label>Breed</label><input type="text" id="pf-breed" placeholder="e.g. Labrador"/></div>
+          <div class="fg"><label>Color / Markings</label><input type="text" id="pf-color" placeholder="e.g. Brown with white patch"/></div>
+          <div class="fg full"><label>Last Seen Location *</label><input type="text" id="pf-location" required placeholder="e.g. Near SM Laoag, Ilocos Norte"/></div>
+          <div class="fg full"><label>Description *</label><textarea id="pf-desc" required placeholder="Describe your pet, when they went missing, any distinctive features…" style="min-height:90px"></textarea></div>
+          <div class="fg full"><label>Contact Number / Info *</label><input type="text" id="pf-contact" required placeholder="e.g. 09XX-XXX-XXXX"/></div>
           <div class="fg full">
             <label>Upload Photo <span style="color:var(--text-muted);font-weight:400">(recommended)</span></label>
             <label class="photo-upload-label" for="pf-photo">
@@ -411,7 +371,6 @@ $loggedInNav = $loggedIn;
   </div>
 </div>
 
-<!-- FOOTER — your exact original -->
 <footer>
   <div class="foot-in">
     <div class="foot-top">
@@ -439,6 +398,15 @@ $loggedInNav = $loggedIn;
           <li><a href="find_a_pet.php">Apply to Adopt</a></li>
           <li><a href="rehome.php">Rehome a Pet</a></li>
           <li><a href="missing.php">Report Missing Pet</a></li>
+          <?php if ($loggedIn): ?>
+            <li>
+              <?php if ($isAdminNav): ?>
+                <a href="admin_dashboard.php">My Dashboard</a>
+              <?php else: ?>
+                <a href="#" onclick="openDashboard();return false;">My Dashboard</a>
+              <?php endif; ?>
+            </li>
+          <?php endif; ?>
         </ul>
       </div>
     </div>
@@ -448,11 +416,12 @@ $loggedInNav = $loggedIn;
   </div>
 </footer>
 
-<!-- Pass PHP session data as globals, then load JS -->
 <script>
   const LOGGED_IN = <?= $loggedIn ? 'true' : 'false' ?>;
   const USER_INIT = <?= json_encode($initials) ?>;
 </script>
 <script src="../js/missing.js"></script>
+
+<?php if ($loggedIn && !$isAdminNav) { include 'user_dashboard.php'; } ?>
 </body>
 </html>

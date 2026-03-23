@@ -1,236 +1,470 @@
 <?php
-session_start();
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'user') {
-    header("Location: ../login.html"); exit;
+/* =============================================
+   PAWSTER — USER DASHBOARD POPUP
+   php/user_dashboard.php
+   ============================================= */
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
 }
-$host="localhost";$port="5432";$dbname="pawster_db";$db_user="postgres";$db_pass="1234";
-$dbconn=pg_connect("host=$host port=$port dbname=$dbname user=$db_user password=$db_pass");
-pg_query($dbconn,"ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'pending'");
-pg_query($dbconn,"ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()");
-pg_query($dbconn,"ALTER TABLE users ADD COLUMN IF NOT EXISTS city VARCHAR(100)");
-pg_query($dbconn,"ALTER TABLE users ADD COLUMN IF NOT EXISTS province VARCHAR(100)");
-pg_query($dbconn,"ALTER TABLE users ADD COLUMN IF NOT EXISTS address TEXT");
-pg_query($dbconn,"ALTER TABLE users ADD COLUMN IF NOT EXISTS zip_code VARCHAR(20)");
-$uid=(int)$_SESSION['user_id'];
-$result=pg_query_params($dbconn,"SELECT first_name,last_name,email,phone,address,city,province,zip_code,status,created_at FROM users WHERE id=\$1",[$uid]);
-$me=($result?pg_fetch_assoc($result):false)?:[];
-$firstName=htmlspecialchars($me['first_name']??$_SESSION['first_name']??'User');
-$lastName=htmlspecialchars($me['last_name']??'');
-$fullName=trim("$firstName $lastName");
-$email=htmlspecialchars($me['email']??'');
-$phone=htmlspecialchars($me['phone']??'');
-$city=htmlspecialchars($me['city']??'');
-$province=htmlspecialchars($me['province']??'');
-$zipCode=htmlspecialchars($me['zip_code']??'');
-$status=$me['status']??'pending';
-$joinDate=!empty($me['created_at'])?date('F j, Y',strtotime($me['created_at'])):'—';
-$initials=strtoupper(substr($me['first_name']??'U',0,1).substr($me['last_name']??'',0,1));
-$filledFields=0;
-foreach(['first_name','last_name','email','phone','address','city','province'] as $f){if(!empty($me[$f]))$filledFields++;}
-$profilePct=(int)round(($filledFields/7)*100);
-$daysSince=0;
-if(!empty($me['created_at'])){$daysSince=(int)(new DateTime())->diff(new DateTime($me['created_at']))->days;}
-$statusMap=['pending'=>'Under Review','approved'=>'Approved','rejected'=>'Rejected'];
-$statusLabel=$statusMap[$status]??ucfirst($status);
+
+if (empty($_SESSION['user_id'])) {
+    return;
+}
+
+$_dc = @pg_connect("host=localhost port=5432 dbname=pawster_db user=postgres password=1234");
+
+if ($_dc) {
+    pg_query($_dc, "ALTER TABLE users ADD COLUMN IF NOT EXISTS status     VARCHAR(20)  NOT NULL DEFAULT 'pending'");
+    pg_query($_dc, "ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()");
+    pg_query($_dc, "ALTER TABLE users ADD COLUMN IF NOT EXISTS city       VARCHAR(100)");
+    pg_query($_dc, "ALTER TABLE users ADD COLUMN IF NOT EXISTS province   VARCHAR(100)");
+    pg_query($_dc, "ALTER TABLE users ADD COLUMN IF NOT EXISTS address    TEXT");
+    pg_query($_dc, "ALTER TABLE users ADD COLUMN IF NOT EXISTS zip_code   VARCHAR(20)");
+}
+
+$_duid = (int)$_SESSION['user_id'];
+$_dres = $_dc ? pg_query_params($_dc,
+    "SELECT first_name, last_name, email, phone, address, city, province, zip_code, status, created_at
+     FROM users WHERE id = \$1",
+    [$_duid]) : false;
+
+$_du = ($_dres && pg_num_rows($_dres) > 0) ? pg_fetch_assoc($_dres) : [];
+
+$_dFN   = htmlspecialchars($_du['first_name'] ?? ($_SESSION['first_name'] ?? 'User'));
+$_dLN   = htmlspecialchars($_du['last_name']  ?? ($_SESSION['last_name']  ?? ''));
+$_dFull = trim("$_dFN $_dLN");
+$_dEM   = htmlspecialchars($_du['email']    ?? ($_SESSION['email'] ?? ''));
+$_dPH   = htmlspecialchars($_du['phone']    ?? '');
+$_dCI   = htmlspecialchars($_du['city']     ?? '');
+$_dPR   = htmlspecialchars($_du['province'] ?? '');
+$_dZP   = htmlspecialchars($_du['zip_code'] ?? '');
+$_dST   = $_du['status'] ?? 'pending';
+$_dJN   = !empty($_du['created_at']) ? date('F j, Y', strtotime($_du['created_at'])) : '—';
+$_dIN   = strtoupper(
+    substr($_du['first_name'] ?? ($_SESSION['first_name'] ?? 'U'), 0, 1) .
+    substr($_du['last_name']  ?? ($_SESSION['last_name']  ?? ''),  0, 1)
+);
+
+$_dFilled = 0;
+foreach (['first_name','last_name','email','phone','address','city','province'] as $_f) {
+    if (!empty($_du[$_f])) $_dFilled++;
+}
+$_dPCT  = (int)round(($_dFilled / 7) * 100);
+$_dDays = 0;
+if (!empty($_du['created_at'])) {
+    try { $_dDays = (int)(new DateTime())->diff(new DateTime($_du['created_at']))->days; } catch(Exception $e) {}
+}
+$_dSLB = ['pending' => 'Under Review', 'approved' => 'Approved', 'rejected' => 'Rejected'][$_dST] ?? ucfirst($_dST);
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Pawster — My Dashboard</title>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,800;0,900;1,700;1,800;1,900&family=Nunito:ital,wght@0,400;0,600;0,700;0,800;0,900;1,700;1,800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
-  <link rel="stylesheet" href="../css/user_dashboard.css"/>
-</head>
-<body>
 
-<div class="mesh-bg">
-  <div class="mesh-base"></div>
-  <div class="orb orb-1"></div><div class="orb orb-2"></div>
-  <div class="orb orb-3"></div><div class="orb orb-4"></div>
-  <div class="mesh-grid"></div><div class="grain"></div><div class="vignette"></div>
-</div>
+<!-- DASHBOARD OVERLAY -->
+<div id="dash-overlay">
+<div id="dash-modal">
 
-<nav class="topnav">
-  <a class="nav-brand" href="../index.html">
-    <img src="../images/logo.png" alt="Pawster"/>
-    <span class="nav-brand-text">Paw<em>ster</em></span>
-  </a>
-  <div class="nav-divider"></div>
-  <div class="nav-links">
-    <a class="nav-link home-link" href="../index.html"><i class="fas fa-house"></i> Home</a>
-    <a class="nav-link active" href="dashboard.php"><i class="fas fa-th-large"></i> Dashboard</a>
-    <a class="nav-link" href="#"><i class="fas fa-search"></i> Explore Pets</a>
-    <a class="nav-link" href="#"><i class="fas fa-heart"></i> Favourites <span class="nl-badge">4</span></a>
-    <a class="nav-link" href="#"><i class="fas fa-file-alt"></i> Applications <span class="nl-badge">1</span></a>
+  <!-- HEADER -->
+  <div class="dm-header">
+    <a class="dm-brand" href="index.php">
+      <img src="../images/logo.png" alt="Pawster"/>
+      <span class="dm-brand-text">Paw<em>ster</em></span>
+    </a>
+    <div class="dm-vdiv"></div>
+    <span class="dm-header-lbl">
+      <i class="fas fa-th-large"></i> My Dashboard
+    </span>
+    <div class="dm-tabs">
+      <button class="dm-tab active" data-tab="overview" onclick="dmTab('overview')">Overview</button>
+      <button class="dm-tab" data-tab="favs"     onclick="dmTab('favs')">Favourites</button>
+      <button class="dm-tab" data-tab="apps"     onclick="dmTab('apps')">Applications</button>
+      <button class="dm-tab" data-tab="settings" onclick="dmTab('settings')">Settings</button>
+    </div>
+    <button class="dm-close" onclick="closeDashboard()">
+      <i class="fas fa-times"></i>
+    </button>
   </div>
-  <div class="nav-right">
-    <div class="nav-avatar-btn" id="avatarBtn">
-      <div class="nav-avatar"><?= $initials ?></div>
-      <div>
-        <div class="nav-avatar-name"><?= $firstName ?></div>
-        <div class="nav-avatar-role">Member</div>
-      </div>
-      <i class="fas fa-chevron-down nav-caret"></i>
-      <div class="profile-drop" id="profileDrop">
-        <div class="pd-user">
-          <div class="pd-avatar"><?= $initials ?></div>
-          <div><strong><?= $fullName ?></strong><span><?= $email ?></span></div>
+
+  <!-- BODY -->
+  <div class="dm-body">
+
+    <!-- OVERVIEW TAB -->
+    <div class="dm-panel active" id="dmp-overview">
+
+      <div class="dm-welcome">
+        <div class="dm-welcome-av">
+          <?= $_dIN ?>
+          <div class="dm-status-dot <?= htmlspecialchars($_dST) ?>"></div>
         </div>
-        <div class="pd-divider"></div>
-        <a class="pd-item" href="../index.html"><i class="fas fa-house"></i>Homepage</a>
-        <button class="pd-item" onclick="openEdit()"><i class="fas fa-user-edit"></i>Edit Profile</button>
-        <button class="pd-item" onclick="openPwd()"><i class="fas fa-lock"></i>Change Password</button>
-        <div class="pd-divider"></div>
-        <a class="pd-item danger" href="logout.php"><i class="fas fa-sign-out-alt"></i>Log Out</a>
+        <div class="dm-welcome-text">
+          <h2>Good day, <em><?= $_dFN ?></em>!</h2>
+          <p>Here's your Pawster account overview.</p>
+        </div>
+        <div class="dm-sbadge <?= htmlspecialchars($_dST) ?>">
+          <span class="dm-bdot"></span><?= $_dSLB ?>
+        </div>
+      </div>
+
+      <div class="dm-stats">
+        <div class="dm-stat">
+          <div class="dm-stat-icon g"><i class="fas fa-user"></i></div>
+          <div style="flex:1">
+            <div class="dm-stat-val"><?= $_dPCT ?>%</div>
+            <div class="dm-stat-lbl">Profile Complete</div>
+            <div class="dm-bar-wrap"><div class="dm-bar" style="width:<?= $_dPCT ?>%"></div></div>
+          </div>
+        </div>
+        <div class="dm-stat">
+          <div class="dm-stat-icon o"><i class="fas fa-calendar-alt"></i></div>
+          <div>
+            <div class="dm-stat-val"><?= $_dDays ?></div>
+            <div class="dm-stat-lbl">Days as Member</div>
+          </div>
+        </div>
+        <div class="dm-stat">
+          <div class="dm-stat-icon b"><i class="fas fa-shield-alt"></i></div>
+          <div>
+            <div class="dm-stat-val" style="font-size:1rem;font-family:'Nunito',sans-serif;margin-top:3px"><?= $_dSLB ?></div>
+            <div class="dm-stat-lbl">Account Status</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dm-sec-lbl" style="margin-top:0">Quick Links</div>
+      <div class="dm-quick">
+        <a class="dm-qcard g" href="find_a_pet.php"><i class="fas fa-search"></i><span>Find a Pet</span></a>
+        <a class="dm-qcard o" href="missing.php"><i class="fas fa-search-location"></i><span>Missing Pets</span></a>
+        <a class="dm-qcard b" href="rehome.php"><i class="fas fa-home"></i><span>Rehome</span></a>
+        <a class="dm-qcard a" href="how_it_works.php"><i class="fas fa-info-circle"></i><span>How It Works</span></a>
+      </div>
+
+      <div class="dm-sec-lbl">Profile Summary</div>
+      <div class="dm-profile-grid">
+
+        <div class="dm-box dm-identity">
+          <div class="dm-id-av">
+            <?= $_dIN ?>
+            <div class="dm-id-ring <?= htmlspecialchars($_dST) ?>"></div>
+          </div>
+          <div class="dm-id-name"><?= $_dFull ?: $_dFN ?></div>
+          <div class="dm-id-email"><?= $_dEM ?></div>
+          <div class="dm-id-badge <?= htmlspecialchars($_dST) ?>">
+            <span class="dm-bdot"></span><?= $_dSLB ?>
+          </div>
+          <div class="dm-id-sep"></div>
+          <div class="dm-id-row"><i class="fas fa-calendar-alt"></i>&nbsp;Joined <?= $_dJN ?></div>
+          <?php if ($_dCI): ?>
+          <div class="dm-id-row"><i class="fas fa-map-marker-alt"></i>&nbsp;<?= $_dCI . ($_dPR ? ", $_dPR" : '') ?></div>
+          <?php endif; ?>
+          <?php if ($_dPH): ?>
+          <div class="dm-id-row"><i class="fas fa-phone"></i>&nbsp;<?= $_dPH ?></div>
+          <?php endif; ?>
+        </div>
+
+        <div class="dm-box dm-details-box">
+          <div class="dm-details-title">Account Information</div>
+          <div class="dm-detail-grid">
+            <div>
+              <div class="dm-dlbl">First Name</div>
+              <div class="dm-dval"><?= htmlspecialchars($_du['first_name'] ?? '—') ?></div>
+            </div>
+            <div>
+              <div class="dm-dlbl">Last Name</div>
+              <div class="dm-dval"><?= htmlspecialchars($_du['last_name'] ?? '—') ?></div>
+            </div>
+            <div style="grid-column:span 2">
+              <div class="dm-dlbl">Email Address</div>
+              <div class="dm-dval"><?= $_dEM ?: '—' ?></div>
+            </div>
+            <div>
+              <div class="dm-dlbl">Phone</div>
+              <div class="dm-dval"><?= $_dPH ?: '—' ?></div>
+            </div>
+            <div>
+              <div class="dm-dlbl">City</div>
+              <div class="dm-dval"><?= $_dCI ?: '—' ?></div>
+            </div>
+            <div>
+              <div class="dm-dlbl">Province</div>
+              <div class="dm-dval"><?= $_dPR ?: '—' ?></div>
+            </div>
+            <div>
+              <div class="dm-dlbl">Zip Code</div>
+              <div class="dm-dval"><?= $_dZP ?: '—' ?></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div><!-- end overview -->
+
+    <!-- FAVOURITES TAB -->
+    <div class="dm-panel" id="dmp-favs">
+      <div class="dm-sec-lbl" style="margin-top:0">My Favourites</div>
+      <div class="dm-box">
+        <div class="dm-empty">
+          <div class="dm-empty-icon g"><i class="fas fa-heart"></i></div>
+          <div class="dm-empty-title">No favourites yet</div>
+          <div class="dm-empty-sub">Heart a pet on the Explore page and they'll show up here for quick access.</div>
+          <a class="dm-empty-btn g" href="find_a_pet.php"><i class="fas fa-search"></i> Browse Animals</a>
+        </div>
       </div>
     </div>
-    <a class="nav-logout" href="logout.php"><i class="fas fa-sign-out-alt"></i> Log Out</a>
-  </div>
-</nav>
 
-<div class="page-wrap">
-
-  <div class="welcome">
-    <div class="welcome-tag"><i class="fas fa-paw"></i> Member Dashboard</div>
-    <h1>Good day, <em><?= $firstName ?></em>!</h1>
-    <p class="welcome-sub">Here's your Pawster account overview.</p>
-  </div>
-
-  <div class="stats-row">
-    <div class="stat-card">
-      <div class="sc-icon green"><i class="fas fa-user"></i></div>
-      <div style="flex:1">
-        <div class="sc-val"><?= $profilePct ?>%</div>
-        <div class="sc-lbl">Profile Complete</div>
-        <div class="sc-bar-wrap"><div class="sc-bar" style="width:<?= $profilePct ?>%"></div></div>
+    <!-- APPLICATIONS TAB -->
+    <div class="dm-panel" id="dmp-apps">
+      <div class="dm-sec-lbl" style="margin-top:0">Adoption Applications</div>
+      <div class="dm-box" style="margin-bottom:14px">
+        <div class="dm-empty">
+          <div class="dm-empty-icon b"><i class="fas fa-paw"></i></div>
+          <div class="dm-empty-title">No adoption applications yet</div>
+          <div class="dm-empty-sub">Browse pets and submit an application — status tracked here.</div>
+          <a class="dm-empty-btn b" href="find_a_pet.php"><i class="fas fa-search"></i> Explore Pets</a>
+        </div>
+      </div>
+      <div class="dm-sec-lbl">Rehome Listings</div>
+      <div class="dm-box">
+        <div class="dm-empty">
+          <div class="dm-empty-icon o"><i class="fas fa-home"></i></div>
+          <div class="dm-empty-title">No rehome listings yet</div>
+          <div class="dm-empty-sub">Need to find a new home for your pet? We'll help connect you.</div>
+          <a class="dm-empty-btn o" href="rehome.php"><i class="fas fa-home"></i> Rehome a Pet</a>
+        </div>
       </div>
     </div>
-    <div class="stat-card">
-      <div class="sc-icon orange"><i class="fas fa-calendar-alt"></i></div>
-      <div><div class="sc-val"><?= $daysSince ?></div><div class="sc-lbl">Days as Member</div></div>
-    </div>
-    <div class="stat-card">
-      <div class="sc-icon blue"><i class="fas fa-shield-alt"></i></div>
-      <div>
-        <div class="sc-val" style="font-size:1.2rem;font-family:'Nunito',sans-serif"><?= $statusLabel ?></div>
-        <div class="sc-lbl">Account Status</div>
+
+    <!-- SETTINGS TAB -->
+    <div class="dm-panel" id="dmp-settings">
+
+      <div class="dm-sec-lbl" style="margin-top:0">Edit Profile</div>
+      <div class="dm-box">
+        <div class="dm-form">
+          <div class="dm-form-row2">
+            <div class="dm-field">
+              <label>First Name *</label>
+              <input type="text" id="sFirst" value="<?= htmlspecialchars($_du['first_name'] ?? '') ?>" placeholder="First name"/>
+              <span class="dm-ferr" id="sFirstErr"></span>
+            </div>
+            <div class="dm-field">
+              <label>Last Name *</label>
+              <input type="text" id="sLast" value="<?= htmlspecialchars($_du['last_name'] ?? '') ?>" placeholder="Last name"/>
+              <span class="dm-ferr" id="sLastErr"></span>
+            </div>
+          </div>
+          <div class="dm-field">
+            <label>Email Address *</label>
+            <input type="email" id="sEmail" value="<?= $_dEM ?>" placeholder="your@email.com"/>
+            <span class="dm-ferr" id="sEmailErr"></span>
+          </div>
+          <div class="dm-field">
+            <label>Phone Number</label>
+            <input type="tel" id="sPhone" value="<?= $_dPH ?>" placeholder="+63 900 000 0000"/>
+          </div>
+          <div class="dm-form-row2">
+            <div class="dm-field">
+              <label>City</label>
+              <input type="text" id="sCity" value="<?= $_dCI ?>" placeholder="Your city"/>
+            </div>
+            <div class="dm-field">
+              <label>Province</label>
+              <input type="text" id="sProvince" value="<?= $_dPR ?>" placeholder="Province"/>
+            </div>
+          </div>
+          <div class="dm-form-btns">
+            <button class="dm-btn dm-btn-green" onclick="dmSaveEdit()">
+              <i class="fas fa-save"></i> Save Changes
+            </button>
+          </div>
+        </div>
       </div>
-    </div>
-  </div>
 
-  <div class="sec-lbl">Your Profile</div>
-  <div class="profile-grid">
-    <div class="panel identity">
-      <div class="id-avatar"><?= $initials ?><div class="id-status-ring <?= $status ?>"></div></div>
-      <div class="id-name"><?= $fullName ?: $firstName ?></div>
-      <div class="id-email"><?= $email ?></div>
-      <div class="id-badge <?= $status ?>"><span class="badge-dot"></span><?= $statusLabel ?></div>
-      <div class="id-divider"></div>
-      <div class="id-meta"><i class="fas fa-calendar-alt"></i> Joined <?= $joinDate ?></div>
-      <?php if($city): ?>
-      <div class="id-meta"><i class="fas fa-map-marker-alt"></i> <?= $city.($province?', '.$province:'') ?></div>
-      <?php endif; ?>
-    </div>
-    <div class="panel details">
-      <div class="details-title">Account Information</div>
-      <div class="detail-grid">
-        <div><div class="detail-lbl">First Name</div><div class="detail-val"><?= htmlspecialchars($me['first_name']??'—') ?></div></div>
-        <div><div class="detail-lbl">Last Name</div><div class="detail-val"><?= htmlspecialchars($me['last_name']??'—') ?></div></div>
-        <div style="grid-column:span 2"><div class="detail-lbl">Email Address</div><div class="detail-val"><?= $email?:'—' ?></div></div>
-        <div><div class="detail-lbl">Phone</div><div class="detail-val"><?= $phone?:'—' ?></div></div>
-        <div><div class="detail-lbl">City</div><div class="detail-val"><?= $city?:'—' ?></div></div>
-        <div><div class="detail-lbl">Province</div><div class="detail-val"><?= $province?:'—' ?></div></div>
-        <div><div class="detail-lbl">Zip Code</div><div class="detail-val"><?= $zipCode?:'—' ?></div></div>
+      <div class="dm-sec-lbl">Change Password</div>
+      <div class="dm-box">
+        <div class="dm-form">
+          <div class="dm-field">
+            <label>Current Password *</label>
+            <div class="dm-pw-wrap">
+              <input type="password" id="sCur" placeholder="Current password"/>
+              <button class="dm-pw-eye" onclick="dmTogglePw('sCur',this)"><i class="fas fa-eye"></i></button>
+            </div>
+            <span class="dm-ferr" id="sCurErr"></span>
+          </div>
+          <div class="dm-field">
+            <label>New Password *</label>
+            <div class="dm-pw-wrap">
+              <input type="password" id="sNew" placeholder="Min. 8 characters"/>
+              <button class="dm-pw-eye" onclick="dmTogglePw('sNew',this)"><i class="fas fa-eye"></i></button>
+            </div>
+            <span class="dm-ferr" id="sNewErr"></span>
+          </div>
+          <div class="dm-field">
+            <label>Confirm New Password *</label>
+            <div class="dm-pw-wrap">
+              <input type="password" id="sConf" placeholder="Repeat new password"/>
+              <button class="dm-pw-eye" onclick="dmTogglePw('sConf',this)"><i class="fas fa-eye"></i></button>
+            </div>
+            <span class="dm-ferr" id="sConfErr"></span>
+          </div>
+          <div class="dm-form-btns">
+            <button class="dm-btn dm-btn-orange" onclick="dmSavePwd()">
+              <i class="fas fa-key"></i> Update Password
+            </button>
+          </div>
+        </div>
       </div>
-    </div>
-  </div>
 
-  <div class="sec-lbl" style="margin-top:1.8rem">Account Actions</div>
-  <div class="actions-row">
-    <a class="action-card" href="#" onclick="openEdit();return false;">
-      <div class="ac-icon green"><i class="fas fa-user-edit"></i></div>
-      <div><div class="ac-title">Edit Profile</div><div class="ac-sub">Update your personal information</div></div>
-    </a>
-    <a class="action-card" href="#" onclick="openPwd();return false;">
-      <div class="ac-icon orange"><i class="fas fa-lock"></i></div>
-      <div><div class="ac-title">Change Password</div><div class="ac-sub">Keep your account secure</div></div>
-    </a>
-  </div>
+      <div class="dm-sec-lbl">Account</div>
+      <a class="dm-logout-btn" href="logout.php">
+        <i class="fas fa-sign-out-alt"></i> Log Out of Pawster
+      </a>
 
-</div>
+    </div><!-- end settings -->
 
-<!-- Edit Modal -->
-<div class="modal-overlay" id="mEdit" style="display:none" onclick="if(event.target===this)closeAll()">
-  <div class="modal-box">
-    <div class="modal-head">
-      <div class="modal-head-icon"><i class="fas fa-user-edit"></i></div>
-      <span class="modal-title">Edit Profile</span>
-      <button class="modal-close" onclick="closeAll()"><i class="fas fa-times"></i></button>
-    </div>
-    <div class="modal-body">
-      <div class="form-row2">
-        <div class="form-field"><label>First Name *</label><input type="text" id="eFirst" value="<?= htmlspecialchars($me['first_name']??'') ?>" placeholder="First name"/><span class="field-err" id="eFirstErr"></span></div>
-        <div class="form-field"><label>Last Name *</label><input type="text" id="eLast" value="<?= htmlspecialchars($me['last_name']??'') ?>" placeholder="Last name"/><span class="field-err" id="eLastErr"></span></div>
-      </div>
-      <div class="form-field"><label>Email Address *</label><input type="email" id="eEmail" value="<?= htmlspecialchars($me['email']??'') ?>" placeholder="your@email.com"/><span class="field-err" id="eEmailErr"></span></div>
-      <div class="form-field"><label>Phone Number</label><input type="tel" id="ePhone" value="<?= $phone ?>" placeholder="+63 900 000 0000"/></div>
-      <div class="form-row2">
-        <div class="form-field"><label>City</label><input type="text" id="eCity" value="<?= $city ?>" placeholder="Your city"/></div>
-        <div class="form-field"><label>Province</label><input type="text" id="eProvince" value="<?= $province ?>" placeholder="Province"/></div>
-      </div>
-    </div>
-    <div class="modal-foot">
-      <button class="mBtn mBtn-ghost" onclick="closeAll()">Cancel</button>
-      <button class="mBtn mBtn-green" onclick="saveEdit()"><i class="fas fa-save"></i> Save Changes</button>
-    </div>
-  </div>
-</div>
+  </div><!-- end dm-body -->
+</div><!-- end dash-modal -->
+</div><!-- end dash-overlay -->
 
-<!-- Password Modal -->
-<div class="modal-overlay" id="mPwd" style="display:none" onclick="if(event.target===this)closeAll()">
-  <div class="modal-box sm">
-    <div class="modal-head">
-      <div class="modal-head-icon"><i class="fas fa-lock" style="color:var(--c2)"></i></div>
-      <span class="modal-title">Change Password</span>
-      <button class="modal-close" onclick="closeAll()"><i class="fas fa-times"></i></button>
-    </div>
-    <div class="modal-body">
-      <div class="form-field"><label>Current Password *</label><div class="pw-wrap"><input type="password" id="pCur" placeholder="Current password"/><button class="pw-eye" onclick="togglePw('pCur',this)"><i class="fas fa-eye"></i></button></div><span class="field-err" id="pCurErr"></span></div>
-      <div class="form-field"><label>New Password *</label><div class="pw-wrap"><input type="password" id="pNew" placeholder="Min. 8 characters"/><button class="pw-eye" onclick="togglePw('pNew',this)"><i class="fas fa-eye"></i></button></div><span class="field-err" id="pNewErr"></span></div>
-      <div class="form-field"><label>Confirm New Password *</label><div class="pw-wrap"><input type="password" id="pConf" placeholder="Repeat new password"/><button class="pw-eye" onclick="togglePw('pConf',this)"><i class="fas fa-eye"></i></button></div><span class="field-err" id="pConfErr"></span></div>
-    </div>
-    <div class="modal-foot">
-      <button class="mBtn mBtn-ghost" onclick="closeAll()">Cancel</button>
-      <button class="mBtn mBtn-orange" onclick="savePwd()"><i class="fas fa-key"></i> Update Password</button>
-    </div>
-  </div>
-</div>
+<div id="dm-toasts"></div>
 
-<div id="toast-wrap"></div>
+<script>
+/* ── DASHBOARD POPUP JS — globally available ── */
 
-<div id="dc">
-  <svg id="dog-svg" width="54" height="54" viewBox="0 0 54 54" xmlns="http://www.w3.org/2000/svg">
-    <ellipse cx="27" cy="50" rx="14" ry="3" fill="rgba(0,0,0,0.13)"/>
-    <g id="dog-tail"><path d="M10 22 Q2 14 6 8 Q10 4 12 10 Q10 16 14 20Z" fill="#c8a06a" stroke="#7a5530" stroke-width="1.2" stroke-linejoin="round"/></g>
-    <g id="dog-body">
-      <g id="dog-leg-back"><rect x="11" y="30" width="6" height="14" rx="3" fill="#b8904a" stroke="#7a5530" stroke-width="1"/><ellipse cx="14" cy="44" rx="5" ry="3" fill="#a07838" stroke="#7a5530" stroke-width="1"/></g>
-      <rect x="10" y="16" width="28" height="18" rx="9" fill="#d4a96a" stroke="#7a5530" stroke-width="1.5"/>
-      <ellipse cx="24" cy="28" rx="9" ry="5" fill="#f0d090" opacity=".7"/>
-      <g id="dog-leg-front"><rect x="27" y="30" width="6" height="14" rx="3" fill="#c8a06a" stroke="#7a5530" stroke-width="1"/><ellipse cx="30" cy="44" rx="5" ry="3" fill="#a07838" stroke="#7a5530" stroke-width="1"/></g>
-      <rect x="30" y="12" width="10" height="12" rx="5" fill="#c89850" stroke="#7a5530" stroke-width="1.2"/>
-      <ellipse cx="38" cy="10" rx="10" ry="9" fill="#d4a96a" stroke="#7a5530" stroke-width="1.5"/>
-      <ellipse cx="46" cy="13" rx="5" ry="4" fill="#e8c080" stroke="#7a5530" stroke-width="1"/>
-      <ellipse cx="50" cy="12" rx="2.2" ry="1.8" fill="#4a2a10"/>
-      <circle cx="42" cy="8" r="2.2" fill="#2a1a08"/><circle cx="42.8" cy="7.3" r=".7" fill="#fff"/>
-      <g id="dog-ear"><path d="M36 4 Q40 0 44 3 Q42 8 38 9Z" fill="#b87840" stroke="#7a5530" stroke-width="1" stroke-linejoin="round"/></g>
-      <rect x="31" y="16" width="10" height="3.5" rx="1.8" fill="#2a7a40" stroke="#1a5030" stroke-width=".8"/>
-      <circle cx="36" cy="17.8" r="1.2" fill="#f0c830"/>
-    </g>
-  </svg>
-</div>
+function openDashboard() {
+  var overlay = document.getElementById('dash-overlay');
+  if (overlay) {
+    overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+}
 
-<script src="../js/user_dashboard.js"></script>
-</body>
-</html>
+function closeDashboard() {
+  var overlay = document.getElementById('dash-overlay');
+  if (overlay) {
+    overlay.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+}
+
+/* Backdrop click closes */
+(function() {
+  var overlay = document.getElementById('dash-overlay');
+  if (!overlay) return;
+  overlay.addEventListener('click', function(e) {
+    if (e.target === overlay) closeDashboard();
+  });
+})();
+
+/* Escape key closes */
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeDashboard();
+});
+
+/* Tab switcher */
+function dmTab(name) {
+  document.querySelectorAll('#dash-modal .dm-tab').forEach(function(t) {
+    t.classList.toggle('active', t.dataset.tab === name);
+  });
+  document.querySelectorAll('#dash-modal .dm-panel').forEach(function(p) {
+    p.classList.toggle('active', p.id === 'dmp-' + name);
+  });
+}
+
+/* Password eye toggle */
+function dmTogglePw(id, btn) {
+  var inp = document.getElementById(id);
+  if (!inp) return;
+  inp.type = inp.type === 'text' ? 'password' : 'text';
+  btn.innerHTML = inp.type === 'text'
+    ? '<i class="fas fa-eye-slash"></i>'
+    : '<i class="fas fa-eye"></i>';
+}
+
+/* Save profile */
+function dmSaveEdit() {
+  var fn = document.getElementById('sFirst').value.trim();
+  var ln = document.getElementById('sLast').value.trim();
+  var em = document.getElementById('sEmail').value.trim();
+
+  ['sFirstErr','sLastErr','sEmailErr'].forEach(function(id) {
+    var el = document.getElementById(id); if (el) el.textContent = '';
+  });
+
+  var ok = true;
+  if (!fn) { document.getElementById('sFirstErr').textContent = 'Required.'; ok = false; }
+  if (!ln) { document.getElementById('sLastErr').textContent  = 'Required.'; ok = false; }
+  if (!em) { document.getElementById('sEmailErr').textContent = 'Required.'; ok = false; }
+  else if (!/\S+@\S+\.\S+/.test(em)) {
+    document.getElementById('sEmailErr').textContent = 'Invalid email.'; ok = false;
+  }
+  if (!ok) return;
+
+  var fd = new FormData();
+  fd.append('action',    'update_profile');
+  fd.append('firstName', fn);
+  fd.append('lastName',  ln);
+  fd.append('email',     em);
+  fd.append('phone',     document.getElementById('sPhone').value.trim());
+  fd.append('city',      document.getElementById('sCity').value.trim());
+  fd.append('province',  document.getElementById('sProvince').value.trim());
+
+  fetch('update_profile.php', { method: 'POST', body: fd })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.success) {
+        dmToast('Profile updated!', 'ok');
+        setTimeout(function() { location.reload(); }, 900);
+      } else {
+        dmToast(d.message || 'Update failed.', 'err');
+      }
+    })
+    .catch(function() { dmToast('Server error.', 'err'); });
+}
+
+/* Change password */
+function dmSavePwd() {
+  var cur  = document.getElementById('sCur').value;
+  var nw   = document.getElementById('sNew').value;
+  var conf = document.getElementById('sConf').value;
+
+  ['sCurErr','sNewErr','sConfErr'].forEach(function(id) {
+    var el = document.getElementById(id); if (el) el.textContent = '';
+  });
+
+  var ok = true;
+  if (!cur)          { document.getElementById('sCurErr').textContent  = 'Required.';               ok = false; }
+  if (nw.length < 8) { document.getElementById('sNewErr').textContent  = 'Min 8 characters.';       ok = false; }
+  if (nw !== conf)   { document.getElementById('sConfErr').textContent = 'Passwords do not match.'; ok = false; }
+  if (!ok) return;
+
+  var fd = new FormData();
+  fd.append('action',  'change_password');
+  fd.append('current', cur);
+  fd.append('new',     nw);
+
+  fetch('update_profile.php', { method: 'POST', body: fd })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.success) {
+        dmToast('Password changed!', 'ok');
+        ['sCur','sNew','sConf'].forEach(function(id) {
+          var el = document.getElementById(id); if (el) el.value = '';
+        });
+      } else {
+        dmToast(d.message || 'Failed.', 'err');
+      }
+    })
+    .catch(function() { dmToast('Server error.', 'err'); });
+}
+
+/* Toast */
+function dmToast(msg, type) {
+  var icons = {
+    ok:  '<i class="fas fa-circle-check"></i>',
+    err: '<i class="fas fa-circle-xmark"></i>'
+  };
+  var el = document.createElement('div');
+  el.className = 'dm-toast ' + (type || 'ok');
+  el.innerHTML = (icons[type] || icons.ok) + '<span>' + msg + '</span>';
+  var wrap = document.getElementById('dm-toasts');
+  if (wrap) wrap.appendChild(el);
+  setTimeout(function() { if (el.parentNode) el.remove(); }, 3500);
+}
+</script>
