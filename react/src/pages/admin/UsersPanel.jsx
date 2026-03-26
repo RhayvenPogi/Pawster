@@ -7,14 +7,14 @@ import {
 } from "../../shared";
 
 export default function UsersPanel({ show }) {
-  const [users,      setUsers]    = useState([]);
-  const [loading,    setLoading]  = useState(false);
-  const [search,     setSearch]   = useState("");
-  const [roleFilter, setRole]     = useState("all");
-  const [modal,      setModal]    = useState(null);
-  const [form,       setForm]     = useState({});
-  const [delModal,   setDel]      = useState(null);
-  const [errs,       setErrs]     = useState({});
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRole] = useState("all");
+  const [modal, setModal] = useState(null);
+  const [form, setForm] = useState({});
+  const [delModal, setDel] = useState(null);
+  const [errs, setErrs] = useState({});
   const { show: toast } = useToast();
 
   const load = useCallback(async () => {
@@ -22,7 +22,7 @@ export default function UsersPanel({ show }) {
     try {
       const r = await phpApi("get_users", { role: roleFilter === "all" ? "" : roleFilter });
       if (r.success) setUsers(r.data || []);
-    } catch {}
+    } catch { }
     setLoading(false);
   }, [roleFilter]);
 
@@ -31,17 +31,55 @@ export default function UsersPanel({ show }) {
   const save = async () => {
     const e = {};
     if (!form.first_name?.trim()) e.first_name = "Required";
-    if (!form.last_name?.trim())  e.last_name  = "Required";
-    if (!form.email?.trim())      e.email      = "Required";
-    if (!form.id && !form.password) e.password = "Required for new users";
+    if (!form.last_name?.trim()) e.last_name = "Required";
+    if (!form.email?.trim()) e.email = "Required";
+
+    // Password validation — only required for new users
+    if (!form.id) {
+      if (!form.password) {
+        e.password = "Required for new users";
+      } else if (form.password.length < 8) {
+        e.password = "Must be at least 8 characters";
+      }
+      if (!form.confirm_password) {
+        e.confirm_password = "Please confirm the password";
+      } else if (form.password && form.password !== form.confirm_password) {
+        e.confirm_password = "Passwords do not match";
+      }
+    } else {
+      // Edit mode — only validate if they typed something
+      if (form.password) {
+        if (form.password.length < 8) {
+          e.password = "Must be at least 8 characters";
+        }
+        if (!form.confirm_password) {
+          e.confirm_password = "Please confirm the new password";
+        } else if (form.password !== form.confirm_password) {
+          e.confirm_password = "Passwords do not match";
+        }
+      }
+    }
+
     setErrs(e);
     if (Object.keys(e).length) return;
 
     try {
-      const r = await phpApi(form.id ? "update_user" : "add_user", { ...form, is_active: form.is_active ?? 1 });
-      if (r.success) { toast(form.id ? "User updated" : "User added", "success"); setModal(null); load(); }
-      else setErrs({ api: r.message || "Error saving" });
-    } catch { setErrs({ api: "Server error" }); }
+      // Strip confirm_password before sending to API
+      const { confirm_password, ...payload } = form.id
+        ? form
+        : { ...form, is_active: 1 };
+
+      const r = await phpApi(form.id ? "update_user" : "add_user", payload);
+      if (r.success) {
+        toast(form.id ? "User updated" : "User added", "success");
+        setModal(null);
+        load();
+      } else {
+        setErrs({ api: r.message || "Error saving" });
+      }
+    } catch {
+      setErrs({ api: "Server error" });
+    }
   };
 
   const del = async () => {
@@ -62,6 +100,9 @@ export default function UsersPanel({ show }) {
     `${u.first_name} ${u.last_name} ${u.email}`.toLowerCase().includes(search.toLowerCase())
   );
 
+  const isAdd = modal === "add";
+  const isEdit = modal === "edit";
+
   return (
     <div className="flex flex-col gap-5">
       <PageHeader
@@ -69,7 +110,11 @@ export default function UsersPanel({ show }) {
         subtitle="Manage all registered accounts"
         action={
           <button
-            onClick={() => { setForm({ role: "user", is_active: 1 }); setErrs({}); setModal("add"); }}
+            onClick={() => {
+              setForm({ role: "user", is_active: 1 });
+              setErrs({});
+              setModal("add");
+            }}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-black text-white transition-all hover:shadow-lg hover:opacity-90"
             style={{ background: "#1c4f09" }}>
             + Add User
@@ -77,23 +122,25 @@ export default function UsersPanel({ show }) {
         }
       />
 
-      <div className="flex flex-wrap gap-3">
-        <SearchBar value={search} onChange={setSearch} placeholder="Search users…" />
-        <div className="flex gap-1.5">
-          {[
-            { key: "all",   label: "All Roles" },
-            { key: "admin", label: "Admin"     },
-            { key: "user",  label: "User"      },
-          ].map(t => (
-            <button key={t.key} onClick={() => setRole(t.key)}
-              className={`px-3 py-2.5 rounded-xl text-xs font-black border transition-all ${
-                roleFilter === t.key
-                  ? "bg-green-600 border-green-600 text-white"
-                  : "border-[#ddd0a8] text-[#7a9060] hover:bg-green-50"
-              }`}>
-              {t.label}
-            </button>
-          ))}
+      <div className="flex flex-wrap gap-3 items-end">
+        <div className="w-[360px]">
+          <SearchBar
+            value={search}
+            onChange={setSearch}
+            placeholder="Search users…"
+          />
+        </div>
+        <div className="flex items-center gap-2 text-sm font-bold">
+          <span style={{ color: "#1c4f09" }}>Role:</span>
+          <Select
+            value={roleFilter}
+            onChange={(e) => setRole(e.target.value)}
+            className="w-36"
+          >
+            <option value="all">All</option>
+            <option value="admin">Admin</option>
+            <option value="user">User</option>
+          </Select>
         </div>
       </div>
 
@@ -109,7 +156,8 @@ export default function UsersPanel({ show }) {
             <Tr key={u.id}>
               <Td>
                 <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-full flex items-center justify-center text-white font-black text-xs flex-shrink-0 border-2 border-green-200"
+                  <div
+                    className="w-9 h-9 rounded-full flex items-center justify-center text-white font-black text-xs flex-shrink-0 border-2 border-green-200"
                     style={{ background: "linear-gradient(135deg,#1c4f09,#2a7010)" }}>
                     {(u.first_name?.[0] || "").toUpperCase()}{(u.last_name?.[0] || "").toUpperCase()}
                   </div>
@@ -134,7 +182,7 @@ export default function UsersPanel({ show }) {
               <Td>
                 <div className="flex gap-1.5">
                   <button
-                    onClick={() => { setForm({ ...u, password: "" }); setErrs({}); setModal("edit"); }}
+                    onClick={() => { setForm({ ...u, password: "", confirm_password: "" }); setErrs({}); setModal("edit"); }}
                     className="px-2.5 py-1.5 rounded-lg text-xs font-black border hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 transition-all"
                     style={{ borderColor: "#ddd0a8", color: "#7a9060" }}
                     title="Edit">✏</button>
@@ -157,11 +205,11 @@ export default function UsersPanel({ show }) {
         </Table>
       )}
 
-      {/* Add / Edit Modal */}
+      {/* ── Add / Edit Modal ─────────────────────────────────────────────────── */}
       <Modal
         open={!!modal}
         onClose={() => setModal(null)}
-        title={modal === "edit" ? "Edit User" : "Add New User"}
+        title={isEdit ? "Edit User" : "Add New User"}
         icon="👤"
         footer={
           <>
@@ -169,40 +217,110 @@ export default function UsersPanel({ show }) {
             <BtnConfirm onClick={save}>💾 Save</BtnConfirm>
           </>
         }>
+
         {errs.api && (
-          <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-2 text-red-700 text-xs font-bold">{errs.api}</div>
+          <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-2 text-red-700 text-xs font-bold">
+            {errs.api}
+          </div>
         )}
+
+        {/* Name row */}
         <div className="grid grid-cols-2 gap-3">
           <Field label="First Name *" error={errs.first_name}>
-            <Input value={form.first_name || ""} onChange={e => setForm(f => ({ ...f, first_name: e.target.value }))} />
+            <Input
+              value={form.first_name || ""}
+              onChange={e => setForm(f => ({ ...f, first_name: e.target.value }))}
+              placeholder="e.g. Juan"
+            />
           </Field>
           <Field label="Last Name *" error={errs.last_name}>
-            <Input value={form.last_name || ""} onChange={e => setForm(f => ({ ...f, last_name: e.target.value }))} />
+            <Input
+              value={form.last_name || ""}
+              onChange={e => setForm(f => ({ ...f, last_name: e.target.value }))}
+              placeholder="e.g. Dela Cruz"
+            />
           </Field>
         </div>
+
+        {/* Email */}
         <Field label="Email *" error={errs.email}>
-          <Input type="email" value={form.email || ""} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
+          <Input
+            type="email"
+            value={form.email || ""}
+            onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+            placeholder="example@email.com"
+          />
         </Field>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label={modal === "edit" ? "New Password (blank = keep)" : "Password *"} error={errs.password}>
-            <Input type="password" value={form.password || ""} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} placeholder="••••••••" />
-          </Field>
-          <Field label="Role">
-            <Select value={form.role || "user"} onChange={e => setForm(f => ({ ...f, role: e.target.value }))}>
-              <option value="user">User</option>
-              <option value="admin">Admin</option>
-            </Select>
-          </Field>
-        </div>
-        <Field label="Status">
-          <Select value={String(form.is_active ?? 1)} onChange={e => setForm(f => ({ ...f, is_active: e.target.value }))}>
-            <option value="1">Active</option>
-            <option value="0">Inactive</option>
+
+        {/* Password row — full width for add, paired for edit */}
+        {isAdd ? (
+          // ADD MODE: Password + Confirm Password side-by-side
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Password *" error={errs.password}>
+              <Input
+                type="password"
+                value={form.password || ""}
+                onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                placeholder="••••••••"
+                autoComplete="new-password"
+              />
+            </Field>
+            <Field label="Confirm Password *" error={errs.confirm_password}>
+              <Input
+                type="password"
+                value={form.confirm_password || ""}
+                onChange={e => setForm(f => ({ ...f, confirm_password: e.target.value }))}
+                placeholder="••••••••"
+                autoComplete="new-password"
+              />
+            </Field>
+          </div>
+        ) : (
+          // EDIT MODE: Optional new password + confirm, only shown together
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="New Password (blank = keep)" error={errs.password}>
+              <Input
+                type="password"
+                value={form.password || ""}
+                onChange={e => setForm(f => ({ ...f, password: e.target.value, confirm_password: "" }))}
+                placeholder="••••••••"
+                autoComplete="new-password"
+              />
+            </Field>
+            <Field
+              label="Confirm New Password"
+              error={errs.confirm_password}
+            >
+              <Input
+                type="password"
+                value={form.confirm_password || ""}
+                onChange={e => setForm(f => ({ ...f, confirm_password: e.target.value }))}
+                placeholder="••••••••"
+                autoComplete="new-password"
+                disabled={!form.password}
+                style={{ opacity: form.password ? 1 : 0.45, cursor: form.password ? "text" : "not-allowed" }}
+              />
+            </Field>
+          </div>
+        )}
+
+        {/* Role row */}
+        <Field label="Role">
+          <Select
+            value={form.role || "user"}
+            onChange={e => setForm(f => ({ ...f, role: e.target.value }))}>
+            <option value="user">User</option>
+            <option value="admin">Admin</option>
           </Select>
         </Field>
+
+        {/* Password strength hint — only on add */}
+        {isAdd && form.password && (
+          <PasswordStrength password={form.password} />
+        )}
       </Modal>
 
-      {/* Delete Modal */}
+      {/* ── Delete Modal ─────────────────────────────────────────────────────── */}
       <Modal
         open={!!delModal}
         onClose={() => setDel(null)}
@@ -219,6 +337,58 @@ export default function UsersPanel({ show }) {
           This cannot be undone.
         </p>
       </Modal>
+    </div>
+  );
+}
+
+// ── PASSWORD STRENGTH INDICATOR ───────────────────────────────────────────────
+function PasswordStrength({ password }) {
+  const checks = [
+    { label: "8+ characters", pass: password.length >= 8 },
+    { label: "Uppercase letter", pass: /[A-Z]/.test(password) },
+    { label: "Lowercase letter", pass: /[a-z]/.test(password) },
+    { label: "Number", pass: /[0-9]/.test(password) },
+    { label: "Special character", pass: /[^A-Za-z0-9]/.test(password) },
+  ];
+
+  const passed = checks.filter(c => c.pass).length;
+  const strength = passed <= 2 ? "Weak" : passed <= 3 ? "Fair" : passed === 4 ? "Good" : "Strong";
+  const strengthColor = passed <= 2 ? "#e05c3a" : passed <= 3 ? "#d4900a" : passed === 4 ? "#4a8f3f" : "#1c7c2a";
+  const barColor = passed <= 2 ? "#f4a090" : passed <= 3 ? "#f4c870" : passed === 4 ? "#82c474" : "#3ab54a";
+
+  return (
+    <div
+      className="rounded-xl px-3 py-2.5 flex flex-col gap-2"
+      style={{ background: "rgba(42,112,16,0.04)", border: "1px solid rgba(42,112,16,0.1)" }}>
+
+      {/* Strength bar */}
+      <div className="flex items-center gap-2">
+        <div className="flex gap-1 flex-1">
+          {[1, 2, 3, 4, 5].map(i => (
+            <div
+              key={i}
+              className="h-1.5 flex-1 rounded-full transition-all duration-300"
+              style={{ background: i <= passed ? barColor : "#e0d8c0" }}
+            />
+          ))}
+        </div>
+        <span className="text-[11px] font-black" style={{ color: strengthColor, minWidth: 44 }}>
+          {strength}
+        </span>
+      </div>
+
+      {/* Check list */}
+      <div className="flex flex-wrap gap-x-4 gap-y-0.5">
+        {checks.map(c => (
+          <span
+            key={c.label}
+            className="text-[11px] font-bold flex items-center gap-1"
+            style={{ color: c.pass ? "#3a7010" : "#a09060" }}>
+            <span style={{ fontSize: 10 }}>{c.pass ? "✓" : "○"}</span>
+            {c.label}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }
