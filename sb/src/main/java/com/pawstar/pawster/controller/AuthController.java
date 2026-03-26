@@ -262,24 +262,38 @@ public class AuthController {
     // GET /api/auth/me
     // =========================================================================
     @GetMapping("/me")
-    public ResponseEntity<?> me() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || !auth.isAuthenticated()
-                || "anonymousUser".equals(auth.getPrincipal())) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-
-        return userRepository.findByEmail(auth.getName())
-                .map(u -> ResponseEntity.ok(Map.of(
-                        "email",     u.getEmail(),
-                        "firstName", u.getFirstName(),
-                        "lastName",  u.getLastName() != null ? u.getLastName() : "",
-                        "role",      u.getRole(),
-                        "status",    u.getStatus(),
-                        "isActive",  u.getIsActive()
-                )))
-                .orElse(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
+public ResponseEntity<?> me() {
+    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+    if (auth == null || !auth.isAuthenticated()
+            || "anonymousUser".equals(auth.getPrincipal())) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
+
+    String email = auth.getName();
+
+    // Static admin is not in the DB — handle separately
+    if (ADMIN_EMAIL.equals(email)) {
+        return ResponseEntity.ok(Map.of(
+            "email",     ADMIN_EMAIL,
+            "firstName", "Admin",
+            "lastName",  "",
+            "role",      "admin",
+            "status",    "active",
+            "isActive",  true
+        ));
+    }
+
+    return userRepository.findByEmail(email)
+            .map(u -> ResponseEntity.ok(Map.of(
+                    "email",     u.getEmail(),
+                    "firstName", u.getFirstName(),
+                    "lastName",  u.getLastName() != null ? u.getLastName() : "",
+                    "role",      u.getRole(),
+                    "status",    u.getStatus(),
+                    "isActive",  u.getIsActive()
+            )))
+            .orElse(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
+}
 
     // =========================================================================
     // Helpers

@@ -43,7 +43,9 @@ services:
     command: ./mvnw spring-boot:run
 
   php:
-    image: php:8.2-apache
+    build:
+      context: ./php        # Dockerfile lives inside ./php/
+      dockerfile: Dockerfile
     container_name: pawster_php_api
     depends_on:
       db:
@@ -59,17 +61,8 @@ services:
       - JWT_SECRET=Zm9ydHktdHdvLWlzLXRoZS1hbnN3ZXItdG8tbGlmZS10aGUtdW5pdmVyc2UtYW5kLWV2ZXJ5dGhpbmc=
     volumes:
       - ./php:/var/www/html
-    working_dir: /var/www/html
-    #install php dependencies, pdo_pgsql, composer
-    command: >
-      bash -c "
-      apt-get update && 
-      apt-get install -y libpq-dev git unzip && 
-      docker-php-ext-install pdo pdo_pgsql && 
-      curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer && 
-      composer install && 
-      apache2-foreground
-      "
+      - php_vendor:/var/www/html/vendor
+    
 
 
   react:
@@ -90,7 +83,8 @@ services:
     command: sh -c "npm install && npm run dev -- --host"  # --- PHP API Service ---
 
 volumes:
-  postgres_data: #persist db data
+  postgres_data:
+  php_vendor:
 
 
 # error getting credentials - err: fork/exec /mnt/c/Program Files/Docker/Docker/resources/bin/docker-credential-desktop.exe: exec format error, out: ``

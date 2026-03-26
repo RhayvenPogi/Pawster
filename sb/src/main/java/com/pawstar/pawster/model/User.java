@@ -42,8 +42,8 @@ public class User {
      * Raw file bytes stored directly in the DB (PostgreSQL bytea column).
      * Replaces the old file-path approach — no folder needed.
      */
-    @Lob
-    @Column(name = "id_file_path", columnDefinition = "bytea")
+    
+    @Column(name = "id_file", columnDefinition = "bytea")
     private byte[] idFile;
 
     /** Original MIME type of the uploaded file (e.g. "image/jpeg"). */

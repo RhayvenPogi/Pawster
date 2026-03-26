@@ -18,6 +18,8 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import jakarta.servlet.http.HttpServletResponse;
+
 import java.util.Arrays;
 import java.util.List;
 
@@ -46,10 +48,19 @@ public class SecurityConfig {
                             "/api/auth/login",
                             "/api/auth/register",
                             "/api/auth/logout",
+                            "/api/auth/me", 
                             "/error"          
                     ).permitAll()
                     .anyRequest().authenticated()
+            )
+            .exceptionHandling(ex -> ex          // ← add this block
+                .authenticationEntryPoint((req, res, e) -> {
+                    res.setContentType("application/json");
+                    res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    res.getWriter().write("{\"error\":\"Unauthorized\"}");
+                })
             );
+
 
         http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();

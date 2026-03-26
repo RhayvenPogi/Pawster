@@ -133,7 +133,7 @@ function DogCursor() {
 }
 
 export default function LoginPage() {
-  const { login }               = useAuth(); // ✅ axios → http://localhost:8080
+  const { login }               = useAuth();
   const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(false);
@@ -161,11 +161,9 @@ export default function LoginPage() {
     setLoading(true);
     setAlert({ type: "", msg: "" });
     try {
-      // ✅ login() → useAuth → api (axios) → http://localhost:8080/api/auth/login
       await login(email.trim(), password);
       if (remember) localStorage.setItem("pawster_email", email.trim());
       else          localStorage.removeItem("pawster_email");
-      // navigation is handled inside useAuth.login()
     } catch (err) {
       const msg = err.response?.data?.message || "Invalid email or password.";
       setAlert({ type: "error", msg });

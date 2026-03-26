@@ -1,0 +1,78 @@
+-- ─────────────────────────────────────────────────────────────────────────────
+-- V2__pawster_animals_and_requests.sql
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- ── Animals ───────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS animals (
+    id         SERIAL PRIMARY KEY,
+    name       VARCHAR(120) NOT NULL,
+    type       VARCHAR(40)  NOT NULL DEFAULT 'Dog'
+                   CHECK (type IN ('Dog', 'Cat', 'Bird', 'Rabbit', 'Other')),
+    breed      VARCHAR(120),
+    age        VARCHAR(40),
+    health     VARCHAR(40)  NOT NULL DEFAULT 'Healthy'
+                   CHECK (health IN ('Healthy', 'Needs Care', 'Under Treatment')),
+    status     VARCHAR(40)  NOT NULL DEFAULT 'Available'
+                   CHECK (status IN ('Available', 'Pending', 'Adopted', 'Not Available')),
+    created_at TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+-- ── Adoption requests ─────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS adoption_requests (
+    id          SERIAL PRIMARY KEY,
+    user_id     INT REFERENCES users(id) ON DELETE SET NULL,
+    pet_name    VARCHAR(120),
+    name        VARCHAR(160),
+    email       VARCHAR(180),
+    phone       VARCHAR(30),
+    address     VARCHAR(255),
+    reason      TEXT,
+    status      VARCHAR(40)  NOT NULL DEFAULT 'Pending'
+                    CHECK (status IN ('Pending', 'Approved', 'Rejected')),
+    reject_note TEXT,
+    created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+-- ── Rehome requests ───────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS rehome_requests (
+    id          SERIAL PRIMARY KEY,
+    user_id     INT REFERENCES users(id) ON DELETE SET NULL,
+    animal_name VARCHAR(120),
+    owner_name  VARCHAR(160),
+    contact     VARCHAR(180),
+    contact_no  VARCHAR(30),
+    city        VARCHAR(120),
+    description TEXT,
+    status      VARCHAR(40)  NOT NULL DEFAULT 'Pending'
+                    CHECK (status IN ('Pending', 'Approved', 'Rejected')),
+    reject_note TEXT,
+    created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+-- ── Surveys ───────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS surveys (
+    id           SERIAL PRIMARY KEY,
+    adoption_id  INT REFERENCES adoption_requests(id) ON DELETE SET NULL,
+    user_id      INT REFERENCES users(id) ON DELETE SET NULL,
+    adopter_name VARCHAR(160),
+    animal_name  VARCHAR(120),
+    rating       SMALLINT CHECK (rating BETWEEN 1 AND 5),
+    notes        TEXT,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ── Activity log ──────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS activity_logs (
+    id         SERIAL PRIMARY KEY,
+    action     VARCHAR(80) NOT NULL,
+    details    TEXT,
+    user_id    INT REFERENCES users(id) ON DELETE SET NULL,
+    user_name  VARCHAR(160),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ── Indexes ───────────────────────────────────────────────────────────────────
+CREATE INDEX IF NOT EXISTS idx_adoption_status  ON adoption_requests(status);
+CREATE INDEX IF NOT EXISTS idx_rehome_status    ON rehome_requests(status);
+CREATE INDEX IF NOT EXISTS idx_animals_status   ON animals(status);
+CREATE INDEX IF NOT EXISTS idx_activity_created ON activity_logs(created_at DESC);
