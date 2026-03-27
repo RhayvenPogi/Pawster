@@ -1,4 +1,5 @@
 // ── SHARED UTILITIES, CONSTANTS & UI PRIMITIVES ───────────────────────────────
+import { useState, useCallback } from "react";
 
 export const PHP_BASE = "http://localhost:8081";
 
@@ -15,7 +16,6 @@ export async function phpApi(action, data = {}) {
 }
 
 // ── TOAST ─────────────────────────────────────────────────────────────────────
-import { useState, useCallback } from "react";
 
 export function useToast() {
   const [toasts, setToasts] = useState([]);

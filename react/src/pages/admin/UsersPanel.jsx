@@ -6,35 +6,44 @@ import {
   PageHeader, SearchBar, roleBadge
 } from "../../shared";
 
-export default function UsersPanel({ show }) {
-  const [users, setUsers] = useState([]);
+export default function UsersPanel({ show: isVisible }) {  // ← renamed to avoid conflict with useToast's show
+  const [users, setUsers]     = useState([]);
   const [loading, setLoading] = useState(false);
-  const [search, setSearch] = useState("");
+  const [search, setSearch]   = useState("");
   const [roleFilter, setRole] = useState("all");
-  const [modal, setModal] = useState(null);
-  const [form, setForm] = useState({});
-  const [delModal, setDel] = useState(null);
-  const [errs, setErrs] = useState({});
-  const { show: toast } = useToast();
+  const [modal, setModal]     = useState(null);
+  const [form, setForm]       = useState({});
+  const [delModal, setDel]    = useState(null);
+  const [errs, setErrs]       = useState({});
+  const { show: toast }       = useToast();
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const r = await phpApi("get_users", { role: roleFilter === "all" ? "" : roleFilter });
       if (r.success) setUsers(r.data || []);
-    } catch { }
+      else toast(r.message || "Failed to load users", "error");
+    } catch (err) {
+      toast("Server error loading users", "error");
+      console.error("load users error:", err);
+    }
     setLoading(false);
   }, [roleFilter]);
 
-  useEffect(() => { if (show) load(); }, [show, load]);
+  useEffect(() => { if (isVisible) load(); }, [isVisible, load]);
 
   const save = async () => {
     const e = {};
     if (!form.first_name?.trim()) e.first_name = "Required";
-    if (!form.last_name?.trim()) e.last_name = "Required";
-    if (!form.email?.trim()) e.email = "Required";
+    if (!form.last_name?.trim())  e.last_name  = "Required";
+    if (!form.email?.trim())      e.email      = "Required";
+    // ✅ Phone validation — PH format
+    if (!form.phone?.trim()) {
+      e.phone = "Required";
+    } else if (!/^09\d{9}$/.test(form.phone.trim())) {
+      e.phone = "Invalid PH number (e.g. 09123456789)";
+    }
 
-    // Password validation — only required for new users
     if (!form.id) {
       if (!form.password) {
         e.password = "Required for new users";
@@ -47,7 +56,6 @@ export default function UsersPanel({ show }) {
         e.confirm_password = "Passwords do not match";
       }
     } else {
-      // Edit mode — only validate if they typed something
       if (form.password) {
         if (form.password.length < 8) {
           e.password = "Must be at least 8 characters";
@@ -64,7 +72,6 @@ export default function UsersPanel({ show }) {
     if (Object.keys(e).length) return;
 
     try {
-      // Strip confirm_password before sending to API
       const { confirm_password, ...payload } = form.id
         ? form
         : { ...form, is_active: 1 };
@@ -75,32 +82,46 @@ export default function UsersPanel({ show }) {
         setModal(null);
         load();
       } else {
-        setErrs({ api: r.message || "Error saving" });
+        setErrs({ api: r.message || "Error saving user" });
       }
-    } catch {
-      setErrs({ api: "Server error" });
+    } catch (err) {
+      console.error("save user error:", err);
+      setErrs({ api: "Server error — check console for details" });
     }
   };
 
   const del = async () => {
     try {
-      await phpApi("delete", { type: "user", id: delModal.id });
-      toast("User deleted", "success");
-      setDel(null); load();
-    } catch { toast("Error deleting", "error"); }
+      const r = await phpApi("delete", { type: "user", id: delModal.id });
+      if (r.success) {
+        toast("User deleted", "success");
+        setDel(null);
+        load();
+      } else {
+        toast(r.message || "Error deleting user", "error");
+      }
+    } catch (err) {
+      console.error("delete user error:", err);
+      toast("Server error deleting user", "error");
+    }
   };
 
   const toggleStatus = async (u) => {
-    await phpApi("update_user_status", { id: u.id, is_active: u.is_active == 1 ? 0 : 1 });
-    toast(`User ${u.is_active == 1 ? "deactivated" : "activated"}`, "info");
-    load();
+    try {
+      await phpApi("update_user_status", { id: u.id, is_active: u.is_active == 1 ? 0 : 1 });
+      toast(`User ${u.is_active == 1 ? "deactivated" : "activated"}`, "info");
+      load();
+    } catch (err) {
+      console.error("toggle status error:", err);
+      toast("Server error updating status", "error");
+    }
   };
 
   const filtered = users.filter(u =>
     `${u.first_name} ${u.last_name} ${u.email}`.toLowerCase().includes(search.toLowerCase())
   );
 
-  const isAdd = modal === "add";
+  const isAdd  = modal === "add";
   const isEdit = modal === "edit";
 
   return (
@@ -111,7 +132,8 @@ export default function UsersPanel({ show }) {
         action={
           <button
             onClick={() => {
-              setForm({ role: "user", is_active: 1 });
+              // ✅ phone initialized to empty string
+              setForm({ role: "user", is_active: 1, phone: "" });
               setErrs({});
               setModal("add");
             }}
@@ -150,7 +172,7 @@ export default function UsersPanel({ show }) {
         </div>
       ) : (
         <Table
-          headers={["User", "Email", "Role", "Status", "Joined", "Last Login", "Actions"]}
+          headers={["User", "Email", "Phone", "Role", "Status", "Joined", "Last Login", "Actions"]}
           empty="No users found.">
           {filtered.map(u => (
             <Tr key={u.id}>
@@ -168,16 +190,19 @@ export default function UsersPanel({ show }) {
                 </div>
               </Td>
               <Td>{u.email}</Td>
+              {/* ✅ Phone column */}
+              <Td className="text-xs">{u.phone || "—"}</Td>
               <Td><Badge color={roleBadge(u.role)}>{u.role}</Badge></Td>
               <Td><Badge color={u.is_active == 1 ? "green" : "red"}>{u.is_active == 1 ? "Active" : "Inactive"}</Badge></Td>
               <Td className="text-xs whitespace-nowrap">
-                {u.created_at ? new Date(u.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"}
+                {u.created_at
+                  ? new Date(u.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                  : "—"}
               </Td>
               <Td className="text-xs">
                 {u.last_login
                   ? new Date(u.last_login).toLocaleDateString("en-US", { month: "short", day: "numeric" })
-                  : <span style={{ color: "#c0b080" }}>Never</span>
-                }
+                  : <span style={{ color: "#c0b080" }}>Never</span>}
               </Td>
               <Td>
                 <div className="flex gap-1.5">
@@ -224,7 +249,6 @@ export default function UsersPanel({ show }) {
           </div>
         )}
 
-        {/* Name row */}
         <div className="grid grid-cols-2 gap-3">
           <Field label="First Name *" error={errs.first_name}>
             <Input
@@ -242,7 +266,6 @@ export default function UsersPanel({ show }) {
           </Field>
         </div>
 
-        {/* Email */}
         <Field label="Email *" error={errs.email}>
           <Input
             type="email"
@@ -252,9 +275,17 @@ export default function UsersPanel({ show }) {
           />
         </Field>
 
-        {/* Password row — full width for add, paired for edit */}
+        {/* ✅ Phone field */}
+        <Field label="Phone *" error={errs.phone}>
+          <Input
+            value={form.phone || ""}
+            onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+            placeholder="e.g. 09123456789"
+            maxLength={11}
+          />
+        </Field>
+
         {isAdd ? (
-          // ADD MODE: Password + Confirm Password side-by-side
           <div className="grid grid-cols-2 gap-3">
             <Field label="Password *" error={errs.password}>
               <Input
@@ -276,7 +307,6 @@ export default function UsersPanel({ show }) {
             </Field>
           </div>
         ) : (
-          // EDIT MODE: Optional new password + confirm, only shown together
           <div className="grid grid-cols-2 gap-3">
             <Field label="New Password (blank = keep)" error={errs.password}>
               <Input
@@ -287,10 +317,7 @@ export default function UsersPanel({ show }) {
                 autoComplete="new-password"
               />
             </Field>
-            <Field
-              label="Confirm New Password"
-              error={errs.confirm_password}
-            >
+            <Field label="Confirm New Password" error={errs.confirm_password}>
               <Input
                 type="password"
                 value={form.confirm_password || ""}
@@ -304,7 +331,6 @@ export default function UsersPanel({ show }) {
           </div>
         )}
 
-        {/* Role row */}
         <Field label="Role">
           <Select
             value={form.role || "user"}
@@ -314,7 +340,6 @@ export default function UsersPanel({ show }) {
           </Select>
         </Field>
 
-        {/* Password strength hint — only on add */}
         {isAdd && form.password && (
           <PasswordStrength password={form.password} />
         )}
@@ -344,24 +369,22 @@ export default function UsersPanel({ show }) {
 // ── PASSWORD STRENGTH INDICATOR ───────────────────────────────────────────────
 function PasswordStrength({ password }) {
   const checks = [
-    { label: "8+ characters", pass: password.length >= 8 },
-    { label: "Uppercase letter", pass: /[A-Z]/.test(password) },
-    { label: "Lowercase letter", pass: /[a-z]/.test(password) },
-    { label: "Number", pass: /[0-9]/.test(password) },
+    { label: "8+ characters",     pass: password.length >= 8 },
+    { label: "Uppercase letter",  pass: /[A-Z]/.test(password) },
+    { label: "Lowercase letter",  pass: /[a-z]/.test(password) },
+    { label: "Number",            pass: /[0-9]/.test(password) },
     { label: "Special character", pass: /[^A-Za-z0-9]/.test(password) },
   ];
 
   const passed = checks.filter(c => c.pass).length;
-  const strength = passed <= 2 ? "Weak" : passed <= 3 ? "Fair" : passed === 4 ? "Good" : "Strong";
+  const strength      = passed <= 2 ? "Weak" : passed <= 3 ? "Fair" : passed === 4 ? "Good" : "Strong";
   const strengthColor = passed <= 2 ? "#e05c3a" : passed <= 3 ? "#d4900a" : passed === 4 ? "#4a8f3f" : "#1c7c2a";
-  const barColor = passed <= 2 ? "#f4a090" : passed <= 3 ? "#f4c870" : passed === 4 ? "#82c474" : "#3ab54a";
+  const barColor      = passed <= 2 ? "#f4a090" : passed <= 3 ? "#f4c870" : passed === 4 ? "#82c474" : "#3ab54a";
 
   return (
     <div
       className="rounded-xl px-3 py-2.5 flex flex-col gap-2"
       style={{ background: "rgba(42,112,16,0.04)", border: "1px solid rgba(42,112,16,0.1)" }}>
-
-      {/* Strength bar */}
       <div className="flex items-center gap-2">
         <div className="flex gap-1 flex-1">
           {[1, 2, 3, 4, 5].map(i => (
@@ -376,8 +399,6 @@ function PasswordStrength({ password }) {
           {strength}
         </span>
       </div>
-
-      {/* Check list */}
       <div className="flex flex-wrap gap-x-4 gap-y-0.5">
         {checks.map(c => (
           <span

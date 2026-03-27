@@ -10,10 +10,13 @@ use PDOException;
 
 class AdminDashboardController
 {
+    private object $jwtPayload;
+
     // ── Dispatch action from POST/GET ────────────────────────────────────────
     public function handle(): void
     {
-        JwtMiddleware::authenticate();
+        // ✅ Capture the decoded JWT payload (sub = authenticated user's ID)
+        $this->jwtPayload = JwtMiddleware::authenticate();
 
         $action = $_POST['action'] ?? $_GET['action'] ?? '';
 
@@ -40,6 +43,13 @@ class AdminDashboardController
         } catch (PDOException $e) {
             $this->json(['success' => false, 'message' => 'Database error: ' . $e->getMessage()], 500);
         }
+    }
+
+    // ── Resolve the authenticated user's ID from the JWT ─────────────────────
+    private function adminId(): int
+    {
+        // Spring Boot puts the user ID in the 'sub' claim as a string
+        return (int) ($this->jwtPayload->sub ?? 0);
     }
 
     // ── Stats ────────────────────────────────────────────────────────────────
@@ -214,13 +224,13 @@ class AdminDashboardController
 
         if ($role && $role !== 'all') {
             $stmt = $db->prepare(
-                "SELECT id, first_name, last_name, email, role, is_active, created_at, last_login
+                "SELECT id, first_name, last_name, email, phone, role, is_active, created_at, last_login
                  FROM users WHERE role = :role ORDER BY created_at DESC"
             );
             $stmt->execute(['role' => $role]);
         } else {
             $stmt = $db->query(
-                "SELECT id, first_name, last_name, email, role, is_active, created_at, last_login
+                "SELECT id, first_name, last_name, email, phone, role, is_active, created_at, last_login
                  FROM users ORDER BY created_at DESC"
             );
         }
@@ -233,12 +243,21 @@ class AdminDashboardController
         $firstName = trim($this->body('first_name', ''));
         $lastName  = trim($this->body('last_name',  ''));
         $email     = trim($this->body('email',      ''));
+        $phone     = trim($this->body('phone',      ''));
         $password  = $this->body('password', '');
         $role      = $this->body('role',     'user');
         $isActive  = (int) $this->body('is_active', 1);
 
-        if (!$firstName || !$lastName || !$email || !$password) {
+        if (!$firstName || !$lastName || !$email || !$password || !$phone) {
             $this->fail('All fields are required.');
+        }
+
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $this->fail('Invalid email format.');
+        }
+
+        if (strlen($password) < 8) {
+            $this->fail('Password must be at least 8 characters.');
         }
 
         $db = $this->db();
@@ -251,11 +270,11 @@ class AdminDashboardController
 
         $hash = password_hash($password, PASSWORD_BCRYPT);
         $stmt = $db->prepare(
-            "INSERT INTO users (first_name, last_name, email, password_hash, role, is_active)
-             VALUES (:firstName, :lastName, :email, :hash, :role, :isActive)
-            RETURNING id"
+            "INSERT INTO users (first_name, last_name, email, phone, password_hash, role, is_active)
+             VALUES (:firstName, :lastName, :email, :phone, :hash, :role, :isActive)
+             RETURNING id"
         );
-        $stmt->execute(compact('firstName', 'lastName', 'email', 'hash', 'role', 'isActive'));
+        $stmt->execute(compact('firstName', 'lastName', 'email', 'phone', 'hash', 'role', 'isActive'));
         $id = (int) $stmt->fetchColumn();
 
         $this->logActivity('Add User', "Created user: $email (ID $id)");
@@ -268,12 +287,17 @@ class AdminDashboardController
         $firstName = trim($this->body('first_name', ''));
         $lastName  = trim($this->body('last_name',  ''));
         $email     = trim($this->body('email',      ''));
+        $phone     = trim($this->body('phone',      ''));
         $password  = $this->body('password', '');
         $role      = $this->body('role',     'user');
         $isActive  = (int) $this->body('is_active', 1);
 
         if (!$id || !$firstName || !$email) {
             $this->fail('ID, first name, and email are required.');
+        }
+
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $this->fail('Invalid email format.');
         }
 
         $db = $this->db();
@@ -285,22 +309,25 @@ class AdminDashboardController
         }
 
         if ($password) {
+            if (strlen($password) < 8) {
+                $this->fail('Password must be at least 8 characters.');
+            }
             $hash = password_hash($password, PASSWORD_BCRYPT);
             $stmt = $db->prepare(
                 "UPDATE users
-                SET first_name=:firstName, last_name=:lastName, email=:email,
-                password_hash=:hash, role=:role, is_active=:isActive
-                WHERE id=:id"
+                 SET first_name=:firstName, last_name=:lastName, email=:email, phone=:phone,
+                     password_hash=:hash, role=:role, is_active=:isActive
+                 WHERE id=:id"
             );
-            $stmt->execute(compact('firstName', 'lastName', 'email', 'hash', 'role', 'isActive', 'id'));
+            $stmt->execute(compact('firstName', 'lastName', 'email', 'phone', 'hash', 'role', 'isActive', 'id'));
         } else {
             $stmt = $db->prepare(
                 "UPDATE users
-                 SET first_name=:firstName, last_name=:lastName, email=:email,
+                 SET first_name=:firstName, last_name=:lastName, email=:email, phone=:phone,
                      role=:role, is_active=:isActive
                  WHERE id=:id"
             );
-            $stmt->execute(compact('firstName', 'lastName', 'email', 'role', 'isActive', 'id'));
+            $stmt->execute(compact('firstName', 'lastName', 'email', 'phone', 'role', 'isActive', 'id'));
         }
 
         $this->logActivity('Update User', "Updated user ID $id: $email");
@@ -336,8 +363,8 @@ class AdminDashboardController
     // ── Profile ───────────────────────────────────────────────────────────────
     private function updateProfile(): void
     {
-        // Replace with $jwtPayload->sub when auth is wired up
-        $adminId   = (int) $this->body('admin_id', 1);
+        // ✅ ID now comes from the verified JWT — not from the request body
+        $adminId   = $this->adminId();
         $firstName = trim($this->body('first_name', ''));
         $lastName  = trim($this->body('last_name',  ''));
         $email     = trim($this->body('email',      ''));
@@ -345,6 +372,10 @@ class AdminDashboardController
 
         if (!$firstName || !$email) {
             $this->fail('First name and email are required.');
+        }
+
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $this->fail('Invalid email format.');
         }
 
         $db  = $this->db();
@@ -368,7 +399,8 @@ class AdminDashboardController
 
     private function changePassword(): void
     {
-        $adminId     = (int) $this->body('admin_id', 1);
+        // ✅ ID now comes from the verified JWT — not from the request body
+        $adminId     = $this->adminId();
         $currentPass = $this->body('current_password', '');
         $newPass     = $this->body('new_password',      '');
         $confirmPass = $this->body('confirm_password',  '');
@@ -397,7 +429,8 @@ class AdminDashboardController
     // ── Photo upload ──────────────────────────────────────────────────────────
     private function uploadPhoto(): void
     {
-        $adminId = (int) $this->body('admin_id', 1);
+        // ✅ ID now comes from the verified JWT — not from the request body
+        $adminId = $this->adminId();
 
         if (empty($_FILES['photo']['tmp_name'])) {
             $this->fail('No file uploaded.');
@@ -454,7 +487,11 @@ class AdminDashboardController
 
     private function body(string $key, mixed $default = null): mixed
     {
-        return $_POST[$key] ?? $default;
+        static $json = null;
+        if ($json === null) {
+            $json = json_decode(file_get_contents('php://input'), true) ?? [];
+        }
+        return $_POST[$key] ?? $json[$key] ?? $default;
     }
 
     private function ok(mixed $data = null, string $message = 'OK'): void
@@ -465,6 +502,7 @@ class AdminDashboardController
     private function fail(string $message = 'Error', int $code = 400): never
     {
         http_response_code($code);
+        header('Content-Type: application/json');
         echo json_encode(['success' => false, 'message' => $message]);
         exit();
     }
@@ -472,6 +510,7 @@ class AdminDashboardController
     private function json(mixed $data, int $code = 200): void
     {
         http_response_code($code);
+        header('Content-Type: application/json');
         echo json_encode($data);
         exit();
     }
