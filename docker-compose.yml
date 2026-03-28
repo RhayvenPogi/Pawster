@@ -35,6 +35,13 @@ services:
       - SPRING_DATASOURCE_PASSWORD=password
       - JWT_SECRET=Zm9ydHktdHdvLWlzLXRoZS1hbnN3ZXItdG8tbGlmZS10aGUtdW5pdmVyc2UtYW5kLWV2ZXJ5dGhpbmc=
       - SPRING_DEVTOOLS_RESTART_ENABLED=true
+      - SPRING_MAIL_HOST=smtp.gmail.com
+      - SPRING_MAIL_PORT=587
+      - SPRING_MAIL_USERNAME=PawsterPawnagayat@gmail.com
+      - SPRING_MAIL_PASSWORD=uwumvzcufkytdceb
+      - SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH=true
+      - SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE=true
+      - APP_BASE_URL=http://localhost:3000
     volumes:
       - ./sb:/app              # Maps your local 'sb' folder to /app in the container
       - ~/.m2:/root/.m2        # Caches Maven dependencies in your WSL home

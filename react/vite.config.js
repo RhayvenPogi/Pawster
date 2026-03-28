@@ -16,6 +16,11 @@ export default defineConfig({
         changeOrigin: true,
         secure: true,
         rewrite: (path) => path.replace(/^\/ors/, ''),
+      },
+      // ✅ Use service name 'sb' NOT container name 'pawster_springboot_app'
+      '/api': {
+        target: 'http://sb:8080',
+        changeOrigin: true,
       }
     }
   }

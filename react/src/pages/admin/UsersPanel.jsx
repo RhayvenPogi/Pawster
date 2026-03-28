@@ -6,7 +6,7 @@ import {
   PageHeader, SearchBar, roleBadge
 } from "../../shared";
 
-export default function UsersPanel({ show: isVisible }) {  // ← renamed to avoid conflict with useToast's show
+export default function UsersPanel({ show: isVisible }) {
   const [users, setUsers]     = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch]   = useState("");
@@ -37,52 +37,56 @@ export default function UsersPanel({ show: isVisible }) {  // ← renamed to avo
     if (!form.first_name?.trim()) e.first_name = "Required";
     if (!form.last_name?.trim())  e.last_name  = "Required";
     if (!form.email?.trim())      e.email      = "Required";
-    // ✅ Phone validation — PH format
     if (!form.phone?.trim()) {
       e.phone = "Required";
     } else if (!/^09\d{9}$/.test(form.phone.trim())) {
       e.phone = "Invalid PH number (e.g. 09123456789)";
     }
 
-    if (!form.id) {
-      if (!form.password) {
-        e.password = "Required for new users";
-      } else if (form.password.length < 8) {
-        e.password = "Must be at least 8 characters";
-      }
-      if (!form.confirm_password) {
-        e.confirm_password = "Please confirm the password";
-      } else if (form.password && form.password !== form.confirm_password) {
-        e.confirm_password = "Passwords do not match";
-      }
-    } else {
-      if (form.password) {
-        if (form.password.length < 8) {
-          e.password = "Must be at least 8 characters";
-        }
-        if (!form.confirm_password) {
-          e.confirm_password = "Please confirm the new password";
-        } else if (form.password !== form.confirm_password) {
-          e.confirm_password = "Passwords do not match";
-        }
-      }
-    }
-
     setErrs(e);
     if (Object.keys(e).length) return;
 
     try {
-      const { confirm_password, ...payload } = form.id
-        ? form
-        : { ...form, is_active: 1 };
-
-      const r = await phpApi(form.id ? "update_user" : "add_user", payload);
-      if (r.success) {
-        toast(form.id ? "User updated" : "User added", "success");
-        setModal(null);
-        load();
+      if (form.id) {
+        // ── Edit: use PHP API ──────────────────────────────────────────────
+        const r = await phpApi("update_user", {
+          id:         form.id,
+          first_name: form.first_name,
+          last_name:  form.last_name,
+          email:      form.email,
+          phone:      form.phone,
+          role:       form.role,
+          is_active:  form.is_active,
+        });
+        if (r.success) {
+          toast("User updated", "success");
+          setModal(null);
+          load();
+        } else {
+          setErrs({ api: r.message || "Error updating user" });
+        }
       } else {
-        setErrs({ api: r.message || "Error saving user" });
+        // ── Add: use Spring Boot API — password auto-generated & emailed ──
+        const r = await fetch("/api/admin/users", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            firstName: form.first_name,
+            lastName:  form.last_name,
+            email:     form.email,
+            phone:     form.phone,
+            role:      form.role,
+          }),
+        }).then(res => res.json());
+
+        if (r.success) {
+          toast("User added ✉️ credentials emailed!", "success");
+          setModal(null);
+          load();
+        } else {
+          setErrs({ api: r.message || "Error adding user" });
+        }
       }
     } catch (err) {
       console.error("save user error:", err);
@@ -132,7 +136,6 @@ export default function UsersPanel({ show: isVisible }) {  // ← renamed to avo
         action={
           <button
             onClick={() => {
-              // ✅ phone initialized to empty string
               setForm({ role: "user", is_active: 1, phone: "" });
               setErrs({});
               setModal("add");
@@ -146,19 +149,11 @@ export default function UsersPanel({ show: isVisible }) {  // ← renamed to avo
 
       <div className="flex flex-wrap gap-3 items-end">
         <div className="w-[360px]">
-          <SearchBar
-            value={search}
-            onChange={setSearch}
-            placeholder="Search users…"
-          />
+          <SearchBar value={search} onChange={setSearch} placeholder="Search users…" />
         </div>
         <div className="flex items-center gap-2 text-sm font-bold">
           <span style={{ color: "#1c4f09" }}>Role:</span>
-          <Select
-            value={roleFilter}
-            onChange={(e) => setRole(e.target.value)}
-            className="w-36"
-          >
+          <Select value={roleFilter} onChange={(e) => setRole(e.target.value)} className="w-36">
             <option value="all">All</option>
             <option value="admin">Admin</option>
             <option value="user">User</option>
@@ -190,7 +185,6 @@ export default function UsersPanel({ show: isVisible }) {  // ← renamed to avo
                 </div>
               </Td>
               <Td>{u.email}</Td>
-              {/* ✅ Phone column */}
               <Td className="text-xs">{u.phone || "—"}</Td>
               <Td><Badge color={roleBadge(u.role)}>{u.role}</Badge></Td>
               <Td><Badge color={u.is_active == 1 ? "green" : "red"}>{u.is_active == 1 ? "Active" : "Inactive"}</Badge></Td>
@@ -207,7 +201,7 @@ export default function UsersPanel({ show: isVisible }) {  // ← renamed to avo
               <Td>
                 <div className="flex gap-1.5">
                   <button
-                    onClick={() => { setForm({ ...u, password: "", confirm_password: "" }); setErrs({}); setModal("edit"); }}
+                    onClick={() => { setForm({ ...u }); setErrs({}); setModal("edit"); }}
                     className="px-2.5 py-1.5 rounded-lg text-xs font-black border hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 transition-all"
                     style={{ borderColor: "#ddd0a8", color: "#7a9060" }}
                     title="Edit">✏</button>
@@ -249,6 +243,13 @@ export default function UsersPanel({ show: isVisible }) {  // ← renamed to avo
           </div>
         )}
 
+        {/* ── Info notice for Add mode ──────────────────────────────────────── */}
+        {isAdd && (
+          <div className="bg-green-50 border border-green-200 rounded-xl px-3 py-2 text-green-700 text-xs font-bold flex items-center gap-2">
+            ✉️ A random password will be auto-generated and emailed to the user.
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-3">
           <Field label="First Name *" error={errs.first_name}>
             <Input
@@ -275,7 +276,6 @@ export default function UsersPanel({ show: isVisible }) {  // ← renamed to avo
           />
         </Field>
 
-        {/* ✅ Phone field */}
         <Field label="Phone *" error={errs.phone}>
           <Input
             value={form.phone || ""}
@@ -284,52 +284,6 @@ export default function UsersPanel({ show: isVisible }) {  // ← renamed to avo
             maxLength={11}
           />
         </Field>
-
-        {isAdd ? (
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Password *" error={errs.password}>
-              <Input
-                type="password"
-                value={form.password || ""}
-                onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-                placeholder="••••••••"
-                autoComplete="new-password"
-              />
-            </Field>
-            <Field label="Confirm Password *" error={errs.confirm_password}>
-              <Input
-                type="password"
-                value={form.confirm_password || ""}
-                onChange={e => setForm(f => ({ ...f, confirm_password: e.target.value }))}
-                placeholder="••••••••"
-                autoComplete="new-password"
-              />
-            </Field>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="New Password (blank = keep)" error={errs.password}>
-              <Input
-                type="password"
-                value={form.password || ""}
-                onChange={e => setForm(f => ({ ...f, password: e.target.value, confirm_password: "" }))}
-                placeholder="••••••••"
-                autoComplete="new-password"
-              />
-            </Field>
-            <Field label="Confirm New Password" error={errs.confirm_password}>
-              <Input
-                type="password"
-                value={form.confirm_password || ""}
-                onChange={e => setForm(f => ({ ...f, confirm_password: e.target.value }))}
-                placeholder="••••••••"
-                autoComplete="new-password"
-                disabled={!form.password}
-                style={{ opacity: form.password ? 1 : 0.45, cursor: form.password ? "text" : "not-allowed" }}
-              />
-            </Field>
-          </div>
-        )}
 
         <Field label="Role">
           <Select
@@ -340,9 +294,6 @@ export default function UsersPanel({ show: isVisible }) {  // ← renamed to avo
           </Select>
         </Field>
 
-        {isAdd && form.password && (
-          <PasswordStrength password={form.password} />
-        )}
       </Modal>
 
       {/* ── Delete Modal ─────────────────────────────────────────────────────── */}
@@ -362,54 +313,6 @@ export default function UsersPanel({ show: isVisible }) {  // ← renamed to avo
           This cannot be undone.
         </p>
       </Modal>
-    </div>
-  );
-}
-
-// ── PASSWORD STRENGTH INDICATOR ───────────────────────────────────────────────
-function PasswordStrength({ password }) {
-  const checks = [
-    { label: "8+ characters",     pass: password.length >= 8 },
-    { label: "Uppercase letter",  pass: /[A-Z]/.test(password) },
-    { label: "Lowercase letter",  pass: /[a-z]/.test(password) },
-    { label: "Number",            pass: /[0-9]/.test(password) },
-    { label: "Special character", pass: /[^A-Za-z0-9]/.test(password) },
-  ];
-
-  const passed = checks.filter(c => c.pass).length;
-  const strength      = passed <= 2 ? "Weak" : passed <= 3 ? "Fair" : passed === 4 ? "Good" : "Strong";
-  const strengthColor = passed <= 2 ? "#e05c3a" : passed <= 3 ? "#d4900a" : passed === 4 ? "#4a8f3f" : "#1c7c2a";
-  const barColor      = passed <= 2 ? "#f4a090" : passed <= 3 ? "#f4c870" : passed === 4 ? "#82c474" : "#3ab54a";
-
-  return (
-    <div
-      className="rounded-xl px-3 py-2.5 flex flex-col gap-2"
-      style={{ background: "rgba(42,112,16,0.04)", border: "1px solid rgba(42,112,16,0.1)" }}>
-      <div className="flex items-center gap-2">
-        <div className="flex gap-1 flex-1">
-          {[1, 2, 3, 4, 5].map(i => (
-            <div
-              key={i}
-              className="h-1.5 flex-1 rounded-full transition-all duration-300"
-              style={{ background: i <= passed ? barColor : "#e0d8c0" }}
-            />
-          ))}
-        </div>
-        <span className="text-[11px] font-black" style={{ color: strengthColor, minWidth: 44 }}>
-          {strength}
-        </span>
-      </div>
-      <div className="flex flex-wrap gap-x-4 gap-y-0.5">
-        {checks.map(c => (
-          <span
-            key={c.label}
-            className="text-[11px] font-bold flex items-center gap-1"
-            style={{ color: c.pass ? "#3a7010" : "#a09060" }}>
-            <span style={{ fontSize: 10 }}>{c.pass ? "✓" : "○"}</span>
-            {c.label}
-          </span>
-        ))}
-      </div>
     </div>
   );
 }

@@ -51,7 +51,9 @@ public class SecurityConfig {
                             "/api/auth/me", 
                             "/error"          
                     ).permitAll()
+                    .requestMatchers("/api/admin/**").authenticated()
                     .anyRequest().authenticated()
+                    
             )
             .exceptionHandling(ex -> ex          // ← add this block
                 .authenticationEntryPoint((req, res, e) -> {
