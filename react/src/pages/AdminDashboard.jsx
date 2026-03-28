@@ -229,7 +229,7 @@ function Topbar({ panel, user, onRefresh, onToggle, collapsed }) {
     <header
       className="fixed top-0 right-0 z-30 flex items-center justify-between px-5 gap-4 transition-all duration-300"
       style={{
-        left: collapsed ? 64 : 240, height: 64,
+        left: collapsed ? 64 : 240, height: 68.89,
         background: "rgba(255,248,220,0.90)",
         backdropFilter: "blur(18px)",
         borderBottom: "1.5px solid rgba(180,140,60,0.2)",
@@ -261,24 +261,7 @@ function Topbar({ panel, user, onRefresh, onToggle, collapsed }) {
       </div>
 
       {/* Global search */}
-      <div className="flex-1 max-w-sm hidden md:block">
-        <div
-          className="flex items-center gap-2 rounded-xl border px-3 py-2 transition-all duration-150"
-          style={{ background: "rgba(255,250,232,0.8)", borderColor: "#c8b878" }}
-          onMouseEnter={e => { e.currentTarget.style.borderColor = "#a89050"; e.currentTarget.style.background = "rgba(255,250,232,1)"; }}
-          onMouseLeave={e => { e.currentTarget.style.borderColor = "#c8b878"; e.currentTarget.style.background = "rgba(255,250,232,0.8)"; }}
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9aa880" strokeWidth="2.5">
-            <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
-          </svg>
-          <input
-            placeholder="Search…"
-            className="bg-transparent outline-none text-sm flex-1"
-            style={{ color: "#1a2e0a" }}
-          />
-          <kbd className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: "#e8dfc0", color: "#9aaa80" }}>⌘K</kbd>
-        </div>
-      </div>
+      
 
       <div className="flex items-center gap-2">
         {/* Refresh */}
