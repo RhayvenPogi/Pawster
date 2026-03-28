@@ -538,7 +538,7 @@ export default function AdminDashboard() {
           {panel === "surveys" && <SurveysPanel show={panel === "surveys"} />}
           {panel === "users" && <UsersPanel show={panel === "users"} />}
           {panel === "activity" && <ActivityPanel show={panel === "activity"} />}
-          {panel === "map" && <GeoMapPanel show={panel === "map"} />}
+          {panel === "map" && <GeoMapPanel show={panel === "map"} user={user} />}
           {panel === "profile" && <ProfilePanel user={user} onUserUpdate={updateUser} />}
         </div>
       </main>

@@ -3,11 +3,26 @@ import { useState, useCallback } from "react";
 
 export const PHP_BASE = "http://localhost:8081";
 
-export async function phpApi(action, data = {}) {
+/**
+ * phpApi(action, data, file?)
+ *
+ * - action: string action name
+ * - data:   plain object of fields
+ * - file:   optional File object — appended as "photo" if provided
+ *
+ * Always sends multipart/form-data so PHP can read both $_POST and $_FILES.
+ */
+export async function phpApi(action, data = {}, file = null) {
   const form = new FormData();
   form.append("action", action);
-  for (const [k, v] of Object.entries(data)) form.append(k, v ?? "");
-  const res = await fetch(`${PHP_BASE}/admin/dashboard`, {
+  for (const [k, v] of Object.entries(data)) {
+    // Skip null/undefined — don't send empty "null" strings
+    if (v !== null && v !== undefined) form.append(k, v);
+  }
+  if (file instanceof File) {
+    form.append("photo", file);
+  }
+  const res = await fetch(`/php/admin/dashboard`, {
     method: "POST",
     body: form,
     credentials: "include",
@@ -28,7 +43,7 @@ export function useToast() {
 }
 
 export function ToastContainer({ toasts }) {
-  const icons = { success: "✓", error: "✕", info: "ℹ", warn: "⚠" };
+  const icons  = { success: "✓", error: "✕", info: "ℹ", warn: "⚠" };
   const colors = {
     success: "border-l-4 border-green-500 text-green-800",
     error:   "border-l-4 border-red-500 text-red-800",
@@ -123,10 +138,10 @@ export function BtnCancel({ onClick }) {
   );
 }
 
-export function BtnConfirm({ onClick, children, red }) {
+export function BtnConfirm({ onClick, children, red, disabled }) {
   return (
-    <button onClick={onClick}
-      className="px-5 py-2 rounded-xl text-sm font-black text-white transition-all hover:opacity-90 hover:shadow-md"
+    <button onClick={onClick} disabled={disabled}
+      className="px-5 py-2 rounded-xl text-sm font-black text-white transition-all hover:opacity-90 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
       style={{ background: red ? "#c03030" : "#1c4f09" }}>
       {children}
     </button>

@@ -31,10 +31,13 @@ class AdminDashboardController
                 'update_request'     => $this->updateRequest(),
                 'get_surveys'        => $this->getSurveys(),
                 'get_users'          => $this->getUsers(),
+                'get_users_geo'      => $this->getUsersGeo(),
                 'add_user'           => $this->addUser(),
                 'update_user'        => $this->updateUser(),
                 'update_user_status' => $this->updateUserStatus(),
                 'get_activity'       => $this->getActivity(),
+                'get_chart_data'     => $this->getChartData(),
+                'get_dashboard_stats'=> $this->stats(),   // alias
                 'update_profile'     => $this->updateProfile(),
                 'change_password'    => $this->changePassword(),
                 'upload_photo'       => $this->uploadPhoto(),
@@ -82,55 +85,98 @@ class AdminDashboardController
         $this->ok($rows);
     }
 
-    private function addAnimal(): void
+     private function addAnimal(): void
     {
-        $name   = trim($this->body('name', ''));
-        $type   = $this->body('type',   'Dog');
-        $breed  = $this->body('breed',  '');
-        $age    = $this->body('age',    '');
-        $health = $this->body('health', 'Healthy');
-        $status = $this->body('status', 'Available');
-
-        if (!$name) {
-            $this->fail('Animal name is required.');
-        }
-
+        $name   = trim($this->body('name',   ''));
+        $type   = $this->body('type',        'Dog');
+        $breed  = $this->body('breed',       '');
+        $age    = $this->body('age',         '');
+        $health = $this->body('health',      'Healthy');
+        $status = $this->body('status',      'Available');
+        $notes  = $this->body('notes',       '');
+        $photo  = $this->handleAnimalPhoto(); // upload if provided, else null
+ 
+        if (!$name) $this->fail('Animal name is required.');
+ 
         $db   = $this->db();
         $stmt = $db->prepare(
-            "INSERT INTO animals (name, type, breed, age, health, status)
-             VALUES (:name, :type, :breed, :age, :health, :status)
+            "INSERT INTO animals (name, type, breed, age, health, status, notes, photo)
+             VALUES (:name, :type, :breed, :age, :health, :status, :notes, :photo)
              RETURNING id"
         );
-        $stmt->execute(compact('name', 'type', 'breed', 'age', 'health', 'status'));
+        $stmt->execute(compact('name', 'type', 'breed', 'age', 'health', 'status', 'notes', 'photo'));
         $id = (int) $stmt->fetchColumn();
-
+ 
         $this->logActivity('Add Animal', "Added animal: $name (ID $id)");
-        $this->ok(['id' => $id], 'Animal added.');
+        $this->ok(['id' => $id, 'photo' => $photo], 'Animal added.');
     }
-
+ 
     private function updateAnimal(): void
     {
-        $id     = (int) $this->body('id', 0);
-        $name   = trim($this->body('name', ''));
-        $type   = $this->body('type',   'Dog');
-        $breed  = $this->body('breed',  '');
-        $age    = $this->body('age',    '');
-        $health = $this->body('health', 'Healthy');
-        $status = $this->body('status', 'Available');
-
-        if (!$id || !$name) {
-            $this->fail('ID and name are required.');
-        }
-
+        $id     = (int) $this->body('id',    0);
+        $name   = trim($this->body('name',   ''));
+        $type   = $this->body('type',        'Dog');
+        $breed  = $this->body('breed',       '');
+        $age    = $this->body('age',         '');
+        $health = $this->body('health',      'Healthy');
+        $status = $this->body('status',      'Available');
+        $notes  = $this->body('notes',       '');
+ 
+        if (!$id || !$name) $this->fail('ID and name are required.');
+ 
+        // New upload takes priority; fall back to the URL React sent as existing_photo
+        $newPhoto = $this->handleAnimalPhoto();
+        $photo    = $newPhoto ?? $this->body('existing_photo', null);
+ 
         $stmt = $this->db()->prepare(
             "UPDATE animals
-             SET name=:name, type=:type, breed=:breed, age=:age, health=:health, status=:status
+             SET name=:name, type=:type, breed=:breed, age=:age,
+                 health=:health, status=:status, notes=:notes, photo=:photo
              WHERE id=:id"
         );
-        $stmt->execute(compact('name', 'type', 'breed', 'age', 'health', 'status', 'id'));
-
+        $stmt->execute(compact('name', 'type', 'breed', 'age', 'health', 'status', 'notes', 'photo', 'id'));
+ 
         $this->logActivity('Update Animal', "Updated animal ID $id: $name");
-        $this->ok(null, 'Animal updated.');
+        $this->ok(['photo' => $photo], 'Animal updated.');
+    }
+ 
+    /**
+     * Handles the optional "photo" file in $_FILES.
+     * Returns the public URL string on success, or null if no file was uploaded.
+     * Calls $this->fail() on validation errors (exits immediately).
+     */
+    private function handleAnimalPhoto(): ?string
+    {
+        if (empty($_FILES['photo']['tmp_name'])) {
+            return null; // no file uploaded — that's fine
+        }
+ 
+        $file    = $_FILES['photo'];
+        $maxSize = 2 * 1024 * 1024; // 2 MB
+        $allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+ 
+        if ($file['size'] > $maxSize) {
+            $this->fail('Photo exceeds 2 MB limit.');
+        }
+ 
+        $mime = mime_content_type($file['tmp_name']);
+        if (!in_array($mime, $allowed, true)) {
+            $this->fail('Invalid photo type. Allowed: JPG, PNG, GIF, WEBP.');
+        }
+ 
+        $ext       = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION) ?: 'jpg');
+        $filename  = 'animal_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
+        $uploadDir = '/var/www/html/uploads/animals/';
+ 
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0755, true);
+        }
+ 
+        if (!move_uploaded_file($file['tmp_name'], $uploadDir . $filename)) {
+            $this->fail('Failed to save photo.');
+        }
+ 
+        return '/uploads/animals/' . $filename;
     }
 
     // ── Generic delete ────────────────────────────────────────────────────────
@@ -216,6 +262,41 @@ class AdminDashboardController
         $this->ok($rows);
     }
 
+    // ── Chart Data ────────────────────────────────────────────────────────────
+private function getChartData(): void
+{
+    $db = $this->db();
+
+    // Weekly: last 7 days (Mon→Sun)
+    $weekly = [];
+    for ($i = 6; $i >= 0; $i--) {
+        $stmt = $db->prepare(
+            "SELECT COUNT(*) FROM adoption_requests
+             WHERE DATE(created_at) = CURRENT_DATE - INTERVAL ':i days'"
+        );
+        // Use query with direct interpolation for interval
+        $count = (int) $db->query(
+            "SELECT COUNT(*) FROM adoption_requests
+             WHERE DATE(created_at) = CURRENT_DATE - INTERVAL '$i days'"
+        )->fetchColumn();
+        $weekly[] = $count;
+    }
+
+    // Monthly: each month of current year
+    $monthly = [];
+    for ($m = 1; $m <= 12; $m++) {
+        $stmt = $db->prepare(
+            "SELECT COUNT(*) FROM adoption_requests
+             WHERE EXTRACT(MONTH FROM created_at) = :m
+               AND EXTRACT(YEAR  FROM created_at) = EXTRACT(YEAR FROM NOW())"
+        );
+        $stmt->execute(['m' => $m]);
+        $monthly[] = (int) $stmt->fetchColumn();
+    }
+
+    $this->ok(['weekly' => $weekly, 'monthly' => $monthly]);
+}
+
     // ── Users ─────────────────────────────────────────────────────────────────
     private function getUsers(): void
     {
@@ -237,6 +318,18 @@ class AdminDashboardController
 
         $this->ok($stmt->fetchAll());
     }
+
+    private function getUsersGeo(): void
+{
+    $stmt = $this->db()->query(
+        "SELECT id, first_name, last_name, email, phone, role,
+                is_active, created_at, last_login,
+                address, city, province, zip_code
+         FROM users
+         ORDER BY created_at DESC"
+    );
+    $this->ok($stmt->fetchAll());
+}
 
     private function addUser(): void
     {
@@ -485,15 +578,26 @@ class AdminDashboardController
         return $pdo;
     }
 
-    private function body(string $key, mixed $default = null): mixed
-    {
-        static $json = null;
-        if ($json === null) {
-            $json = json_decode(file_get_contents('php://input'), true) ?? [];
-        }
-        return $_POST[$key] ?? $json[$key] ?? $default;
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+/**
+ * Reads a field from the JSON body (primary) or $_POST (fallback).
+ * Call once per request — result is cached in a static variable.
+ */
+private function body(string $key, mixed $default = null): mixed
+{
+    static $parsed = null;
+
+    if ($parsed === null) {
+        $raw    = file_get_contents('php://input');
+        $decoded = json_decode($raw, true);
+        $parsed  = is_array($decoded) ? $decoded : [];
     }
 
+    // $_POST takes priority — covers multipart/form-data requests
+    // $parsed covers JSON body requests
+    return $_POST[$key] ?? $parsed[$key] ?? $default;
+}
     private function ok(mixed $data = null, string $message = 'OK'): void
     {
         $this->json(['success' => true, 'message' => $message, 'data' => $data]);
