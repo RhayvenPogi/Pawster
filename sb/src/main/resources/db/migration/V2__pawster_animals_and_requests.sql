@@ -1,4 +1,3 @@
-
 -- ─────────────────────────────────────────────────────────────────────────────
 -- V2__pawster_animals_and_requests.sql
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -17,6 +16,10 @@ CREATE TABLE IF NOT EXISTS animals (
                    CHECK (status IN ('Available', 'Pending', 'Adopted', 'Not Available')),
     created_at TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
+
+-- ✅ NOW it's safe to ALTER
+ALTER TABLE animals ADD COLUMN IF NOT EXISTS photo VARCHAR(255);
+ALTER TABLE animals ADD COLUMN IF NOT EXISTS notes TEXT;
 
 -- ── Adoption requests ─────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS adoption_requests (
