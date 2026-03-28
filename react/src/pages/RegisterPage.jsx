@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "../hooks/useAuth";
+import logo from "../images/logo.png";
+import Dogs from "../images/Dogs.png";
 
 function MeshBackground() {
   const orbRefs = useRef([]);
@@ -343,7 +345,7 @@ export default function RegisterPage() {
         <button style={{ background:"none",border:"none",borderBottom:"2.5px solid #1c4f09",fontFamily:"'Nunito',sans-serif",fontSize:"1rem",fontWeight:800,color:"#1c4f09",padding:"0.15rem 0.3rem 0.2rem" }}>
           Register
         </button>
-        <a href="/"><img src="/images/logo.png" alt="Pawster Logo" style={{ width:70,height:70,objectFit:"cover" }}/></a>
+        <a href="/"><img src={logo} alt="Pawster Logo" style={{ width:70,height:70,objectFit:"cover" }}/></a>
       </nav>
 
       <div style={{ position:"relative",zIndex:10,display:"flex",alignItems:"center",height:"100vh",width:"100vw",maxWidth:1920,maxHeight:1200,margin:"0 auto",padding:"0 6vw",gap:"2vw" }}>
@@ -355,7 +357,7 @@ export default function RegisterPage() {
               <PawSVG key={i} style={{ position:"absolute",top:p.top,left:p.left,bottom:p.bottom,width:p.width,height:p.width,fill:p.fill,transform:`rotate(${p.rotate}deg)` }}/>
             ))}
           </div>
-          <img src="/images/Dogs.png" alt="Pawster Dog Mascot"
+          <img src= {Dogs} alt="Pawster Dog Mascot"
             style={{ position:"absolute",bottom:0,left:"-1%",zIndex:10,height:"82vh",maxHeight:760,width:"auto",objectFit:"contain",filter:"drop-shadow(0 10px 28px rgba(0,0,0,0.16))" }}/>
           <div style={{ position:"absolute",top:"4%",left:"15%",zIndex:20,textAlign:"center",maxWidth:560 }}>
             <h1 style={{ fontSize:"clamp(3rem,3.8vw,4.8rem)",fontWeight:900,color:"#1a4a08",lineHeight:0.95,textTransform:"uppercase",letterSpacing:-1,textShadow:"0 2px 14px rgba(255,255,255,0.22)" }}>

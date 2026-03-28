@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "../hooks/useAuth";
+import logo from "../images/logo.png";
+import dog from "../images/dog.png";
 
 function MeshBackground() {
   const orbRefs = useRef([]);
@@ -229,7 +231,7 @@ export default function LoginPage() {
           Register
         </button>
         <a href="/" style={{ display:"flex",alignItems:"center" }}>
-          <img src="/images/logo.png" alt="Pawster Logo" style={{ width:70,height:70,objectFit:"cover" }} />
+          <img src={logo} alt="Pawster Logo" style={{ width:70,height:70,objectFit:"cover" }} />
         </a>
       </nav>
 
@@ -242,7 +244,7 @@ export default function LoginPage() {
               <PawSVG key={i} style={{ position:"absolute",top:p.top,left:p.left,bottom:p.bottom,width:p.width,height:p.width,fill:p.fill,transform:`rotate(${p.rotate}deg)` }} />
             ))}
           </div>
-          <img src="/images/dog.png" alt="Pawster Dog Mascot"
+          <img src={dog} alt="Pawster Dog Mascot"
             style={{ position:"absolute",bottom:0,left:"-1%",zIndex:10,height:"82vh",maxHeight:760,width:"auto",objectFit:"contain",filter:"drop-shadow(0 10px 28px rgba(0,0,0,0.16))" }} />
           <div style={{ position:"absolute",top:"4%",left:"15%",zIndex:20,textAlign:"center",maxWidth:560 }}>
             <h1 style={{ fontSize:"clamp(3rem,3.8vw,4.8rem)",fontWeight:900,color:"#1a4a08",lineHeight:0.95,textTransform:"uppercase",letterSpacing:-1,textShadow:"0 2px 14px rgba(255,255,255,0.22)" }}>
