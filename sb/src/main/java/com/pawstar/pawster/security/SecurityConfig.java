@@ -49,6 +49,7 @@ public class SecurityConfig {
                             "/api/auth/register",
                             "/api/auth/logout",
                             "/api/auth/me", 
+                            "/api/animals/**",
                             "/error"          
                     ).permitAll()
                     .requestMatchers("/api/admin/**").authenticated()

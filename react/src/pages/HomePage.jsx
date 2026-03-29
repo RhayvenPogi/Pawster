@@ -1,11 +1,7 @@
 import { useState, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth";
 
-/* ─── Mock auth hook ─── */
-const useAuth = () => ({
-  user: { firstName: "Friend", email: "user@example.com", status: "approved" },
-  logout: () => alert("Logged out"),
-});
 
 /* ─── Data ─── */
 const PETS = [
