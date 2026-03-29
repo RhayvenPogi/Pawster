@@ -6,7 +6,7 @@ import GuestRoute     from './components/GuestRoute';
 import LoginPage      from './pages/LoginPage';
 import RegisterPage   from './pages/RegisterPage';
 import HomePage       from './pages/HomePage';
-import PetListings    from './pages/PetListings';
+import PetListings    from './pages/FindaPet';
 import UserDashboard  from './pages/UserDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 
