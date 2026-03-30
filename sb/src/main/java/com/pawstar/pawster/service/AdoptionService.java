@@ -2,24 +2,19 @@ package com.pawstar.pawster.service;
 
 import com.pawstar.pawster.dto.AdoptionRequestDto;
 import com.pawstar.pawster.model.AdoptionRequest;
-import com.pawstar.pawster.model.Animal;
-import com.pawstar.pawster.model.User;
 import com.pawstar.pawster.repository.AdoptionRepository;
 import com.pawstar.pawster.repository.AnimalRepository;
-import com.pawstar.pawster.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 public class AdoptionService {
 
-    @Autowired private AdoptionRepository  adoptionRepository;
-    @Autowired private AnimalRepository    animalRepository;
-    @Autowired private UserRepository      userRepository;
-    @Autowired private ActivityLogService  activityLogService;
+    @Autowired private AdoptionRepository adoptionRepository;
+    @Autowired private AnimalRepository   animalRepository;
+    @Autowired private ActivityLogService activityLogService;
 
     // ── Create ─────────────────────────────────────────────────────────────────
 
@@ -31,40 +26,42 @@ public class AdoptionService {
             "New adoption request for: " + req.getPetName() + " by " + req.getName(),
             req.getUserId(), req.getName()
         );
-        return toDto(saved);
+        // Re-fetch with JOIN so the response includes user + animal details
+        return adoptionRepository.findByIdWithDetails(saved.getId())
+                .orElseThrow(() -> new RuntimeException("Failed to load saved request."));
     }
 
-    // ── Reads ──────────────────────────────────────────────────────────────────
+    // ── Reads (all via single JOIN query) ─────────────────────────────────────
 
     public List<AdoptionRequestDto> getAll() {
-        return adoptionRepository.findAll().stream()
-                .map(this::toDto).collect(Collectors.toList());
+        return adoptionRepository.findAllWithDetails();
     }
 
     public List<AdoptionRequestDto> getByUser(Integer userId) {
-        return adoptionRepository.findByUserId(userId).stream()
-                .map(this::toDto).collect(Collectors.toList());
+        return adoptionRepository.findByUserIdWithDetails(userId);
     }
 
     public List<AdoptionRequestDto> getByStatus(String status) {
-        return adoptionRepository.findByStatus(status).stream()
-                .map(this::toDto).collect(Collectors.toList());
+        return adoptionRepository.findByStatusWithDetails(status);
     }
 
     public AdoptionRequestDto getById(Integer id) {
-        return toDto(findOrThrow(id));
+        return adoptionRepository.findByIdWithDetails(id)
+                .orElseThrow(() -> new RuntimeException("Adoption request not found: " + id));
     }
 
     // ── Admin: approve / reject ────────────────────────────────────────────────
 
     public AdoptionRequestDto updateStatus(Integer id, String status, String rejectNote,
                                            Integer adminId, String adminName) {
-        AdoptionRequest req = findOrThrow(id);
+        AdoptionRequest req = adoptionRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Adoption request not found: " + id));
+
         req.setStatus(status);
         if (rejectNote != null) req.setRejectNote(rejectNote);
         adoptionRepository.save(req);
 
-        // When approved → mark the animal as Adopted (matched by pet name)
+        // When approved → mark the animal as Adopted
         if ("Approved".equals(status) && req.getPetName() != null) {
             animalRepository.findByNameContainingIgnoreCase(req.getPetName()).stream()
                     .filter(a -> "Available".equals(a.getStatus()) || "Pending".equals(a.getStatus()))
@@ -80,59 +77,15 @@ public class AdoptionService {
             "Adoption request #" + id + " for " + req.getPetName() + " → " + status,
             adminId, adminName
         );
-        return toDto(req);
+
+        // Return updated DTO with JOIN
+        return adoptionRepository.findByIdWithDetails(id)
+                .orElseThrow(() -> new RuntimeException("Failed to reload request."));
     }
 
     // ── Delete ─────────────────────────────────────────────────────────────────
 
     public void delete(Integer id) {
         adoptionRepository.deleteById(id);
-    }
-
-    // ── Entity → DTO mapper ────────────────────────────────────────────────────
-
-    private AdoptionRequestDto toDto(AdoptionRequest req) {
-        AdoptionRequestDto dto = new AdoptionRequestDto();
-
-        // adoption_requests fields
-        dto.setId(req.getId());
-        dto.setUserId(req.getUserId());
-        dto.setPetName(req.getPetName());
-        dto.setName(req.getName());
-        dto.setEmail(req.getEmail());
-        dto.setPhone(req.getPhone());
-        dto.setAddress(req.getAddress());
-        dto.setReason(req.getReason());
-        dto.setStatus(req.getStatus());
-        dto.setRejectNote(req.getRejectNote());
-        dto.setCreatedAt(req.getCreatedAt());
-
-        // Join: users table
-        if (req.getUserId() != null) {
-            userRepository.findById(req.getUserId()).ifPresent(u -> {
-                dto.setUserFirstName(u.getFirstName());
-                dto.setUserLastName(u.getLastName());
-                dto.setUserEmail(u.getEmail());
-            });
-        }
-
-        // Join: animals table (matched by pet name)
-        if (req.getPetName() != null) {
-            animalRepository.findByNameContainingIgnoreCase(req.getPetName())
-                    .stream().findFirst().ifPresent(a -> {
-                        dto.setAnimalType(a.getType());
-                        dto.setAnimalBreed(a.getBreed());
-                        dto.setAnimalAge(a.getAge());
-                        dto.setAnimalHealth(a.getHealth());
-                        dto.setAnimalPhoto(a.getPhoto());
-                    });
-        }
-
-        return dto;
-    }
-
-    private AdoptionRequest findOrThrow(Integer id) {
-        return adoptionRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Adoption request not found: " + id));
     }
 }

@@ -13,16 +13,11 @@ function PawsterSpinner() {
     );
 }
 
-// Blocks already-logged-in users from hitting /login or /register
-// Admins → /admin, regular users → /home
 const GuestRoute = ({ children }) => {
     const { isAuthenticated, isAdmin, isLoading } = useAuth();
 
     if (isLoading) return <PawsterSpinner />;
-
-    if (isAuthenticated) {
-        return <Navigate to={isAdmin ? '/admin' : '/home'} replace />;
-    }
+    if (isAuthenticated) return <Navigate to={isAdmin ? '/admin' : '/home'} replace />;
 
     return children;
 };

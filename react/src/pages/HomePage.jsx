@@ -258,7 +258,7 @@ export default function HomePage() {
       </div>
 
       {/* ── Navbar ── */}
-      <nav className="sticky top-0 z-[200] flex items-center px-10 gap-4 border-b"
+      <nav className="fixed top-0 left-0 w-full z-[999] flex items-center px-10 gap-4 border-b"
         style={{ height: "70px", background: "rgba(255,248,218,0.90)", backdropFilter: "blur(20px)", borderColor: "rgba(90,170,48,0.45)", boxShadow: "0 2px 20px rgba(100,70,20,0.09)" }}>
 
         {/* Brand */}

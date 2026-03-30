@@ -1,7 +1,6 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
-// Spinner styled to match the Pawster warm beige aesthetic
 function PawsterSpinner() {
     return (
         <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'#EDDABB', fontFamily:"'Nunito',sans-serif" }}>
@@ -14,15 +13,11 @@ function PawsterSpinner() {
     );
 }
 
-// Blocks unauthenticated users → /login
-// Optionally blocks non-admin users → /home
 const ProtectedRoute = ({ children, requiredRole }) => {
     const { isAuthenticated, isAdmin, isLoading } = useAuth();
 
     if (isLoading) return <PawsterSpinner />;
-
     if (!isAuthenticated) return <Navigate to="/login" replace />;
-
     if (requiredRole === 'admin' && !isAdmin) return <Navigate to="/home" replace />;
 
     return children;
