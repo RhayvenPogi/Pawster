@@ -1,9 +1,9 @@
 package com.pawstar.pawster.security;
 
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -44,26 +44,58 @@ public class SecurityConfig {
             .sessionManagement(session -> session
                     .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
+
+                    // ── Public auth endpoints ──────────────────────────────────
                     .requestMatchers(
                             "/api/auth/login",
                             "/api/auth/register",
                             "/api/auth/logout",
-                            "/api/auth/me", 
-                            "/api/animals/**",
-                            "/error"          
+                            "/api/auth/me",
+                            "/error"
                     ).permitAll()
-                    .requestMatchers("/api/admin/**").authenticated()
+
+                    // ── Animals: anyone can browse, only admin can write ───────
+                    .requestMatchers(HttpMethod.GET,    "/api/animals/**").permitAll()
+                    .requestMatchers(HttpMethod.POST,   "/api/animals/**").hasAnyAuthority("admin", "ADMIN")
+                    .requestMatchers(HttpMethod.PUT,    "/api/animals/**").hasAnyAuthority("admin", "ADMIN")
+                    .requestMatchers(HttpMethod.DELETE, "/api/animals/**").hasAnyAuthority("admin", "ADMIN")
+
+                    // ── Adoption: authenticated users submit, admin manages ────
+                    .requestMatchers(HttpMethod.POST,  "/api/adoption").authenticated()
+                    .requestMatchers(HttpMethod.GET,   "/api/adoption/my-requests").authenticated()
+                    .requestMatchers(HttpMethod.DELETE,"/api/adoption/**").authenticated()
+                    .requestMatchers(HttpMethod.GET,   "/api/adoption/**").hasAnyAuthority("admin", "ADMIN")
+                    .requestMatchers(HttpMethod.PATCH, "/api/adoption/**").hasAnyAuthority("admin", "ADMIN")
+
+                    // ── Rehome: authenticated users submit, admin manages ──────
+                    .requestMatchers(HttpMethod.POST,  "/api/rehome").authenticated()
+                    .requestMatchers(HttpMethod.GET,   "/api/rehome/my-requests").authenticated()
+                    .requestMatchers(HttpMethod.DELETE,"/api/rehome/**").authenticated()
+                    .requestMatchers(HttpMethod.GET,   "/api/rehome/**").hasAnyAuthority("admin", "ADMIN")
+                    .requestMatchers(HttpMethod.PATCH, "/api/rehome/**").hasAnyAuthority("admin", "ADMIN")
+
+                    // ── Surveys: authenticated users submit, admin reads all ───
+                    .requestMatchers(HttpMethod.POST, "/api/surveys").authenticated()
+                    .requestMatchers(HttpMethod.GET,  "/api/surveys/my-surveys").authenticated()
+                    .requestMatchers(HttpMethod.GET,  "/api/surveys/**").hasAnyAuthority("admin", "ADMIN")
+
+                    // ── Admin-only routes ──────────────────────────────────────
+                    .requestMatchers("/api/admin/**").hasAnyAuthority("admin", "ADMIN")
+
                     .anyRequest().authenticated()
-                    
             )
-            .exceptionHandling(ex -> ex          // ← add this block
+            .exceptionHandling(ex -> ex
                 .authenticationEntryPoint((req, res, e) -> {
                     res.setContentType("application/json");
                     res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                     res.getWriter().write("{\"error\":\"Unauthorized\"}");
                 })
+                .accessDeniedHandler((req, res, e) -> {
+                    res.setContentType("application/json");
+                    res.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                    res.getWriter().write("{\"error\":\"Forbidden\"}");
+                })
             );
-
 
         http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
@@ -79,9 +111,7 @@ public class SecurityConfig {
         CorsConfiguration config = new CorsConfiguration();
 
         config.setAllowedOrigins(List.of(
-            // Docker: React container port mapping  3000 (host) → 5173 (container)
             "http://localhost:3000",
-            // Direct Vite dev server (outside Docker)
             "http://localhost:5173"
         ));
 
@@ -96,7 +126,6 @@ public class SecurityConfig {
                 "Accept"
         ));
 
-        // CRITICAL: must be true so the browser sends the HttpOnly JWT cookie
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);
 

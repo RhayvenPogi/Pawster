@@ -519,31 +519,6 @@ function Sidebar({ active, onNav, stats, user, collapsed, onToggle, onLogout }) 
           </div>
         ))}
       </nav>
-
-      {/* Bottom */}
-      <div
-        className={`shrink-0 flex gap-1.5 ${collapsed ? "flex-col items-center py-2.5" : "flex-row px-2.5 py-3"}`}
-        style={{ borderTop: "1.5px solid rgba(180,140,60,0.28)" }}
-      >
-        {/* ✅ FIX: was missing the opening <a tag */}
-        <a
-          href="/home"
-          className={`flex items-center gap-2 py-2 px-2.5 rounded-xl text-[0.82rem] font-bold no-underline transition-all duration-150 cursor-pointer text-[#3a5020] hover:bg-[rgba(90,170,48,0.10)] hover:text-[#1a4a08] ${collapsed ? "justify-center" : "flex-1"}`}
-          title="Back to Site"
-        >
-          <FaIcon name="arrow-left" size={14} color="currentColor" />
-          {!collapsed && <span>Back to Site</span>}
-        </a>
-        {/* ✅ FIX: was missing the opening <button tag */}
-        <button
-          onClick={onLogout}
-          className={`flex items-center gap-2 py-2 px-2.5 rounded-xl text-[0.82rem] font-bold no-underline transition-all duration-150 cursor-pointer text-[#c03030] hover:bg-[rgba(192,48,48,0.10)] border-none bg-transparent ${collapsed ? "justify-center" : "flex-1"}`}
-          title="Logout"
-        >
-          <FaIcon name="sign-out-alt" size={14} color="currentColor" />
-          {!collapsed && <span>Logout</span>}
-        </button>
-      </div>
     </aside>
   );
 }
