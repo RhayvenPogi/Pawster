@@ -13,9 +13,13 @@ export default function UserDashboard() {
             <nav style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'1rem 4vw', background:'rgba(237,218,187,0.9)', backdropFilter:'blur(10px)', borderBottom:'1px solid rgba(200,170,100,0.3)', position:'sticky', top:0, zIndex:100 }}>
                 <img src="/images/logo.png" alt="Pawster" style={{ width:52, height:52, objectFit:'cover' }} />
                 <div style={{ display:'flex', gap:'1.5rem', alignItems:'center' }}>
-                    <a href="/home"    style={{ fontWeight:800, color:'#3a6020', textDecoration:'none' }}>Home</a>
-                    <a href="/pets"    style={{ fontWeight:800, color:'#3a6020', textDecoration:'none' }}>Browse Pets</a>
-                    <a href="/profile" style={{ fontWeight:800, color:'#1c4f09', textDecoration:'none' }}>Profile</a>
+                    <a href="/home"         style={{ fontWeight:800, color:'#3a6020', textDecoration:'none' }}>Home</a>
+                    <a href="/pets"         style={{ fontWeight:800, color:'#3a6020', textDecoration:'none' }}>Find a Pet</a>
+                    <a href="/how-it-works" style={{ fontWeight:800, color:'#3a6020', textDecoration:'none' }}>How It Works</a>
+                    <a href="/rehome"       style={{ fontWeight:800, color:'#3a6020', textDecoration:'none' }}>Rehome</a>
+                    <a href="/missing-pets" style={{ fontWeight:800, color:'#3a6020', textDecoration:'none' }}>Missing Pets</a>
+                    <a href="/about"        style={{ fontWeight:800, color:'#3a6020', textDecoration:'none' }}>About</a>
+                    <a href="/profile"      style={{ fontWeight:800, color:'#1c4f09', textDecoration:'none' }}>Profile</a>
                     <button onClick={logout} style={{ fontWeight:800, color:'#fff', background:'#c06010', border:'none', borderRadius:50, padding:'0.45rem 1.3rem', cursor:'pointer', fontFamily:"'Nunito',sans-serif" }}>
                         Logout
                     </button>

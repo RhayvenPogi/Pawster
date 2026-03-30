@@ -61,8 +61,8 @@ function useReveal() {
 function Reveal({ children, delay = 0, className = "" }) {
   const [ref, vis] = useReveal();
   return (
-    <div ref={ref} className={`transition-all duration-700 ${vis ? "opacity-100 translate-y-0" : "opacity-0 translate-y-5"} ${className}`}
-      style={{ transitionDelay: `${delay}ms` }}>
+    <div ref={ref} className={"transition-all duration-700 " + (vis ? "opacity-100 translate-y-0" : "opacity-0 translate-y-5") + " " + className}
+      style={{ transitionDelay: delay + "ms" }}>
       {children}
     </div>
   );
@@ -108,26 +108,21 @@ function HeroPetCard() {
       <div className="relative w-full h-[520px] rounded-[28px] overflow-hidden bg-[#12100a] cursor-pointer transition-transform duration-500"
         style={{ boxShadow: "0 24px 64px rgba(40,20,5,.40), 0 8px 24px rgba(40,20,5,.22)", animation: hovering ? "none" : "cardFloat 6s ease-in-out infinite", transform: hovering ? "translateY(-12px) scale(1.025)" : undefined }}>
 
-        {/* Photo */}
         <img src={pet.photo} alt={pet.name} className="absolute inset-0 w-full h-full object-cover z-10 transition-all duration-700"
           style={{ opacity: (hovering && !fading) ? 0 : fading ? 0 : 1, transform: hovering ? "scale(1.06)" : "scale(1.0)" }} />
 
-        {/* Video */}
         <video ref={videoRef} muted loop playsInline className="absolute inset-0 w-full h-full object-cover z-20 transition-opacity duration-700"
           style={{ opacity: hovering ? 1 : 0 }} />
 
-        {/* Scrim */}
         <div className="absolute inset-0 z-30 pointer-events-none"
           style={{ background: "linear-gradient(to top,rgba(8,5,1,.88) 0%,rgba(8,5,1,.30) 45%,transparent 70%)" }} />
 
-        {/* Live badge */}
         <div className="absolute top-[18px] left-[18px] z-[8] flex items-center gap-1.5 rounded-[20px] px-[11px] py-[4px] text-[0.58rem] font-extrabold uppercase tracking-[.07em] transition-all duration-300"
           style={{ background: "rgba(10,6,2,.55)", backdropFilter: "blur(10px)", border: "1px solid rgba(255,220,80,.20)", color: "rgba(255,235,150,.90)", opacity: hovering ? 1 : 0, transform: hovering ? "translateX(0)" : "translateX(-6px)", transitionDelay: hovering ? "150ms" : "0ms" }}>
           <span className="w-1.5 h-1.5 rounded-full bg-[#ff5050] flex-shrink-0" style={{ boxShadow: "0 0 8px #ff3030", animation: "livePulse 1.5s ease infinite" }} />
           Live Preview
         </div>
 
-        {/* Dots */}
         <div className="absolute top-[18px] right-[18px] z-[8] flex gap-1.5 items-center">
           {PETS.map((_, i) => (
             <button key={i} onClick={(e) => { e.stopPropagation(); switchPet(i); }}
@@ -136,7 +131,6 @@ function HeroPetCard() {
           ))}
         </div>
 
-        {/* Info */}
         <div className="absolute bottom-0 left-0 right-0 z-[5] px-[22px] pb-[22px]">
           <div className="inline-flex items-center gap-1 rounded-[20px] px-2.5 py-[3px] mb-2 text-[0.60rem] font-extrabold uppercase tracking-[.07em] transition-all duration-500"
             style={{ background: "rgba(255,255,255,.10)", backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,.15)", color: "rgba(255,240,190,.80)", opacity: hovering ? 1 : 0.85, transform: hovering ? "translateY(0)" : "translateY(6px)" }}>
@@ -150,13 +144,12 @@ function HeroPetCard() {
             {pet.breed}
           </div>
           <div className="inline-flex items-center gap-1.5 mt-3 px-3 py-[5px] rounded-[20px] text-[0.62rem] font-extrabold uppercase tracking-[.07em] transition-all duration-500"
-            style={{ background: pet.status === "pending" ? "rgba(180,90,30,.18)" : "rgba(70,190,30,.18)", color: pet.status === "pending" ? "#f0a060" : "#9de860", border: `1px solid ${pet.status === "pending" ? "rgba(200,100,25,.30)" : "rgba(80,200,30,.32)"}`, opacity: hovering ? 1 : 0, transform: hovering ? "translateY(0)" : "translateY(8px)", transitionDelay: "120ms" }}>
+            style={{ background: pet.status === "pending" ? "rgba(180,90,30,.18)" : "rgba(70,190,30,.18)", color: pet.status === "pending" ? "#f0a060" : "#9de860", border: "1px solid " + (pet.status === "pending" ? "rgba(200,100,25,.30)" : "rgba(80,200,30,.32)"), opacity: hovering ? 1 : 0, transform: hovering ? "translateY(0)" : "translateY(8px)", transitionDelay: "120ms" }}>
             <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: pet.status === "pending" ? "#e07820" : "#6cde28", boxShadow: pet.status === "pending" ? "0 0 7px #e07820" : "0 0 7px #6cde28", animation: "dotPulse 2s ease infinite" }} />
             {pet.status === "pending" ? "Pending" : "Available"}
           </div>
         </div>
 
-        {/* CTA */}
         <Link to="/pets" className="absolute bottom-[22px] right-[22px] z-[6] inline-flex items-center gap-2 bg-white text-[#15100a] font-black text-[0.78rem] px-4 py-[9px] rounded-[50px] no-underline transition-all duration-500"
           style={{ boxShadow: "0 4px 20px rgba(0,0,0,.35)", opacity: hovering ? 1 : 0, transform: hovering ? "translateY(0)" : "translateY(14px)", transitionDelay: "100ms" }}>
           ♥ Adopt Now
@@ -194,7 +187,7 @@ function FeaturedCard({ pet }) {
         <div className="text-[0.72rem] font-bold mt-0.5" style={{ color: "#6a7a50", fontFamily: "'DM Mono', monospace" }}>{pet.meta}</div>
         <div className="flex gap-1 mt-2.5 flex-wrap">
           {pet.tags.map(([c, t]) => (
-            <span key={t} className={`text-[0.6rem] font-extrabold px-[7px] py-[2px] rounded-[20px] uppercase tracking-[.04em] ${TAG[c]}`}>{t}</span>
+            <span key={t} className={"text-[0.6rem] font-extrabold px-[7px] py-[2px] rounded-[20px] uppercase tracking-[.04em] " + TAG[c]}>{t}</span>
           ))}
         </div>
         <Link to="/pets" className="flex items-center justify-center gap-1.5 mt-3.5 py-[9px] rounded-[9px] text-[0.78rem] font-extrabold transition-all duration-200 no-underline"
@@ -212,6 +205,17 @@ export default function HomePage() {
   const loggedIn = !!user;
   const [dropOpen, setDropOpen] = useState(false);
   const initials = user ? (user.firstName[0] + (user.lastName?.[0] || "U")).toUpperCase() : "U";
+
+  // Full nav links list
+  const NAV_LINKS = [
+    { to: "/home",         icon: "fas fa-house",           label: "Home" },
+    { to: "/pets",         icon: "fas fa-search",           label: "Find a Pet" },
+    { to: "/how-it-works", icon: "fas fa-list-ol",          label: "How It Works" },
+    { to: "/rehome",       icon: "fas fa-home",             label: "Rehome" },
+    { to: "/missing-pets", icon: "fas fa-search-location",  label: "Missing Pets" },
+    { to: "/about",        icon: "fas fa-info-circle",      label: "About" },
+    { to: "/profile",      icon: "fas fa-user",             label: "Profile" },
+  ];
 
   return (
     <div className="relative overflow-x-hidden" style={{ fontFamily: "'Nunito', sans-serif", color: "#1a2e0a" }}>
@@ -256,19 +260,36 @@ export default function HomePage() {
       {/* ── Navbar ── */}
       <nav className="sticky top-0 z-[200] flex items-center px-10 gap-4 border-b"
         style={{ height: "70px", background: "rgba(255,248,218,0.90)", backdropFilter: "blur(20px)", borderColor: "rgba(90,170,48,0.45)", boxShadow: "0 2px 20px rgba(100,70,20,0.09)" }}>
+
+        {/* Brand */}
         <Link to="/home" className="flex items-center gap-2.5 no-underline flex-shrink-0">
           <div className="w-10 h-10 rounded-full bg-[#1c4f09] flex items-center justify-center text-lg">🐾</div>
           <span className="nav-brand-text text-xl font-black" style={{ fontFamily: "'Playfair Display',serif", color: "#1a4a08" }}>Paw<em>ster</em></span>
         </Link>
 
-        {/* Nav links */}
-        <div className="hidden md:flex items-center gap-0.5 mx-auto rounded-[50px] px-1 py-1 border" style={{ background: "rgba(255,245,210,0.5)", borderColor: "rgba(180,140,60,0.28)" }}>
-          {[["/home","fas fa-house","Home",true],["/pets","fas fa-search","Find a Pet",false],["/profile","fas fa-user","My Profile",false],["/admin","fas fa-shield-alt","Admin",false]].map(([to,icon,label,active,type]) => (
-            <Link key={label} to={to} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-[50px] text-[0.82rem] font-extrabold no-underline transition-all duration-150 whitespace-nowrap"
-              style={active && type === "missing" ? { background: "rgba(180,90,34,0.09)", color: "#B45A22", border: "1px solid rgba(180,90,34,0.22)" } : active ? { background: "linear-gradient(135deg,rgba(28,79,9,0.16),rgba(90,170,48,0.12))", color: "#1a4a08", boxShadow: "0 2px 10px rgba(28,79,9,0.12)" } : { color: "#3a5020" }}>
-              <i className={`${icon} text-[0.75rem]`} />{label}
-            </Link>
-          ))}
+        {/* ── Full Nav Links pill ── */}
+        <div className="hidden md:flex items-center gap-0.5 mx-auto rounded-[50px] px-1 py-1 border"
+          style={{ background: "rgba(255,245,210,0.5)", borderColor: "rgba(180,140,60,0.28)" }}>
+          {NAV_LINKS.map(({ to, icon, label }) => {
+            const isMissing = to === "/missing-pets";
+            const isActive  = typeof window !== "undefined" && window.location.pathname === to;
+            return (
+              <Link
+                key={label}
+                to={to}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-[50px] text-[0.80rem] font-extrabold no-underline transition-all duration-150 whitespace-nowrap"
+                style={
+                  isMissing
+                    ? { background: "rgba(180,90,34,0.09)", color: "#B45A22", border: "1px solid rgba(180,90,34,0.22)" }
+                    : isActive
+                    ? { background: "linear-gradient(135deg,rgba(28,79,9,0.16),rgba(90,170,48,0.12))", color: "#1a4a08", boxShadow: "0 2px 10px rgba(28,79,9,0.12)" }
+                    : { color: "#3a5020" }
+                }
+              >
+                <i className={icon + " text-[0.70rem]"} />{label}
+              </Link>
+            );
+          })}
         </div>
 
         {/* Nav right */}
@@ -285,7 +306,7 @@ export default function HomePage() {
                     <div className="text-[0.81rem] font-extrabold" style={{ color: "#1a4a08" }}>{user.firstName}</div>
                     <div className="text-[0.64rem] font-bold" style={{ color: "#6a7a50" }}>Member</div>
                   </div>
-                  <i className={`fas fa-chevron-down text-[0.62rem] transition-transform duration-200 ${dropOpen ? "rotate-180" : ""}`} style={{ color: "#6a7a50" }} />
+                  <i className={"fas fa-chevron-down text-[0.62rem] transition-transform duration-200 " + (dropOpen ? "rotate-180" : "")} style={{ color: "#6a7a50" }} />
                 </button>
                 {dropOpen && (
                   <div className="absolute top-[calc(100%+9px)] right-0 rounded-[14px] border min-w-[215px] p-2 z-[999]"
@@ -304,12 +325,12 @@ export default function HomePage() {
                         ? <button key={label} onClick={logout}
                             className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-[0.82rem] font-bold transition-all text-left border-none bg-transparent"
                             style={{ color: "#c03030", fontFamily: "'Nunito',sans-serif" }}>
-                            <i className={`${icon} w-4`} />{label}
+                            <i className={icon + " w-4"} />{label}
                           </button>
                         : <Link key={label} to={to} onClick={() => setDropOpen(false)}
                             className="flex items-center gap-2 px-2.5 py-2 rounded-lg text-[0.82rem] font-bold no-underline transition-all"
                             style={{ color: "#3a5020" }}>
-                            <i className={`${icon} w-4`} />{label}
+                            <i className={icon + " w-4"} />{label}
                           </Link>
                     ))}
                   </div>
@@ -346,10 +367,10 @@ export default function HomePage() {
             </span>
           </div>
           <div className="flex gap-2 flex-wrap">
-            <a href="#" className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-[8px] text-[0.78rem] font-extrabold text-white no-underline transition-all"
-              style={{ background: "#1c4f09" }}><i className="fas fa-th-large" /> Dashboard</a>
-            <a href="#" className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-[8px] text-[0.78rem] font-extrabold text-white no-underline transition-all"
-              style={{ background: "#B45A22" }}><i className="fas fa-search-location" /> Missing Pets</a>
+            <Link to="/profile" className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-[8px] text-[0.78rem] font-extrabold text-white no-underline transition-all"
+              style={{ background: "#1c4f09" }}><i className="fas fa-th-large" /> Dashboard</Link>
+            <Link to="/missing-pets" className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-[8px] text-[0.78rem] font-extrabold text-white no-underline transition-all"
+              style={{ background: "#B45A22" }}><i className="fas fa-search-location" /> Missing Pets</Link>
           </div>
         </div>
       )}
@@ -380,20 +401,20 @@ export default function HomePage() {
             </Link>
             {loggedIn ? (
               <>
-                <a href="#" className="inline-flex items-center gap-2 px-7 py-3.5 rounded-[13px] font-extrabold text-[0.95rem] no-underline transition-all border"
+                <Link to="/profile" className="inline-flex items-center gap-2 px-7 py-3.5 rounded-[13px] font-extrabold text-[0.95rem] no-underline transition-all border"
                   style={{ background: "rgba(255,248,220,0.75)", color: "#3a5020", borderColor: "rgba(180,140,60,0.28)" }}>
                   <i className="fas fa-th-large" /> My Dashboard
-                </a>
-                <a href="#" className="inline-flex items-center gap-2 px-7 py-3.5 rounded-[13px] font-black text-[0.95rem] text-white no-underline transition-all"
+                </Link>
+                <Link to="/missing-pets" className="inline-flex items-center gap-2 px-7 py-3.5 rounded-[13px] font-black text-[0.95rem] text-white no-underline transition-all"
                   style={{ background: "#B45A22", boxShadow: "0 6px 24px rgba(180,90,34,0.28)" }}>
                   <i className="fas fa-search-location" /> Missing Pets
-                </a>
+                </Link>
               </>
             ) : (
-              <a href="#" className="inline-flex items-center gap-2 px-7 py-3.5 rounded-[13px] font-extrabold text-[0.95rem] no-underline transition-all border"
+              <Link to="/register" className="inline-flex items-center gap-2 px-7 py-3.5 rounded-[13px] font-extrabold text-[0.95rem] no-underline transition-all border"
                 style={{ background: "rgba(255,248,220,0.75)", color: "#3a5020", borderColor: "rgba(180,140,60,0.28)" }}>
                 <i className="fas fa-user-plus" /> Create Account
-              </a>
+              </Link>
             )}
           </div>
 
@@ -442,10 +463,10 @@ export default function HomePage() {
           ))}
         </div>
         <Reveal className="mt-8 text-center">
-          <a href="#" className="inline-flex items-center gap-2 px-7 py-3.5 rounded-[13px] font-extrabold text-[0.95rem] no-underline transition-all border"
+          <Link to="/how-it-works" className="inline-flex items-center gap-2 px-7 py-3.5 rounded-[13px] font-extrabold text-[0.95rem] no-underline transition-all border"
             style={{ background: "rgba(255,248,220,0.75)", color: "#3a5020", borderColor: "rgba(180,140,60,0.28)" }}>
             <i className="fas fa-arrow-right" /> Full Process Details
-          </a>
+          </Link>
         </Reveal>
       </section>
 
@@ -471,10 +492,10 @@ export default function HomePage() {
             <div className="text-[0.95rem] font-black" style={{ color: "#1a4a08" }}>Lost or Found a Pet in the Ilocos Region?</div>
             <div className="text-[0.8rem] font-bold mt-0.5" style={{ color: "#6a7a50" }}>Our community-powered missing pets board helps reunite animals with their families.</div>
           </div>
-          <a href="#" className="inline-flex items-center gap-1.5 px-5 py-2 rounded-[9px] font-extrabold text-[0.82rem] text-white no-underline transition-all flex-shrink-0 whitespace-nowrap"
+          <Link to="/missing-pets" className="inline-flex items-center gap-1.5 px-5 py-2 rounded-[9px] font-extrabold text-[0.82rem] text-white no-underline transition-all flex-shrink-0 whitespace-nowrap"
             style={{ background: "#B45A22" }}>
             <i className="fas fa-search-location" /> View Missing Pets Board
-          </a>
+          </Link>
         </div>
       </div>
 
@@ -505,10 +526,10 @@ export default function HomePage() {
             <div className="flex-1">
               <h2 className="rehome-title font-black leading-tight mb-3 text-[2.2rem]" style={{ fontFamily: "'Playfair Display',serif", color: "#1a4a08" }}>Need to <em>Rehome</em> Your Pet?</h2>
               <p className="font-bold text-[0.95rem] leading-[1.7] max-w-[520px] mb-6" style={{ color: "#3a5020" }}>Life circumstances change. If you're unable to care for your pet, Pawster can help find them a safe, loving new home with care and discretion.</p>
-              <a href="#" className="inline-flex items-center gap-2 px-7 py-3.5 rounded-[12px] font-black text-[0.9rem] text-white no-underline transition-all"
+              <Link to="/rehome" className="inline-flex items-center gap-2 px-7 py-3.5 rounded-[12px] font-black text-[0.9rem] text-white no-underline transition-all"
                 style={{ background: "#B45A22", boxShadow: "0 5px 20px rgba(180,90,34,0.3)" }}>
                 <i className="fas fa-home" /> Rehome a Pet
-              </a>
+              </Link>
             </div>
           </div>
         </Reveal>
@@ -552,25 +573,25 @@ export default function HomePage() {
             <div className="flex items-center justify-center gap-4 flex-wrap">
               {loggedIn ? (
                 <>
-                  <a href="#" className="inline-flex items-center gap-2 px-8 py-3.5 rounded-[13px] font-black text-[0.95rem] text-white no-underline"
+                  <Link to="/profile" className="inline-flex items-center gap-2 px-8 py-3.5 rounded-[13px] font-black text-[0.95rem] text-white no-underline"
                     style={{ background: "#1c4f09", boxShadow: "0 6px 24px rgba(28,79,9,0.32)" }}>
                     <i className="fas fa-th-large" /> Go to Dashboard
-                  </a>
-                  <a href="#" className="inline-flex items-center gap-2 px-7 py-3.5 rounded-[13px] font-extrabold text-[0.95rem] no-underline border"
+                  </Link>
+                  <Link to="/missing-pets" className="inline-flex items-center gap-2 px-7 py-3.5 rounded-[13px] font-extrabold text-[0.95rem] no-underline border"
                     style={{ background: "rgba(255,248,220,0.75)", color: "#3a5020", borderColor: "rgba(180,140,60,0.28)" }}>
                     <i className="fas fa-search-location" /> Missing Pets
-                  </a>
+                  </Link>
                 </>
               ) : (
                 <>
-                  <a href="#" className="inline-flex items-center gap-2 px-8 py-3.5 rounded-[13px] font-black text-[0.95rem] text-white no-underline"
+                  <Link to="/register" className="inline-flex items-center gap-2 px-8 py-3.5 rounded-[13px] font-black text-[0.95rem] text-white no-underline"
                     style={{ background: "#1c4f09", boxShadow: "0 6px 24px rgba(28,79,9,0.32)" }}>
                     <i className="fas fa-paw" /> Create Free Account
-                  </a>
-                  <a href="#" className="inline-flex items-center gap-2 px-7 py-3.5 rounded-[13px] font-extrabold text-[0.95rem] no-underline border"
+                  </Link>
+                  <Link to="/login" className="inline-flex items-center gap-2 px-7 py-3.5 rounded-[13px] font-extrabold text-[0.95rem] no-underline border"
                     style={{ background: "rgba(255,248,220,0.75)", color: "#3a5020", borderColor: "rgba(180,140,60,0.28)" }}>
                     <i className="fas fa-sign-in-alt" /> Log In
-                  </a>
+                  </Link>
                 </>
               )}
             </div>
@@ -594,8 +615,10 @@ export default function HomePage() {
                 { label: "Register",       to: "/register" },
             ]},
             { title: "Services", links: [
-                { label: "How It Works", to: "/home" },
-                { label: "About Us",     to: "/home" },
+                { label: "How It Works",  to: "/how-it-works" },
+                { label: "Rehome a Pet",  to: "/rehome" },
+                { label: "Missing Pets",  to: "/missing-pets" },
+                { label: "About Us",      to: "/about" },
             ]},
             { title: "Regions", links: [
                 { label: "Ilocos Norte", to: "/pets" },
