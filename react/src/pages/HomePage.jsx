@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import Navbar from "./Navbar";
-
+import logo from "../images/logo.png";
 /* ─── Data ─── */
 const PETS = [
   {
@@ -458,54 +458,98 @@ export default function HomePage() {
         </Reveal>
       </section>
 
-      {/* ── Footer ── */}
-      <footer className="relative z-10 border-t px-10 pt-12 pb-8" style={{ background: "rgba(255,248,218,0.85)", backdropFilter: "blur(16px)", borderColor: "rgba(90,170,48,0.45)" }}>
-        <div className="max-w-[1200px] mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-12 mb-10">
-          <div>
-            <div className="w-10 h-10 rounded-full bg-[#1c4f09] flex items-center justify-center text-lg mb-3">🐾</div>
-            <div className="footer-brand-name font-black text-[1.2rem]" style={{ fontFamily: "'Playfair Display',serif", color: "#1a4a08" }}>Paw<em>ster</em></div>
-            <p className="text-[0.82rem] font-bold leading-[1.7] mt-2 max-w-[260px]" style={{ color: "#6a7a50" }}>Connecting loving homes with animals in need across the Ilocos Region since 2023.</p>
-          </div>
-          {[
-            { title: "Adopt", links: [
-                { label: "Browse Animals", to: "/pets" },
-                { label: "My Profile",     to: "/profile" },
-                { label: "Log In",         to: "/login" },
-                { label: "Register",       to: "/register" },
-            ]},
-            { title: "Services", links: [
-                { label: "How It Works",  to: "/how-it-works" },
-                { label: "Rehome a Pet",  to: "/rehome" },
-                { label: "Missing Pets",  to: "/missing-pets" },
-                { label: "About Us",      to: "/about" },
-            ]},
-            { title: "Regions", links: [
-                { label: "Ilocos Norte", to: "/pets" },
-                { label: "Ilocos Sur",   to: "/pets" },
-                { label: "La Union",     to: "/pets" },
-                { label: "Pangasinan",   to: "/pets" },
-            ]},
-          ].map(({ title, links }) => (
-            <div key={title}>
-              <div className="text-[0.72rem] font-black uppercase tracking-[.09em] mb-4" style={{ color: "#1c4f09" }}>{title}</div>
-              {links.map(({ label, to }) => (
-                <Link key={label} to={to} className="block text-[0.83rem] font-bold no-underline mb-2 transition-colors hover:text-[#1a4a08]" style={{ color: "#3a5020" }}>{label}</Link>
-              ))}
-            </div>
-          ))}
+      <footer className="relative z-10 border-t border-[rgba(90,170,48,0.45)] bg-[rgba(255,248,218,0.85)] backdrop-blur-md px-10 py-12">
+
+  <div className="max-w-[1200px] mx-auto grid gap-12 mb-10 grid-cols-[repeat(auto-fit,minmax(160px,1fr))]">
+
+    {/* BRAND */}
+    <div>
+      <div className="mb-2">
+        <img
+          src={logo}
+          alt="Pawster"
+          className="w-8 h-8 object-contain"
+          onError={(e) => (e.target.style.display = "none")}
+        />
+      </div>
+
+      <div className="font-black text-[1.2rem] text-[#1a4a08]">
+        Paw<em className="italic text-[#e07820]">ster</em>
+      </div>
+
+      <p className="text-[0.82rem] font-bold leading-7 text-[#6a7a50] max-w-[260px] mt-2">
+        Connecting loving homes with animals in need across the Ilocos Region since 2023.
+      </p>
+    </div>
+
+    {/* LINKS */}
+    {[
+      {
+        title: "Adopt",
+        links: [
+          ["Browse Animals", "/pets"],
+          ["My Profile", "/profile"],
+          ["Log In", "/login"],
+          ["Register", "/register"],
+        ],
+      },
+      {
+        title: "Services",
+        links: [
+          ["How It Works", "/how-it-works"],
+          ["Rehome a Pet", "/rehome"],
+          ["Missing Pets", "/missing-pets"],
+          ["About Us", "/about"],
+        ],
+      },
+      {
+        title: "Regions",
+        links: [
+          ["Ilocos Norte", "/pets"],
+          ["Ilocos Sur", "/pets"],
+          ["La Union", "/pets"],
+          ["Pangasinan", "/pets"],
+        ],
+      },
+    ].map(({ title, links }) => (
+      <div key={title}>
+        <div className="text-[0.72rem] font-black uppercase tracking-wider text-[#1c4f09] mb-4">
+          {title}
         </div>
-        <div className="max-w-[1200px] mx-auto pt-6 flex items-center justify-between gap-4 flex-wrap border-t" style={{ borderColor: "rgba(180,140,60,0.28)" }}>
-          <div className="text-[0.75rem] font-bold" style={{ color: "#6a7a50" }}>© 2025 Pawster. All rights reserved. Made with 🐾 in the Ilocos Region.</div>
-          <div className="flex gap-2">
-            {["fab fa-facebook-f","fab fa-instagram","fab fa-twitter"].map(icon => (
-              <a key={icon} href="#" className="w-8 h-8 rounded-[8px] flex items-center justify-center text-[0.8rem] no-underline transition-all border"
-                style={{ background: "rgba(255,250,232,0.7)", borderColor: "rgba(180,140,60,0.28)", color: "#6a7a50" }}>
-                <i className={icon} />
-              </a>
-            ))}
-          </div>
-        </div>
-      </footer>
+
+        {links.map(([label, to]) => (
+          <Link
+            key={label}
+            to={to}
+            className="block text-[0.83rem] font-bold text-[#3a5020] mb-2 hover:underline"
+          >
+            {label}
+          </Link>
+        ))}
+      </div>
+    ))}
+  </div>
+
+  {/* BOTTOM BAR */}
+  <div className="max-w-[1200px] mx-auto pt-6 border-t border-[rgba(180,140,60,0.28)] flex flex-wrap items-center justify-between gap-4">
+
+    <div className="text-[0.75rem] font-bold text-[#6a7a50]">
+      © 2025 Pawster. All rights reserved. Made with 🐾 in the Ilocos Region.
+    </div>
+
+    <div className="flex gap-2">
+      {["fab fa-facebook-f", "fab fa-instagram", "fab fa-twitter"].map(icon => (
+        <a
+          key={icon}
+          href="#"
+          className="w-8 h-8 flex items-center justify-center rounded-md text-[0.8rem] text-[#6a7a50] bg-[rgba(255,250,232,0.7)] border border-[rgba(180,140,60,0.28)] hover:bg-black/5 transition"
+        >
+          <i className={icon} />
+        </a>
+      ))}
+    </div>
+  </div>
+</footer>
     </div>
   );
 }

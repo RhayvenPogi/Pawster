@@ -39,63 +39,64 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            .cors(Customizer.withDefaults())
-            .csrf(csrf -> csrf.disable())
-            .sessionManagement(session -> session
-                    .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth
+                .cors(Customizer.withDefaults())
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
 
-                    // ── Public auth endpoints ──────────────────────────────────
-                    .requestMatchers(
-                            "/api/auth/login",
-                            "/api/auth/register",
-                            "/api/auth/logout",
-                            "/api/auth/me",
-                            "/error"
-                    ).permitAll()
+                        // ── Public auth endpoints ──────────────────────────────────
+                        .requestMatchers(
+                                "/api/auth/login",
+                                "/api/auth/register",
+                                "/api/auth/logout",
+                                "/api/auth/me",
+                                "/error")
+                        .permitAll()
 
-                    // ── Animals: anyone can browse, only admin can write ───────
-                    .requestMatchers(HttpMethod.GET,    "/api/animals/**").permitAll()
-                    .requestMatchers(HttpMethod.POST,   "/api/animals/**").hasAnyAuthority("admin", "ADMIN")
-                    .requestMatchers(HttpMethod.PUT,    "/api/animals/**").hasAnyAuthority("admin", "ADMIN")
-                    .requestMatchers(HttpMethod.DELETE, "/api/animals/**").hasAnyAuthority("admin", "ADMIN")
+                        // ── Animals: anyone can browse, only admin can write ───────
+                        .requestMatchers(HttpMethod.GET, "/api/animals/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/animals/**").hasAnyAuthority("admin", "ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/animals/**").hasAnyAuthority("admin", "ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/animals/**").hasAnyAuthority("admin", "ADMIN")
 
-                    // ── Adoption: authenticated users submit, admin manages ────
-                    .requestMatchers(HttpMethod.POST,  "/api/adoption").authenticated()
-                    .requestMatchers(HttpMethod.GET,   "/api/adoption/my-requests").authenticated()
-                    .requestMatchers(HttpMethod.DELETE,"/api/adoption/**").authenticated()
-                    .requestMatchers(HttpMethod.GET,   "/api/adoption/**").hasAnyAuthority("admin", "ADMIN")
-                    .requestMatchers(HttpMethod.PATCH, "/api/adoption/**").hasAnyAuthority("admin", "ADMIN")
+                        // ── Adoption: authenticated users submit, admin manages ────
+                        .requestMatchers(HttpMethod.POST, "/api/adoption").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/adoption/my-requests").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/adoption/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/adoption/**").hasAnyAuthority("admin", "ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/adoption/**").hasAnyAuthority("admin", "ADMIN")
 
-                    // ── Rehome: authenticated users submit, admin manages ──────
-                    .requestMatchers(HttpMethod.POST,  "/api/rehome").authenticated()
-                    .requestMatchers(HttpMethod.GET,   "/api/rehome/my-requests").authenticated()
-                    .requestMatchers(HttpMethod.DELETE,"/api/rehome/**").authenticated()
-                    .requestMatchers(HttpMethod.GET,   "/api/rehome/**").hasAnyAuthority("admin", "ADMIN")
-                    .requestMatchers(HttpMethod.PATCH, "/api/rehome/**").hasAnyAuthority("admin", "ADMIN")
+                        // ── Rehome: authenticated users submit, admin manages ──────
+                        .requestMatchers(HttpMethod.POST, "/api/rehome").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/rehome/my-requests").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/rehome/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/rehome/**").hasAnyAuthority("admin", "ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/rehome/**").hasAnyAuthority("admin", "ADMIN")
 
-                    // ── Surveys: authenticated users submit, admin reads all ───
-                    .requestMatchers(HttpMethod.POST, "/api/surveys").authenticated()
-                    .requestMatchers(HttpMethod.GET,  "/api/surveys/my-surveys").authenticated()
-                    .requestMatchers(HttpMethod.GET,  "/api/surveys/**").hasAnyAuthority("admin", "ADMIN")
+                        // ── Surveys: authenticated users submit, admin reads all ───
+                        .requestMatchers(HttpMethod.POST, "/api/surveys").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/surveys/my-surveys").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/surveys/**").hasAnyAuthority("admin", "ADMIN")
 
-                    // ── Admin-only routes ──────────────────────────────────────
-                    .requestMatchers("/api/admin/**").hasAnyAuthority("admin", "ADMIN")
+                        // ── Admin-only routes ──────────────────────────────────────
+                        .requestMatchers("/api/admin/**").hasAnyAuthority("admin", "ADMIN")
 
-                    .anyRequest().authenticated()
-            )
-            .exceptionHandling(ex -> ex
-                .authenticationEntryPoint((req, res, e) -> {
-                    res.setContentType("application/json");
-                    res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                    res.getWriter().write("{\"error\":\"Unauthorized\"}");
-                })
-                .accessDeniedHandler((req, res, e) -> {
-                    res.setContentType("application/json");
-                    res.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                    res.getWriter().write("{\"error\":\"Forbidden\"}");
-                })
-            );
+                        // ── Missing Pets: anyone can view & report ──────────
+                        .requestMatchers(HttpMethod.GET, "/api/missing-pets/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/missing-pets").permitAll()
+                        .anyRequest().authenticated())
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint((req, res, e) -> {
+                            res.setContentType("application/json");
+                            res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                            res.getWriter().write("{\"error\":\"Unauthorized\"}");
+                        })
+                        .accessDeniedHandler((req, res, e) -> {
+                            res.setContentType("application/json");
+                            res.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                            res.getWriter().write("{\"error\":\"Forbidden\"}");
+                        }));
 
         http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
@@ -111,20 +112,17 @@ public class SecurityConfig {
         CorsConfiguration config = new CorsConfiguration();
 
         config.setAllowedOrigins(List.of(
-            "http://localhost:3000",
-            "http://localhost:5173"
-        ));
+                "http://localhost:3000",
+                "http://localhost:5173"));
 
         config.setAllowedMethods(Arrays.asList(
-                "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"
-        ));
+                "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
 
         config.setAllowedHeaders(Arrays.asList(
                 "Authorization",
                 "Cache-Control",
                 "Content-Type",
-                "Accept"
-        ));
+                "Accept"));
 
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);

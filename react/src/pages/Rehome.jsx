@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import Navbar from './Navbar';
+import logo from "../images/logo.png"; 
 
 function useReveal() {
   const ref = useRef(null);
@@ -195,39 +196,98 @@ export default function Rehome() {
         </Reveal>
       </div>
 
-       <footer style={{ position:"relative", zIndex:10, borderTop:"1px solid rgba(90,170,48,0.45)", padding:"3rem 2.5rem 2rem", background:"rgba(255,248,218,0.85)", backdropFilter:"blur(16px)" }}>
-        <div style={{ maxWidth:1200, margin:"0 auto", display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))", gap:"3rem", marginBottom:"2.5rem" }}>
-          <div>
-            <div style={{ width:40, height:40, borderRadius:"50%", background:"#1c4f09", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"1.1rem", marginBottom:"0.75rem" }}>🐾</div>
-            <div style={{ fontFamily:"'Playfair Display',serif", fontWeight:900, fontSize:"1.2rem", color:"#1a4a08", marginBottom:"0.5rem" }}>
-              Paw<em style={{ fontStyle:"italic", color:"#e07820" }}>ster</em>
-            </div>
-            <p style={{ fontSize:"0.82rem", fontWeight:700, lineHeight:1.7, color:"#6a7a50", maxWidth:260 }}>Connecting loving homes with animals in need across the Ilocos Region since 2023.</p>
-          </div>
-          {[
-            { title:"Adopt",    links:[["Browse Animals","/pets"],["My Profile","/profile"],["Log In","/login"],["Register","/register"]] },
-            { title:"Services", links:[["How It Works","/how-it-works"],["Rehome a Pet","/rehome"],["Missing Pets","/missing-pets"],["About Us","/about"]] },
-            { title:"Regions",  links:[["Ilocos Norte","/pets"],["Ilocos Sur","/pets"],["La Union","/pets"],["Pangasinan","/pets"]] },
-          ].map(({ title, links }) => (
-            <div key={title}>
-              <div style={{ fontSize:"0.72rem", fontWeight:900, textTransform:"uppercase", letterSpacing:"0.09em", color:"#1c4f09", marginBottom:"1rem" }}>{title}</div>
-              {links.map(([label, to]) => (
-                <Link key={label} to={to} style={{ display:"block", fontSize:"0.83rem", fontWeight:700, color:"#3a5020", textDecoration:"none", marginBottom:"0.5rem" }}>{label}</Link>
-              ))}
-            </div>
-          ))}
+      <footer className="relative z-10 border-t border-[rgba(90,170,48,0.45)] bg-[rgba(255,248,218,0.85)] backdrop-blur-md px-10 py-12">
+
+  <div className="max-w-[1200px] mx-auto grid gap-12 mb-10 grid-cols-[repeat(auto-fit,minmax(160px,1fr))]">
+
+    {/* BRAND */}
+    <div>
+      <div className="mb-2">
+        <img
+          src={logo}
+          alt="Pawster"
+          className="w-8 h-8 object-contain"
+          onError={(e) => (e.target.style.display = "none")}
+        />
+      </div>
+
+      <div className="font-black text-[1.2rem] text-[#1a4a08]">
+        Paw<em className="italic text-[#e07820]">ster</em>
+      </div>
+
+      <p className="text-[0.82rem] font-bold leading-7 text-[#6a7a50] max-w-[260px] mt-2">
+        Connecting loving homes with animals in need across the Ilocos Region since 2023.
+      </p>
+    </div>
+
+    {/* LINKS */}
+    {[
+      {
+        title: "Adopt",
+        links: [
+          ["Browse Animals", "/pets"],
+          ["My Profile", "/profile"],
+          ["Log In", "/login"],
+          ["Register", "/register"],
+        ],
+      },
+      {
+        title: "Services",
+        links: [
+          ["How It Works", "/how-it-works"],
+          ["Rehome a Pet", "/rehome"],
+          ["Missing Pets", "/missing-pets"],
+          ["About Us", "/about"],
+        ],
+      },
+      {
+        title: "Regions",
+        links: [
+          ["Ilocos Norte", "/pets"],
+          ["Ilocos Sur", "/pets"],
+          ["La Union", "/pets"],
+          ["Pangasinan", "/pets"],
+        ],
+      },
+    ].map(({ title, links }) => (
+      <div key={title}>
+        <div className="text-[0.72rem] font-black uppercase tracking-wider text-[#1c4f09] mb-4">
+          {title}
         </div>
-        <div style={{ maxWidth:1200, margin:"0 auto", paddingTop:"1.5rem", display:"flex", alignItems:"center", justifyContent:"space-between", gap:"1rem", flexWrap:"wrap", borderTop:"1px solid rgba(180,140,60,0.28)" }}>
-          <div style={{ fontSize:"0.75rem", fontWeight:700, color:"#6a7a50" }}>© 2025 Pawster. All rights reserved. Made with 🐾 in the Ilocos Region.</div>
-          <div style={{ display:"flex", gap:"0.5rem" }}>
-            {["fab fa-facebook-f","fab fa-instagram","fab fa-twitter"].map(icon => (
-              <a key={icon} href="#" style={{ width:32, height:32, borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center", fontSize:"0.8rem", color:"#6a7a50", background:"rgba(255,250,232,0.7)", border:"1px solid rgba(180,140,60,0.28)", textDecoration:"none" }}>
-                <i className={icon} />
-              </a>
-            ))}
-          </div>
-        </div>
-      </footer>
+
+        {links.map(([label, to]) => (
+          <Link
+            key={label}
+            to={to}
+            className="block text-[0.83rem] font-bold text-[#3a5020] mb-2 hover:underline"
+          >
+            {label}
+          </Link>
+        ))}
+      </div>
+    ))}
+  </div>
+
+  {/* BOTTOM BAR */}
+  <div className="max-w-[1200px] mx-auto pt-6 border-t border-[rgba(180,140,60,0.28)] flex flex-wrap items-center justify-between gap-4">
+
+    <div className="text-[0.75rem] font-bold text-[#6a7a50]">
+      © 2025 Pawster. All rights reserved. Made with 🐾 in the Ilocos Region.
+    </div>
+
+    <div className="flex gap-2">
+      {["fab fa-facebook-f", "fab fa-instagram", "fab fa-twitter"].map(icon => (
+        <a
+          key={icon}
+          href="#"
+          className="w-8 h-8 flex items-center justify-center rounded-md text-[0.8rem] text-[#6a7a50] bg-[rgba(255,250,232,0.7)] border border-[rgba(180,140,60,0.28)] hover:bg-black/5 transition"
+        >
+          <i className={icon} />
+        </a>
+      ))}
+    </div>
+  </div>
+</footer>
 
       {/* Mobile single column fix */}
       <style>{`@media(max-width:768px){div[style*="grid-template-columns: 1fr 1fr"]{grid-template-columns:1fr!important}}`}</style>
