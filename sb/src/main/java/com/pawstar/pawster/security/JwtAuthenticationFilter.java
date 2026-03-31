@@ -19,20 +19,18 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    @Autowired
-    private JwtUtils jwtUtils;
-
-    @Autowired
-    private CustomUserDetailsService customUserDetailsService;
+    @Autowired private JwtUtils                 jwtUtils;
+    @Autowired private CustomUserDetailsService customUserDetailsService;
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
-                                    FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain filterChain)
+            throws ServletException, IOException {
         try {
-            String jwt = parseJwtFromCookie(request);
+            String jwt = parseJwt(request);   // cookie → header fallback
             if (jwt != null && jwtUtils.validateToken(jwt)) {
-                // getUsernameFromToken returns the email (that's what generateToken stored)
-                String email = jwtUtils.getUsernameFromToken(jwt);
+                String      email       = jwtUtils.getUsernameFromToken(jwt);
                 UserDetails userDetails = customUserDetailsService.loadUserByUsername(email);
 
                 UsernamePasswordAuthenticationToken authentication =
@@ -48,7 +46,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    private String parseJwtFromCookie(HttpServletRequest request) {
+    // ── Try cookie first, then Authorization: Bearer <token> ─────────────────
+    private String parseJwt(HttpServletRequest request) {
+        // 1. HttpOnly cookie (set by login/register endpoints)
         Cookie[] cookies = request.getCookies();
         if (cookies != null) {
             for (Cookie cookie : cookies) {
@@ -56,6 +56,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     return cookie.getValue();
                 }
             }
+        }
+        // 2. Authorization header (used by axios in local dev cross-origin)
+        String header = request.getHeader("Authorization");
+        if (header != null && header.startsWith("Bearer ")) {
+            return header.substring(7);
         }
         return null;
     }

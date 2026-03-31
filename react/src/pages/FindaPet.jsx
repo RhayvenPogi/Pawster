@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
+import Navbar from "./Navbar";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8080";
 
@@ -10,16 +11,6 @@ const STATUS_STYLE = {
   Adopted:   { bg: "rgba(100,100,100,0.8)", text: "#fff" },
 };
 const TYPE_EMOJI = { Dog: "🐕", Cat: "🐈", Bird: "🐦", Rabbit: "🐇" };
-
-const NAV_LINKS = [
-  { to: "/home",         icon: "fas fa-house",          label: "Home" },
-  { to: "/pets",         icon: "fas fa-search",          label: "Find a Pet" },
-  { to: "/how-it-works", icon: "fas fa-list-ol",         label: "How It Works" },
-  { to: "/rehome",       icon: "fas fa-home",            label: "Rehome" },
-  { to: "/missing-pets", icon: "fas fa-search-location", label: "Missing Pets" },
-  { to: "/about",        icon: "fas fa-info-circle",     label: "About" },
-  { to: "/profile",      icon: "fas fa-user",            label: "Profile" },
-];
 
 /* ─── Reveal hook ─── */
 function useReveal(delay = 0) {
@@ -44,33 +35,143 @@ function Toast({ message, type, onClose }) {
   );
 }
 
+/* ─── Review Details Reminder Modal ─── */
+function ReviewDetailsModal({ animal, user, onContinue, onClose }) {
+  // Build a summary of what info will be pre-filled
+  const hasName    = !!(user?.firstName || user?.lastName);
+  const hasEmail   = !!user?.email;
+  const hasPhone   = !!user?.phone;
+  const hasAddress = !!user?.address;
+  const allFilled  = hasName && hasEmail && hasPhone && hasAddress;
+
+  const row = (icon, label, value, filled) => (
+    <div style={{ display:"flex", alignItems:"center", gap:"0.75rem", padding:"0.6rem 0.875rem", borderRadius:10, background: filled ? "rgba(28,79,9,0.06)" : "rgba(192,48,48,0.06)", border: `1px solid ${filled ? "rgba(90,170,48,0.25)" : "rgba(192,48,48,0.2)"}` }}>
+      <i className={`fas fa-${icon}`} style={{ color: filled ? "#5aaa30" : "#c03030", width:16, textAlign:"center", fontSize:"0.85rem" }} />
+      <div style={{ flex:1 }}>
+        <div style={{ fontSize:"0.67rem", fontWeight:900, textTransform:"uppercase", letterSpacing:"0.07em", color:"#6a7a50" }}>{label}</div>
+        <div style={{ fontSize:"0.84rem", fontWeight:700, color: filled ? "#1a4a08" : "#c03030", marginTop:1 }}>
+          {filled ? value : "Not set — you can fill this in the form"}
+        </div>
+      </div>
+      <i className={`fas fa-${filled ? "check-circle" : "exclamation-circle"}`} style={{ color: filled ? "#5aaa30" : "#c03030", fontSize:"0.9rem" }} />
+    </div>
+  );
+
+  return (
+    <div style={{ position:"fixed", inset:0, zIndex:500, display:"flex", alignItems:"center", justifyContent:"center", padding:"1rem", background:"rgba(10,6,2,0.65)", backdropFilter:"blur(8px)" }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div style={{ position:"relative", width:"100%", maxWidth:480, borderRadius:20, overflow:"hidden", border:"1px solid rgba(180,140,60,0.28)", background:"rgba(255,252,235,0.98)", boxShadow:"0 24px 64px rgba(40,20,5,0.45)", animation:"modalIn .28s cubic-bezier(.22,.68,0,1.15) both" }}>
+        {/* Header */}
+        <div style={{ display:"flex", alignItems:"center", gap:"0.75rem", padding:"1.25rem 1.5rem", borderBottom:"1px solid rgba(180,140,60,0.22)", background:"linear-gradient(135deg,rgba(28,79,9,0.08),rgba(90,170,48,0.05))" }}>
+          <div style={{ width:40, height:40, borderRadius:12, background:"linear-gradient(135deg,#e07820,#c05010)", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontSize:"1rem" }}>
+            <i className="fas fa-clipboard-check" />
+          </div>
+          <div>
+            <div style={{ fontFamily:"'Playfair Display',serif", fontWeight:900, fontSize:"1rem", color:"#1a4a08" }}>Review Your Details</div>
+            <div style={{ fontSize:"0.72rem", fontWeight:700, color:"#6a7a50" }}>Before adopting {animal.name}</div>
+          </div>
+          <button onClick={onClose} style={{ marginLeft:"auto", width:32, height:32, borderRadius:8, border:"1px solid rgba(192,48,48,0.2)", background:"rgba(192,48,48,0.08)", color:"#c03030", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+            <i className="fas fa-times" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div style={{ padding:"1.25rem 1.5rem" }}>
+          <div style={{ display:"flex", alignItems:"flex-start", gap:"0.625rem", padding:"0.75rem 1rem", borderRadius:12, background:"rgba(224,120,32,0.08)", border:"1px solid rgba(224,120,32,0.25)", marginBottom:"1rem" }}>
+            <i className="fas fa-info-circle" style={{ color:"#e07820", marginTop:"0.1rem", flexShrink:0 }} />
+            <p style={{ fontSize:"0.82rem", fontWeight:700, lineHeight:1.6, color:"#6a3a10", margin:0 }}>
+              Your registered details will be pre-filled in the adoption form. Please make sure they're correct — the shelter will use this to contact you.
+            </p>
+          </div>
+
+          <div style={{ display:"flex", flexDirection:"column", gap:"0.5rem", marginBottom:"1.25rem" }}>
+            {row("user", "Full Name", `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim(), hasName)}
+            {row("envelope", "Email", user?.email, hasEmail)}
+            {row("phone", "Phone", user?.phone, hasPhone)}
+            {row("map-marker-alt", "Address", user?.address, hasAddress)}
+          </div>
+
+          {!allFilled && (
+            <div style={{ padding:"0.625rem 0.875rem", borderRadius:10, background:"rgba(192,48,48,0.07)", border:"1px solid rgba(192,48,48,0.18)", marginBottom:"1rem", fontSize:"0.8rem", fontWeight:700, color:"#a02020" }}>
+              <i className="fas fa-exclamation-triangle" style={{ marginRight:"0.4rem" }} />
+              Some details are missing. You can fill them in the adoption form, or update your profile for future adoptions.
+            </div>
+          )}
+
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0.625rem" }}>
+            <button onClick={onClose} style={{ padding:"0.75rem", borderRadius:12, fontWeight:900, fontSize:"0.86rem", background:"rgba(255,248,220,0.75)", border:"1px solid rgba(180,140,60,0.28)", color:"#3a5020", cursor:"pointer", fontFamily:"'Nunito',sans-serif", display:"flex", alignItems:"center", justifyContent:"center", gap:"0.4rem" }}>
+              <i className="fas fa-arrow-left" /> Go Back
+            </button>
+            <button onClick={onContinue} style={{ padding:"0.75rem", borderRadius:12, fontWeight:900, fontSize:"0.86rem", color:"#fff", background:"#1c4f09", border:"none", cursor:"pointer", fontFamily:"'Nunito',sans-serif", boxShadow:"0 5px 20px rgba(28,79,9,0.32)", display:"flex", alignItems:"center", justifyContent:"center", gap:"0.4rem" }}>
+              <i className="fas fa-arrow-right" /> Continue
+            </button>
+          </div>
+        </div>
+      </div>
+      <style>{`@keyframes modalIn { from{opacity:0;transform:scale(0.94) translateY(12px)} to{opacity:1;transform:scale(1) translateY(0)} }`}</style>
+    </div>
+  );
+}
+
 /* ─── Adopt Modal ─── */
-function AdoptModal({ animal, onClose, onSuccess }) {
-  const [form, setForm] = useState({ name:"", phone:"", email:"", address:"", housing:"", exp:"", reason:"" });
+function AdoptModal({ animal, user, onClose, onSuccess }) {
+  // Pre-fill from registered user details
+  const [form, setForm] = useState({
+    name:    [user?.firstName, user?.lastName].filter(Boolean).join(" ") || "",
+    phone:   user?.phone    || "",
+    email:   user?.email    || "",
+    address: user?.address  || "",
+    housing: user?.housing  || "",
+    exp:     user?.petExperience || "",
+    reason:  "",
+  });
   const [loading, setLoading] = useState(false);
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  // Get auth token from localStorage / sessionStorage (common patterns)
+  const getToken = () =>
+    localStorage.getItem("token") ||
+    localStorage.getItem("authToken") ||
+    localStorage.getItem("accessToken") ||
+    sessionStorage.getItem("token") ||
+    sessionStorage.getItem("authToken") ||
+    (user?.token ?? null);
 
   const submit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
+      const token = getToken();
+      const headers = { "Content-Type": "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
       const res = await fetch(`${API_BASE}/api/adoptions`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ animalId: animal.id, ...form }),
       });
-      const data = await res.json();
+
+      // Handle non-JSON responses gracefully
+      let data = {};
+      try { data = await res.json(); } catch { /* empty body */ }
+
       if (res.ok && data.success !== false) {
         onSuccess("Request submitted! We'll be in touch soon 🐾");
         onClose();
+      } else if (res.status === 401) {
+        onSuccess("Session expired — please log in again.", "err");
       } else {
-        onSuccess(data.message || "Error submitting request", "err");
+        onSuccess(data.message || `Error submitting request (${res.status})`, "err");
       }
     } catch {
       onSuccess("Server error. Please try again.", "err");
     }
     setLoading(false);
   };
+
+  const inp = { background:"rgba(255,250,232,0.7)", borderColor:"rgba(180,140,60,0.28)", color:"#1a2e0a", fontFamily:"'Nunito',sans-serif" };
+  const focIn  = (e) => { e.target.style.borderColor="#5aaa30"; e.target.style.boxShadow="0 0 0 3px rgba(90,170,48,0.12)"; };
+  const focOut = (e) => { e.target.style.borderColor="rgba(180,140,60,0.28)"; e.target.style.boxShadow="none"; };
 
   const fields = [
     { id:"name",    label:"Full Name *",  type:"text",  placeholder:"Your full name",             col:"full" },
@@ -79,14 +180,20 @@ function AdoptModal({ animal, onClose, onSuccess }) {
     { id:"address", label:"Address *",    type:"text",  placeholder:"Your complete home address",  col:"full" },
   ];
 
-  const inp = { background:"rgba(255,250,232,0.7)", borderColor:"rgba(180,140,60,0.28)", color:"#1a2e0a", fontFamily:"'Nunito',sans-serif" };
-  const focIn  = (e) => { e.target.style.borderColor="#5aaa30"; e.target.style.boxShadow="0 0 0 3px rgba(90,170,48,0.12)"; };
-  const focOut = (e) => { e.target.style.borderColor="rgba(180,140,60,0.28)"; e.target.style.boxShadow="none"; };
+  // Check which fields were pre-filled from user profile
+  const prefilled = {
+    name:    !!([user?.firstName, user?.lastName].filter(Boolean).join(" ")),
+    phone:   !!user?.phone,
+    email:   !!user?.email,
+    address: !!user?.address,
+  };
 
   return (
-    <div style={{ position:"fixed", inset:0, zIndex:500, display:"flex", alignItems:"center", justifyContent:"center", padding:"1rem", background:"rgba(10,6,2,0.65)", backdropFilter:"blur(8px)" }}
+    <div style={{ position:"fixed", inset:0, zIndex:600, display:"flex", alignItems:"center", justifyContent:"center", padding:"1rem", background:"rgba(10,6,2,0.65)", backdropFilter:"blur(8px)" }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div style={{ position:"relative", width:"100%", maxWidth:560, borderRadius:20, overflow:"hidden", border:"1px solid rgba(180,140,60,0.28)", background:"rgba(255,252,235,0.98)", boxShadow:"0 24px 64px rgba(40,20,5,0.45)", animation:"modalIn .28s cubic-bezier(.22,.68,0,1.15) both" }}>
+
+        {/* Header */}
         <div style={{ display:"flex", alignItems:"center", gap:"0.75rem", padding:"1.25rem 1.5rem", borderBottom:"1px solid rgba(180,140,60,0.22)", background:"linear-gradient(135deg,rgba(28,79,9,0.08),rgba(90,170,48,0.05))" }}>
           <div style={{ width:40, height:40, borderRadius:12, background:"#1c4f09", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontSize:"1rem" }}>
             <i className="fas fa-heart" />
@@ -96,21 +203,41 @@ function AdoptModal({ animal, onClose, onSuccess }) {
             <i className="fas fa-times" />
           </button>
         </div>
-        <div style={{ padding:"1.25rem 1.5rem", maxHeight:"70vh", overflowY:"auto" }}>
+
+        {/* Pre-fill notice */}
+        <div style={{ margin:"0.875rem 1.5rem 0", padding:"0.6rem 0.875rem", borderRadius:10, background:"rgba(28,79,9,0.07)", border:"1px solid rgba(90,170,48,0.22)", display:"flex", alignItems:"center", gap:"0.5rem" }}>
+          <i className="fas fa-user-check" style={{ color:"#5aaa30", fontSize:"0.85rem", flexShrink:0 }} />
+          <span style={{ fontSize:"0.78rem", fontWeight:700, color:"#1c4f09" }}>
+            Fields marked <span style={{ background:"rgba(90,170,48,0.15)", borderRadius:4, padding:"0 4px", color:"#1c7a09" }}>✓ pre-filled</span> from your profile. Feel free to edit before submitting.
+          </span>
+        </div>
+
+        <div style={{ padding:"1rem 1.5rem 1.25rem", maxHeight:"65vh", overflowY:"auto" }}>
           <form onSubmit={submit}>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1rem" }}>
               {fields.map(({ id, label, type, placeholder, col }) => (
                 <div key={id} style={{ display:"flex", flexDirection:"column", gap:"0.25rem", gridColumn: col === "full" ? "1/-1" : undefined }}>
-                  <label style={{ fontSize:"0.69rem", fontWeight:900, textTransform:"uppercase", letterSpacing:"0.07em", color:"#6a7a50" }}>{label}</label>
+                  <label style={{ fontSize:"0.69rem", fontWeight:900, textTransform:"uppercase", letterSpacing:"0.07em", color:"#6a7a50", display:"flex", alignItems:"center", gap:"0.35rem" }}>
+                    {label}
+                    {prefilled[id] && <span style={{ fontSize:"0.65rem", background:"rgba(90,170,48,0.15)", color:"#1c7a09", borderRadius:4, padding:"0 5px", fontWeight:800 }}>✓ pre-filled</span>}
+                  </label>
                   <input type={type} required value={form[id]} onChange={set(id)} placeholder={placeholder}
-                    style={{ ...inp, borderRadius:10, padding:"0.625rem 0.875rem", fontSize:"0.88rem", fontWeight:600, outline:"none", border:"1px solid rgba(180,140,60,0.28)" }}
+                    style={{ ...inp, borderRadius:10, padding:"0.625rem 0.875rem", fontSize:"0.88rem", fontWeight:600, outline:"none", border:"1px solid rgba(180,140,60,0.28)", borderLeft: prefilled[id] ? "3px solid rgba(90,170,48,0.5)" : undefined }}
                     onFocus={focIn} onBlur={focOut} />
                 </div>
               ))}
-              {[["housing","Housing Type *",["House with yard","Apartment","Condo","Other"]],["exp","Pet Experience *",["First time owner","Some experience","Very experienced"]]].map(([id, label, opts]) => (
+              {[
+                ["housing","Housing Type *",["House with yard","Apartment","Condo","Other"]],
+                ["exp","Pet Experience *",["First time owner","Some experience","Very experienced"]],
+              ].map(([id, label, opts]) => (
                 <div key={id} style={{ display:"flex", flexDirection:"column", gap:"0.25rem" }}>
-                  <label style={{ fontSize:"0.69rem", fontWeight:900, textTransform:"uppercase", letterSpacing:"0.07em", color:"#6a7a50" }}>{label}</label>
-                  <select required value={form[id]} onChange={set(id)} style={{ ...inp, borderRadius:10, padding:"0.625rem 0.875rem", fontSize:"0.88rem", fontWeight:600, outline:"none", border:"1px solid rgba(180,140,60,0.28)" }} onFocus={focIn} onBlur={focOut}>
+                  <label style={{ fontSize:"0.69rem", fontWeight:900, textTransform:"uppercase", letterSpacing:"0.07em", color:"#6a7a50", display:"flex", alignItems:"center", gap:"0.35rem" }}>
+                    {label}
+                    {prefilled[id] && <span style={{ fontSize:"0.65rem", background:"rgba(90,170,48,0.15)", color:"#1c7a09", borderRadius:4, padding:"0 5px", fontWeight:800 }}>✓ pre-filled</span>}
+                  </label>
+                  <select required value={form[id]} onChange={set(id)}
+                    style={{ ...inp, borderRadius:10, padding:"0.625rem 0.875rem", fontSize:"0.88rem", fontWeight:600, outline:"none", border:"1px solid rgba(180,140,60,0.28)" }}
+                    onFocus={focIn} onBlur={focOut}>
                     <option value="">Select…</option>
                     {opts.map(o => <option key={o}>{o}</option>)}
                   </select>
@@ -124,7 +251,9 @@ function AdoptModal({ animal, onClose, onSuccess }) {
               </div>
             </div>
             <button type="submit" disabled={loading} style={{ width:"100%", marginTop:"1rem", display:"flex", alignItems:"center", justifyContent:"center", gap:"0.5rem", padding:"0.875rem", borderRadius:12, fontWeight:900, fontSize:"0.9rem", color:"#fff", background: loading ? "#5a8a40" : "#1c4f09", border:"none", cursor: loading ? "not-allowed" : "pointer", boxShadow:"0 5px 20px rgba(28,79,9,0.32)", fontFamily:"'Nunito',sans-serif" }}>
-              {loading ? <><i className="fas fa-spinner" style={{ animation:"spin .8s linear infinite" }} /> Submitting…</> : <><i className="fas fa-paper-plane" /> Submit Request</>}
+              {loading
+                ? <><i className="fas fa-spinner" style={{ animation:"spin .8s linear infinite" }} /> Submitting…</>
+                : <><i className="fas fa-paper-plane" /> Submit Adoption Request</>}
             </button>
           </form>
         </div>
@@ -215,33 +344,54 @@ function FilterBar({ search, type, status, onSearch, onType, onStatus, onSubmit,
 /* ─── Main Page ─── */
 export default function FindAPet() {
   const { user, logout } = useAuth();
-  const [animals, setAnimals]   = useState([]);
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState(null);
-  const [search, setSearch]     = useState("");
-  const [type, setType]         = useState("all");
-  const [status, setStatus]     = useState("all");
-  const [adoptTarget, setAdopt] = useState(null);
-  const [toast, setToast]       = useState(null);
-  const [totalCount, setTotal]  = useState(0);
-  const [dropOpen, setDropOpen] = useState(false);
-
-  const initials = user ? ((user.firstName?.[0] ?? "") + (user.lastName?.[0] ?? "U")).toUpperCase() : "U";
+  const [animals, setAnimals]     = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState(null);
+  const [search, setSearch]       = useState("");
+  const [type, setType]           = useState("all");
+  const [status, setStatus]       = useState("all");
+  const [adoptTarget, setAdopt]   = useState(null);   // animal chosen
+  const [showReview, setReview]   = useState(false);  // show review modal first
+  const [showForm, setShowForm]   = useState(false);  // show adoption form after review
+  const [toast, setToast]         = useState(null);
+  const [totalCount, setTotal]    = useState(0);
 
   const fetchAnimals = useCallback(async (q = search, t = type, s = status) => {
-    setLoading(true); setError(null);
+    setLoading(true);
+    setError(null);
     try {
       const params = new URLSearchParams();
       if (q && q.trim()) params.set("search", q.trim());
-      if (t !== "all")   params.set("type",   t);
-      if (s !== "all")   params.set("status", s);
+      if (t !== "all") params.set("type", t);
+      if (s !== "all") params.set("status", s);
       params.set("limit", "50");
-      const res  = await fetch(`${API_BASE}/api/animals?${params}`);
+
+      const token =
+        localStorage.getItem("token") ||
+        localStorage.getItem("authToken") ||
+        localStorage.getItem("accessToken") ||
+        sessionStorage.getItem("token") ||
+        (user?.token ?? null);
+
+      const headers = {};
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      const res = await fetch(`${API_BASE}/api/animals?${params}`, { headers });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
       const data = await res.json();
       const list  = Array.isArray(data) ? data : (data.content ?? []);
       const total = Array.isArray(data) ? list.length : (data.totalElements ?? list.length);
-      setAnimals(list); setTotal(total);
+
+      const mapped = list.map(a => ({
+        ...a,
+        photoUrl: a.photoUrl ?? (a.photo
+          ? (a.photo.startsWith("http") ? a.photo : `http://localhost:8081${a.photo}`)
+          : null),
+      }));
+
+      setAnimals(mapped);
+      setTotal(total);
     } catch {
       setError("Could not load animals. Make sure the Spring Boot server is running.");
       setAnimals([]);
@@ -254,6 +404,25 @@ export default function FindAPet() {
   const handleSubmit = () => fetchAnimals(search, type, status);
   const handleClear  = () => { setSearch(""); setType("all"); setStatus("all"); fetchAnimals("", "all", "all"); };
   const showToast    = (msg, kind = "ok") => setToast({ message: msg, type: kind });
+
+  // Step 1: click "Adopt" → show review reminder
+  const handleAdoptClick = (animal) => {
+    setAdopt(animal);
+    setReview(true);
+    setShowForm(false);
+  };
+
+  // Step 2: user confirms review → open adoption form
+  const handleContinueToForm = () => {
+    setReview(false);
+    setShowForm(true);
+  };
+
+  const handleCloseAll = () => {
+    setAdopt(null);
+    setReview(false);
+    setShowForm(false);
+  };
 
   return (
     <div style={{ minHeight:"100vh", background:"#EDDABB", fontFamily:"'Nunito',sans-serif", color:"#1a2e0a" }}>
@@ -282,60 +451,7 @@ export default function FindAPet() {
         <div style={{ position:"absolute", inset:0, backgroundImage:"linear-gradient(rgba(100,70,30,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(100,70,30,.03) 1px,transparent 1px)", backgroundSize:"60px 60px" }} />
       </div>
 
-      {/* ── Navbar ── */}
-      <nav style={{ position:"sticky", top:0, zIndex:200, display:"flex", alignItems:"center", padding:"0 2.5rem", gap:"1rem", height:70, background:"rgba(255,248,218,0.90)", backdropFilter:"blur(20px)", borderBottom:"1px solid rgba(90,170,48,0.45)", boxShadow:"0 2px 20px rgba(100,70,20,0.09)" }}>
-        {/* Brand */}
-        <Link to="/home" style={{ display:"flex", alignItems:"center", gap:"0.6rem", textDecoration:"none", flexShrink:0 }}>
-          <div style={{ width:40, height:40, borderRadius:"50%", background:"#1c4f09", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"1.1rem" }}>🐾</div>
-          <span style={{ fontFamily:"'Playfair Display',serif", fontSize:"1.25rem", fontWeight:900, color:"#1a4a08" }}>Paw<em style={{ fontStyle:"italic", color:"#e07820" }}>ster</em></span>
-        </Link>
-
-        {/* Nav pill */}
-        <div style={{ display:"flex", alignItems:"center", gap:"0.1rem", margin:"0 auto", background:"rgba(255,245,210,0.5)", borderRadius:50, padding:"0.25rem", border:"1px solid rgba(180,140,60,0.28)" }}>
-          {NAV_LINKS.map(({ to, icon, label }) => (
-            <Link key={label} to={to} style={{ display:"inline-flex", alignItems:"center", gap:"0.35rem", padding:"0.45rem 0.9rem", borderRadius:50, fontSize:"0.78rem", fontWeight:800, textDecoration:"none", whiteSpace:"nowrap", background: to === "/pets" ? "linear-gradient(135deg,rgba(28,79,9,0.16),rgba(90,170,48,0.12))" : to === "/missing-pets" ? "rgba(180,90,34,0.09)" : "transparent", color: to === "/pets" ? "#1a4a08" : to === "/missing-pets" ? "#B45A22" : "#3a5020", boxShadow: to === "/pets" ? "0 2px 10px rgba(28,79,9,0.12)" : "none" }}>
-              <i className={icon} style={{ fontSize:"0.70rem" }} />{label}
-            </Link>
-          ))}
-        </div>
-
-        {/* Right side */}
-        <div style={{ display:"flex", alignItems:"center", gap:"0.5rem", flexShrink:0 }}>
-          {user ? (
-            <>
-              <div style={{ position:"relative" }}>
-                <button onClick={() => setDropOpen(o => !o)} style={{ display:"flex", alignItems:"center", gap:"0.5rem", borderRadius:50, padding:"0.35rem 0.85rem", background:"rgba(255,248,220,0.7)", border:"1px solid rgba(180,140,60,0.28)", cursor:"pointer", fontFamily:"'Nunito',sans-serif" }}>
-                  <div style={{ width:34, height:34, borderRadius:"50%", background:"linear-gradient(135deg,#1c4f09,#3a8a18)", border:"2px solid #5aaa30", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"0.78rem", fontWeight:900, color:"#fff" }}>{initials}</div>
-                  <div style={{ textAlign:"left" }}>
-                    <div style={{ fontSize:"0.81rem", fontWeight:800, color:"#1a4a08" }}>{user.firstName}</div>
-                    <div style={{ fontSize:"0.64rem", fontWeight:700, color:"#6a7a50" }}>Member</div>
-                  </div>
-                  <i className="fas fa-chevron-down" style={{ fontSize:"0.62rem", color:"#6a7a50", transition:"transform 0.2s", transform: dropOpen ? "rotate(180deg)" : "none" }} />
-                </button>
-                {dropOpen && (
-                  <div onClick={() => setDropOpen(false)} style={{ position:"absolute", top:"calc(100% + 9px)", right:0, borderRadius:14, border:"1px solid rgba(180,140,60,0.28)", minWidth:215, padding:"0.5rem", zIndex:999, background:"rgba(255,252,235,0.98)", boxShadow:"0 8px 40px rgba(100,70,20,0.20)", animation:"fadeUp .18s ease both" }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:"0.6rem", padding:"0.5rem 0.5rem 0.65rem" }}>
-                      <div style={{ width:36, height:36, borderRadius:"50%", background:"linear-gradient(135deg,#1c4f09,#2a7010)", border:"2px solid #5aaa30", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"0.78rem", fontWeight:900, color:"#fff" }}>{initials}</div>
-                      <div><div style={{ fontSize:"0.86rem", fontWeight:800, color:"#1a4a08" }}>{user.firstName}</div><div style={{ fontSize:"0.7rem", fontWeight:700, color:"#6a7a50" }}>{user.email}</div></div>
-                    </div>
-                    <div style={{ height:1, margin:"0.25rem 0", background:"rgba(180,140,60,0.28)" }} />
-                    <Link to="/profile" onClick={() => setDropOpen(false)} style={{ display:"flex", alignItems:"center", gap:"0.5rem", padding:"0.5rem 0.6rem", borderRadius:8, fontSize:"0.82rem", fontWeight:700, color:"#3a5020", textDecoration:"none" }}><i className="fas fa-th-large" style={{ width:16 }} /> Dashboard</Link>
-                    <button onClick={logout} style={{ width:"100%", display:"flex", alignItems:"center", gap:"0.5rem", padding:"0.5rem 0.6rem", borderRadius:8, fontSize:"0.82rem", fontWeight:700, color:"#c03030", background:"transparent", border:"none", cursor:"pointer", fontFamily:"'Nunito',sans-serif" }}><i className="fas fa-sign-out-alt" style={{ width:16 }} /> Log Out</button>
-                  </div>
-                )}
-              </div>
-              <button onClick={logout} style={{ display:"inline-flex", alignItems:"center", gap:"0.35rem", padding:"0.5rem 1rem", borderRadius:9, fontSize:"0.79rem", fontWeight:800, background:"rgba(192,48,48,0.08)", color:"#c03030", border:"1px solid rgba(192,48,48,0.25)", cursor:"pointer", fontFamily:"'Nunito',sans-serif" }}>
-                <i className="fas fa-sign-out-alt" /> Log Out
-              </button>
-            </>
-          ) : (
-            <>
-              <Link to="/login" style={{ display:"inline-flex", alignItems:"center", gap:"0.35rem", padding:"0.5rem 1rem", borderRadius:10, fontSize:"0.82rem", fontWeight:800, color:"#3a5020", background:"rgba(255,250,232,0.7)", border:"1px solid rgba(180,140,60,0.28)", textDecoration:"none" }}><i className="fas fa-sign-in-alt" /> Log In</Link>
-              <Link to="/register" style={{ display:"inline-flex", alignItems:"center", gap:"0.35rem", padding:"0.5rem 1rem", borderRadius:10, fontSize:"0.82rem", fontWeight:800, color:"#fff", background:"#1c4f09", border:"1px solid #1c4f09", textDecoration:"none" }}><i className="fas fa-paw" /> Get Started</Link>
-            </>
-          )}
-        </div>
-      </nav>
+      <Navbar />
 
       {/* ── Page Hero ── */}
       <div style={{ position:"relative", zIndex:10, paddingTop:"4rem", paddingBottom:"3rem", textAlign:"center", animation:"fadeUp .6s ease both" }}>
@@ -406,7 +522,7 @@ export default function FindAPet() {
         {/* Grid */}
         {!loading && !error && animals.length > 0 && (
           <div style={{ display:"grid", gap:"1.25rem", marginTop:"0.25rem", gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))" }}>
-            {animals.map((a, i) => <AnimalCard key={a.id} animal={a} index={i} onAdopt={setAdopt} />)}
+            {animals.map((a, i) => <AnimalCard key={a.id} animal={a} index={i} onAdopt={handleAdoptClick} />)}
           </div>
         )}
       </div>
@@ -446,7 +562,26 @@ export default function FindAPet() {
         </div>
       </footer>
 
-      {adoptTarget && <AdoptModal animal={adoptTarget} onClose={() => setAdopt(null)} onSuccess={(msg, kind) => { showToast(msg, kind); setAdopt(null); }} />}
+      {/* ── Step 1: Review Details Reminder ── */}
+      {showReview && adoptTarget && (
+        <ReviewDetailsModal
+          animal={adoptTarget}
+          user={user}
+          onContinue={handleContinueToForm}
+          onClose={handleCloseAll}
+        />
+      )}
+
+      {/* ── Step 2: Adoption Form ── */}
+      {showForm && adoptTarget && (
+        <AdoptModal
+          animal={adoptTarget}
+          user={user}
+          onClose={handleCloseAll}
+          onSuccess={(msg, kind) => { showToast(msg, kind); handleCloseAll(); }}
+        />
+      )}
+
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>
   );

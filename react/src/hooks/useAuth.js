@@ -3,50 +3,61 @@ import { useNavigate } from 'react-router-dom';
 import api from '../config/axios';
 
 export const useAuth = () => {
-    const [user, setUser]           = useState(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const navigate                  = useNavigate();
+    const [user, setUser] = useState(() => {
+        try {
+            const stored = localStorage.getItem('pawster_user');
+            return stored ? JSON.parse(stored) : null;
+        } catch {
+            return null;
+        }
+    });
 
-    // On mount: check if JWT cookie is still valid by calling /api/auth/me
+    const [isLoading, setIsLoading] = useState(true);
+    const navigate = useNavigate();
+
     useEffect(() => {
         const checkSession = async () => {
             try {
                 const { data } = await api.get('/api/auth/me');
-                setUser(data);
+                setUser(prev => ({ ...(prev ?? {}), ...data }));
+                localStorage.setItem('pawster_user',
+                    JSON.stringify({ ...(user ?? {}), ...data }));
             } catch {
                 setUser(null);
+                localStorage.removeItem('pawster_user');
+                localStorage.removeItem('pawster_token');
             } finally {
                 setIsLoading(false);
             }
         };
         checkSession();
-    }, []);
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Login with email + password as multipart/form-data (matches Spring Boot @RequestParam)
     const login = useCallback(async (email, password) => {
         const fd = new FormData();
         fd.append('email',    email);
         fd.append('password', password);
 
         const { data } = await api.post('/api/auth/login', fd);
-        setUser(data);
 
-        // Redirect based on role returned from the server
-        if (data.role === 'admin') {
-            navigate('/admin');
-        } else {
-            navigate('/home');
-        }
+        if (data.token) localStorage.setItem('pawster_token', data.token);
+        setUser(data);
+        localStorage.setItem('pawster_user', JSON.stringify(data));
+
+        if (data.role === 'admin') navigate('/admin');
+        else navigate('/home');
 
         return data;
     }, [navigate]);
 
-    // Register with multipart/form-data (includes idFile)
     const register = useCallback(async (formData) => {
         const { data } = await api.post('/api/auth/register', formData, {
             headers: { 'Content-Type': 'multipart/form-data' },
         });
+
+        if (data.token) localStorage.setItem('pawster_token', data.token);
         setUser(data);
+        localStorage.setItem('pawster_user', JSON.stringify(data));
         navigate('/home');
         return data;
     }, [navigate]);
@@ -56,12 +67,15 @@ export const useAuth = () => {
             await api.post('/api/auth/logout');
         } finally {
             setUser(null);
+            localStorage.removeItem('pawster_user');
+            localStorage.removeItem('pawster_token');
             navigate('/login');
         }
     }, [navigate]);
 
     return {
         user,
+        setUser,
         isAuthenticated: !!user,
         isAdmin:         user?.role === 'admin',
         isLoading,

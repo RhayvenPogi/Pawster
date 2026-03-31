@@ -21,3 +21,8 @@ CREATE TABLE IF NOT EXISTS users (
     is_active     INTEGER                  DEFAULT 1,
     last_login    TIMESTAMP
 );
+
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS photo       BYTEA,
+  ADD COLUMN IF NOT EXISTS photo_type  VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS photo_name  VARCHAR(255);

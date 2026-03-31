@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
-
+import Navbar from "./Navbar";
 
 /* ─── Data ─── */
 const PETS = [
@@ -201,21 +201,8 @@ function FeaturedCard({ pet }) {
 
 /* ─── Main Page ─── */
 export default function HomePage() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const loggedIn = !!user;
-  const [dropOpen, setDropOpen] = useState(false);
-  const initials = user ? (user.firstName[0] + (user.lastName?.[0] || "U")).toUpperCase() : "U";
-
-  // Full nav links list
-  const NAV_LINKS = [
-    { to: "/home",         icon: "fas fa-house",           label: "Home" },
-    { to: "/pets",         icon: "fas fa-search",           label: "Find a Pet" },
-    { to: "/how-it-works", icon: "fas fa-list-ol",          label: "How It Works" },
-    { to: "/rehome",       icon: "fas fa-home",             label: "Rehome" },
-    { to: "/missing-pets", icon: "fas fa-search-location",  label: "Missing Pets" },
-    { to: "/about",        icon: "fas fa-info-circle",      label: "About" },
-    { to: "/profile",      icon: "fas fa-user",             label: "Profile" },
-  ];
 
   return (
     <div className="relative overflow-x-hidden" style={{ fontFamily: "'Nunito', sans-serif", color: "#1a2e0a" }}>
@@ -257,123 +244,7 @@ export default function HomePage() {
         <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse at 50% 50%,transparent 40%,rgba(140,90,30,0.13) 100%)" }} />
       </div>
 
-      {/* ── Navbar ── */}
-      <nav className="fixed top-0 left-0 w-full z-[999] flex items-center px-10 gap-4 border-b"
-        style={{ height: "70px", background: "rgba(255,248,218,0.90)", backdropFilter: "blur(20px)", borderColor: "rgba(90,170,48,0.45)", boxShadow: "0 2px 20px rgba(100,70,20,0.09)" }}>
-
-        {/* Brand */}
-        <Link to="/home" className="flex items-center gap-2.5 no-underline flex-shrink-0">
-          <div className="w-10 h-10 rounded-full bg-[#1c4f09] flex items-center justify-center text-lg">🐾</div>
-          <span className="nav-brand-text text-xl font-black" style={{ fontFamily: "'Playfair Display',serif", color: "#1a4a08" }}>Paw<em>ster</em></span>
-        </Link>
-
-        {/* ── Full Nav Links pill ── */}
-        <div className="hidden md:flex items-center gap-0.5 mx-auto rounded-[50px] px-1 py-1 border"
-          style={{ background: "rgba(255,245,210,0.5)", borderColor: "rgba(180,140,60,0.28)" }}>
-          {NAV_LINKS.map(({ to, icon, label }) => {
-            const isMissing = to === "/missing-pets";
-            const isActive  = typeof window !== "undefined" && window.location.pathname === to;
-            return (
-              <Link
-                key={label}
-                to={to}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-[50px] text-[0.80rem] font-extrabold no-underline transition-all duration-150 whitespace-nowrap"
-                style={
-                  isMissing
-                    ? { background: "rgba(180,90,34,0.09)", color: "#B45A22", border: "1px solid rgba(180,90,34,0.22)" }
-                    : isActive
-                    ? { background: "linear-gradient(135deg,rgba(28,79,9,0.16),rgba(90,170,48,0.12))", color: "#1a4a08", boxShadow: "0 2px 10px rgba(28,79,9,0.12)" }
-                    : { color: "#3a5020" }
-                }
-              >
-                <i className={icon + " text-[0.70rem]"} />{label}
-              </Link>
-            );
-          })}
-        </div>
-
-        {/* Nav right */}
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {loggedIn ? (
-            <>
-              <div className="relative">
-                <button onClick={() => setDropOpen(o => !o)}
-                  className="flex items-center gap-2 rounded-[50px] px-3.5 py-1.5 border cursor-pointer transition-all"
-                  style={{ background: "rgba(255,248,220,0.7)", borderColor: "rgba(180,140,60,0.28)" }}>
-                  <div className="w-[34px] h-[34px] rounded-full flex items-center justify-center text-[0.78rem] font-black text-white border-2"
-                    style={{ background: "linear-gradient(135deg,#1c4f09,#3a8a18)", borderColor: "#5aaa30" }}>{initials}</div>
-                  <div className="text-left hidden sm:block">
-                    <div className="text-[0.81rem] font-extrabold" style={{ color: "#1a4a08" }}>{user.firstName}</div>
-                    <div className="text-[0.64rem] font-bold" style={{ color: "#6a7a50" }}>Member</div>
-                  </div>
-                  <i className={"fas fa-chevron-down text-[0.62rem] transition-transform duration-200 " + (dropOpen ? "rotate-180" : "")} style={{ color: "#6a7a50" }} />
-                </button>
-                {dropOpen && (
-                  <div className="absolute top-[calc(100%+9px)] right-0 rounded-[14px] border min-w-[215px] p-2 z-[999]"
-                    style={{ background: "rgba(255,252,235,0.98)", borderColor: "rgba(180,140,60,0.28)", boxShadow: "0 8px 40px rgba(100,70,20,0.20)", animation: "fadeUp .18s ease both" }}
-                    onClick={() => setDropOpen(false)}>
-                    <div className="flex items-center gap-2.5 px-2 py-2.5">
-                      <div className="w-9 h-9 rounded-full flex items-center justify-center text-[0.78rem] font-black text-white border-2" style={{ background: "linear-gradient(135deg,#1c4f09,#2a7010)", borderColor: "#5aaa30" }}>{initials}</div>
-                      <div>
-                        <div className="text-[0.86rem] font-extrabold" style={{ color: "#1a4a08" }}>{user.firstName}</div>
-                        <div className="text-[0.7rem] font-bold" style={{ color: "#6a7a50" }}>{user.email}</div>
-                      </div>
-                    </div>
-                    <div className="h-px my-1" style={{ background: "rgba(180,140,60,0.28)" }} />
-                    {[["fas fa-th-large","Dashboard","/profile"],["fas fa-sign-out-alt","Log Out",null,"danger"]].map(([icon,label,to,cls]) => (
-                      cls === "danger"
-                        ? <button key={label} onClick={logout}
-                            className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-[0.82rem] font-bold transition-all text-left border-none bg-transparent"
-                            style={{ color: "#c03030", fontFamily: "'Nunito',sans-serif" }}>
-                            <i className={icon + " w-4"} />{label}
-                          </button>
-                        : <Link key={label} to={to} onClick={() => setDropOpen(false)}
-                            className="flex items-center gap-2 px-2.5 py-2 rounded-lg text-[0.82rem] font-bold no-underline transition-all"
-                            style={{ color: "#3a5020" }}>
-                            <i className={icon + " w-4"} />{label}
-                          </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <button onClick={logout} className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-[9px] text-[0.79rem] font-extrabold transition-all border"
-                style={{ background: "rgba(192,48,48,0.08)", borderColor: "rgba(192,48,48,0.25)", color: "#c03030", fontFamily: "'Nunito',sans-serif" }}>
-                <i className="fas fa-sign-out-alt" /> Log Out
-              </button>
-            </>
-          ) : (
-            <>
-              <Link to="/login" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-[10px] text-[0.82rem] font-extrabold no-underline border transition-all"
-                style={{ background: "rgba(255,250,232,0.7)", borderColor: "rgba(180,140,60,0.28)", color: "#3a5020" }}>
-                <i className="fas fa-sign-in-alt" /> Log In
-              </Link>
-              <Link to="/register" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-[10px] text-[0.82rem] font-extrabold no-underline border transition-all text-white"
-                style={{ background: "#1c4f09", borderColor: "#1c4f09", boxShadow: "0 3px 12px rgba(28,79,9,0.28)" }}>
-                <i className="fas fa-paw" /> Get Started
-              </Link>
-            </>
-          )}
-        </div>
-      </nav>
-
-      {/* ── Welcome Banner ── */}
-      {loggedIn && (
-        <div className="relative z-10 flex items-center justify-between gap-4 flex-wrap px-10 py-3.5 border-b"
-          style={{ background: "linear-gradient(135deg,rgba(28,79,9,0.11),rgba(90,170,48,0.07))", borderColor: "rgba(90,170,48,0.28)" }}>
-          <div className="flex items-center gap-2.5">
-            <span className="text-[1.3rem]">🐾</span>
-            <span className="text-[0.88rem] font-extrabold" style={{ color: "#1a4a08" }}>
-              Welcome back, <em style={{ fontStyle: "italic", color: "#e07820" }}>{user.firstName}</em>! Ready to find a new friend today?
-            </span>
-          </div>
-          <div className="flex gap-2 flex-wrap">
-            <Link to="/profile" className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-[8px] text-[0.78rem] font-extrabold text-white no-underline transition-all"
-              style={{ background: "#1c4f09" }}><i className="fas fa-th-large" /> Dashboard</Link>
-            <Link to="/missing-pets" className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-[8px] text-[0.78rem] font-extrabold text-white no-underline transition-all"
-              style={{ background: "#B45A22" }}><i className="fas fa-search-location" /> Missing Pets</Link>
-          </div>
-        </div>
-      )}
+      <Navbar />
 
       {/* ── Hero ── */}
       <section className="relative z-10 flex items-center flex-wrap gap-16 px-10 py-20 max-w-[1400px] mx-auto min-h-[calc(100vh-70px)]">
@@ -400,16 +271,10 @@ export default function HomePage() {
               <i className="fas fa-search" /> Browse Animals
             </Link>
             {loggedIn ? (
-              <>
-                <Link to="/profile" className="inline-flex items-center gap-2 px-7 py-3.5 rounded-[13px] font-extrabold text-[0.95rem] no-underline transition-all border"
-                  style={{ background: "rgba(255,248,220,0.75)", color: "#3a5020", borderColor: "rgba(180,140,60,0.28)" }}>
-                  <i className="fas fa-th-large" /> My Dashboard
-                </Link>
-                <Link to="/missing-pets" className="inline-flex items-center gap-2 px-7 py-3.5 rounded-[13px] font-black text-[0.95rem] text-white no-underline transition-all"
-                  style={{ background: "#B45A22", boxShadow: "0 6px 24px rgba(180,90,34,0.28)" }}>
-                  <i className="fas fa-search-location" /> Missing Pets
-                </Link>
-              </>
+              <Link to="/profile" className="inline-flex items-center gap-2 px-7 py-3.5 rounded-[13px] font-extrabold text-[0.95rem] no-underline transition-all border"
+                style={{ background: "rgba(255,248,220,0.75)", color: "#3a5020", borderColor: "rgba(180,140,60,0.28)" }}>
+                <i className="fas fa-th-large" /> My Dashboard
+              </Link>
             ) : (
               <Link to="/register" className="inline-flex items-center gap-2 px-7 py-3.5 rounded-[13px] font-extrabold text-[0.95rem] no-underline transition-all border"
                 style={{ background: "rgba(255,248,220,0.75)", color: "#3a5020", borderColor: "rgba(180,140,60,0.28)" }}>
@@ -572,16 +437,10 @@ export default function HomePage() {
             <p className="font-bold text-[0.95rem] leading-[1.7] mb-8" style={{ color: "#3a5020" }}>Join hundreds of families across the Ilocos Region who have opened their hearts and homes.</p>
             <div className="flex items-center justify-center gap-4 flex-wrap">
               {loggedIn ? (
-                <>
-                  <Link to="/profile" className="inline-flex items-center gap-2 px-8 py-3.5 rounded-[13px] font-black text-[0.95rem] text-white no-underline"
-                    style={{ background: "#1c4f09", boxShadow: "0 6px 24px rgba(28,79,9,0.32)" }}>
-                    <i className="fas fa-th-large" /> Go to Dashboard
-                  </Link>
-                  <Link to="/missing-pets" className="inline-flex items-center gap-2 px-7 py-3.5 rounded-[13px] font-extrabold text-[0.95rem] no-underline border"
-                    style={{ background: "rgba(255,248,220,0.75)", color: "#3a5020", borderColor: "rgba(180,140,60,0.28)" }}>
-                    <i className="fas fa-search-location" /> Missing Pets
-                  </Link>
-                </>
+                <Link to="/profile" className="inline-flex items-center gap-2 px-8 py-3.5 rounded-[13px] font-black text-[0.95rem] text-white no-underline"
+                  style={{ background: "#1c4f09", boxShadow: "0 6px 24px rgba(28,79,9,0.32)" }}>
+                  <i className="fas fa-th-large" /> Go to Dashboard
+                </Link>
               ) : (
                 <>
                   <Link to="/register" className="inline-flex items-center gap-2 px-8 py-3.5 rounded-[13px] font-black text-[0.95rem] text-white no-underline"

@@ -6,7 +6,7 @@ import GuestRoute     from './components/GuestRoute';
 import LoginPage      from './pages/LoginPage';
 import RegisterPage   from './pages/RegisterPage';
 import HomePage       from './pages/HomePage';
-import FindAPet       from './pages/FindaPet';
+import FindAPet       from './pages/FindAPet';
 import UserDashboard  from './pages/UserDashboard';
 import LandingPage    from './pages/LandingPage';
 import HowItWorks     from './pages/HowItWorks';
@@ -14,6 +14,7 @@ import Rehome         from './pages/Rehome';
 import MissingPets    from './pages/MissingPets';
 import About          from './pages/About';
 import AdminDashboard from './pages/AdminDashboard';
+import ProfilePage    from './pages/ProfilePage';
 
 function App() {
     return (
@@ -24,6 +25,7 @@ function App() {
                 <Route path="/register"     element={<GuestRoute><RegisterPage /></GuestRoute>} />
                 <Route path="/home"         element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
                 <Route path="/pets"         element={<ProtectedRoute><FindAPet /></ProtectedRoute>} />
+                <Route path="/profile/edit" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
                 <Route path="/profile"      element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
                 <Route path="/how-it-works" element={<ProtectedRoute><HowItWorks /></ProtectedRoute>} />
                 <Route path="/rehome"       element={<ProtectedRoute><Rehome /></ProtectedRoute>} />

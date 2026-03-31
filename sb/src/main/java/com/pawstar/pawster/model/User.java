@@ -38,19 +38,25 @@ public class User {
     @Column(name = "zip_code", length = 15)
     private String zip;
 
-    /**
-     * Raw file bytes stored directly in the DB (PostgreSQL bytea column).
-     * Replaces the old file-path approach — no folder needed.
-     */
-    
+    // ── Profile photo ─────────────────────────────────────────────────────────
+
+    @Column(name = "photo", columnDefinition = "bytea")
+    private byte[] photo;
+
+    @Column(name = "photo_type", length = 50)
+    private String photoType;
+
+    @Column(name = "photo_name", length = 255)
+    private String photoName;
+
+    // ── ID verification file ──────────────────────────────────────────────────
+
     @Column(name = "id_file", columnDefinition = "bytea")
     private byte[] idFile;
 
-    /** Original MIME type of the uploaded file (e.g. "image/jpeg"). */
     @Column(name = "id_file_type", length = 50)
     private String idFileType;
 
-    /** Original filename so it can be served back with the right name. */
     @Column(name = "id_file_name", length = 255)
     private String idFileName;
 
@@ -101,59 +107,68 @@ public class User {
         this.idFileName  = idFileName;
     }
 
-    // ── Getters & Setters ──────────────────────────────────────────────────────
+    // ── Getters & Setters ─────────────────────────────────────────────────────
 
-    public Integer       getId()                       { return id; }
-    public void          setId(Integer v)              { this.id = v; }
+    public Integer getId() { return id; }
+public void setId(Integer id) { this.id = id; }
 
-    public String        getFirstName()                { return firstName; }
-    public void          setFirstName(String v)        { this.firstName = v; }
+public String getFirstName() { return firstName; }
+public void setFirstName(String firstName) { this.firstName = firstName; }
 
-    public String        getLastName()                 { return lastName; }
-    public void          setLastName(String v)         { this.lastName = v; }
+public String getLastName() { return lastName; }
+public void setLastName(String lastName) { this.lastName = lastName; }
 
-    public String        getEmail()                    { return email; }
-    public void          setEmail(String v)            { this.email = v; }
+public String getEmail() { return email; }
+public void setEmail(String email) { this.email = email; }
 
-    public String        getPhone()                    { return phone; }
-    public void          setPhone(String v)            { this.phone = v; }
+public String getPhone() { return phone; }
+public void setPhone(String phone) { this.phone = phone; }
 
-    public String        getPassword()                 { return password; }
-    public void          setPassword(String v)         { this.password = v; }
+public String getPassword() { return password; }
+public void setPassword(String password) { this.password = password; }
 
-    public String        getAddress()                  { return address; }
-    public void          setAddress(String v)          { this.address = v; }
+public String getAddress() { return address; }
+public void setAddress(String address) { this.address = address; }
 
-    public String        getCity()                     { return city; }
-    public void          setCity(String v)             { this.city = v; }
+public String getCity() { return city; }
+public void setCity(String city) { this.city = city; }
 
-    public String        getProvince()                 { return province; }
-    public void          setProvince(String v)         { this.province = v; }
+public String getProvince() { return province; }
+public void setProvince(String province) { this.province = province; }
 
-    public String        getZip()                      { return zip; }
-    public void          setZip(String v)              { this.zip = v; }
+public String getZip() { return zip; }
+public void setZip(String zip) { this.zip = zip; }
 
-    public byte[]        getIdFile()                   { return idFile; }
-    public void          setIdFile(byte[] v)           { this.idFile = v; }
+public byte[] getPhoto() { return photo; }
+public void setPhoto(byte[] photo) { this.photo = photo; }
 
-    public String        getIdFileType()               { return idFileType; }
-    public void          setIdFileType(String v)       { this.idFileType = v; }
+public String getPhotoType() { return photoType; }
+public void setPhotoType(String photoType) { this.photoType = photoType; }
 
-    public String        getIdFileName()               { return idFileName; }
-    public void          setIdFileName(String v)       { this.idFileName = v; }
+public String getPhotoName() { return photoName; }
+public void setPhotoName(String photoName) { this.photoName = photoName; }
 
-    public LocalDateTime getCreatedAt()                { return createdAt; }
-    public void          setCreatedAt(LocalDateTime v) { this.createdAt = v; }
+public byte[] getIdFile() { return idFile; }
+public void setIdFile(byte[] idFile) { this.idFile = idFile; }
 
-    public String        getStatus()                   { return status; }
-    public void          setStatus(String v)           { this.status = v; }
+public String getIdFileType() { return idFileType; }
+public void setIdFileType(String idFileType) { this.idFileType = idFileType; }
 
-    public String        getRole()                     { return role; }
-    public void          setRole(String v)             { this.role = v; }
+public String getIdFileName() { return idFileName; }
+public void setIdFileName(String idFileName) { this.idFileName = idFileName; }
 
-    public Integer       getIsActive()                 { return isActive; }
-    public void          setIsActive(Integer v)        { this.isActive = v; }
+public LocalDateTime getCreatedAt() { return createdAt; }
+public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 
-    public LocalDateTime getLastLogin()                { return lastLogin; }
-    public void          setLastLogin(LocalDateTime v) { this.lastLogin = v; }
+public String getStatus() { return status; }
+public void setStatus(String status) { this.status = status; }
+
+public String getRole() { return role; }
+public void setRole(String role) { this.role = role; }
+
+public Integer getIsActive() { return isActive; }
+public void setIsActive(Integer isActive) { this.isActive = isActive; }
+
+public LocalDateTime getLastLogin() { return lastLogin; }
+public void setLastLogin(LocalDateTime lastLogin) { this.lastLogin = lastLogin; }
 }

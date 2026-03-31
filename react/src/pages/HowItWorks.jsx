@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import Navbar from './Navbar';
 
 function useReveal() {
   const ref = useRef(null);
@@ -40,19 +41,10 @@ const FAQS = [
 
 export default function HowItWorks() {
   const { user, logout } = useAuth();
-  const [dropOpen, setDropOpen] = useState(false);
   const [openFaq, setOpenFaq] = useState(null);
   const initials = user ? ((user.firstName?.[0] ?? '') + (user.lastName?.[0] ?? 'U')).toUpperCase() : 'U';
 
-  const NAV_LINKS = [
-    { to:'/home',         icon:'fas fa-house',          label:'Home' },
-    { to:'/pets',         icon:'fas fa-search',          label:'Find a Pet' },
-    { to:'/how-it-works', icon:'fas fa-list-ol',         label:'How It Works' },
-    { to:'/rehome',       icon:'fas fa-home',            label:'Rehome' },
-    { to:'/missing-pets', icon:'fas fa-search-location', label:'Missing Pets' },
-    { to:'/about',        icon:'fas fa-info-circle',     label:'About' },
-    { to:'/profile',      icon:'fas fa-user',            label:'Profile' },
-  ];
+
 
   return (
     <div style={{ minHeight:'100vh', background:'#EDDABB', fontFamily:"'Nunito',sans-serif" }}>
@@ -73,55 +65,7 @@ export default function HowItWorks() {
         <div style={{ position:'absolute', width:800, height:800, top:'10%', right:'-18%', borderRadius:'50%', background:'radial-gradient(circle,#B45A22,transparent 70%)', filter:'blur(120px)', opacity:0.40, animation:'fl2 11s ease-in-out infinite' }} />
       </div>
 
-      {/* Navbar */}
-      <nav style={{ position:'sticky', top:0, zIndex:200, display:'flex', alignItems:'center', padding:'0 2.5rem', gap:'1rem', height:70, background:'rgba(255,248,218,0.90)', backdropFilter:'blur(20px)', borderBottom:'1px solid rgba(90,170,48,0.45)', boxShadow:'0 2px 20px rgba(100,70,20,0.09)' }}>
-        <Link to="/home" style={{ display:'flex', alignItems:'center', gap:'0.6rem', textDecoration:'none', flexShrink:0 }}>
-          <div style={{ width:40, height:40, borderRadius:'50%', background:'#1c4f09', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.1rem' }}>🐾</div>
-          <span style={{ fontFamily:"'Playfair Display',serif", fontSize:'1.25rem', fontWeight:900, color:'#1a4a08' }}>Paw<em style={{ fontStyle:'italic', color:'#e07820' }}>ster</em></span>
-        </Link>
-        <div style={{ display:'flex', alignItems:'center', gap:'0.1rem', margin:'0 auto', background:'rgba(255,245,210,0.5)', borderRadius:50, padding:'0.25rem', border:'1px solid rgba(180,140,60,0.28)' }}>
-          {NAV_LINKS.map(({ to, icon, label }) => (
-            <Link key={label} to={to} style={{ display:'inline-flex', alignItems:'center', gap:'0.35rem', padding:'0.45rem 0.9rem', borderRadius:50, fontSize:'0.78rem', fontWeight:800, textDecoration:'none', whiteSpace:'nowrap', background: to === '/how-it-works' ? 'linear-gradient(135deg,rgba(28,79,9,0.16),rgba(90,170,48,0.12))' : to === '/missing-pets' ? 'rgba(180,90,34,0.09)' : 'transparent', color: to === '/how-it-works' ? '#1a4a08' : to === '/missing-pets' ? '#B45A22' : '#3a5020' }}>
-              <i className={icon} style={{ fontSize:'0.70rem' }} />{label}
-            </Link>
-          ))}
-        </div>
-        <div style={{ display:'flex', alignItems:'center', gap:'0.5rem', flexShrink:0 }}>
-          {user ? (
-            <>
-              <div style={{ position:'relative' }}>
-                <button onClick={() => setDropOpen(o => !o)} style={{ display:'flex', alignItems:'center', gap:'0.5rem', borderRadius:50, padding:'0.35rem 0.85rem', background:'rgba(255,248,220,0.7)', border:'1px solid rgba(180,140,60,0.28)', cursor:'pointer', fontFamily:"'Nunito',sans-serif" }}>
-                  <div style={{ width:34, height:34, borderRadius:'50%', background:'linear-gradient(135deg,#1c4f09,#3a8a18)', border:'2px solid #5aaa30', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.78rem', fontWeight:900, color:'#fff' }}>{initials}</div>
-                  <div style={{ textAlign:'left' }}>
-                    <div style={{ fontSize:'0.81rem', fontWeight:800, color:'#1a4a08' }}>{user.firstName}</div>
-                    <div style={{ fontSize:'0.64rem', fontWeight:700, color:'#6a7a50' }}>Member</div>
-                  </div>
-                  <i className="fas fa-chevron-down" style={{ fontSize:'0.62rem', color:'#6a7a50', transition:'transform 0.2s', transform: dropOpen ? 'rotate(180deg)' : 'none' }} />
-                </button>
-                {dropOpen && (
-                  <div onClick={() => setDropOpen(false)} style={{ position:'absolute', top:'calc(100% + 9px)', right:0, borderRadius:14, border:'1px solid rgba(180,140,60,0.28)', minWidth:215, padding:'0.5rem', zIndex:999, background:'rgba(255,252,235,0.98)', boxShadow:'0 8px 40px rgba(100,70,20,0.20)', animation:'fadeUp .18s ease both' }}>
-                    <div style={{ display:'flex', alignItems:'center', gap:'0.6rem', padding:'0.5rem 0.5rem 0.65rem' }}>
-                      <div style={{ width:36, height:36, borderRadius:'50%', background:'linear-gradient(135deg,#1c4f09,#2a7010)', border:'2px solid #5aaa30', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.78rem', fontWeight:900, color:'#fff' }}>{initials}</div>
-                      <div><div style={{ fontSize:'0.86rem', fontWeight:800, color:'#1a4a08' }}>{user.firstName}</div><div style={{ fontSize:'0.7rem', fontWeight:700, color:'#6a7a50' }}>{user.email}</div></div>
-                    </div>
-                    <div style={{ height:1, margin:'0.25rem 0', background:'rgba(180,140,60,0.28)' }} />
-                    <Link to="/profile" style={{ display:'flex', alignItems:'center', gap:'0.5rem', padding:'0.5rem 0.6rem', borderRadius:8, fontSize:'0.82rem', fontWeight:700, color:'#3a5020', textDecoration:'none' }}><i className="fas fa-th-large" style={{ width:16 }} /> Dashboard</Link>
-                    <button onClick={logout} style={{ width:'100%', display:'flex', alignItems:'center', gap:'0.5rem', padding:'0.5rem 0.6rem', borderRadius:8, fontSize:'0.82rem', fontWeight:700, color:'#c03030', background:'transparent', border:'none', cursor:'pointer', fontFamily:"'Nunito',sans-serif" }}><i className="fas fa-sign-out-alt" style={{ width:16 }} /> Log Out</button>
-                  </div>
-                )}
-              </div>
-              <button onClick={logout} style={{ display:'inline-flex', alignItems:'center', gap:'0.35rem', padding:'0.5rem 1rem', borderRadius:9, fontSize:'0.79rem', fontWeight:800, background:'rgba(192,48,48,0.08)', color:'#c03030', border:'1px solid rgba(192,48,48,0.25)', cursor:'pointer', fontFamily:"'Nunito',sans-serif" }}>
-                <i className="fas fa-sign-out-alt" /> Log Out
-              </button>
-            </>
-          ) : (
-            <>
-              <Link to="/login" style={{ display:'inline-flex', alignItems:'center', gap:'0.35rem', padding:'0.5rem 1rem', borderRadius:10, fontSize:'0.82rem', fontWeight:800, color:'#3a5020', background:'rgba(255,250,232,0.7)', border:'1px solid rgba(180,140,60,0.28)', textDecoration:'none' }}><i className="fas fa-sign-in-alt" /> Log In</Link>
-              <Link to="/register" style={{ display:'inline-flex', alignItems:'center', gap:'0.35rem', padding:'0.5rem 1rem', borderRadius:10, fontSize:'0.82rem', fontWeight:800, color:'#fff', background:'#1c4f09', border:'1px solid #1c4f09', textDecoration:'none' }}><i className="fas fa-paw" /> Get Started</Link>
-            </>
-          )}
-        </div>
-      </nav>
+      <Navbar />
 
       {/* Content */}
       <div style={{ position:'relative', zIndex:10, maxWidth:1100, margin:'0 auto', padding:'4rem 2.5rem 6rem' }}>

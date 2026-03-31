@@ -15,7 +15,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-
 import com.pawstar.pawster.model.User;
 import com.pawstar.pawster.repository.UserRepository;
 import com.pawstar.pawster.security.JwtUtils;
@@ -25,6 +24,7 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -32,14 +32,12 @@ import java.util.Map;
 @RequestMapping("/api/auth")
 public class AuthController {
 
-    // ── Static admin (mirrors PHP hardcoded check) ───────────────────────────
     private static final String ADMIN_EMAIL    = "admin@pawster.com";
     private static final String ADMIN_PASSWORD = "admin123";
 
-    // ── File upload constraints ──────────────────────────────────────────────
     private static final List<String> ALLOWED_MIME_TYPES =
             List.of("image/jpeg", "image/png", "application/pdf");
-    private static final long MAX_FILE_SIZE = 5L * 1024 * 1024; // 5 MB
+    private static final long MAX_FILE_SIZE = 5L * 1024 * 1024;
 
     @Value("${jwt.expiration}")
     private int jwtExpirationMs;
@@ -56,7 +54,6 @@ public class AuthController {
         c.setHttpOnly(true);
         c.setPath("/");
         c.setMaxAge(jwtExpirationMs / 1000);
-        // c.setSecure(true); // enable in production (HTTPS)
         return c;
     }
 
@@ -90,6 +87,7 @@ public class AuthController {
             response.addCookie(buildJwtCookie(jwt));
             return ResponseEntity.ok(Map.of(
                     "success",  true,
+                    "token",    jwt,
                     "message",  "Admin login successful!",
                     "role",     "admin",
                     "redirect", "php/admin_dashboard.php"
@@ -129,22 +127,11 @@ public class AuthController {
         String jwt = jwtUtils.generateToken(user.getEmail());
         response.addCookie(buildJwtCookie(jwt));
 
-        return ResponseEntity.ok(Map.of(
-                "success",   true,
-                "message",   "Login successful!",
-                "role",      user.getRole(),
-                "redirect",  redirect,
-                "email",     user.getEmail(),
-                "firstName", user.getFirstName(),
-                "lastName",  user.getLastName() != null ? user.getLastName() : "",
-                "status",    user.getStatus()
-        ));
+        return ResponseEntity.ok(toDtoWithToken(user, jwt, redirect));
     }
 
     // =========================================================================
     // POST /api/auth/register
-    // File bytes are read with idFile.getBytes() and stored directly in the DB.
-    // No folder, no disk path — everything lives in the users table.
     // =========================================================================
     @PostMapping(value = "/register", consumes = "multipart/form-data")
     public ResponseEntity<?> register(
@@ -160,45 +147,37 @@ public class AuthController {
             @RequestParam("idFile")    MultipartFile idFile,
             HttpServletResponse response) {
 
-        // 1. Required fields
         if (isBlank(firstName) || isBlank(lastName) || isBlank(email)   ||
             isBlank(phone)     || isBlank(password)  || isBlank(address) ||
             isBlank(city)      || isBlank(province)  || isBlank(zip)) {
             return bad("All required fields must be filled.");
         }
 
-        // 2. Email format
         if (!email.trim().matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")) {
             return bad("Invalid email format.");
         }
 
-        // 3. Password length
         if (password.length() < 8) {
             return bad("Password must be at least 8 characters long.");
         }
 
-        // 4. Duplicate email
         if (userRepository.findByEmail(email.trim()).isPresent()) {
             return bad("Email already registered.");
         }
 
-        // 5. File presence
         if (idFile == null || idFile.isEmpty()) {
             return bad("ID file is required.");
         }
 
-        // 6. File size
         if (idFile.getSize() > MAX_FILE_SIZE) {
             return bad("File must be under 5MB.");
         }
 
-        // 7. MIME type
         String contentType = idFile.getContentType();
         if (contentType == null || !ALLOWED_MIME_TYPES.contains(contentType)) {
             return bad("Invalid file type. Allowed: PDF, JPG, PNG.");
         }
 
-        // 8. Read bytes — store directly in DB, no folder needed
         byte[] fileBytes;
         try {
             fileBytes = idFile.getBytes();
@@ -207,7 +186,6 @@ public class AuthController {
                     .body(Map.of("success", false, "message", "Failed to read ID file."));
         }
 
-        // 9. Persist user with file bytes embedded
         User user = new User(
                 firstName.trim(), lastName.trim(), email.trim(),
                 phone.trim(),     encoder.encode(password),
@@ -222,16 +200,15 @@ public class AuthController {
         String jwt = jwtUtils.generateToken(user.getEmail());
         response.addCookie(buildJwtCookie(jwt));
 
-        return ResponseEntity.ok(Map.of(
-                "success", true,
-                "message", "Registration successful!",
-                "email",   user.getEmail()
-        ));
+        Map<String, Object> dto = toDto(user);
+        dto.put("success", true);
+        dto.put("token",   jwt);
+        dto.put("message", "Registration successful!");
+        return ResponseEntity.ok(dto);
     }
 
     // =========================================================================
     // GET /api/auth/id-file/{userId}
-    // Serves the stored ID file back as a download/preview.
     // =========================================================================
     @GetMapping("/id-file/{userId}")
     public ResponseEntity<byte[]> getIdFile(@PathVariable Integer userId) {
@@ -240,8 +217,8 @@ public class AuthController {
             return ResponseEntity.notFound().build();
         }
 
-        String mime     = user.getIdFileType()  != null ? user.getIdFileType()  : "application/octet-stream";
-        String filename = user.getIdFileName()  != null ? user.getIdFileName()  : "id_file";
+        String mime     = user.getIdFileType() != null ? user.getIdFileType() : "application/octet-stream";
+        String filename = user.getIdFileName() != null ? user.getIdFileName() : "id_file";
 
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(mime))
@@ -263,38 +240,31 @@ public class AuthController {
     // GET /api/auth/me
     // =========================================================================
     @GetMapping("/me")
-public ResponseEntity<?> me() {
-    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-    if (auth == null || !auth.isAuthenticated()
-            || "anonymousUser".equals(auth.getPrincipal())) {
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    public ResponseEntity<?> me() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()
+                || "anonymousUser".equals(auth.getPrincipal())) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        String email = auth.getName();
+
+        // Static admin is not in the DB
+        if (ADMIN_EMAIL.equals(email)) {
+            return ResponseEntity.ok(Map.of(
+                "email",     ADMIN_EMAIL,
+                "firstName", "Admin",
+                "lastName",  "",
+                "role",      "admin",
+                "status",    "active",
+                "isActive",  true
+            ));
+        }
+
+        return userRepository.findByEmail(email)
+                .map(u -> ResponseEntity.ok((Object) toDto(u)))
+                .orElse(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
     }
-
-    String email = auth.getName();
-
-    // Static admin is not in the DB — handle separately
-    if (ADMIN_EMAIL.equals(email)) {
-        return ResponseEntity.ok(Map.of(
-            "email",     ADMIN_EMAIL,
-            "firstName", "Admin",
-            "lastName",  "",
-            "role",      "admin",
-            "status",    "active",
-            "isActive",  true
-        ));
-    }
-
-    return userRepository.findByEmail(email)
-            .map(u -> ResponseEntity.ok(Map.of(
-                    "email",     u.getEmail(),
-                    "firstName", u.getFirstName(),
-                    "lastName",  u.getLastName() != null ? u.getLastName() : "",
-                    "role",      u.getRole(),
-                    "status",    u.getStatus(),
-                    "isActive",  u.getIsActive()
-            )))
-            .orElse(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
-}
 
     // =========================================================================
     // Helpers
@@ -307,5 +277,36 @@ public ResponseEntity<?> me() {
     private ResponseEntity<?> bad(String message) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(Map.of("success", false, "message", message));
+    }
+
+    private Map<String, Object> toDto(User u) {
+        Map<String, Object> dto = new HashMap<>();
+        dto.put("id",         u.getId());
+        dto.put("firstName",  u.getFirstName());
+        dto.put("lastName",   u.getLastName()   != null ? u.getLastName()   : "");
+        dto.put("email",      u.getEmail());
+        dto.put("phone",      u.getPhone()      != null ? u.getPhone()      : "");
+        dto.put("address",    u.getAddress()    != null ? u.getAddress()    : "");
+        dto.put("city",       u.getCity()       != null ? u.getCity()       : "");
+        dto.put("province",   u.getProvince()   != null ? u.getProvince()   : "");
+        dto.put("zip",        u.getZip()        != null ? u.getZip()        : "");
+        dto.put("role",       u.getRole());
+        dto.put("status",     u.getStatus());
+        dto.put("isActive",   u.getIsActive());
+        dto.put("idFileName", u.getIdFileName() != null ? u.getIdFileName() : "");
+        dto.put("photoUrl",   u.getPhoto()      != null
+                                  ? "/api/users/" + u.getId() + "/photo"
+                                  : "");
+        dto.put("createdAt",  u.getCreatedAt());
+        return dto;
+    }
+
+    private Map<String, Object> toDtoWithToken(User u, String token, String redirect) {
+        Map<String, Object> dto = toDto(u);
+        dto.put("success",  true);
+        dto.put("token",    token);
+        dto.put("redirect", redirect);
+        dto.put("message",  "Login successful!");
+        return dto;
     }
 }
