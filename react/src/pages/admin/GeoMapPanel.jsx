@@ -87,9 +87,33 @@ function geocodeUser(user) {
 }
 
 /* Geocode a missing pet report using its area/city field */
-function geocodeMissingPet(pet) {
-  if (pet.latitude && pet.longitude) return { lat: pet.latitude, lng: pet.longitude, inRegion: true };
-  const city = (pet.area || "").trim().toLowerCase();
+async function geocodeMissingPetFull(pet) {
+  // 1. Already has coordinates — use directly
+  if (pet.latitude && pet.longitude) {
+    return { lat: pet.latitude, lng: pet.longitude, inRegion: true };
+  }
+
+  // 2. Try full address geocoding via ORS (most accurate)
+  if (pet.address) {
+    try {
+      const query = [pet.address, pet.area, 'Philippines'].filter(Boolean).join(', ');
+      const url = `/ors/geocode/search?api_key=${ORS_KEY}&text=${encodeURIComponent(query)}&size=1&boundary.country=PH`;
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.features?.length) {
+          const [lng, lat] = data.features[0].geometry.coordinates;
+          // Sanity check — must be within Philippines bounding box
+          if (lat > 4 && lat < 22 && lng > 116 && lng < 127) {
+            return { lat, lng, inRegion: true };
+          }
+        }
+      }
+    } catch { /* fall through to city lookup */ }
+  }
+
+  // 3. Fallback — match city name from CITY_COORDS table
+  const city = (pet.area || '').trim().toLowerCase();
   if (CITY_COORDS[city]) {
     const [lat, lng] = CITY_COORDS[city];
     return { lat: lat + (Math.random()-.5)*.012, lng: lng + (Math.random()-.5)*.012, inRegion: true };
@@ -99,6 +123,7 @@ function geocodeMissingPet(pet) {
     const [lat, lng] = CITY_COORDS[pk];
     return { lat: lat + (Math.random()-.5)*.012, lng: lng + (Math.random()-.5)*.012, inRegion: true };
   }
+
   return { inRegion: false };
 }
 
@@ -425,21 +450,29 @@ export default function GeoMapPanel({show}) {
   const routeRef   = useRef(null);
   useEffect(()=>{ routeRef.current = route; },[route]);
 
-  useEffect(()=>{
-    if(!show) return;
-    setLoading(true);
-    Promise.all([
-      phpApi("get_users_geo"),
-      phpApi("get_requests",{type:"adoptions",limit:1000}),
-      phpApi("get_requests",{type:"rehome",limit:1000}),
-      fetch("/api/missing-pets/admin/all").then(r=>r.ok?r.json():[]).catch(()=>[]),
-    ]).then(([ur,ar,rr,mp])=>{
-      setUsers(ur.success?(ur.data||[]):[]);
-      setAdoptions(ar.success?(ar.data||[]):[]);
-      setRehome(rr.success?(rr.data||[]):[]);
-      setMissingPets((mp||[]).filter(p=>p.status==="approved"));
-    }).catch(()=>{}).finally(()=>setLoading(false));
-  },[show]);
+  useEffect(() => {
+  if (!show) return;
+  setLoading(true);
+
+  Promise.all([
+    phpApi("get_users_geo"),
+    phpApi("get_requests", { type: "adoptions", limit: 1000 }),
+    phpApi("get_requests", { type: "rehome", limit: 1000 }),
+    fetch("/api/missing-pets/admin/all").then(r => r.ok ? r.json() : []).catch(() => []),
+  ]).then(async ([ur, ar, rr, mp]) => {
+    setUsers(ur.success ? (ur.data || []) : []);
+    setAdoptions(ar.success ? (ar.data || []) : []);
+    setRehome(rr.success ? (rr.data || []) : []);
+
+    // Geocode all approved pets in parallel
+    const approved = (mp || []).filter(p => p.status === 'approved');
+    const withGeo = await Promise.all(
+      approved.map(async p => ({ ...p, _geo: await geocodeMissingPetFull(p) }))
+    );
+    setMissingPets(withGeo.filter(p => p._geo.inRegion));
+
+  }).catch(() => {}).finally(() => setLoading(false));
+}, [show]);
 
   const stopNav = useCallback(()=>{
     if (watchIdRef.current!=null) { navigator.geolocation.clearWatch(watchIdRef.current); watchIdRef.current=null; }
@@ -484,18 +517,18 @@ export default function GeoMapPanel({show}) {
     return mf&&mp&&ms;
   });
 
-  const geocodedMissingPets = missingPets.map(p=>({...p,_geo:geocodeMissingPet(p)})).filter(p=>p._geo.inRegion);
-  const filteredMissingPets = geocodedMissingPets.filter(p=>{
-    const mt = mpTypeFilter==="all"||p.type===mpTypeFilter;
-    const ms = mpSpeciesFilter==="all"||(p.species||"").toLowerCase()===mpSpeciesFilter.toLowerCase();
-    return mt&&ms;
+  const filteredMissingPets = missingPets.filter(p => {
+  const mt = mpTypeFilter === 'all' || p.type === mpTypeFilter;
+  const ms = mpSpeciesFilter === 'all' || (p.species || '').toLowerCase() === mpSpeciesFilter.toLowerCase();
+  return mt && ms;
   });
 
-  const missingCounts = {
-    all:  geocodedMissingPets.length,
-    lost: geocodedMissingPets.filter(p=>p.type==="lost").length,
-    found:geocodedMissingPets.filter(p=>p.type==="found").length,
-  };
+// For counts, use missingPets directly:
+const missingCounts = {
+  all:   missingPets.length,
+  lost:  missingPets.filter(p => p.type === 'lost').length,
+  found: missingPets.filter(p => p.type === 'found').length,
+};
 
   const provStats = Object.keys(PROVINCES).map(p=>({ name:p, color:PROVINCES[p].color, count:geocoded.filter(u=>u._geo.province===p).length, active:geocoded.filter(u=>u._geo.province===p&&u.is_active).length }));
 
@@ -557,7 +590,7 @@ export default function GeoMapPanel({show}) {
             </button>
             <div>
               <div style={{fontSize:"0.82rem",fontWeight:900,color:"#1a4a08"}}>🐾 Missing Pets Layer</div>
-              <div style={{fontSize:"0.70rem",fontWeight:700,color:"#9aaa80"}}>{showMissingLayer?`Showing ${filteredMissingPets.length} of ${geocodedMissingPets.length} reports`:"Layer hidden"}</div>
+              <div style={{fontSize:"0.70rem",fontWeight:700,color:"#9aaa80"}}>{showMissingLayer?`Showing ${filteredMissingPets.length} of ${missingPets.length} reports`:"Layer hidden"}</div>
             </div>
           </div>
 
@@ -721,13 +754,13 @@ export default function GeoMapPanel({show}) {
 
                             {/* Photo */}
                             {pet.photoUrl && (
-                              <img
-                                src={pet.photoUrl}
-                                alt={pet.name || "Pet"}
-                                style={{width:"100%",height:100,objectFit:"cover",borderRadius:8,marginBottom:6,display:"block"}}
-                                onError={e=>{ e.target.style.display="none"; }}
-                              />
-                            )}
+  <img
+    src={pet.photoUrl.replace(/^https?:\/\/localhost:\d+/, '')}
+    alt={pet.name || 'Pet'}
+    style={{ width:'100%', height:100, objectFit:'cover', borderRadius:8, marginBottom:6, display:'block' }}
+    onError={e => { e.target.style.display = 'none'; }}
+  />
+)}
 
                             {/* Lost / Found badge + species */}
                             <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4,flexWrap:"wrap"}}>

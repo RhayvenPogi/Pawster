@@ -48,7 +48,7 @@ public class MissingPetService {
                 String filename = UUID.randomUUID() + "_" + photo.getOriginalFilename();
                 Files.copy(photo.getInputStream(), dir.resolve(filename),
                            StandardCopyOption.REPLACE_EXISTING);
-                pet.setPhotoUrl(baseUrl + "/uploads/missing-pets/" + filename);
+                pet.setPhotoUrl("/uploads/missing-pets/" + filename);
             } catch (IOException e) {
                 // photo upload failed — continue without photo
             }

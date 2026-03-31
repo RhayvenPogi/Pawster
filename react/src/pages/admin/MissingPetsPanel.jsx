@@ -6,6 +6,20 @@ const STATUS_STYLE = {
   rejected: { bg: "rgba(192,48,48,0.12)",  color: "#b03030", border: "rgba(192,48,48,0.28)",  dot: "#c04040",  label: "Rejected" },
 };
 
+// Normalize photoUrl — strips hardcoded localhost for old records
+function normalizePhotoUrl(url) {
+  if (!url) return null;
+  try {
+    // If it's an absolute URL (any host), extract just the pathname
+    const u = new URL(url);
+    return u.pathname;
+  } catch {
+    // Already relative — ensure it starts with /
+    if (!url.startsWith('/')) return '/' + url;
+    return url;
+  }
+}
+
 function StatusBadge({ status }) {
   const s = STATUS_STYLE[status] ?? STATUS_STYLE.pending;
   return (
@@ -31,142 +45,229 @@ function formatDate(dateStr) {
 }
 
 /* ── Confirm dialog ── */
-function ConfirmDialog({ message, onConfirm, onCancel, confirmLabel = "Confirm", confirmColor = "#c03030" }) {
-  return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.50)", backdropFilter: "blur(6px)" }}>
-      <div style={{ background: "rgba(255,252,235,0.99)", border: "1.5px solid rgba(180,140,60,0.35)", borderRadius: 18, padding: "2rem", maxWidth: 360, width: "calc(100% - 2rem)", margin: "1rem", boxShadow: "0 20px 50px rgba(0,0,0,0.28)", animation: "mpFadeUp 0.2s ease both" }}>
-        <div style={{ fontSize: "2rem", textAlign: "center", marginBottom: "0.75rem" }}>⚠️</div>
-        <p style={{ textAlign: "center", fontWeight: 700, fontSize: "0.92rem", color: "#1a4a08", marginBottom: "1.5rem", lineHeight: 1.6 }}>{message}</p>
-        <div style={{ display: "flex", gap: "0.5rem" }}>
-          <button onClick={onCancel} style={{ flex: 1, padding: "0.65rem", borderRadius: 10, fontWeight: 800, fontSize: "0.85rem", cursor: "pointer", background: "transparent", border: "1.5px solid rgba(180,140,60,0.28)", color: "#3a5020", fontFamily: "inherit" }}>Cancel</button>
-          <button onClick={onConfirm} style={{ flex: 1, padding: "0.65rem", borderRadius: 10, fontWeight: 800, fontSize: "0.85rem", cursor: "pointer", background: confirmColor, border: "none", color: "#fff", fontFamily: "inherit" }}>{confirmLabel}</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ── Detail modal ── */
-function DetailModal({ pet, onClose, onApprove, onReject, onDelete }) {
-  const [imgErr, setImgErr] = useState(false);
-
-  // Reset error when pet changes
-  useEffect(() => { setImgErr(false); }, [pet?.id, pet?.photoUrl]);
-
-  // Lock body scroll
+function ConfirmDialog({ message, title, icon, onConfirm, onCancel, confirmLabel = "Confirm", confirmColor = "#c03030", confirmBg, confirmBorder }) {
   useEffect(() => {
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = ""; };
   }, []);
 
   return (
-    /* ── Full-screen overlay — fixed, centered, blurred backdrop ── */
+    <div style={{ position:"fixed", inset:0, zIndex:1100, display:"flex", alignItems:"center", justifyContent:"center", background:"rgba(0,0,0,0.50)", backdropFilter:"blur(6px)", padding:"1rem" }}>
+      <div style={{ background:"rgba(255,252,235,0.99)", border:"1.5px solid rgba(180,140,60,0.35)", borderRadius:20, padding:"1.75rem 1.5rem 1.5rem", maxWidth:360, width:"calc(100% - 2rem)", boxShadow:"0 20px 50px rgba(0,0,0,0.28)", animation:"mpFadeUp 0.2s ease both" }}>
+
+        {/* Icon */}
+        <div style={{ width:56, height:56, borderRadius:16, background: confirmBg || "rgba(192,48,48,0.09)", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 1rem", fontSize:26 }}>
+          {icon}
+        </div>
+
+        {/* Title */}
+        {title && (
+          <div style={{ fontFamily:"'Playfair Display',serif", fontSize:"1.15rem", fontWeight:900, color:"#1a4a08", textAlign:"center", marginBottom:"0.4rem" }}>
+            {title}
+          </div>
+        )}
+
+        {/* Message */}
+        <p style={{ textAlign:"center", fontWeight:700, fontSize:"0.88rem", color:"#3a5020", marginBottom:"1.4rem", lineHeight:1.65 }}>
+          {message}
+        </p>
+
+        {/* Buttons */}
+        <div style={{ display:"flex", gap:"0.5rem" }}>
+          <button onClick={onCancel}
+            style={{ flex:1, padding:"0.7rem", borderRadius:10, fontWeight:800, fontSize:"0.88rem", cursor:"pointer", background:"transparent", border:"1.5px solid rgba(180,140,60,0.28)", color:"#3a5020", fontFamily:"inherit" }}>
+            Cancel
+          </button>
+          <button onClick={onConfirm}
+            style={{ flex:1, padding:"0.7rem", borderRadius:10, fontWeight:800, fontSize:"0.88rem", cursor:"pointer", background: confirmBg || "rgba(192,48,48,0.09)", border:`1.5px solid ${confirmBorder || "rgba(192,48,48,0.28)"}`, color: confirmColor, fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:"0.35rem" }}>
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+/* ── Detail modal ── */
+function DetailModal({ pet, onClose, onApprove, onReject, onDelete }) {
+  const [imgErr, setImgErr] = useState(false);
+  useEffect(() => { setImgErr(false); }, [pet?.id, pet?.photoUrl]);
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; };
+  }, []);
+
+  const photoUrl = normalizePhotoUrl(pet.photoUrl);
+  const isPending  = !pet.status || pet.status === "pending";
+  const isApproved = pet.status === "approved";
+  const isLost     = pet.type === "lost";
+
+  const pills = [
+    { icon: "📍", label: "Area",     value: pet.area || "—",   bg: "rgba(180,90,34,0.07)",   border: "rgba(180,90,34,0.18)",   color: "#B45A22" },
+    { icon: "🎨", label: "Color",    value: pet.color || "—",  bg: "rgba(42,112,16,0.06)",   border: "rgba(42,112,16,0.14)",   color: "#3a7a10" },
+    { icon: "📅", label: "Reported", value: pet.reportedDate
+        ? new Date(pet.reportedDate).toLocaleDateString("en-PH",{month:"short",day:"numeric",year:"numeric"})
+        : "—",                                                  bg: "rgba(32,96,160,0.07)",   border: "rgba(32,96,160,0.15)",   color: "#2060a0" },
+    { icon: "🐾", label: "Species",  value: pet.species || "—",bg: "rgba(45,90,27,0.07)",    border: "rgba(45,90,27,0.15)",    color: "#2d5a1b" },
+    ...(pet.breed ? [{ icon: "🦮", label: "Breed", value: pet.breed, bg: "rgba(45,90,27,0.05)", border: "rgba(45,90,27,0.12)", color: "#2d5a1b" }] : []),
+  ];
+
+  return (
     <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 1000,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "rgba(0,0,0,0.55)",
-        backdropFilter: "blur(8px)",
-        WebkitBackdropFilter: "blur(8px)",
-        padding: "1rem",
-      }}
+      style={{ position:"fixed", inset:0, zIndex:1000, display:"flex", alignItems:"center",
+        justifyContent:"center", background:"rgba(0,0,0,0.40)", backdropFilter:"blur(4px)",
+        padding:"1rem" }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
-        style={{
-          background: "rgba(255,252,235,0.99)",
-          border: "1.5px solid rgba(180,140,60,0.35)",
-          borderRadius: 22,
-          maxWidth: 500,
-          width: "100%",
-          maxHeight: "90vh",
-          overflow: "hidden",
-          display: "flex",
-          flexDirection: "column",
-          boxShadow: "0 24px 60px rgba(0,0,0,0.30)",
-          animation: "mpFadeUp 0.22s ease both",
-        }}
+        style={{ background:"#fefefe", border:"1px solid rgba(0,0,0,0.10)", borderRadius:16,
+          maxWidth:480, width:"100%", maxHeight:"92vh", overflow:"hidden", display:"flex",
+          flexDirection:"column", boxShadow:"0 8px 32px rgba(0,0,0,0.12)",
+          animation:"mpFadeUp 0.20s ease both" }}
         onClick={e => e.stopPropagation()}
       >
-        {/* Header */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "1.1rem 1.4rem", borderBottom: "1px solid rgba(180,140,60,0.20)", background: "linear-gradient(135deg,rgba(180,90,34,0.07),rgba(212,136,10,0.04))", flexShrink: 0 }}>
-          <div style={{ fontFamily: "'Playfair Display',serif", fontWeight: 900, fontSize: "1.2rem", color: "#1a4a08" }}>Report Details</div>
-          <button onClick={onClose} style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid rgba(180,140,60,0.28)", background: "rgba(255,248,220,0.7)", color: "#6a7a50", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.75rem" }}>✕</button>
+
+        {/* ── Modal header (matches your "Add New Animal" header style) ── */}
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
+          padding:"1rem 1.25rem", borderBottom:"1px solid rgba(0,0,0,0.08)" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+            <span style={{ fontSize:16 }}>🐾</span>
+            <span style={{ fontWeight:700, fontSize:"0.95rem", color:"#1a3a08" }}>
+              Report Details
+            </span>
+          </div>
+          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+            <span style={{ padding:"3px 10px", borderRadius:50, fontSize:"0.65rem",
+              fontWeight:800, textTransform:"uppercase", letterSpacing:"0.05em",
+              background: isLost ? "rgba(192,48,48,0.10)" : "rgba(28,79,9,0.10)",
+              color: isLost ? "#c03030" : "#1c4f09",
+              border:`1px solid ${isLost ? "rgba(192,48,48,0.22)" : "rgba(28,79,9,0.22)"}` }}>
+              {isLost ? "Lost" : "Found"}
+            </span>
+            <StatusBadge status={pet.status ?? "pending"} />
+            <button onClick={onClose}
+              style={{ width:28, height:28, borderRadius:6, border:"1px solid rgba(0,0,0,0.12)",
+                background:"transparent", color:"#888", cursor:"pointer",
+                display:"flex", alignItems:"center", justifyContent:"center", fontSize:14 }}>
+              ✕
+            </button>
+          </div>
         </div>
 
-        {/* Scrollable body */}
-        <div style={{ overflowY: "auto", flex: 1, padding: "1.25rem 1.4rem" }}>
+        {/* ── Scrollable body ── */}
+        <div style={{ overflowY:"auto", flex:1, display:"flex", flexDirection:"column" }}>
 
-          {/* Photo */}
-          <div style={{ width: "100%", height: 200, borderRadius: 14, overflow: "hidden", background: "rgba(180,140,60,0.10)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "1.1rem", border: "1px solid rgba(180,140,60,0.18)", flexShrink: 0 }}>
-            {pet.photoUrl && !imgErr ? (
-              <img
-                src={pet.photoUrl}
-                alt={pet.name || "Pet"}
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                onError={() => setImgErr(true)}
-                onLoad={() => setImgErr(false)}
-              />
+          {/* Cover photo banner */}
+          <div style={{ position:"relative", height:200, background:"#f0ece0",
+            flexShrink:0, overflow:"hidden" }}>
+            {photoUrl && !imgErr ? (
+              <img src={photoUrl} alt={pet.name || "Pet"}
+                style={{ width:"100%", height:"100%", objectFit:"cover" }}
+                onError={() => { console.error("Photo failed:", photoUrl); setImgErr(true); }}
+                onLoad={() => setImgErr(false)} />
             ) : (
-              <span style={{ fontSize: "4rem" }}>{pet.species?.toLowerCase() === "cat" ? "🐱" : "🐶"}</span>
+              <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center",
+                justifyContent:"center", fontSize:60, opacity:0.25 }}>
+                {pet.species?.toLowerCase() === "cat" ? "🐱" : "🐶"}
+              </div>
+            )}
+            {/* Gradient */}
+            <div style={{ position:"absolute", bottom:0, left:0, right:0, height:90,
+              background:"linear-gradient(to top, #fefefe 5%, transparent)" }} />
+            {/* Pet name over gradient */}
+            <div style={{ position:"absolute", bottom:12, left:16, right:16 }}>
+              <div style={{ fontWeight:800, fontSize:"1.2rem", color:"#1a3a08", lineHeight:1.2 }}>
+                {pet.name || "Unknown"}
+              </div>
+              {(pet.species || pet.breed) && (
+                <div style={{ fontSize:"0.75rem", fontWeight:600, color:"#6a7a50", marginTop:2 }}>
+                  {[pet.species, pet.breed].filter(Boolean).join(" · ")}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Content area */}
+          <div style={{ padding:"1rem 1.25rem", display:"flex", flexDirection:"column", gap:12 }}>
+
+            {/* Wrapping pills */}
+            <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+              {pills.map(({ icon, label, value, bg, border, color }) => (
+                <div key={label} style={{ background: bg, border:`1px solid ${border}`,
+                  borderRadius:8, padding:"6px 12px" }}>
+                  <div style={{ fontSize:"0.58rem", fontWeight:800, textTransform:"uppercase",
+                    letterSpacing:"0.07em", color }}>
+                    {icon} {label}
+                  </div>
+                  <div style={{ fontSize:"0.84rem", fontWeight:700, color:"#1a3a08", marginTop:2 }}>
+                    {value}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Address */}
+            {pet.address && (
+              <div style={{ background:"#faf8f0", border:"1px solid rgba(0,0,0,0.08)",
+                borderRadius:10, padding:"0.8rem 1rem" }}>
+                <div style={{ fontSize:"0.60rem", fontWeight:800, textTransform:"uppercase",
+                  letterSpacing:"0.08em", color:"#B45A22", marginBottom:4 }}>📍 Address</div>
+                <div style={{ fontSize:"0.88rem", fontWeight:700, color:"#1a3a08", lineHeight:1.45 }}>
+                  {pet.address}
+                </div>
+              </div>
+            )}
+
+            {/* Details */}
+            {pet.details && (
+              <div style={{ background:"#faf8f0", border:"1px solid rgba(0,0,0,0.08)",
+                borderRadius:10, padding:"0.8rem 1rem" }}>
+                <div style={{ fontSize:"0.60rem", fontWeight:800, textTransform:"uppercase",
+                  letterSpacing:"0.08em", color:"#888", marginBottom:4 }}>📝 Details</div>
+                <p style={{ fontSize:"0.83rem", fontWeight:600, color:"#3a5020",
+                  lineHeight:1.65, margin:0 }}>{pet.details}</p>
+              </div>
             )}
           </div>
-
-          {/* Badges */}
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1rem", flexWrap: "wrap" }}>
-            <TypeBadge type={pet.type} />
-            <StatusBadge status={pet.status ?? "pending"} />
-            <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "#6a7a50" }}>{pet.species}{pet.breed ? ` · ${pet.breed}` : ""}</span>
-          </div>
-
-          {/* Fields */}
-          {[
-            ["Pet Name",    pet.name || "Unknown"],
-            ["Area / City", pet.area || "—"],
-            ["Address",     pet.address || "—"],
-            ["Color",       pet.color || "—"],
-            ["Reported",    formatDate(pet.reportedDate)],
-            ["Details",     pet.details || "No additional details provided."],
-          ].map(([label, val]) => (
-            <div key={label} style={{ display: "flex", gap: "0.75rem", padding: "0.55rem 0", borderBottom: "1px solid rgba(180,140,60,0.12)" }}>
-              <span style={{ fontSize: "0.72rem", fontWeight: 900, color: "#6a7a50", minWidth: 80, textTransform: "uppercase", letterSpacing: "0.05em", paddingTop: "0.05rem" }}>{label}</span>
-              <span style={{ fontSize: "0.86rem", fontWeight: 700, color: "#1a4a08", flex: 1, lineHeight: 1.5 }}>{val}</span>
-            </div>
-          ))}
         </div>
 
-        {/* Action buttons */}
-        <div style={{ padding: "1rem 1.4rem", borderTop: "1px solid rgba(180,140,60,0.20)", display: "flex", gap: "0.5rem", flexWrap: "wrap", background: "rgba(255,250,232,0.6)", flexShrink: 0 }}>
-          {(!pet.status || pet.status === "pending") && (
-            <>
-              <button onClick={() => onApprove(pet)}
-                style={{ flex: 1, padding: "0.7rem", borderRadius: 10, fontWeight: 800, fontSize: "0.85rem", cursor: "pointer", background: "rgba(88,139,65,0.12)", border: "1.5px solid rgba(88,139,65,0.32)", color: "#276010", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.35rem" }}>
-                ✓ Approve
-              </button>
-              <button onClick={() => onReject(pet)}
-                style={{ flex: 1, padding: "0.7rem", borderRadius: 10, fontWeight: 800, fontSize: "0.85rem", cursor: "pointer", background: "rgba(192,48,48,0.08)", border: "1.5px solid rgba(192,48,48,0.25)", color: "#b03030", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.35rem" }}>
-                ✕ Reject
-              </button>
-            </>
-          )}
-          {pet.status === "approved" && (
+        {/* ── Action buttons (matches your "Cancel / Save Animal" footer style) ── */}
+        <div style={{ padding:"0.9rem 1.25rem", borderTop:"1px solid rgba(0,0,0,0.08)",
+          display:"flex", gap:"0.5rem", background:"#fefefe", flexShrink:0 }}>
+          {isPending && (<>
+            <button onClick={() => onApprove(pet)}
+              style={{ flex:1, padding:"0.65rem", borderRadius:8, fontWeight:700,
+                fontSize:"0.88rem", cursor:"pointer", fontFamily:"inherit",
+                background:"#2d5a1b", border:"none", color:"#fff" }}>
+              ✓ Approve
+            </button>
             <button onClick={() => onReject(pet)}
-              style={{ flex: 1, padding: "0.7rem", borderRadius: 10, fontWeight: 800, fontSize: "0.85rem", cursor: "pointer", background: "rgba(212,136,10,0.10)", border: "1.5px solid rgba(212,136,10,0.28)", color: "#b07010", fontFamily: "inherit" }}>
-              Revoke Approval
+              style={{ flex:1, padding:"0.65rem", borderRadius:8, fontWeight:700,
+                fontSize:"0.88rem", cursor:"pointer", fontFamily:"inherit",
+                background:"transparent", border:"1px solid rgba(0,0,0,0.15)", color:"#555" }}>
+              ✕ Reject
+            </button>
+          </>)}
+          {isApproved && (
+            <button onClick={() => onReject(pet)}
+              style={{ flex:1, padding:"0.65rem", borderRadius:8, fontWeight:700,
+                fontSize:"0.88rem", cursor:"pointer", fontFamily:"inherit",
+                background:"transparent", border:"1px solid rgba(0,0,0,0.15)", color:"#b07010" }}>
+              ⊘ Revoke Approval
             </button>
           )}
           {pet.status === "rejected" && (
             <button onClick={() => onApprove(pet)}
-              style={{ flex: 1, padding: "0.7rem", borderRadius: 10, fontWeight: 800, fontSize: "0.85rem", cursor: "pointer", background: "rgba(88,139,65,0.12)", border: "1.5px solid rgba(88,139,65,0.32)", color: "#276010", fontFamily: "inherit" }}>
-              Re-approve
+              style={{ flex:1, padding:"0.65rem", borderRadius:8, fontWeight:700,
+                fontSize:"0.88rem", cursor:"pointer", fontFamily:"inherit",
+                background:"#2d5a1b", border:"none", color:"#fff" }}>
+              ✓ Re-approve
             </button>
           )}
           <button onClick={() => onDelete(pet)}
-            style={{ padding: "0.7rem 1rem", borderRadius: 10, fontWeight: 800, fontSize: "0.85rem", cursor: "pointer", background: "rgba(192,48,48,0.09)", border: "1.5px solid rgba(192,48,48,0.22)", color: "#c03030", fontFamily: "inherit" }}>
+            style={{ padding:"0.65rem 1rem", borderRadius:8, fontWeight:700,
+              fontSize:"0.88rem", cursor:"pointer", fontFamily:"inherit",
+              background:"rgba(192,48,48,0.08)", border:"1px solid rgba(192,48,48,0.22)",
+              color:"#c03030" }}>
             🗑
           </button>
         </div>
@@ -174,7 +275,6 @@ function DetailModal({ pet, onClose, onApprove, onReject, onDelete }) {
     </div>
   );
 }
-
 /* ════════════════════════════════════════════════
    Main Panel
 ════════════════════════════════════════════════ */
@@ -444,7 +544,7 @@ export default function MissingPetsPanel({ show, onStatsChange }) {
               <div style={{ width: 48, height: 48, borderRadius: 10, overflow: "hidden", background: "rgba(180,140,60,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 {pet.photoUrl ? (
                   <img
-                    src={pet.photoUrl}
+                    src={normalizePhotoUrl(pet.photoUrl)}
                     alt=""
                     style={{ width: "100%", height: "100%", objectFit: "cover" }}
                     onError={e => { e.target.style.display = "none"; e.target.nextSibling.style.display = "flex"; }}
@@ -536,33 +636,41 @@ export default function MissingPetsPanel({ show, onStatsChange }) {
         />
       )}
 
-      {/* Confirm approval/rejection */}
-      {confirmAct && (
-        <ConfirmDialog
-          message={
-            confirmAct.action === "approve"
-              ? `Approve the report for "${confirmAct.pet.name || "Unknown"}"? It will appear publicly on the Missing Pets board.`
-              : confirmAct.pet.status === "approved"
-                ? `Revoke approval for "${confirmAct.pet.name || "Unknown"}"? It will no longer be visible to the public.`
-                : `Reject the report for "${confirmAct.pet.name || "Unknown"}"?`
-          }
-          confirmLabel={confirmAct.action === "approve" ? "Approve" : confirmAct.pet.status === "approved" ? "Revoke" : "Reject"}
-          confirmColor={confirmAct.action === "approve" ? "#1c4f09" : "#c03030"}
-          onConfirm={() => confirmAct.action === "approve" ? handleApprove(confirmAct.pet) : handleReject(confirmAct.pet)}
-          onCancel={() => setConfirmAct(null)}
-        />
-      )}
+      {/* Approve / Reject confirm */}
+{confirmAct && (
+  <ConfirmDialog
+    title={confirmAct.action === "approve" ? "Approve report?" : confirmAct.pet.status === "approved" ? "Revoke approval?" : "Reject report?"}
+    message={
+      confirmAct.action === "approve"
+        ? `"${confirmAct.pet.name || "Unknown"}" will become visible to the public on the Missing Pets board.`
+        : confirmAct.pet.status === "approved"
+          ? `"${confirmAct.pet.name || "Unknown"}" will be hidden from the public board immediately.`
+          : `"${confirmAct.pet.name || "Unknown"}" will be marked as rejected and hidden from the board.`
+    }
+    icon={confirmAct.action === "approve" ? "✓" : confirmAct.pet.status === "approved" ? "⏎" : "✕"}
+    confirmLabel={confirmAct.action === "approve" ? "Approve" : confirmAct.pet.status === "approved" ? "Revoke" : "Reject"}
+    confirmColor={confirmAct.action === "approve" ? "#276010" : confirmAct.pet.status === "approved" ? "#b07010" : "#b03030"}
+    confirmBg={confirmAct.action === "approve" ? "rgba(88,139,65,0.12)" : confirmAct.pet.status === "approved" ? "rgba(212,136,10,0.10)" : "rgba(192,48,48,0.09)"}
+    confirmBorder={confirmAct.action === "approve" ? "rgba(88,139,65,0.32)" : confirmAct.pet.status === "approved" ? "rgba(212,136,10,0.28)" : "rgba(192,48,48,0.28)"}
+    onConfirm={() => confirmAct.action === "approve" ? handleApprove(confirmAct.pet) : handleReject(confirmAct.pet)}
+    onCancel={() => setConfirmAct(null)}
+  />
+)}
 
-      {/* Confirm delete */}
-      {confirmDel && (
-        <ConfirmDialog
-          message={`Permanently delete the report for "${confirmDel.name || "Unknown"}"? This cannot be undone.`}
-          confirmLabel="Delete"
-          confirmColor="#c03030"
-          onConfirm={() => handleDelete(confirmDel)}
-          onCancel={() => setConfirmDel(null)}
-        />
-      )}
+{/* Delete confirm */}
+{confirmDel && (
+  <ConfirmDialog
+    title="Delete permanently?"
+    message={`This cannot be undone. The report for "${confirmDel.name || "Unknown"}" and its photo will be removed forever.`}
+    icon="🗑"
+    confirmLabel="Delete"
+    confirmColor="#b03030"
+    confirmBg="rgba(192,48,48,0.09)"
+    confirmBorder="rgba(192,48,48,0.28)"
+    onConfirm={() => handleDelete(confirmDel)}
+    onCancel={() => setConfirmDel(null)}
+  />
+)}
     </div>
   );
 }

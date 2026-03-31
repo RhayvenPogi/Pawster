@@ -28,17 +28,22 @@ function PetPhoto({ pet }) {
   const [imgErr, setImgErr] = useState(false);
   const emoji = pet.species?.toLowerCase() === 'cat' ? '🐱' : '🐶';
 
-  // Reset error state when photoUrl changes
   useEffect(() => { setImgErr(false); }, [pet.photoUrl]);
 
-  if (pet.photoUrl && !imgErr) {
+  // Normalize: strip hardcoded localhost if present (fixes old records)
+  const photoUrl = pet.photoUrl
+    ? pet.photoUrl.replace(/^https?:\/\/localhost:\d+/, '')
+    : null;
+
+  if (photoUrl && !imgErr) {
     return (
       <div style={{ position: 'relative', width: '100%', height: '100%' }}>
         <img
-          src={pet.photoUrl}
+          src={photoUrl}
           alt={pet.name || 'Pet'}
           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           onError={() => setImgErr(true)}
+          onLoad={() => setImgErr(false)}
         />
       </div>
     );
