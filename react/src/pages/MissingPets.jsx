@@ -24,10 +24,96 @@ function Reveal({ children, delay = 0 }) {
   );
 }
 
-function PetPlaceholder({ species }) {
+function PetPhoto({ pet }) {
+  const [imgErr, setImgErr] = useState(false);
+  const emoji = pet.species?.toLowerCase() === 'cat' ? '🐱' : '🐶';
+
+  // Reset error state when photoUrl changes
+  useEffect(() => { setImgErr(false); }, [pet.photoUrl]);
+
+  if (pet.photoUrl && !imgErr) {
+    return (
+      <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+        <img
+          src={pet.photoUrl}
+          alt={pet.name || 'Pet'}
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          onError={() => setImgErr(true)}
+        />
+      </div>
+    );
+  }
   return (
-    <div style={{ width: '100%', height: '100%', background: 'rgba(180,140,60,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '3rem' }}>
-      {species?.toLowerCase() === 'cat' ? '🐱' : '🐶'}
+    <div style={{ width: '100%', height: '100%', background: 'rgba(180,140,60,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '3.5rem' }}>
+      {emoji}
+    </div>
+  );
+}
+
+/* ── Species Combobox ── */
+const COMMON_SPECIES = ['Dog', 'Cat', 'Bird', 'Rabbit', 'Hamster', 'Guinea Pig', 'Turtle', 'Snake', 'Lizard', 'Fish'];
+
+function SpeciesCombobox({ value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const [inputVal, setInputVal] = useState(value || '');
+  const wrapRef = useRef(null);
+
+  useEffect(() => { setInputVal(value || ''); }, [value]);
+
+  useEffect(() => {
+    const handler = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const filtered = COMMON_SPECIES.filter(s => s.toLowerCase().includes(inputVal.toLowerCase()));
+  const showCustom = inputVal && !COMMON_SPECIES.some(s => s.toLowerCase() === inputVal.toLowerCase());
+
+  const select = (val) => {
+    setInputVal(val);
+    onChange(val);
+    setOpen(false);
+  };
+
+  return (
+    <div ref={wrapRef} style={{ position: 'relative' }}>
+      <div style={{ position: 'relative' }}>
+        <input
+          className="mp-field"
+          placeholder="Type or select species…"
+          value={inputVal}
+          onFocus={() => setOpen(true)}
+          onChange={e => { setInputVal(e.target.value); onChange(e.target.value); setOpen(true); }}
+          autoComplete="off"
+        />
+        <button
+          type="button"
+          onClick={() => setOpen(o => !o)}
+          style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#9aaa80', fontSize: '0.75rem', padding: 0 }}>
+          ▾
+        </button>
+      </div>
+      {open && (
+        <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 999, background: 'rgba(255,252,235,0.99)', border: '1px solid rgba(180,140,60,0.35)', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', overflow: 'hidden' }}>
+          {showCustom && (
+            <div
+              onMouseDown={() => select(inputVal)}
+              style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', fontWeight: 700, color: '#B45A22', cursor: 'pointer', borderBottom: '1px solid rgba(180,140,60,0.15)', background: 'rgba(180,90,34,0.04)' }}>
+              + Use "{inputVal}"
+            </div>
+          )}
+          {(filtered.length > 0 ? filtered : COMMON_SPECIES).map(s => (
+            <div
+              key={s}
+              onMouseDown={() => select(s)}
+              style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', fontWeight: 700, color: inputVal === s ? '#B45A22' : '#1a4a08', cursor: 'pointer', background: inputVal === s ? 'rgba(180,90,34,0.08)' : 'transparent', transition: 'background 0.1s' }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(180,90,34,0.06)'}
+              onMouseLeave={e => e.currentTarget.style.background = inputVal === s ? 'rgba(180,90,34,0.08)' : 'transparent'}>
+              {s}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -38,9 +124,17 @@ export default function MissingPets() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({ type: 'lost', name: '', species: 'Dog', breed: '', area: '', color: '', details: '' });
+  const [form, setForm] = useState({
+    type: 'lost', name: '', species: 'Dog',
+    breed: '', area: '', address: '', color: '', details: '',
+  });
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const fileRef = useRef(null);
 
+  /* ── fetch only approved reports ── */
   const fetchPets = async () => {
     try {
       const res = await fetch('/api/missing-pets');
@@ -55,41 +149,69 @@ export default function MissingPets() {
     }
   };
 
-  useEffect(() => {
-    fetchPets();
-  }, []);
+  useEffect(() => { fetchPets(); }, []);
 
   const filtered = filter === 'all' ? pets : pets.filter(p => p.type === filter);
 
   const formatDate = (dateStr) => {
     if (!dateStr) return '';
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric' });
+    return new Date(dateStr).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' });
+  };
+
+  const handlePhoto = (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (f.size > 5 * 1024 * 1024) { alert('Photo must be under 5 MB.'); return; }
+    setPhotoFile(f);
+    const url = URL.createObjectURL(f);
+    setPhotoPreview(url);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setSubmitting(true);
     try {
-      const res = await fetch('/api/missing-pets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, species: form.species || 'Dog' })
-      });
+      const fd = new FormData();
+      fd.append('type',    form.type);
+      fd.append('name',    form.name);
+      fd.append('species', form.species || 'Dog');
+      fd.append('breed',   form.breed);
+      fd.append('area',    form.area);
+      fd.append('address', form.address);
+      fd.append('color',   form.color);
+      fd.append('details', form.details);
+      if (photoFile) fd.append('photo', photoFile);
+
+      const res = await fetch('/api/missing-pets', { method: 'POST', body: fd });
       if (!res.ok) {
         console.error('Submit failed:', res.status, await res.text());
+        setSubmitting(false);
         return;
       }
     } catch (err) {
       console.error('Network error:', err);
+      setSubmitting(false);
       return;
     }
+
     setSubmitted(true);
+    setSubmitting(false);
     fetchPets();
     setTimeout(() => {
       setShowModal(false);
       setSubmitted(false);
-      setForm({ type: 'lost', name: '', species: 'Dog', breed: '', area: '', color: '', details: '' });
-    }, 2000);
+      setPhotoFile(null);
+      setPhotoPreview(null);
+      setForm({ type: 'lost', name: '', species: 'Dog', breed: '', area: '', address: '', color: '', details: '' });
+    }, 2500);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setSubmitted(false);
+    setPhotoFile(null);
+    setPhotoPreview(null);
+    setForm({ type: 'lost', name: '', species: 'Dog', breed: '', area: '', address: '', color: '', details: '' });
   };
 
   return (
@@ -103,6 +225,12 @@ export default function MissingPets() {
         @keyframes spin{to{transform:rotate(360deg)}}
         *,*::before,*::after{box-sizing:border-box}
         ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:#eddabb}::-webkit-scrollbar-thumb{background:#b4903a;border-radius:3px}
+        .mp-upload-zone { border:2px dashed rgba(180,90,34,0.40); border-radius:12px; padding:1rem; text-align:center; cursor:pointer; background:rgba(255,248,220,0.5); transition:all 0.15s; }
+        .mp-upload-zone:hover { border-color:rgba(180,90,34,0.75); background:rgba(255,248,220,0.80); }
+        .mp-field { padding:0.75rem 1rem; border-radius:10px; border:1px solid rgba(180,140,60,0.28); background:rgba(255,250,232,0.7); font-family:'Nunito',sans-serif; font-weight:700; font-size:0.88rem; color:#1a4a08; outline:none; width:100%; transition:border-color 0.15s,box-shadow 0.15s; }
+        .mp-field:focus { border-color:#B45A22; box-shadow:0 0 0 3px rgba(180,90,34,0.12); }
+        .mp-card { background:rgba(255,248,225,0.88); border:1px solid rgba(180,140,60,0.28); border-radius:20px; overflow:hidden; box-shadow:0 4px 20px rgba(100,70,20,0.11); transition:transform 0.2s,box-shadow 0.2s; }
+        .mp-card:hover { transform:translateY(-5px); box-shadow:0 8px 32px rgba(100,70,20,0.18); }
       `}</style>
 
       {/* Mesh bg */}
@@ -114,7 +242,6 @@ export default function MissingPets() {
 
       <Navbar />
 
-      {/* Content */}
       <div style={{ position: 'relative', zIndex: 10, maxWidth: 1100, margin: '0 auto', padding: '4rem 2.5rem 6rem' }}>
         <Reveal>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', borderRadius: 50, padding: '0.3rem 1rem', fontSize: '0.67rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', fontStyle: 'italic', marginBottom: '1rem', background: 'rgba(180,90,34,0.10)', border: '1px solid rgba(180,90,34,0.28)', color: '#B45A22' }}>
@@ -125,9 +252,18 @@ export default function MissingPets() {
               <h1 style={{ fontFamily: "'Playfair Display',serif", fontSize: 'clamp(2.2rem,4vw,3.2rem)', fontWeight: 900, color: '#1a4a08', lineHeight: 1.1 }}>
                 <em style={{ fontStyle: 'italic', color: '#B45A22' }}>Missing</em> Pets Board
               </h1>
-              <p style={{ fontSize: '0.95rem', fontWeight: 700, color: '#3a5020', marginTop: '0.5rem' }}>Help reunite animals with their families across the Ilocos Region.</p>
+              <p style={{ fontSize: '0.95rem', fontWeight: 700, color: '#3a5020', marginTop: '0.5rem' }}>
+                Help reunite animals with their families across the Ilocos Region.
+              </p>
+              {pets.length > 0 && (
+                <p style={{ fontSize: '0.80rem', fontWeight: 700, color: '#9aaa80', marginTop: '0.25rem' }}>
+                  {pets.filter(p => p.type === 'lost').length} lost · {pets.filter(p => p.type === 'found').length} found
+                </p>
+              )}
             </div>
-            <button onClick={() => setShowModal(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.85rem 1.75rem', borderRadius: 12, fontWeight: 900, fontSize: '0.9rem', color: '#fff', background: '#B45A22', border: 'none', cursor: 'pointer', boxShadow: '0 4px 18px rgba(180,90,34,0.30)', fontFamily: "'Nunito',sans-serif" }}>
+            <button
+              onClick={() => setShowModal(true)}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.85rem 1.75rem', borderRadius: 12, fontWeight: 900, fontSize: '0.9rem', color: '#fff', background: '#B45A22', border: 'none', cursor: 'pointer', boxShadow: '0 4px 18px rgba(180,90,34,0.30)', fontFamily: "'Nunito',sans-serif" }}>
               <i className="fas fa-plus" /> Report a Pet
             </button>
           </div>
@@ -137,14 +273,25 @@ export default function MissingPets() {
         <Reveal delay={100}>
           <div style={{ display: 'inline-flex', gap: '0.4rem', background: 'rgba(255,248,220,0.6)', borderRadius: 50, padding: '0.3rem', border: '1px solid rgba(180,140,60,0.28)', marginBottom: '2rem' }}>
             {[['all', 'All Posts'], ['lost', 'Lost'], ['found', 'Found']].map(([val, lbl]) => (
-              <button key={val} onClick={() => setFilter(val)} style={{ padding: '0.45rem 1.3rem', borderRadius: 50, fontSize: '0.82rem', fontWeight: 800, border: 'none', cursor: 'pointer', fontFamily: "'Nunito',sans-serif", background: filter === val ? (val === 'lost' ? '#c03030' : val === 'found' ? '#1c4f09' : '#1a4a08') : 'transparent', color: filter === val ? '#fff' : '#3a5020', transition: 'all 0.15s' }}>
+              <button key={val} onClick={() => setFilter(val)}
+                style={{ padding: '0.45rem 1.3rem', borderRadius: 50, fontSize: '0.82rem', fontWeight: 800, border: 'none', cursor: 'pointer', fontFamily: "'Nunito',sans-serif", background: filter === val ? (val === 'lost' ? '#c03030' : val === 'found' ? '#1c4f09' : '#1a4a08') : 'transparent', color: filter === val ? '#fff' : '#3a5020', transition: 'all 0.15s' }}>
                 {lbl}
               </button>
             ))}
           </div>
         </Reveal>
 
-        {/* Loading state */}
+        {/* Pending notice */}
+        <Reveal delay={120}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.75rem 1.1rem', borderRadius: 12, background: 'rgba(212,136,10,0.09)', border: '1px solid rgba(212,136,10,0.25)', marginBottom: '1.5rem' }}>
+            <i className="fas fa-clock" style={{ color: '#d4880a', fontSize: '0.85rem' }} />
+            <p style={{ fontSize: '0.80rem', fontWeight: 700, color: '#b07010', margin: 0 }}>
+              Reports are reviewed before appearing publicly. Most are approved within a few hours.
+            </p>
+          </div>
+        </Reveal>
+
+        {/* Loading */}
         {loading && (
           <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '4rem 0', gap: '0.75rem', color: '#3a5020', fontWeight: 700, fontSize: '0.9rem' }}>
             <div style={{ width: 22, height: 22, border: '3px solid rgba(180,90,34,0.25)', borderTopColor: '#B45A22', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
@@ -152,7 +299,7 @@ export default function MissingPets() {
           </div>
         )}
 
-        {/* Empty state */}
+        {/* Empty */}
         {!loading && filtered.length === 0 && (
           <div style={{ textAlign: 'center', padding: '4rem 0', color: '#3a5020' }}>
             <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🐾</div>
@@ -163,30 +310,43 @@ export default function MissingPets() {
 
         {/* Grid */}
         {!loading && filtered.length > 0 && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: '1.25rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(290px,1fr))', gap: '1.25rem' }}>
             {filtered.map((pet, i) => (
               <Reveal key={pet.id} delay={i * 60}>
-                <div style={{ background: 'rgba(255,248,225,0.85)', border: '1px solid rgba(180,140,60,0.28)', borderRadius: 20, overflow: 'hidden', boxShadow: '0 4px 20px rgba(100,70,20,0.11)', transition: 'transform 0.2s' }}
-                  onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-5px)'}
-                  onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}>
-                  <div style={{ position: 'relative', height: 180 }}>
-                    <PetPlaceholder species={pet.species} />
-                    <span style={{ position: 'absolute', top: 10, left: 10, padding: '0.25rem 0.75rem', borderRadius: 50, fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', background: pet.type === 'lost' ? 'rgba(192,48,48,0.88)' : 'rgba(28,79,9,0.88)', color: '#fff', backdropFilter: 'blur(6px)' }}>
+                <div className="mp-card">
+                  <div style={{ position: 'relative', height: 200, overflow: 'hidden' }}>
+                    <PetPhoto pet={pet} />
+                    <span style={{ position: 'absolute', top: 10, left: 10, padding: '0.25rem 0.75rem', borderRadius: 50, fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', background: pet.type === 'lost' ? 'rgba(192,48,48,0.90)' : 'rgba(28,79,9,0.90)', color: '#fff', backdropFilter: 'blur(6px)' }}>
                       {pet.type === 'lost' ? '🔴 Lost' : '🟢 Found'}
                     </span>
-                    <span style={{ position: 'absolute', top: 10, right: 10, padding: '0.25rem 0.75rem', borderRadius: 50, fontSize: '0.65rem', fontWeight: 800, background: 'rgba(10,6,2,0.55)', color: 'rgba(255,235,150,0.9)', backdropFilter: 'blur(6px)' }}>
+                    <span style={{ position: 'absolute', top: 10, right: 10, padding: '0.25rem 0.75rem', borderRadius: 50, fontSize: '0.65rem', fontWeight: 800, background: 'rgba(10,6,2,0.60)', color: 'rgba(255,235,150,0.95)', backdropFilter: 'blur(6px)' }}>
                       {formatDate(pet.reportedDate)}
                     </span>
                   </div>
                   <div style={{ padding: '1.1rem 1.25rem' }}>
-                    <div style={{ fontWeight: 900, fontSize: '1.05rem', color: '#1a4a08', marginBottom: '0.3rem' }}>{pet.name || 'Unknown'}</div>
-                    <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#6a7a50', marginBottom: '0.6rem' }}>{pet.breed} · {pet.species}</div>
-                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: '0.68rem', fontWeight: 800, padding: '0.2rem 0.6rem', borderRadius: 50, background: 'rgba(28,79,9,0.10)', color: '#1c4f09' }}>
-                        <i className="fas fa-map-marker-alt" style={{ marginRight: '0.25rem' }} />{pet.area}
-                      </span>
-                      <span style={{ fontSize: '0.68rem', fontWeight: 800, padding: '0.2rem 0.6rem', borderRadius: 50, background: 'rgba(180,140,60,0.12)', color: '#7a6020' }}>{pet.color}</span>
+                    <div style={{ fontWeight: 900, fontSize: '1.05rem', color: '#1a4a08', marginBottom: '0.25rem' }}>{pet.name || 'Unknown'}</div>
+                    <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#6a7a50', marginBottom: '0.55rem' }}>{[pet.species, pet.breed].filter(Boolean).join(' · ')}</div>
+                    {pet.address && (
+                      <div style={{ fontSize: '0.73rem', fontWeight: 700, color: '#3a5020', marginBottom: '0.55rem', display: 'flex', alignItems: 'flex-start', gap: '0.3rem' }}>
+                        <i className="fas fa-map-marker-alt" style={{ color: '#B45A22', marginTop: '0.1rem', flexShrink: 0 }} />
+                        <span style={{ lineHeight: 1.4 }}>{pet.address}</span>
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap', marginTop: '0.4rem' }}>
+                      {pet.area && (
+                        <span style={{ fontSize: '0.68rem', fontWeight: 800, padding: '0.2rem 0.6rem', borderRadius: 50, background: 'rgba(28,79,9,0.10)', color: '#1c4f09' }}>
+                          <i className="fas fa-city" style={{ marginRight: '0.25rem' }} />{pet.area}
+                        </span>
+                      )}
+                      {pet.color && (
+                        <span style={{ fontSize: '0.68rem', fontWeight: 800, padding: '0.2rem 0.6rem', borderRadius: 50, background: 'rgba(180,140,60,0.12)', color: '#7a6020' }}>{pet.color}</span>
+                      )}
                     </div>
+                    {pet.details && (
+                      <p style={{ fontSize: '0.78rem', fontWeight: 700, color: '#6a7a50', marginTop: '0.6rem', lineHeight: 1.55, borderTop: '1px solid rgba(180,140,60,0.18)', paddingTop: '0.55rem' }}>
+                        {pet.details.length > 100 ? pet.details.slice(0, 100) + '…' : pet.details}
+                      </p>
+                    )}
                   </div>
                 </div>
               </Reveal>
@@ -195,64 +355,189 @@ export default function MissingPets() {
         )}
       </div>
 
-      {/* Report Modal */}
+      {/* ── Report Modal ── */}
       {showModal && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)' }} onClick={() => setShowModal(false)}>
-          <div style={{ background: 'rgba(255,252,235,0.98)', borderRadius: 24, padding: '2.5rem', width: '100%', maxWidth: 480, margin: '1rem', boxShadow: '0 20px 60px rgba(0,0,0,0.25)', animation: 'fadeUp 0.2s ease both' }} onClick={e => e.stopPropagation()}>
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.50)', backdropFilter: 'blur(6px)', padding: '1rem' }}
+          onClick={e => { if (e.target === e.currentTarget) closeModal(); }}
+        >
+          <div
+            style={{ background: 'rgba(255,252,235,0.99)', borderRadius: 24, width: '100%', maxWidth: 520, maxHeight: '92vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 24px 64px rgba(0,0,0,0.30)', animation: 'fadeUp 0.22s ease both', border: '1px solid rgba(180,140,60,0.28)' }}
+            onClick={e => e.stopPropagation()}
+          >
             {submitted ? (
-              <div style={{ textAlign: 'center', padding: '2rem 0' }}>
-                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>✅</div>
-                <div style={{ fontFamily: "'Playfair Display',serif", fontSize: '1.5rem', fontWeight: 900, color: '#1a4a08' }}>Report Submitted!</div>
-                <p style={{ fontSize: '0.9rem', fontWeight: 700, color: '#3a5020', marginTop: '0.5rem' }}>It's now live on the board.</p>
+              <div style={{ textAlign: 'center', padding: '3rem 2rem' }}>
+                <div style={{ fontSize: '3.5rem', marginBottom: '1rem' }}>✅</div>
+                <div style={{ fontFamily: "'Playfair Display',serif", fontSize: '1.6rem', fontWeight: 900, color: '#1a4a08', marginBottom: '0.5rem' }}>Report Submitted!</div>
+                <p style={{ fontSize: '0.9rem', fontWeight: 700, color: '#3a5020', lineHeight: 1.6 }}>
+                  Your report is under review and will appear on the board once approved — usually within a few hours.
+                </p>
               </div>
             ) : (
               <>
-                <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: '1.6rem', fontWeight: 900, color: '#1a4a08', marginBottom: '1.5rem' }}>Report a Pet</h2>
-                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    {[['lost', 'Lost'], ['found', 'Found']].map(([val, lbl]) => (
-                      <button type="button" key={val} onClick={() => setForm(f => ({ ...f, type: val }))} style={{ flex: 1, padding: '0.6rem', borderRadius: 10, fontWeight: 800, fontSize: '0.85rem', cursor: 'pointer', fontFamily: "'Nunito',sans-serif", border: form.type === val ? 'none' : '1px solid rgba(180,140,60,0.28)', background: form.type === val ? (val === 'lost' ? '#c03030' : '#1c4f09') : 'rgba(255,250,232,0.7)', color: form.type === val ? '#fff' : '#3a5020' }}>{lbl}</button>
-                    ))}
+                {/* Modal header */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1.25rem 1.5rem', borderBottom: '1px solid rgba(180,140,60,0.22)', background: 'linear-gradient(135deg,rgba(180,90,34,0.07),rgba(212,136,10,0.04))' }}>
+                  <div style={{ fontFamily: "'Playfair Display',serif", fontSize: '1.25rem', fontWeight: 900, color: '#1a4a08' }}>
+                    Report a <em style={{ fontStyle: 'italic', color: '#B45A22' }}>Pet</em>
                   </div>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    {['Dog', 'Cat'].map(s => (
-                      <button type="button" key={s} onClick={() => setForm(f => ({ ...f, species: s }))} style={{ flex: 1, padding: '0.5rem', borderRadius: 10, fontWeight: 800, fontSize: '0.82rem', cursor: 'pointer', fontFamily: "'Nunito',sans-serif", border: form.species === s ? 'none' : '1px solid rgba(180,140,60,0.28)', background: form.species === s ? '#B45A22' : 'rgba(255,250,232,0.7)', color: form.species === s ? '#fff' : '#3a5020' }}>
-                        {s === 'Dog' ? '🐶' : '🐱'} {s}
+                  <button onClick={closeModal} style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid rgba(180,140,60,0.28)', background: 'rgba(255,248,220,0.7)', color: '#6a7a50', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem' }}>
+                    <i className="fas fa-times" />
+                  </button>
+                </div>
+
+                {/* Modal body — scrollable */}
+                <div style={{ overflowY: 'auto', flex: 1, padding: '1.5rem' }}>
+                  <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+
+                    {/* Lost / Found toggle */}
+                    <div>
+                      <div style={{ fontSize: '0.67rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6a7a50', marginBottom: '0.5rem' }}>Report Type *</div>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        {[['lost', '🔴 Lost'], ['found', '🟢 Found']].map(([val, lbl]) => (
+                          <button type="button" key={val} onClick={() => setForm(f => ({ ...f, type: val }))}
+                            style={{ flex: 1, padding: '0.65rem', borderRadius: 10, fontWeight: 800, fontSize: '0.85rem', cursor: 'pointer', fontFamily: "'Nunito',sans-serif", border: form.type === val ? 'none' : '1px solid rgba(180,140,60,0.28)', background: form.type === val ? (val === 'lost' ? '#c03030' : '#1c4f09') : 'rgba(255,250,232,0.7)', color: form.type === val ? '#fff' : '#3a5020', transition: 'all 0.15s' }}>
+                            {lbl}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* ── Species — typeable combobox ── */}
+                    <div>
+                      <div style={{ fontSize: '0.67rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6a7a50', marginBottom: '0.5rem' }}>Species *</div>
+                      <SpeciesCombobox
+                        value={form.species}
+                        onChange={val => setForm(f => ({ ...f, species: val }))}
+                      />
+                      <div style={{ fontSize: '0.64rem', fontWeight: 700, color: '#9aaa80', marginTop: '0.3rem' }}>
+                        <i className="fas fa-info-circle" style={{ marginRight: '0.25rem' }} />
+                        Select from the list or type any species (e.g. Parrot, Ferret, Horse…)
+                      </div>
+                    </div>
+
+                    {/* Photo upload */}
+                    <div>
+                      <div style={{ fontSize: '0.67rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6a7a50', marginBottom: '0.5rem' }}>
+                        Photo <span style={{ fontWeight: 700, textTransform: 'none', fontSize: '0.62rem', color: '#9aaa80' }}>(recommended)</span>
+                      </div>
+                      <input ref={fileRef} type="file" accept="image/*" onChange={handlePhoto} style={{ display: 'none' }} />
+                      <div className="mp-upload-zone" onClick={() => fileRef.current?.click()}>
+                        {photoPreview ? (
+                          <div style={{ position: 'relative' }}>
+                            <img
+                              src={photoPreview}
+                              alt="preview"
+                              style={{ width: '100%', maxHeight: 180, objectFit: 'cover', borderRadius: 8 }}
+                            />
+                            <button
+                              type="button"
+                              onClick={e => {
+                                e.stopPropagation();
+                                setPhotoFile(null);
+                                setPhotoPreview(null);
+                                if (fileRef.current) fileRef.current.value = '';
+                              }}
+                              style={{ position: 'absolute', top: 6, right: 6, width: 26, height: 26, borderRadius: '50%', background: 'rgba(192,48,48,0.88)', border: 'none', color: '#fff', cursor: 'pointer', fontSize: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <i className="fas fa-times" />
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <i className="fas fa-camera" style={{ fontSize: '1.6rem', color: '#B45A22', display: 'block', marginBottom: '0.35rem' }} />
+                            <div style={{ fontSize: '0.80rem', fontWeight: 800, color: '#3a5020' }}>Click to upload a photo</div>
+                            <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#9aaa80', marginTop: '0.12rem' }}>JPG, PNG, WEBP · max 5 MB</div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Pet name */}
+                    <div>
+                      <div style={{ fontSize: '0.67rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6a7a50', marginBottom: '0.4rem' }}>Pet Name</div>
+                      <input className="mp-field" placeholder="Pet's name (or 'Unknown')" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+                    </div>
+
+                    {/* Breed */}
+                    <div>
+                      <div style={{ fontSize: '0.67rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6a7a50', marginBottom: '0.4rem' }}>Breed</div>
+                      <input className="mp-field" placeholder="e.g. Aspin, Tabby, Shih Tzu" value={form.breed} onChange={e => setForm(f => ({ ...f, breed: e.target.value }))} />
+                    </div>
+
+                    {/* Color */}
+                    <div>
+                      <div style={{ fontSize: '0.67rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6a7a50', marginBottom: '0.4rem' }}>Color / Markings</div>
+                      <input className="mp-field" placeholder="e.g. Brown & white, Black" value={form.color} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} />
+                    </div>
+
+                    {/* City / Area */}
+                    <div>
+                      <div style={{ fontSize: '0.67rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6a7a50', marginBottom: '0.4rem' }}>City / Municipality *</div>
+                      <input className="mp-field" required placeholder="e.g. Laoag City, Vigan City" value={form.area} onChange={e => setForm(f => ({ ...f, area: e.target.value }))} />
+                    </div>
+
+                    {/* Full address */}
+                    <div>
+                      <div style={{ fontSize: '0.67rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6a7a50', marginBottom: '0.4rem' }}>
+                        Full Address Where {form.type === 'lost' ? 'Lost' : 'Found'} *
+                      </div>
+                      <input className="mp-field" required placeholder="Street, Barangay, City" value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} />
+                      <div style={{ fontSize: '0.64rem', fontWeight: 700, color: '#9aaa80', marginTop: '0.3rem' }}>
+                        <i className="fas fa-info-circle" style={{ marginRight: '0.25rem' }} />
+                        This helps us pin the location on our community map.
+                      </div>
+                    </div>
+
+                    {/* Additional details */}
+                    <div>
+                      <div style={{ fontSize: '0.67rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6a7a50', marginBottom: '0.4rem' }}>Additional Details</div>
+                      <textarea
+                        className="mp-field"
+                        placeholder="Contact number, distinctive features, circumstances…"
+                        value={form.details}
+                        onChange={e => setForm(f => ({ ...f, details: e.target.value }))}
+                        rows={3}
+                        style={{ resize: 'vertical', minHeight: 80 }}
+                      />
+                    </div>
+
+                    {/* Buttons */}
+                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
+                      <button type="button" onClick={closeModal}
+                        style={{ flex: 1, padding: '0.78rem', borderRadius: 10, fontWeight: 800, fontSize: '0.88rem', cursor: 'pointer', fontFamily: "'Nunito',sans-serif", background: 'transparent', border: '1px solid rgba(180,140,60,0.28)', color: '#3a5020' }}>
+                        Cancel
                       </button>
-                    ))}
-                  </div>
-                  {[['name', 'Pet Name (or Unknown)'], ['breed', 'Breed'], ['area', 'Area / City'], ['color', 'Color / Markings']].map(([field, ph]) => (
-                    <input key={field} placeholder={ph} value={form[field]} onChange={e => setForm(f => ({ ...f, [field]: e.target.value }))} required style={{ padding: '0.75rem 1rem', borderRadius: 10, border: '1px solid rgba(180,140,60,0.28)', background: 'rgba(255,250,232,0.7)', fontFamily: "'Nunito',sans-serif", fontWeight: 700, fontSize: '0.88rem', color: '#1a4a08', outline: 'none' }} />
-                  ))}
-                  <textarea placeholder="Additional details..." value={form.details} onChange={e => setForm(f => ({ ...f, details: e.target.value }))} rows={3} style={{ padding: '0.75rem 1rem', borderRadius: 10, border: '1px solid rgba(180,140,60,0.28)', background: 'rgba(255,250,232,0.7)', fontFamily: "'Nunito',sans-serif", fontWeight: 700, fontSize: '0.88rem', color: '#1a4a08', outline: 'none', resize: 'vertical' }} />
-                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-                    <button type="button" onClick={() => setShowModal(false)} style={{ flex: 1, padding: '0.75rem', borderRadius: 10, fontWeight: 800, fontSize: '0.88rem', cursor: 'pointer', fontFamily: "'Nunito',sans-serif", background: 'transparent', border: '1px solid rgba(180,140,60,0.28)', color: '#3a5020' }}>Cancel</button>
-                    <button type="submit" style={{ flex: 2, padding: '0.75rem', borderRadius: 10, fontWeight: 900, fontSize: '0.88rem', cursor: 'pointer', fontFamily: "'Nunito',sans-serif", background: '#B45A22', color: '#fff', border: 'none', boxShadow: '0 4px 14px rgba(180,90,34,0.28)' }}>Submit Report</button>
-                  </div>
-                </form>
+                      <button type="submit" disabled={submitting}
+                        style={{ flex: 2, padding: '0.78rem', borderRadius: 10, fontWeight: 900, fontSize: '0.88rem', cursor: submitting ? 'not-allowed' : 'pointer', fontFamily: "'Nunito',sans-serif", background: submitting ? '#9a6030' : '#B45A22', color: '#fff', border: 'none', boxShadow: '0 4px 14px rgba(180,90,34,0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', opacity: submitting ? 0.75 : 1 }}>
+                        {submitting
+                          ? <><i className="fas fa-spinner" style={{ animation: 'spin 0.8s linear infinite' }} /> Submitting…</>
+                          : <><i className="fas fa-paper-plane" /> Submit Report</>
+                        }
+                      </button>
+                    </div>
+                  </form>
+                </div>
               </>
             )}
           </div>
         </div>
       )}
 
+      {/* Footer */}
       <footer className="relative z-10 border-t border-[rgba(90,170,48,0.45)] bg-[rgba(255,248,218,0.85)] backdrop-blur-md px-10 py-12">
         <div className="max-w-[1200px] mx-auto grid gap-12 mb-10 grid-cols-[repeat(auto-fit,minmax(160px,1fr))]">
           <div>
             <div className="mb-2">
-              <img src={logo} alt="Pawster" className="w-8 h-8 object-contain" onError={(e) => (e.target.style.display = "none")} />
+              <img src={logo} alt="Pawster" className="w-8 h-8 object-contain" onError={e => (e.target.style.display = 'none')} />
             </div>
-            <div className="font-black text-[1.2rem] text-[#1a4a08]">
-              Paw<em className="italic text-[#e07820]">ster</em>
-            </div>
+            <div className="font-black text-[1.2rem] text-[#1a4a08]">Paw<em className="italic text-[#e07820]">ster</em></div>
             <p className="text-[0.82rem] font-bold leading-7 text-[#6a7a50] max-w-[260px] mt-2">
               Connecting loving homes with animals in need across the Ilocos Region since 2023.
             </p>
           </div>
           {[
-            { title: "Adopt", links: [["Browse Animals", "/pets"], ["My Profile", "/profile"], ["Log In", "/login"], ["Register", "/register"]] },
-            { title: "Services", links: [["How It Works", "/how-it-works"], ["Rehome a Pet", "/rehome"], ["Missing Pets", "/missing-pets"], ["About Us", "/about"]] },
-            { title: "Regions", links: [["Ilocos Norte", "/pets"], ["Ilocos Sur", "/pets"], ["La Union", "/pets"], ["Pangasinan", "/pets"]] },
+            { title: 'Adopt',    links: [['Browse Animals', '/pets'], ['My Profile', '/profile'], ['Log In', '/login'], ['Register', '/register']] },
+            { title: 'Services', links: [['How It Works', '/how-it-works'], ['Rehome a Pet', '/rehome'], ['Missing Pets', '/missing-pets'], ['About Us', '/about']] },
+            { title: 'Regions',  links: [['Ilocos Norte', '/pets'], ['Ilocos Sur', '/pets'], ['La Union', '/pets'], ['Pangasinan', '/pets']] },
           ].map(({ title, links }) => (
             <div key={title}>
               <div className="text-[0.72rem] font-black uppercase tracking-wider text-[#1c4f09] mb-4">{title}</div>
@@ -265,8 +550,8 @@ export default function MissingPets() {
         <div className="max-w-[1200px] mx-auto pt-6 border-t border-[rgba(180,140,60,0.28)] flex flex-wrap items-center justify-between gap-4">
           <div className="text-[0.75rem] font-bold text-[#6a7a50]">© 2025 Pawster. All rights reserved. Made with 🐾 in the Ilocos Region.</div>
           <div className="flex gap-2">
-            {["fab fa-facebook-f", "fab fa-instagram", "fab fa-twitter"].map(icon => (
-              <a key={icon} href="#" className="w-8 h-8 flex items-center justify-center rounded-md text-[0.8rem] text-[#6a7a50] bg-[rgba(255,250,232,0.7)] border border-[rgba(180,140,60,0.28)] hover:bg-black/5 transition">
+            {['fab fa-facebook-f', 'fab fa-instagram', 'fab fa-twitter'].map(icon => (
+              <a key={icon} href="#" className="w-8 h-8 flex items-center justify-center rounded-md text-[0.8rem] text-[#6a7a50] bg-[rgba(255,250,232,0.7)] border border-[rgba(180,140,60,0.28)]">
                 <i className={icon} />
               </a>
             ))}

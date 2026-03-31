@@ -23,28 +23,128 @@ public class MissingPet {
 
     private LocalDate reportedDate;
 
+    private String address; // full address where lost/found
+    private Double latitude; // geocoded lat for map
+    private Double longitude; // geocoded lng for map
+    private String photoUrl; // uploaded photo path
+    private String status;
+
     @PrePersist
     public void prePersist() {
         this.reportedDate = LocalDate.now();
     }
 
     // Getters & Setters
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-    public String getType() { return type; }
-    public void setType(String type) { this.type = type; }
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
-    public String getSpecies() { return species; }
-    public void setSpecies(String species) { this.species = species; }
-    public String getBreed() { return breed; }
-    public void setBreed(String breed) { this.breed = breed; }
-    public String getArea() { return area; }
-    public void setArea(String area) { this.area = area; }
-    public String getColor() { return color; }
-    public void setColor(String color) { this.color = color; }
-    public String getDetails() { return details; }
-    public void setDetails(String details) { this.details = details; }
-    public LocalDate getReportedDate() { return reportedDate; }
-    public void setReportedDate(LocalDate reportedDate) { this.reportedDate = reportedDate; }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
+    }
+
+    public Double getLatitude() {
+        return latitude;
+    }
+
+    public void setLatitude(Double latitude) {
+        this.latitude = latitude;
+    }
+
+    public Double getLongitude() {
+        return longitude;
+    }
+
+    public void setLongitude(Double longitude) {
+        this.longitude = longitude;
+    }
+
+    public String getPhotoUrl() {
+        return photoUrl;
+    }
+
+    public void setPhotoUrl(String photoUrl) {
+        this.photoUrl = photoUrl;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public void setType(String type) {
+        this.type = type;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getSpecies() {
+        return species;
+    }
+
+    public void setSpecies(String species) {
+        this.species = species;
+    }
+
+    public String getBreed() {
+        return breed;
+    }
+
+    public void setBreed(String breed) {
+        this.breed = breed;
+    }
+
+    public String getArea() {
+        return area;
+    }
+
+    public void setArea(String area) {
+        this.area = area;
+    }
+
+    public String getColor() {
+        return color;
+    }
+
+    public void setColor(String color) {
+        this.color = color;
+    }
+
+    public String getDetails() {
+        return details;
+    }
+
+    public void setDetails(String details) {
+        this.details = details;
+    }
+
+    public LocalDate getReportedDate() {
+        return reportedDate;
+    }
+
+    public void setReportedDate(LocalDate reportedDate) {
+        this.reportedDate = reportedDate;
+    }
 }

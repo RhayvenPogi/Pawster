@@ -7,5 +7,10 @@ CREATE TABLE missing_pets (
     area          VARCHAR(100),
     color         VARCHAR(100),
     details       TEXT,
-    reported_date DATE
+    reported_date DATE,
+    address       VARCHAR(255),
+    latitude      DOUBLE PRECISION,
+    longitude     DOUBLE PRECISION,
+    photo_url     VARCHAR(500),
+    status        VARCHAR(50)
 );
