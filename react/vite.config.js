@@ -21,7 +21,11 @@ export default defineConfig({
       '/api': {
         target: 'http://sb:8080',
         changeOrigin: true,
-      }
+      },
+      '/uploads': {
+        target: 'http://sb:8080',
+        changeOrigin: true,
+      },
     }
   }
 })

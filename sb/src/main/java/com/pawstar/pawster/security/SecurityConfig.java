@@ -81,7 +81,7 @@ public class SecurityConfig {
 
                         // ── Admin-only routes ──────────────────────────────────────
                         .requestMatchers("/api/admin/**").hasAnyAuthority("admin", "ADMIN")
-
+                        .requestMatchers("/uploads/**").permitAll()
                         // ── Missing Pets: anyone can view & report ──────────
                         .requestMatchers(HttpMethod.GET, "/api/missing-pets/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/missing-pets").permitAll()

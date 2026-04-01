@@ -45,10 +45,14 @@ public class MissingPetService {
             try {
                 Path dir = Paths.get(uploadDir);
                 Files.createDirectories(dir);
-                String filename = UUID.randomUUID() + "_" + photo.getOriginalFilename();
+                String filename = UUID.randomUUID() + "_" + photo.getOriginalFilename()
+                    .replaceAll("\\s+", "-")
+                    .replaceAll("[^a-zA-Z0-9._-]", "");
                 Files.copy(photo.getInputStream(), dir.resolve(filename),
                            StandardCopyOption.REPLACE_EXISTING);
                 pet.setPhotoUrl("/uploads/missing-pets/" + filename);
+                System.out.println("Saved photo to: " + dir.resolve(filename).toAbsolutePath());
+                System.out.println("PhotoUrl stored: " + "/uploads/missing-pets/" + filename);
             } catch (IOException e) {
                 // photo upload failed — continue without photo
             }

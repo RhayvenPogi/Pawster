@@ -44,7 +44,8 @@ services:
       - APP_BASE_URL=http://localhost:3000
     volumes:
       - ./sb:/app              # Maps your local 'sb' folder to /app in the container
-      - ~/.m2:/root/.m2        # Caches Maven dependencies in your WSL home
+      - ~/.m2:/root/.m2     
+      - ./sb/uploads:/app/uploads    # Caches Maven dependencies in your WSL home
     working_dir: /app
     # The container starts, sees your files via the volume, and runs them
     command: ./mvnw spring-boot:run
