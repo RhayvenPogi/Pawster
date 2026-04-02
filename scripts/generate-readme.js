@@ -7,12 +7,14 @@
  *   - Spring Boot: @Entity classes, Security config, JWT config
  *   - PHP: Route definitions, controller methods, middleware
  *   - React: Routes, API calls (axios), components, hooks
+ *   - Django: urls.py routes, views, models, serializers, settings
  *
  * Usage:
  *   node generate-readme.js          # Update all READMEs
  *   node generate-readme.js sb       # Update only sb/README.md
  *   node generate-readme.js php      # Update only php/README.md
  *   node generate-readme.js react    # Update only react/README.md
+ *   node generate-readme.js django   # Update only django/README.md
  *
  * Install git hook (auto-run on every commit):
  *   node generate-readme.js --install-hook
@@ -516,7 +518,7 @@ function generateReactReadme(dir) {
   md += `   └─► Component (state/handler)\n`;
   md += `         └─► integration.js / axios call\n`;
   md += `               └─► Axios interceptor adds JWT header\n`;
-  md += `                     └─► API request (Spring Boot / PHP)\n`;
+  md += `                     └─► API request (Spring Boot / PHP / Django)\n`;
   md += `                           └─► JSON response\n`;
   md += `                                 └─► useState update → re-render\n\`\`\`\n\n`;
 
@@ -524,6 +526,380 @@ function generateReactReadme(dir) {
     md += `## 🧩 Custom Hooks\n\n`;
     for (const h of hooks) md += `- \`${h}\` — shared stateful logic\n`;
     md += "\n";
+  }
+
+  return md;
+}
+
+// ─────────────────────────────────────────────
+// ══════════════════════════════════════════════
+//  DJANGO ANALYZER
+// ══════════════════════════════════════════════
+// ─────────────────────────────────────────────
+function analyzeDjango(dir) {
+  const ignore = ["__pycache__", ".git", "node_modules", "venv", "env", ".venv", "migrations", "staticfiles", "media"];
+  const files = walkDir(dir, ignore, [".py", ".env", ".cfg", ".ini", ".toml"]);
+
+  const endpoints = [];         // { method, path, view, auth, desc }
+  const models = [];            // model class names
+  const serializers = [];       // serializer class names
+  const viewsets = [];          // viewset class names
+  const fileDescriptions = [];  // { file, role }
+  const configLines = [];       // important settings.py lines
+  const authNotes = [];         // security/permission notes
+  const appNames = [];          // installed Django apps (custom)
+
+  // ── Track which url patterns came from which include() ──
+  const urlIncludes = {}; // prefix → app
+
+  for (const filePath of files) {
+    const content = readFile(filePath);
+    const fileName = path.basename(filePath);
+    const relativePath = path.relative(dir, filePath);
+
+    // ── .env file ──
+    if (fileName === ".env" || fileName === ".env.example") {
+      for (const line of content.split("\n")) {
+        const t = line.trim();
+        if (t && !t.startsWith("#")) configLines.push(t);
+      }
+      fileDescriptions.push({ file: relativePath, role: "Environment variables (DB, secret key, debug)" });
+      continue;
+    }
+
+    if (!fileName.endsWith(".py")) continue;
+
+    // ── settings.py ──
+    if (fileName === "settings.py") {
+      const interesting = [
+        "DATABASES", "SECRET_KEY", "DEBUG", "ALLOWED_HOSTS",
+        "INSTALLED_APPS", "REST_FRAMEWORK", "CORS_ALLOWED_ORIGINS",
+        "CORS_ORIGIN_WHITELIST", "SIMPLE_JWT", "JWT_AUTH",
+        "AUTH_USER_MODEL", "MIDDLEWARE", "AUTHENTICATION_BACKENDS",
+        "DEFAULT_AUTHENTICATION_CLASSES", "DEFAULT_PERMISSION_CLASSES",
+      ];
+      const lines = content.split("\n");
+      let inBlock = false;
+      let blockDepth = 0;
+      for (const line of lines) {
+        const t = line.trim();
+        if (!t || t.startsWith("#")) continue;
+        const isKey = interesting.some((k) => t.startsWith(k));
+        if (isKey) {
+          inBlock = true;
+          blockDepth = 0;
+        }
+        if (inBlock) {
+          configLines.push(line.trimEnd());
+          blockDepth += (line.match(/[\[{(]/g) || []).length;
+          blockDepth -= (line.match(/[\]})]/g) || []).length;
+          if (blockDepth <= 0 && configLines.length > 0 && !isKey) {
+            inBlock = false;
+          }
+        }
+      }
+      // Extract custom apps from INSTALLED_APPS
+      const appsMatch = content.match(/INSTALLED_APPS\s*=\s*\[([\s\S]*?)\]/);
+      if (appsMatch) {
+        const appEntries = appsMatch[1].matchAll(/['"]([a-z][a-z0-9_]*)['"](?!\s*,\s*#\s*django)/g);
+        const builtins = new Set(["django","rest_framework","corsheaders","drf_yasg","debug_toolbar","channels"]);
+        for (const m of appEntries) {
+          if (!m[1].startsWith("django.") && !builtins.has(m[1])) appNames.push(m[1]);
+        }
+      }
+      // Auth/permission globals
+      if (content.includes("IsAuthenticated")) authNotes.push("Default permission: `IsAuthenticated` (JWT required on most endpoints)");
+      if (content.includes("AllowAny")) authNotes.push("Some endpoints use `AllowAny` (public access)");
+      if (content.includes("JWTAuthentication") || content.includes("SimpleJWT")) authNotes.push("Authentication: `JWTAuthentication` via djangorestframework-simplejwt");
+      if (content.includes("TokenAuthentication")) authNotes.push("Authentication: DRF `TokenAuthentication`");
+      if (content.includes("SessionAuthentication")) authNotes.push("Authentication: `SessionAuthentication` (cookie-based)");
+      if (content.includes("CORS_ALLOWED_ORIGINS") || content.includes("CORS_ORIGIN_WHITELIST")) authNotes.push("CORS is configured — check `CORS_ALLOWED_ORIGINS` in settings");
+
+      fileDescriptions.push({ file: relativePath, role: "Django settings (DB, auth, installed apps, DRF config)" });
+      continue;
+    }
+
+    // ── Describe Python files by role ──
+    let role = "";
+    if (fileName === "urls.py") {
+      role = content.includes("router") ? "URL router (DRF router + urlpatterns)" : "URL configuration (urlpatterns)";
+    } else if (fileName === "views.py" || fileName.includes("view")) {
+      if (content.includes("ViewSet")) role = "DRF ViewSet (CRUD via router)";
+      else if (content.includes("APIView") || content.includes("generics.")) role = "DRF Class-Based API View";
+      else if (content.includes("@api_view")) role = "DRF Function-Based API View";
+      else if (content.includes("def get") || content.includes("def post")) role = "Django view (function or class)";
+    } else if (fileName === "models.py" || fileName.includes("model")) {
+      role = "Django ORM models (DB schema)";
+    } else if (fileName === "serializers.py" || fileName.includes("serializer")) {
+      role = "DRF Serializers (data validation & transformation)";
+    } else if (fileName === "admin.py") {
+      role = "Django admin registration";
+    } else if (fileName === "apps.py") {
+      role = "App configuration (AppConfig)";
+    } else if (fileName === "permissions.py") {
+      role = "Custom DRF permission classes";
+    } else if (fileName === "authentication.py") {
+      role = "Custom authentication backend";
+    } else if (fileName === "middleware.py" || fileName.includes("middleware")) {
+      role = "Custom request middleware";
+    } else if (fileName === "signals.py") {
+      role = "Django signals (model event hooks)";
+    } else if (fileName === "utils.py" || fileName.includes("util") || fileName.includes("helper")) {
+      role = "Utility / helper functions";
+    } else if (fileName === "tasks.py") {
+      role = "Celery async tasks";
+    } else if (fileName === "tests.py" || fileName.startsWith("test_")) {
+      role = "Unit / integration tests";
+    } else if (fileName === "manage.py") {
+      role = "Django management CLI entry point";
+    } else if (fileName === "wsgi.py") {
+      role = "WSGI server entry point (production)";
+    } else if (fileName === "asgi.py") {
+      role = "ASGI server entry point (async/WebSocket)";
+    }
+    if (role) fileDescriptions.push({ file: relativePath, role });
+
+    // ── Extract Models ──
+    if (fileName === "models.py" || fileName.includes("model")) {
+      const modelMatches = [...content.matchAll(/class\s+(\w+)\s*\(\s*(?:models\.Model|Model)[^)]*\)/g)];
+      for (const m of modelMatches) models.push(m[1]);
+    }
+
+    // ── Extract Serializers ──
+    if (fileName === "serializers.py" || fileName.includes("serializer")) {
+      const serMatches = [...content.matchAll(/class\s+(\w+Serializer)\s*\(/g)];
+      for (const m of serMatches) serializers.push(m[1]);
+    }
+
+    // ── Extract ViewSets ──
+    if (content.includes("ViewSet")) {
+      const vsMatches = [...content.matchAll(/class\s+(\w+ViewSet)\s*\(/g)];
+      for (const m of vsMatches) viewsets.push(m[1]);
+    }
+
+    // ── Extract URL patterns ──
+    if (fileName === "urls.py") {
+      // include() mappings: path('api/v1/', include('app.urls'))
+      const includeMatches = [...content.matchAll(/path\s*\(\s*['"]([^'"]*)['"]\s*,\s*include\s*\(\s*['"]([^'"]+)['"]/g)];
+      for (const m of includeMatches) urlIncludes[m[1]] = m[2];
+
+      // DRF router registrations: router.register(r'endpoint', ViewSet)
+      const routerMatches = [...content.matchAll(/router\.register\s*\(\s*r?['"]([^'"]+)['"]\s*,\s*(\w+)/g)];
+      for (const m of routerMatches) {
+        const vsName = m[1];
+        const viewsetClass = m[2];
+        // Router generates standard CRUD endpoints
+        const base = `/${vsName}`;
+        endpoints.push({ method: "GET",    path: `${base}/`,       view: viewsetClass, auth: "Yes (JWT)", desc: `List ${vsName}` });
+        endpoints.push({ method: "POST",   path: `${base}/`,       view: viewsetClass, auth: "Yes (JWT)", desc: `Create ${vsName}` });
+        endpoints.push({ method: "GET",    path: `${base}/{id}/`,  view: viewsetClass, auth: "Yes (JWT)", desc: `Retrieve ${vsName}` });
+        endpoints.push({ method: "PUT",    path: `${base}/{id}/`,  view: viewsetClass, auth: "Yes (JWT)", desc: `Update ${vsName}` });
+        endpoints.push({ method: "PATCH",  path: `${base}/{id}/`,  view: viewsetClass, auth: "Yes (JWT)", desc: `Partial update ${vsName}` });
+        endpoints.push({ method: "DELETE", path: `${base}/{id}/`,  view: viewsetClass, auth: "Yes (JWT)", desc: `Delete ${vsName}` });
+      }
+
+      // Direct path() definitions: path('endpoint/', ViewClass.as_view())
+      const pathMatches = [...content.matchAll(/path\s*\(\s*r?['"]([^'"]*)['"]\s*,\s*(\w+)(?:\.as_view\(\))?/g)];
+      for (const m of pathMatches) {
+        const routePath = m[1];
+        const viewName = m[2];
+        if (viewName === "include" || viewName === "re_path") continue;
+        // Infer HTTP method from view name heuristics
+        const name = viewName.toLowerCase();
+        let method = "GET";
+        if (/create|register|signup|login|post|add/i.test(name)) method = "POST";
+        else if (/update|edit|put/i.test(name)) method = "PUT";
+        else if (/delete|remove|destroy/i.test(name)) method = "DELETE";
+        const isPublic = /login|register|signup|token|refresh|verify/i.test(routePath + viewName);
+        endpoints.push({
+          method,
+          path: `/${routePath}`,
+          view: viewName,
+          auth: isPublic ? "No" : "Yes (JWT)",
+          desc: viewName.replace(/([A-Z])/g, " $1").replace(/View$|APIView$/, "").trim(),
+        });
+      }
+
+      // re_path() definitions
+      const rePathMatches = [...content.matchAll(/re_path\s*\(\s*r?['"]([^'"]*)['"]\s*,\s*(\w+)(?:\.as_view\(\))?/g)];
+      for (const m of rePathMatches) {
+        const viewName = m[2];
+        if (viewName === "include") continue;
+        const isPublic = /login|register|signup|token|refresh/i.test(m[1] + viewName);
+        endpoints.push({
+          method: "GET/POST",
+          path: `/${m[1]}`,
+          view: viewName,
+          auth: isPublic ? "No" : "Yes (JWT)",
+          desc: viewName.replace(/([A-Z])/g, " $1").replace(/View$/, "").trim(),
+        });
+      }
+    }
+
+    // ── Extract @api_view decorated functions ──
+    if (content.includes("@api_view")) {
+      const decoratorMatches = [...content.matchAll(/@api_view\s*\(\s*\[([^\]]+)\]\s*\)\s*\ndef\s+(\w+)/g)];
+      for (const m of decoratorMatches) {
+        const methods = m[1].replace(/['"]/g, "").split(",").map((x) => x.trim()).join("|");
+        const funcName = m[2];
+        const isPublic = /login|register|signup|token|refresh/i.test(funcName);
+        endpoints.push({
+          method: methods,
+          path: `(see urls.py → ${funcName})`,
+          view: funcName,
+          auth: isPublic ? "No" : "Yes (JWT)",
+          desc: funcName.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+        });
+      }
+    }
+  }
+
+  // Deduplicate endpoints by path+method
+  const seen = new Set();
+  const uniqueEndpoints = endpoints.filter((e) => {
+    const key = `${e.method}:${e.path}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  // Deduplicate models/serializers
+  const uniqueModels = [...new Set(models)];
+  const uniqueSerializers = [...new Set(serializers)];
+  const uniqueViewsets = [...new Set(viewsets)];
+
+  return {
+    endpoints: uniqueEndpoints,
+    models: uniqueModels,
+    serializers: uniqueSerializers,
+    viewsets: uniqueViewsets,
+    fileDescriptions,
+    configLines,
+    authNotes,
+    appNames: [...new Set(appNames)],
+    urlIncludes,
+  };
+}
+
+function generateDjangoReadme(dir) {
+  const {
+    endpoints, models, serializers, viewsets,
+    fileDescriptions, configLines, authNotes, appNames, urlIncludes,
+  } = analyzeDjango(dir);
+
+  let md = "";
+
+  // ── Architecture Overview ──
+  md += `## 🏗️ Architecture Overview\n\n`;
+  md += `PAWSTER's Django backend is a RESTful API built with Django REST Framework (DRF). `;
+  if (viewsets.length) {
+    md += `It uses DRF ViewSets and routers to auto-generate standard CRUD endpoints. `;
+  }
+  md += `JWT authentication (via \`djangorestframework-simplejwt\`) secures protected routes — `;
+  md += `clients must send a valid \`Authorization: Bearer <access_token>\` header. `;
+  if (models.length) {
+    md += `Django ORM manages the database with ${models.length} model${models.length > 1 ? "s" : ""}: ${models.join(", ")}. `;
+  }
+  md += `The project follows standard Django MTV: Views → Serializers → Models.\n\n`;
+
+  // ── Apps ──
+  if (appNames.length) {
+    md += `**Installed Custom Apps:** ${appNames.map((a) => `\`${a}\``).join(", ")}\n\n`;
+  }
+
+  // ── File structure ──
+  md += `## 📁 Project Structure\n\n`;
+  md += fileDescriptions.length
+    ? mdTable(["File", "Role"], fileDescriptions.map((f) => [f.file, f.role]))
+    : "_No Python files found._\n";
+  md += "\n";
+
+  // ── Auth Flow ──
+  md += `## 🔐 Authentication Flow\n\n\`\`\`\n`;
+  md += `1. POST /api/token/          → Submit credentials (username + password)\n`;
+  md += `                            → Returns { access, refresh } JWT pair\n\n`;
+  md += `2. POST /api/token/refresh/  → Submit { refresh } token\n`;
+  md += `                            → Returns new { access } token\n\n`;
+  md += `3. Protected Request         → Client: Authorization: Bearer <access_token>\n`;
+  md += `                            → JWTAuthentication validates token\n`;
+  md += `                            → Permission classes checked (IsAuthenticated, etc.)\n`;
+  md += `                            → View executes\n\n`;
+  md += `4. Token Expired             → 401 Unauthorized\n`;
+  md += `                            → Client refreshes via /api/token/refresh/\n\`\`\`\n\n`;
+
+  if (authNotes.length) {
+    md += `**Security / Permissions:**\n`;
+    for (const n of authNotes) md += `- ${n}\n`;
+    md += "\n";
+  }
+
+  // ── URL Includes ──
+  if (Object.keys(urlIncludes).length) {
+    md += `## 🗺️ URL Structure\n\n`;
+    md += mdTable(["Prefix", "App URLs"], Object.entries(urlIncludes).map(([prefix, app]) => [prefix, app]));
+    md += "\n";
+  }
+
+  // ── API Endpoints ──
+  md += `## 🌐 API Endpoints\n\n`;
+  if (endpoints.length) {
+    // Group by first path segment
+    const grouped = {};
+    for (const e of endpoints) {
+      const segment = e.path.split("/").filter(Boolean)[0] || "root";
+      if (!grouped[segment]) grouped[segment] = [];
+      grouped[segment].push(e);
+    }
+    for (const [group, eps] of Object.entries(grouped)) {
+      md += `### /${group}\n\n`;
+      md += mdTable(
+        ["Method", "Path", "View", "Auth", "Description"],
+        eps.map((e) => [e.method, e.path, e.view, e.auth, e.desc])
+      );
+      md += "\n";
+    }
+  } else {
+    md += "_No endpoints extracted. Make sure urls.py uses `path()`, `router.register()`, or `@api_view`._\n\n";
+  }
+
+  // ── DRF ViewSets ──
+  if (viewsets.length) {
+    md += `## 🔄 DRF ViewSets\n\n`;
+    md += `The following ViewSets are registered with the DRF router and auto-generate `;
+    md += `\`list\`, \`create\`, \`retrieve\`, \`update\`, \`partial_update\`, and \`destroy\` actions:\n\n`;
+    for (const vs of viewsets) md += `- \`${vs}\`\n`;
+    md += "\n";
+  }
+
+  // ── Data Flow ──
+  md += `## 🗄️ Data Flow\n\n\`\`\`\n`;
+  md += `HTTP Request\n`;
+  md += `   └─► Django URL Router        (urls.py — matches path)\n`;
+  md += `         └─► JWTAuthentication  (validates Bearer token)\n`;
+  md += `               └─► Permission   (IsAuthenticated / custom)\n`;
+  md += `                     └─► View / ViewSet (handles logic)\n`;
+  md += `                           └─► Serializer (validate & serialize data)\n`;
+  md += `                                 └─► Model / ORM (DB query)\n`;
+  md += `                                       └─► JSON Response\n\`\`\`\n\n`;
+
+  // ── Models ──
+  if (models.length) {
+    md += `## 🗃️ Database Models\n\n`;
+    md += models.map((m) => `- \`${m}\``).join("\n") + "\n\n";
+  }
+
+  // ── Serializers ──
+  if (serializers.length) {
+    md += `## 📦 Serializers\n\n`;
+    md += serializers.map((s) => `- \`${s}\``).join("\n") + "\n\n";
+  }
+
+  // ── Config ──
+  if (configLines.length) {
+    // Trim to avoid huge settings dumps — cap at 60 lines
+    const capped = configLines.slice(0, 60);
+    if (configLines.length > 60) capped.push("# ... (truncated — see settings.py for full config)");
+    md += `## ⚙️ Configuration\n\n\`\`\`python\n${capped.join("\n")}\n\`\`\`\n\n`;
   }
 
   return md;
@@ -556,6 +932,14 @@ const TARGETS = {
     scanDirs: ["src"],
     ignore: ["node_modules",".git","dist","build"],
     generate: generateReactReadme,
+  },
+  django: {
+    dir: path.join(ROOT, "django"),
+    readme: path.join(ROOT, "django", "README.md"),
+    label: "Django Backend",
+    scanDirs: ["."],
+    ignore: ["__pycache__",".git","node_modules","venv","env",".venv","migrations","staticfiles","media"],
+    generate: generateDjangoReadme,
   },
 };
 
@@ -612,7 +996,7 @@ function installGitHook() {
 `#!/bin/sh
 echo "🐾 Updating PAWSTER README files..."
 node "$(git rev-parse --show-toplevel)/scripts/generate-readme.js"
-git add sb/README.md php/README.md react/README.md
+git add sb/README.md php/README.md react/README.md django/README.md
 echo "✅ READMEs updated and staged."
 `;
   fs.writeFileSync(hookPath, hookContent);

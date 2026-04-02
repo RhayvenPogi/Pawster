@@ -1,0 +1,259 @@
+"""
+apps/approvals/views.py
+8 endpoints — submit adoption/rehome, list all, approve, reject (each sends email).
+"""
+from django.utils import timezone
+from django.core.mail import send_mail
+from django.conf import settings
+from rest_framework import status as drf_status
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
+from rest_framework.response import Response
+
+from .models import AdoptionRequest, RehomingRequest
+from .serializers import AdoptionRequestSerializer, RehomingRequestSerializer
+
+
+# ── helpers ──────────────────────────────────────────────────────────────────
+
+def _send(subject, body, to):
+    """Fire-and-forget email — never crashes the main request."""
+    if not to:
+        return
+    try:
+        send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [to], fail_silently=True)
+    except Exception:
+        pass
+
+
+def _adoption_approval_email(adoption):
+    _send(
+        subject=f"🐾 Your adoption of {adoption.animal_name} has been approved!",
+        body=(
+            f"Hi {adoption.name},\n\n"
+            f"Great news! Your adoption request for {adoption.animal_name} has been approved.\n"
+            f"Our team will contact you soon to arrange the handover.\n\n"
+            f"Remember: you'll receive follow-up check-ins at 7 days and 30 days "
+            f"after adoption to make sure everything is going well.\n\n"
+            f"Thank you for choosing to adopt! 🐾\n\n"
+            f"— The Pawster Team"
+        ),
+        to=adoption.email,
+    )
+
+
+def _adoption_rejection_email(adoption):
+    _send(
+        subject=f"Update on your adoption request for {adoption.animal_name}",
+        body=(
+            f"Hi {adoption.name},\n\n"
+            f"Thank you for your interest in adopting {adoption.animal_name}.\n"
+            f"Unfortunately, we are unable to approve your request at this time.\n\n"
+            f"Reason: {adoption.reject_note}\n\n"
+            f"Please don't be discouraged — browse other animals at {settings.APP_BASE_URL}/pets\n\n"
+            f"— The Pawster Team"
+        ),
+        to=adoption.email,
+    )
+
+
+def _rehome_approval_email(rehome):
+    _send(
+        subject=f"🏡 Your rehoming request for {rehome.pet_name} has been accepted",
+        body=(
+            f"Hello,\n\n"
+            f"We've reviewed your rehoming request for {rehome.pet_name} ({rehome.species}) "
+            f"and we're ready to help.\n\n"
+            f"Our team will contact you at {rehome.contact} to coordinate next steps.\n\n"
+            f"Thank you for entrusting {rehome.pet_name}'s future to us.\n\n"
+            f"— The Pawster Team"
+        ),
+        to=rehome.user.email if rehome.user else None,
+    )
+
+
+def _rehome_rejection_email(rehome):
+    _send(
+        subject=f"Update on your rehoming request for {rehome.pet_name}",
+        body=(
+            f"Hello,\n\n"
+            f"We've reviewed your rehoming request for {rehome.pet_name}.\n"
+            f"Unfortunately we cannot process it at this time.\n\n"
+            f"Reason: {rehome.reject_note}\n\n"
+            f"Please reach out if you need further assistance.\n\n"
+            f"— The Pawster Team"
+        ),
+        to=rehome.user.email if rehome.user else None,
+    )
+
+
+# ── Adoption endpoints ────────────────────────────────────────────────────────
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def submit_adoption(request):
+    """POST /api/approvals/adoptions/  — user submits adoption request"""
+    serializer = AdoptionRequestSerializer(data=request.data)
+    if serializer.is_valid():
+        obj = serializer.save(user=request.user)
+        return Response({"success": True, "id": obj.id, "message": "Adoption request submitted."}, status=201)
+    return Response({"success": False, "errors": serializer.errors}, status=400)
+
+
+@api_view(["GET"])
+@permission_classes([IsAdminUser])
+def list_adoptions(request):
+    """GET /api/approvals/adoptions/admin/  — admin lists all adoption requests"""
+    qs = AdoptionRequest.objects.all()
+    req_status = request.query_params.get("status")
+    if req_status:
+        qs = qs.filter(status=req_status)
+    return Response({"success": True, "data": AdoptionRequestSerializer(qs, many=True).data})
+
+
+@api_view(["POST"])
+@permission_classes([IsAdminUser])
+def approve_adoption(request, pk):
+    """POST /api/approvals/adoptions/<pk>/approve/  — admin approves"""
+    try:
+        obj = AdoptionRequest.objects.get(pk=pk)
+    except AdoptionRequest.DoesNotExist:
+        return Response({"success": False, "message": "Not found."}, status=404)
+
+    obj.status        = "Approved"
+    obj.decided_by    = request.user
+    obj.decided_at    = timezone.now()
+    obj.adoption_date = timezone.now()
+    obj.save()
+
+    # Create follow-up surveys via Celery
+    from apps.surveys.tasks import create_followup_surveys_for_adoption
+    create_followup_surveys_for_adoption.delay(obj.id)
+
+    # Create in-app notification for the adopter
+    if obj.user:
+        from apps.notifications.models import Notification
+        Notification.objects.create(
+            user=obj.user,
+            title="Adoption Approved! 🎉",
+            body=f"Your adoption request for {obj.animal_name} has been approved. We'll contact you soon.",
+            notif_type="adoption_approved",
+        )
+
+    _adoption_approval_email(obj)
+    return Response({"success": True, "message": f"Adoption #{pk} approved."})
+
+
+@api_view(["POST"])
+@permission_classes([IsAdminUser])
+def reject_adoption(request, pk):
+    """POST /api/approvals/adoptions/<pk>/reject/  — admin rejects"""
+    try:
+        obj = AdoptionRequest.objects.get(pk=pk)
+    except AdoptionRequest.DoesNotExist:
+        return Response({"success": False, "message": "Not found."}, status=404)
+
+    reason = request.data.get("reason", "").strip()
+    if not reason:
+        return Response({"success": False, "message": "Rejection reason is required."}, status=400)
+
+    obj.status      = "Rejected"
+    obj.reject_note = reason
+    obj.decided_by  = request.user
+    obj.decided_at  = timezone.now()
+    obj.save()
+
+    if obj.user:
+        from apps.notifications.models import Notification
+        Notification.objects.create(
+            user=obj.user,
+            title="Adoption Request Update",
+            body=f"Your adoption request for {obj.animal_name} was not approved. Reason: {reason}",
+            notif_type="adoption_rejected",
+        )
+
+    _adoption_rejection_email(obj)
+    return Response({"success": True, "message": f"Adoption #{pk} rejected."})
+
+
+# ── Rehoming endpoints ────────────────────────────────────────────────────────
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def submit_rehoming(request):
+    """POST /api/approvals/rehoming/  — user submits rehoming request"""
+    serializer = RehomingRequestSerializer(data=request.data)
+    if serializer.is_valid():
+        obj = serializer.save(user=request.user)
+        return Response({"success": True, "id": obj.id, "message": "Rehoming request submitted."}, status=201)
+    return Response({"success": False, "errors": serializer.errors}, status=400)
+
+
+@api_view(["GET"])
+@permission_classes([IsAdminUser])
+def list_rehoming(request):
+    """GET /api/approvals/rehoming/admin/  — admin lists all rehoming requests"""
+    qs = RehomingRequest.objects.all()
+    req_status = request.query_params.get("status")
+    if req_status:
+        qs = qs.filter(status=req_status)
+    return Response({"success": True, "data": RehomingRequestSerializer(qs, many=True).data})
+
+
+@api_view(["POST"])
+@permission_classes([IsAdminUser])
+def approve_rehoming(request, pk):
+    """POST /api/approvals/rehoming/<pk>/approve/  — admin approves"""
+    try:
+        obj = RehomingRequest.objects.get(pk=pk)
+    except RehomingRequest.DoesNotExist:
+        return Response({"success": False, "message": "Not found."}, status=404)
+
+    obj.status     = "Approved"
+    obj.decided_by = request.user
+    obj.decided_at = timezone.now()
+    obj.save()
+
+    if obj.user:
+        from apps.notifications.models import Notification
+        Notification.objects.create(
+            user=obj.user,
+            title="Rehoming Request Accepted 🏡",
+            body=f"Your rehoming request for {obj.pet_name} has been accepted. We'll contact you shortly.",
+            notif_type="rehoming_approved",
+        )
+
+    _rehome_approval_email(obj)
+    return Response({"success": True, "message": f"Rehoming #{pk} approved."})
+
+
+@api_view(["POST"])
+@permission_classes([IsAdminUser])
+def reject_rehoming(request, pk):
+    """POST /api/approvals/rehoming/<pk>/reject/  — admin rejects"""
+    try:
+        obj = RehomingRequest.objects.get(pk=pk)
+    except RehomingRequest.DoesNotExist:
+        return Response({"success": False, "message": "Not found."}, status=404)
+
+    reason = request.data.get("reason", "").strip()
+    if not reason:
+        return Response({"success": False, "message": "Rejection reason is required."}, status=400)
+
+    obj.status      = "Rejected"
+    obj.reject_note = reason
+    obj.decided_by  = request.user
+    obj.decided_at  = timezone.now()
+    obj.save()
+
+    if obj.user:
+        from apps.notifications.models import Notification
+        Notification.objects.create(
+            user=obj.user,
+            title="Rehoming Request Update",
+            body=f"Your rehoming request for {obj.pet_name} was not approved. Reason: {reason}",
+            notif_type="rehoming_rejected",
+        )
+
+    _rehome_rejection_email(obj)
+    return Response({"success": True, "message": f"Rehoming #{pk} rejected."})

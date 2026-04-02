@@ -3,7 +3,7 @@
 ## 📁 File Structure
 
 <!-- AUTO:START -->
-> 🔍 **Auto-generated documentation** — last updated: 2026-04-01 13:53:25 UTC
+> 🔍 **Auto-generated documentation** — last updated: 2026-04-02 12:51:26 UTC
 > Run `node scripts/generate-readme.js sb` to refresh.
 
 ---
@@ -194,7 +194,8 @@ spring.mail.username=${MAIL_USERNAME}
 spring.mail.password=${MAIL_PASSWORD}
 spring.mail.properties.mail.smtp.auth=true
 spring.mail.properties.mail.smtp.starttls.enable=true
-spring.datasource.url=jdbc:postgresql://localhost:5434/pawster_db
+spring.jpa.properties.hibernate.default_schema=springboot
+spring.datasource.url=${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5434/pawster_db}
 spring.datasource.username=user
 spring.datasource.password=password
 spring.datasource.driver-class-name=org.postgresql.Driver

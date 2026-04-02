@@ -562,11 +562,11 @@ private function getChartData(): void
         if ($pdo === null) {
             $pdo = new PDO(
                 sprintf(
-                    'pgsql:host=%s;port=%s;dbname=%s',
-                    getenv('DB_HOST') ?: 'localhost',
-                    getenv('DB_PORT') ?: '5432',
-                    getenv('DB_NAME') ?: 'pawster_db'
-                ),
+        'pgsql:host=%s;port=%s;dbname=%s;options=--search_path=springboot,public',
+        getenv('DB_HOST') ?: 'localhost',
+        getenv('DB_PORT') ?: '5432',
+        getenv('DB_NAME') ?: 'pawster_db'
+    ),
                 getenv('DB_USER')     ?: 'postgres',
                 getenv('DB_PASSWORD') ?: 'secret',
                 [

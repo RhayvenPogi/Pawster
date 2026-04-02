@@ -1,5 +1,6 @@
 services:
-  # Database
+
+  # ── Postgres — shared by Spring Boot, PHP, and Django ──────────────────────
   db:
     image: postgres:15-alpine
     container_name: pawster_postgres_db
@@ -8,7 +9,7 @@ services:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
     ports:
-      - "5434:5432" # Host 5434 -> Container 5432
+      - "5434:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U user -d pawster_db"]
       interval: 5s
@@ -17,12 +18,131 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
-    # to login to this container: docker exec -it postgres_db psql -U user -d pawster_db
+  # ── Redis — Celery broker ───────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: pawster_redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
-  # Auth service
+  # ── Django API ──────────────────────────────────────────────────────────────
+  django:
+    build:
+      context: ./django
+      dockerfile: Dockerfile
+    container_name: pawster_django_api
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8082:8000"               # http://localhost:8082  →  container :8000
+    environment:
+      - DJANGO_SETTINGS_MODULE=pawster.settings
+      - DJANGO_SECRET_KEY=django-super-secret-change-in-production
+      - DEBUG=True
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=pawster_db
+      - DB_USER=user
+      - DB_PASSWORD=password
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - ALLOWED_HOSTS=localhost,127.0.0.1,django
+      - CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
+      # Must match Spring Boot's JWT secret exactly
+      - JWT_SECRET=Zm9ydHktdHdvLWlzLXRoZS1hbnN3ZXItdG8tbGlmZS10aGUtdW5pdmVyc2UtYW5kLWV2ZXJ5dGhpbmc=
+      # Email — same SMTP as Spring Boot
+      - SPRING_MAIL_HOST=smtp.gmail.com
+      - SPRING_MAIL_PORT=587
+      - SPRING_MAIL_USERNAME=PawsterPawnagayat@gmail.com
+      - SPRING_MAIL_PASSWORD=uwumvzcufkytdceb
+      - APP_BASE_URL=http://localhost:3000
+    volumes:
+      - ./django:/app             # live reload — edit files locally, reflects instantly
+    working_dir: /app
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py runserver 0.0.0.0:8000"
+
+  # ── Celery Worker — processes async tasks (survey creation, emails) ─────────
+  celery_worker:
+    build:
+      context: ./django
+      dockerfile: Dockerfile
+    container_name: pawster_celery_worker
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - DJANGO_SETTINGS_MODULE=pawster.settings
+      - DJANGO_SECRET_KEY=django-super-secret-change-in-production
+      - DEBUG=True
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=pawster_db
+      - DB_USER=user
+      - DB_PASSWORD=password
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - JWT_SECRET=Zm9ydHktdHdvLWlzLXRoZS1hbnN3ZXItdG8tbGlmZS10aGUtdW5pdmVyc2UtYW5kLWV2ZXJ5dGhpbmc=
+      - SPRING_MAIL_HOST=smtp.gmail.com
+      - SPRING_MAIL_PORT=587
+      - SPRING_MAIL_USERNAME=PawsterPawnagayat@gmail.com
+      - SPRING_MAIL_PASSWORD=uwumvzcufkytdceb
+      - APP_BASE_URL=http://localhost:3000
+    volumes:
+      - ./django:/app
+    working_dir: /app
+    command: celery -A pawster worker --loglevel=info
+
+  # ── Celery Beat — triggers daily survey scheduler at midnight ───────────────
+  celery_beat:
+    build:
+      context: ./django
+      dockerfile: Dockerfile
+    container_name: pawster_celery_beat
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - DJANGO_SETTINGS_MODULE=pawster.settings
+      - DJANGO_SECRET_KEY=django-super-secret-change-in-production
+      - DEBUG=True
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=pawster_db
+      - DB_USER=user
+      - DB_PASSWORD=password
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - JWT_SECRET=Zm9ydHktdHdvLWlzLXRoZS1hbnN3ZXItdG8tbGlmZS10aGUtdW5pdmVyc2UtYW5kLWV2ZXJ5dGhpbmc=
+      - SPRING_MAIL_HOST=smtp.gmail.com
+      - SPRING_MAIL_PORT=587
+      - SPRING_MAIL_USERNAME=PawsterPawnagayat@gmail.com
+      - SPRING_MAIL_PASSWORD=uwumvzcufkytdceb
+      - APP_BASE_URL=http://localhost:3000
+    volumes:
+      - ./django:/app
+    working_dir: /app
+    command: >
+      celery -A pawster beat --loglevel=info
+      --scheduler django_celery_beat.schedulers:DatabaseScheduler
+
+  # ── Spring Boot — auth + animals ────────────────────────────────────────────
   sb:
-    # Use a pre-built JDK image instead of building a local Dockerfile
-    image: eclipse-temurin:17-jdk-alpine 
+    image: eclipse-temurin:17-jdk-alpine
     container_name: pawster_springboot_app
     depends_on:
       db:
@@ -43,16 +163,16 @@ services:
       - SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE=true
       - APP_BASE_URL=http://localhost:3000
     volumes:
-      - ./sb:/app              # Maps your local 'sb' folder to /app in the container
-      - ~/.m2:/root/.m2     
-      - ./sb/uploads:/app/uploads    # Caches Maven dependencies in your WSL home
+      - ./sb:/app
+      - ~/.m2:/root/.m2
+      - ./sb/uploads:/app/uploads
     working_dir: /app
-    # The container starts, sees your files via the volume, and runs them
     command: ./mvnw spring-boot:run
 
+  # ── PHP API ─────────────────────────────────────────────────────────────────
   php:
     build:
-      context: ./php        # Dockerfile lives inside ./php/
+      context: ./php
       dockerfile: Dockerfile
     container_name: pawster_php_api
     depends_on:
@@ -70,30 +190,26 @@ services:
     volumes:
       - ./php:/var/www/html
       - php_vendor:/var/www/html/vendor
-    
 
-
+  # ── React Frontend ───────────────────────────────────────────────────────────
   react:
     image: node:20-alpine
     container_name: pawster_react_front
     depends_on:
       - sb
+      - django
     ports:
       - "3000:5173"
     environment:
-      - VITE_API_BASE_URL=http://localhost:8080
+      - VITE_API_BASE=http://localhost:8080        # Spring Boot  (auth, animals)
+      - VITE_DJANGO_API=http://localhost:8082      # Django       (adoptions, surveys, notifications)
       - CHOKIDAR_USEPOLLING=true
     volumes:
       - ./react:/app
       - /app/node_modules
     working_dir: /app
-    # Install linux-compatible node_modules on startup before running dev server
-    command: sh -c "npm install && npm run dev -- --host"  # --- PHP API Service ---
+    command: sh -c "npm install && npm run dev -- --host"
 
 volumes:
   postgres_data:
   php_vendor:
-
-
-# error getting credentials - err: fork/exec /mnt/c/Program Files/Docker/Docker/resources/bin/docker-credential-desktop.exe: exec format error, out: ``
-#    after running docker compose:

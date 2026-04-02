@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import logo from "../images/logo.png"; // adjust path if needed
+import NotificationBell from "./NotificationBell";
 
 const NAV_LINKS = [
   { to: "/home", icon: "fas fa-house", label: "Home" },
@@ -35,6 +36,8 @@ export default function Navbar({ photoUrl: externalPhotoUrl }) {
   }, []);
 
   useEffect(() => setDropOpen(false), [location.pathname]);
+
+ 
 
   return (
     <nav className="sticky top-0 z-50 flex items-center h-[70px] px-10 bg-[rgba(255,248,218,0.92)] backdrop-blur-xl border-b border-[rgba(90,170,48,0.45)] shadow-[0_2px_20px_rgba(100,70,20,0.09)]">
@@ -86,6 +89,7 @@ export default function Navbar({ photoUrl: externalPhotoUrl }) {
 
       {/* RIGHT SIDE */}
       <div className="ml-auto flex items-center gap-2 shrink-0">
+        {user && <NotificationBell token={localStorage.getItem("pawster_token")} />}
         {user ? (
           <div ref={dropRef} className="relative">
             <button

@@ -24,14 +24,15 @@ public class JwtUtils {
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
-    public String generateToken(String username) {
-        return Jwts.builder()
-                .setSubject(username)
-                .setIssuedAt(new java.util.Date())
-                .setExpiration(new java.util.Date((new java.util.Date()).getTime() + jwtExpirationMs))
-                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
-                .compact();
-    }
+    public String generateToken(String username, String role) {
+    return Jwts.builder()
+            .setSubject(username)
+            .setIssuedAt(new java.util.Date())
+            .setExpiration(new java.util.Date((new java.util.Date()).getTime() + jwtExpirationMs))
+            .claim("role", role)
+            .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+            .compact();
+}
 
     public String getUsernameFromToken(String token) {
         return Jwts.parserBuilder()

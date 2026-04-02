@@ -7,7 +7,7 @@ export default defineConfig({
     host: true,
     proxy: {
       '/php': {
-        target: 'http://pawster_php_api:80',
+        target: 'http://php:80',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/php/, ''),
       },

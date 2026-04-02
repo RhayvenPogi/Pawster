@@ -16,7 +16,7 @@ The React Compiler is not enabled on this template because of its impact on dev 
 If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
 
 <!-- AUTO:START -->
-> 🔍 **Auto-generated documentation** — last updated: 2026-04-01 13:53:25 UTC
+> 🔍 **Auto-generated documentation** — last updated: 2026-04-02 12:51:27 UTC
 > Run `node scripts/generate-readme.js react` to refresh.
 
 ---
@@ -50,12 +50,14 @@ PAWSTER's React frontend is a single-page application (SPA) using React Router f
 | src\pages\admin\UsersPanel.jsx       | Component          | UsersPanel       |
 | src\pages\AdminDashboard.jsx         | Component          | AdminDashboard   |
 | src\pages\FindaPet.jsx               | Component          | FindAPet         |
+| src\pages\FollowUpSurveys.jsx        | Component          | FollowUpSurveys  |
 | src\pages\HomePage.jsx               | Component          | HomePage         |
 | src\pages\HowItWorks.jsx             | Component          | HowItWorks       |
 | src\pages\LandingPage.jsx            | Component          | LandingPage      |
 | src\pages\LoginPage.jsx              | Component          | LoginPage        |
 | src\pages\MissingPets.jsx            | Component          | MissingPets      |
 | src\pages\Navbar.jsx                 | Component          | Navbar           |
+| src\pages\NotificationBell.jsx       | Component          | NotificationBell |
 | src\pages\ProfilePage.jsx            | Component          | ProfilePage      |
 | src\pages\RegisterPage.jsx           | Component          | RegisterPage     |
 | src\pages\Rehome.jsx                 | Component          | Rehome           |
@@ -87,21 +89,22 @@ PAWSTER's React frontend is a single-page application (SPA) using React Router f
 
 ## 📄 Pages & Routes
 
-| Route         | Component      | Access    |
-| ------------- | -------------- | --------- |
-| /             | Navigate       | Public    |
-| /login        | GuestRoute     | Public    |
-| /register     | GuestRoute     | Public    |
-| /home         | ProtectedRoute | Protected |
-| /pets         | ProtectedRoute | Protected |
-| /profile/edit | ProtectedRoute | Protected |
-| /profile      | ProtectedRoute | Protected |
-| /how-it-works | ProtectedRoute | Public    |
-| /rehome       | ProtectedRoute | Protected |
-| /missing-pets | ProtectedRoute | Protected |
-| /about        | ProtectedRoute | Public    |
-| /admin        | ProtectedRoute | Protected |
-| *             | Navigate       | Protected |
+| Route             | Component      | Access    |
+| ----------------- | -------------- | --------- |
+| /                 | Navigate       | Public    |
+| /login            | GuestRoute     | Public    |
+| /register         | GuestRoute     | Public    |
+| /home             | ProtectedRoute | Protected |
+| /pets             | ProtectedRoute | Protected |
+| /profile/edit     | ProtectedRoute | Protected |
+| /profile          | ProtectedRoute | Protected |
+| /how-it-works     | ProtectedRoute | Public    |
+| /rehome           | ProtectedRoute | Protected |
+| /missing-pets     | ProtectedRoute | Protected |
+| /about            | ProtectedRoute | Public    |
+| /admin            | ProtectedRoute | Protected |
+| *                 | Navigate       | Protected |
+| /followup-surveys | ProtectedRoute | Protected |
 
 ## 🔗 API Calls by Component
 
@@ -131,7 +134,7 @@ User Action
    └─► Component (state/handler)
          └─► integration.js / axios call
                └─► Axios interceptor adds JWT header
-                     └─► API request (Spring Boot / PHP)
+                     └─► API request (Spring Boot / PHP / Django)
                            └─► JSON response
                                  └─► useState update → re-render
 ```
@@ -170,12 +173,14 @@ react/
 │   │   ├── About.jsx
 │   │   ├── AdminDashboard.jsx
 │   │   ├── FindaPet.jsx
+│   │   ├── FollowUpSurveys.jsx
 │   │   ├── HomePage.jsx
 │   │   ├── HowItWorks.jsx
 │   │   ├── LandingPage.jsx
 │   │   ├── LoginPage.jsx
 │   │   ├── MissingPets.jsx
 │   │   ├── Navbar.jsx
+│   │   ├── NotificationBell.jsx
 │   │   ├── ProfilePage.jsx
 │   │   ├── RegisterPage.jsx
 │   │   ├── Rehome.jsx

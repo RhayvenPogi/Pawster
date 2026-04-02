@@ -15,6 +15,7 @@ import MissingPets    from './pages/MissingPets';
 import About          from './pages/About';
 import AdminDashboard from './pages/AdminDashboard';
 import ProfilePage    from './pages/ProfilePage';
+import FollowUpSurveys from './pages/FollowUpSurveys';
 
 function App() {
     return (
@@ -33,6 +34,7 @@ function App() {
                 <Route path="/about"        element={<ProtectedRoute><About /></ProtectedRoute>} />
                 <Route path="/admin"        element={<ProtectedRoute requiredRole="admin"><AdminDashboard /></ProtectedRoute>} />
                 <Route path="*"             element={<Navigate to="/login" replace />} />
+                <Route path="/followup-surveys" element={<ProtectedRoute><FollowUpSurveys /></ProtectedRoute>} />
             </Routes>
         </BrowserRouter>
     );

@@ -83,7 +83,7 @@ public class AuthController {
 
         // Static admin shortcut
         if (ADMIN_EMAIL.equals(email) && ADMIN_PASSWORD.equals(password)) {
-            String jwt = jwtUtils.generateToken(ADMIN_EMAIL);
+            String jwt = jwtUtils.generateToken(ADMIN_EMAIL, "admin");
             response.addCookie(buildJwtCookie(jwt));
             return ResponseEntity.ok(Map.of(
                     "success",  true,
@@ -124,7 +124,7 @@ public class AuthController {
                 ? "php/admin_dashboard.php"
                 : "php/index.php";
 
-        String jwt = jwtUtils.generateToken(user.getEmail());
+        String jwt = jwtUtils.generateToken(user.getEmail(), user.getRole());
         response.addCookie(buildJwtCookie(jwt));
 
         return ResponseEntity.ok(toDtoWithToken(user, jwt, redirect));
@@ -197,7 +197,7 @@ public class AuthController {
         );
         userRepository.save(user);
 
-        String jwt = jwtUtils.generateToken(user.getEmail());
+        String jwt = jwtUtils.generateToken(user.getEmail(), user.getRole());
         response.addCookie(buildJwtCookie(jwt));
 
         Map<String, Object> dto = toDto(user);
