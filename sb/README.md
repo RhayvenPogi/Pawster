@@ -3,7 +3,7 @@
 ## 📁 File Structure
 
 <!-- AUTO:START -->
-> 🔍 **Auto-generated documentation** — last updated: 2026-04-02 12:51:26 UTC
+> 🔍 **Auto-generated documentation** — last updated: 2026-04-02 16:34:15 UTC
 > Run `node scripts/generate-readme.js sb` to refresh.
 
 ---
@@ -73,7 +73,7 @@ PAWSTER's Spring Boot backend is a RESTful API secured with Spring Security and 
 ```
 
 **Security Rules:**
-- Public (no auth): HttpMethod.GET,/api/animals/**, /uploads/**, HttpMethod.GET,/api/missing-pets/**, HttpMethod.POST,/api/missing-pets
+- Public (no auth): HttpMethod.GET,/api/animals/**, /uploads/**, HttpMethod.GET,/api/missing-pets/**, HttpMethod.POST,/api/missing-pets, /api/users/*/photo/public
 - All other requests require JWT Bearer token
 - CORS is configured in SecurityConfig
 
@@ -119,14 +119,17 @@ PAWSTER's Spring Boot backend is a RESTful API secured with Spring Security and 
 
 ### AuthController
 
-| Method | Path                       | Auth      | Description |
-| ------ | -------------------------- | --------- | ----------- |
-| GET    | /api/auth/api/auth         | Yes (JWT) |             |
-| POST   | /api/auth/login            | Yes (JWT) | Login       |
-| POST   | /api/auth/register         | Yes (JWT) | Register    |
-| GET    | /api/auth/id-file/{userId} | Yes (JWT) | Get Id File |
-| POST   | /api/auth/logout           | Yes (JWT) | Logout      |
-| GET    | /api/auth/me               | Yes (JWT) | Me          |
+| Method | Path                       | Auth      | Description     |
+| ------ | -------------------------- | --------- | --------------- |
+| GET    | /api/auth/api/auth         | Yes (JWT) |                 |
+| POST   | /api/auth/forgot-password  | Yes (JWT) | Forgot Password |
+| POST   | /api/auth/verify-otp       | Yes (JWT) | Verify Otp      |
+| POST   | /api/auth/reset-password   | Yes (JWT) | Reset Password  |
+| POST   | /api/auth/login            | Yes (JWT) | Login           |
+| POST   | /api/auth/register         | Yes (JWT) | Register        |
+| GET    | /api/auth/id-file/{userId} | Yes (JWT) | Get Id File     |
+| POST   | /api/auth/logout           | Yes (JWT) | Logout          |
+| GET    | /api/auth/me               | Yes (JWT) | Me              |
 
 ### MissingPetController
 
@@ -164,14 +167,16 @@ PAWSTER's Spring Boot backend is a RESTful API secured with Spring Security and 
 
 ### UserController
 
-| Method | Path                     | Auth      | Description     |
-| ------ | ------------------------ | --------- | --------------- |
-| GET    | /api/users/api/users     | Yes (JWT) |                 |
-| GET    | /api/users/{id}          | Yes (JWT) | Get User        |
-| PUT    | /api/users/{id}          | Yes (JWT) | Update User     |
-| PUT    | /api/users/{id}/password | Yes (JWT) | Change Password |
-| PUT    | /api/users/{id}/id-file  | Yes (JWT) | Upload Id File  |
-| GET    | /api/users/{id}/photo    | Yes (JWT) | Get Photo       |
+| Method | Path                         | Auth      | Description      |
+| ------ | ---------------------------- | --------- | ---------------- |
+| GET    | /api/users/api/users         | Yes (JWT) |                  |
+| GET    | /api/users/{id}              | Yes (JWT) | Get User         |
+| PUT    | /api/users/{id}              | Yes (JWT) | Update User      |
+| PUT    | /api/users/{id}/password     | Yes (JWT) | Change Password  |
+| PUT    | /api/users/{id}/id-file      | Yes (JWT) | Upload Id File   |
+| GET    | /api/users/{id}/photo        | Yes (JWT) | Get Photo        |
+| GET    | /api/users/{id}/id-file      | Yes (JWT) | Get Id File      |
+| GET    | /api/users/{id}/photo/public | Yes (JWT) | Get Photo Public |
 
 ## 🗄️ Data Flow
 

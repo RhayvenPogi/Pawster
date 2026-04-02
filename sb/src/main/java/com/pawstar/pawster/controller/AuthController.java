@@ -18,6 +18,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.pawstar.pawster.model.User;
 import com.pawstar.pawster.repository.UserRepository;
 import com.pawstar.pawster.security.JwtUtils;
+import com.pawstar.pawster.service.EmailService;
 
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
@@ -32,20 +33,25 @@ import java.util.Map;
 @RequestMapping("/api/auth")
 public class AuthController {
 
-    private static final String ADMIN_EMAIL    = "admin@pawster.com";
+    private static final String ADMIN_EMAIL = "admin@pawster.com";
     private static final String ADMIN_PASSWORD = "admin123";
 
-    private static final List<String> ALLOWED_MIME_TYPES =
-            List.of("image/jpeg", "image/png", "application/pdf");
+    private static final List<String> ALLOWED_MIME_TYPES = List.of("image/jpeg", "image/png", "application/pdf");
     private static final long MAX_FILE_SIZE = 5L * 1024 * 1024;
 
     @Value("${jwt.expiration}")
     private int jwtExpirationMs;
 
-    @Autowired private AuthenticationManager authenticationManager;
-    @Autowired private UserRepository        userRepository;
-    @Autowired private PasswordEncoder       encoder;
-    @Autowired private JwtUtils              jwtUtils;
+    @Autowired
+    private AuthenticationManager authenticationManager;
+    @Autowired
+    private UserRepository userRepository;
+    @Autowired
+    private PasswordEncoder encoder;
+    @Autowired
+    private JwtUtils jwtUtils;
+    @Autowired
+    private EmailService emailService;
 
     // ── Cookie helpers ───────────────────────────────────────────────────────
 
@@ -65,16 +71,86 @@ public class AuthController {
         return c;
     }
 
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@RequestBody Map<String, String> body) {
+        String email = body.get("email");
+        if (isBlank(email))
+            return bad("Email is required.");
+
+        userRepository.findByEmail(email.trim()).ifPresent(user -> {
+            String otp = String.format("%06d", new java.util.Random().nextInt(999999));
+            user.setResetOtp(otp);
+            user.setResetOtpExpiresAt(LocalDateTime.now().plusMinutes(10));
+            user.setResetOtpVerified(false);
+            userRepository.save(user);
+            emailService.sendOtpEmail(email.trim(), otp);
+        });
+
+        return ResponseEntity.ok(Map.of("success", true, "message", "If that email exists, an OTP has been sent."));
+    }
+
+    @PostMapping("/verify-otp")
+    public ResponseEntity<?> verifyOtp(@RequestBody Map<String, String> body) {
+        String email = body.get("email");
+        String otp = body.get("otp");
+        if (isBlank(email) || isBlank(otp))
+            return bad("Email and OTP are required.");
+
+        User user = userRepository.findByEmail(email.trim()).orElse(null);
+
+        if (user == null || !otp.equals(user.getResetOtp())) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("success", false, "message", "Invalid OTP."));
+        }
+
+        if (user.getResetOtpExpiresAt().isBefore(LocalDateTime.now())) {
+            user.setResetOtp(null);
+            user.setResetOtpExpiresAt(null);
+            userRepository.save(user);
+            return ResponseEntity.status(HttpStatus.GONE)
+                    .body(Map.of("success", false, "message", "OTP has expired. Please request a new one."));
+        }
+
+        user.setResetOtpVerified(true);
+        userRepository.save(user);
+        return ResponseEntity.ok(Map.of("success", true, "message", "OTP verified."));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> body) {
+        String email = body.get("email");
+        String newPassword = body.get("newPassword");
+        if (isBlank(email) || isBlank(newPassword))
+            return bad("Email and new password are required.");
+        if (newPassword.length() < 8)
+            return bad("Password must be at least 8 characters.");
+
+        User user = userRepository.findByEmail(email.trim()).orElse(null);
+
+        if (user == null || !user.isResetOtpVerified()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("success", false, "message", "OTP not verified."));
+        }
+
+        user.setPassword(encoder.encode(newPassword));
+        user.setResetOtp(null);
+        user.setResetOtpExpiresAt(null);
+        user.setResetOtpVerified(false);
+        userRepository.save(user);
+
+        return ResponseEntity.ok(Map.of("success", true, "message", "Password reset successfully."));
+    }
+
     // =========================================================================
     // POST /api/auth/login
     // =========================================================================
     @PostMapping("/login")
     public ResponseEntity<?> login(
-            @RequestParam("email")    String email,
+            @RequestParam("email") String email,
             @RequestParam("password") String password,
             HttpServletResponse response) {
 
-        email    = email    == null ? "" : email.trim();
+        email = email == null ? "" : email.trim();
         password = password == null ? "" : password;
 
         if (email.isEmpty() || password.isEmpty()) {
@@ -86,12 +162,11 @@ public class AuthController {
             String jwt = jwtUtils.generateToken(ADMIN_EMAIL, "admin");
             response.addCookie(buildJwtCookie(jwt));
             return ResponseEntity.ok(Map.of(
-                    "success",  true,
-                    "token",    jwt,
-                    "message",  "Admin login successful!",
-                    "role",     "admin",
-                    "redirect", "php/admin_dashboard.php"
-            ));
+                    "success", true,
+                    "token", jwt,
+                    "message", "Admin login successful!",
+                    "role", "admin",
+                    "redirect", "php/admin_dashboard.php"));
         }
 
         // Look up by email
@@ -99,7 +174,7 @@ public class AuthController {
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("success", false,
-                                 "message", "No account found with this email."));
+                            "message", "No account found with this email."));
         }
 
         // BCrypt verify
@@ -136,20 +211,20 @@ public class AuthController {
     @PostMapping(value = "/register", consumes = "multipart/form-data")
     public ResponseEntity<?> register(
             @RequestParam("firstName") String firstName,
-            @RequestParam("lastName")  String lastName,
-            @RequestParam("email")     String email,
-            @RequestParam("phone")     String phone,
-            @RequestParam("password")  String password,
-            @RequestParam("address")   String address,
-            @RequestParam("city")      String city,
-            @RequestParam("province")  String province,
-            @RequestParam("zip")       String zip,
-            @RequestParam("idFile")    MultipartFile idFile,
+            @RequestParam("lastName") String lastName,
+            @RequestParam("email") String email,
+            @RequestParam("phone") String phone,
+            @RequestParam("password") String password,
+            @RequestParam("address") String address,
+            @RequestParam("city") String city,
+            @RequestParam("province") String province,
+            @RequestParam("zip") String zip,
+            @RequestParam("idFile") MultipartFile idFile,
             HttpServletResponse response) {
 
-        if (isBlank(firstName) || isBlank(lastName) || isBlank(email)   ||
-            isBlank(phone)     || isBlank(password)  || isBlank(address) ||
-            isBlank(city)      || isBlank(province)  || isBlank(zip)) {
+        if (isBlank(firstName) || isBlank(lastName) || isBlank(email) ||
+                isBlank(phone) || isBlank(password) || isBlank(address) ||
+                isBlank(city) || isBlank(province) || isBlank(zip)) {
             return bad("All required fields must be filled.");
         }
 
@@ -188,13 +263,12 @@ public class AuthController {
 
         User user = new User(
                 firstName.trim(), lastName.trim(), email.trim(),
-                phone.trim(),     encoder.encode(password),
-                address.trim(),   city.trim(), province.trim(),
+                phone.trim(), encoder.encode(password),
+                address.trim(), city.trim(), province.trim(),
                 zip.trim(),
                 fileBytes,
                 contentType,
-                idFile.getOriginalFilename()
-        );
+                idFile.getOriginalFilename());
         userRepository.save(user);
 
         String jwt = jwtUtils.generateToken(user.getEmail(), user.getRole());
@@ -202,7 +276,7 @@ public class AuthController {
 
         Map<String, Object> dto = toDto(user);
         dto.put("success", true);
-        dto.put("token",   jwt);
+        dto.put("token", jwt);
         dto.put("message", "Registration successful!");
         return ResponseEntity.ok(dto);
     }
@@ -217,7 +291,7 @@ public class AuthController {
             return ResponseEntity.notFound().build();
         }
 
-        String mime     = user.getIdFileType() != null ? user.getIdFileType() : "application/octet-stream";
+        String mime = user.getIdFileType() != null ? user.getIdFileType() : "application/octet-stream";
         String filename = user.getIdFileName() != null ? user.getIdFileName() : "id_file";
 
         return ResponseEntity.ok()
@@ -252,13 +326,12 @@ public class AuthController {
         // Static admin is not in the DB
         if (ADMIN_EMAIL.equals(email)) {
             return ResponseEntity.ok(Map.of(
-                "email",     ADMIN_EMAIL,
-                "firstName", "Admin",
-                "lastName",  "",
-                "role",      "admin",
-                "status",    "active",
-                "isActive",  true
-            ));
+                    "email", ADMIN_EMAIL,
+                    "firstName", "Admin",
+                    "lastName", "",
+                    "role", "admin",
+                    "status", "active",
+                    "isActive", true));
         }
 
         return userRepository.findByEmail(email)
@@ -281,32 +354,32 @@ public class AuthController {
 
     private Map<String, Object> toDto(User u) {
         Map<String, Object> dto = new HashMap<>();
-        dto.put("id",         u.getId());
-        dto.put("firstName",  u.getFirstName());
-        dto.put("lastName",   u.getLastName()   != null ? u.getLastName()   : "");
-        dto.put("email",      u.getEmail());
-        dto.put("phone",      u.getPhone()      != null ? u.getPhone()      : "");
-        dto.put("address",    u.getAddress()    != null ? u.getAddress()    : "");
-        dto.put("city",       u.getCity()       != null ? u.getCity()       : "");
-        dto.put("province",   u.getProvince()   != null ? u.getProvince()   : "");
-        dto.put("zip",        u.getZip()        != null ? u.getZip()        : "");
-        dto.put("role",       u.getRole());
-        dto.put("status",     u.getStatus());
-        dto.put("isActive",   u.getIsActive());
+        dto.put("id", u.getId());
+        dto.put("firstName", u.getFirstName());
+        dto.put("lastName", u.getLastName() != null ? u.getLastName() : "");
+        dto.put("email", u.getEmail());
+        dto.put("phone", u.getPhone() != null ? u.getPhone() : "");
+        dto.put("address", u.getAddress() != null ? u.getAddress() : "");
+        dto.put("city", u.getCity() != null ? u.getCity() : "");
+        dto.put("province", u.getProvince() != null ? u.getProvince() : "");
+        dto.put("zip", u.getZip() != null ? u.getZip() : "");
+        dto.put("role", u.getRole());
+        dto.put("status", u.getStatus());
+        dto.put("isActive", u.getIsActive());
         dto.put("idFileName", u.getIdFileName() != null ? u.getIdFileName() : "");
-        dto.put("photoUrl",   u.getPhoto()      != null
-                                  ? "/api/users/" + u.getId() + "/photo"
-                                  : "");
-        dto.put("createdAt",  u.getCreatedAt());
+        dto.put("photoUrl", u.getPhoto() != null
+                ? "/api/users/" + u.getId() + "/photo"
+                : "");
+        dto.put("createdAt", u.getCreatedAt());
         return dto;
     }
 
     private Map<String, Object> toDtoWithToken(User u, String token, String redirect) {
         Map<String, Object> dto = toDto(u);
-        dto.put("success",  true);
-        dto.put("token",    token);
+        dto.put("success", true);
+        dto.put("token", token);
         dto.put("redirect", redirect);
-        dto.put("message",  "Login successful!");
+        dto.put("message", "Login successful!");
         return dto;
     }
 }

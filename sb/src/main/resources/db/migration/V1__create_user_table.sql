@@ -9,20 +9,23 @@ CREATE TABLE IF NOT EXISTS users (
     city          VARCHAR(50),
     province      VARCHAR(50),
     zip_code      VARCHAR(15),
- 
-    -- ID verification file stored as binary (no folder needed)
+
     id_file       BYTEA,
     id_file_type  VARCHAR(50),
     id_file_name  VARCHAR(255),
- 
+
+    photo         BYTEA,
+    photo_type    VARCHAR(50),
+    photo_name    VARCHAR(255),
+
     created_at    TIMESTAMP       DEFAULT CURRENT_TIMESTAMP,
     status        VARCHAR(20)     NOT NULL DEFAULT 'pending',
     role          VARCHAR(20)     NOT NULL DEFAULT 'user',
-    is_active     INTEGER                  DEFAULT 1,
-    last_login    TIMESTAMP
-);
+    is_active     INTEGER         DEFAULT 1,
+    last_login    TIMESTAMP,
 
-ALTER TABLE users
-  ADD COLUMN IF NOT EXISTS photo       BYTEA,
-  ADD COLUMN IF NOT EXISTS photo_type  VARCHAR(50),
-  ADD COLUMN IF NOT EXISTS photo_name  VARCHAR(255);
+    -- ✅ ADD THESE
+    reset_otp VARCHAR(6),
+    reset_otp_expires_at TIMESTAMP,
+    reset_otp_verified BOOLEAN DEFAULT FALSE
+);

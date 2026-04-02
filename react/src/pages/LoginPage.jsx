@@ -297,9 +297,10 @@ export default function LoginPage() {
                 Remember me
               </label>
               <button type="button" className="forgot-btn"
-                style={{ background:"none",border:"none",fontFamily:"'Nunito',sans-serif",fontSize:"0.9rem",fontWeight:800,color:"#c87820",padding:0,transition:"opacity 0.15s" }}>
-                Forgot password?
-              </button>
+  onClick={() => window.location.href = "/forgot-password"}
+  style={{ background:"none",border:"none",fontFamily:"'Nunito',sans-serif",fontSize:"0.9rem",fontWeight:800,color:"#c87820",padding:0,transition:"opacity 0.15s" }}>
+  Forgot password?
+</button>
             </div>
 
             <button type="submit" className="signin-btn" disabled={loading}
