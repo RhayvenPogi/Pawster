@@ -7,15 +7,16 @@ import {
 } from "../../shared";
 
 export default function UsersPanel({ show: isVisible }) {
-  const [users, setUsers]     = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [search, setSearch]   = useState("");
-  const [roleFilter, setRole] = useState("all");
-  const [modal, setModal]     = useState(null);
-  const [form, setForm]       = useState({});
-  const [delModal, setDel]    = useState(null);
-  const [errs, setErrs]       = useState({});
-  const { show: toast }       = useToast();
+  const [users, setUsers]       = useState([]);
+  const [loading, setLoading]   = useState(false);
+  const [search, setSearch]     = useState("");
+  const [roleFilter, setRole]   = useState("all");
+  const [modal, setModal]       = useState(null);
+  const [form, setForm]         = useState({});
+  const [delModal, setDel]      = useState(null);
+  const [errs, setErrs]         = useState({});
+  const [idPreview, setIdPreview] = useState(null); // { url, name }
+  const { show: toast }         = useToast();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -32,6 +33,14 @@ export default function UsersPanel({ show: isVisible }) {
 
   useEffect(() => { if (isVisible) load(); }, [isVisible, load]);
 
+// ── View ID file in modal ──────────────────────────────────────────────────
+const viewId = (u) => {
+  setIdPreview({
+    url:  `/php/admin/dashboard?action=get_id_file&user_id=${u.id}`,
+    name: u.id_file_name || "ID File",
+    isImage: /\.(jpg|jpeg|png|webp|gif)$/i.test(u.id_file_name || ""),
+  });
+};
   const save = async () => {
     const e = {};
     if (!form.first_name?.trim()) e.first_name = "Required";
@@ -167,27 +176,54 @@ export default function UsersPanel({ show: isVisible }) {
         </div>
       ) : (
         <Table
-          headers={["User", "Email", "Phone", "Role", "Status", "Joined", "Last Login", "Actions"]}
+          headers={["User", "Email", "Phone", "Role", "Status", "ID File", "Joined", "Last Login", "Actions"]}
           empty="No users found.">
           {filtered.map(u => (
             <Tr key={u.id}>
-              <Td>
-                <div className="flex items-center gap-2.5">
-                  <div
-                    className="w-9 h-9 rounded-full flex items-center justify-center text-white font-black text-xs flex-shrink-0 border-2 border-green-200"
-                    style={{ background: "linear-gradient(135deg,#1c4f09,#2a7010)" }}>
-                    {(u.first_name?.[0] || "").toUpperCase()}{(u.last_name?.[0] || "").toUpperCase()}
-                  </div>
-                  <div>
-                    <div className="font-black text-sm">{u.first_name} {u.last_name}</div>
-                    <div className="text-[11px] font-semibold" style={{ color: "#9aaa80" }}>#{u.id}</div>
-                  </div>
-                </div>
-              </Td>
+<Td>
+  <div className="flex items-center gap-2.5">
+<div
+  className="w-9 h-9 rounded-full flex-shrink-0 border-2 border-green-200 overflow-hidden"
+  style={{ background: "linear-gradient(135deg,#1c4f09,#2a7010)" }}>
+  {u.photo_name ? (
+    <img
+      src={`/api/users/${u.id}/photo/public`}
+      alt="avatar"
+      className="w-full h-full object-cover"
+      onError={e => { e.target.style.display = "none"; }}
+    />
+  ) : (
+    <div className="w-full h-full flex items-center justify-center text-white font-black text-xs">
+      {(u.first_name?.[0] || "").toUpperCase()}{(u.last_name?.[0] || "").toUpperCase()}
+    </div>
+  )}
+</div>
+    <div>
+      <div className="font-black text-sm">{u.first_name} {u.last_name}</div>
+      <div className="text-[11px] font-semibold" style={{ color: "#9aaa80" }}>#{u.id}</div>
+    </div>
+  </div>
+</Td>
               <Td>{u.email}</Td>
               <Td className="text-xs">{u.phone || "—"}</Td>
               <Td><Badge color={roleBadge(u.role)}>{u.role}</Badge></Td>
               <Td><Badge color={u.is_active == 1 ? "green" : "red"}>{u.is_active == 1 ? "Active" : "Inactive"}</Badge></Td>
+
+              {/* ── ID File column ───────────────────────────────────────── */}
+              <Td>
+                {u.id_file_name ? (
+                  <button
+                    onClick={() => viewId(u)}
+                    className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold border transition-all hover:bg-green-50 hover:border-green-400 hover:text-green-700"
+                    style={{ borderColor: "#c5d8a0", color: "#4a7020" }}
+                    title={u.id_file_name}>
+                    🪪 View ID
+                  </button>
+                ) : (
+                  <span className="text-xs font-semibold" style={{ color: "#c0b080" }}>None</span>
+                )}
+              </Td>
+
               <Td className="text-xs whitespace-nowrap">
                 {u.created_at
                   ? new Date(u.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
@@ -243,7 +279,6 @@ export default function UsersPanel({ show: isVisible }) {
           </div>
         )}
 
-        {/* ── Info notice for Add mode ──────────────────────────────────────── */}
         {isAdd && (
           <div className="bg-green-50 border border-green-200 rounded-xl px-3 py-2 text-green-700 text-xs font-bold flex items-center gap-2">
             ✉️ A random password will be auto-generated and emailed to the user.
@@ -313,6 +348,76 @@ export default function UsersPanel({ show: isVisible }) {
           This cannot be undone.
         </p>
       </Modal>
+
+      {/* ── ID File Preview Modal ─────────────────────────────────────────────── */}
+{/* ── Responsive ID Preview Modal ───────────────────────────────────────── */}
+<Modal
+  open={!!idPreview}
+  onClose={() => setIdPreview(null)}
+  title="ID Verification"
+  icon="🪪"
+  className="!w-full !max-w-full !p-0"
+  contentClassName="!p-0 !overflow-visible"
+  footer={
+    <div className="flex justify-between items-center w-full px-4 py-2">
+      {idPreview && (
+        <a
+          href={idPreview.url}
+          download={idPreview.name}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black border transition-all hover:bg-green-50 hover:border-green-400 hover:text-green-700"
+          style={{ borderColor: "#c5d8a0", color: "#4a7020" }}
+        >
+          ⬇ Download
+        </a>
+      )}
+      <BtnCancel onClick={() => setIdPreview(null)} />
+    </div>
+  }
+>
+  {idPreview && (
+    <div className="flex justify-center items-center p-4 w-full">
+      <div
+        className="bg-white rounded-xl shadow-lg flex justify-center items-center"
+        style={{
+          maxWidth: "95vw",
+          maxHeight: "90vh",
+          width: "auto",
+          height: "auto",
+        }}
+      >
+        {idPreview.isImage ? (
+          <img
+            src={idPreview.url}
+            alt="User ID"
+            className="w-full h-auto max-h-[90vh] object-contain"
+          />
+        ) : (
+          <object
+            data={idPreview.url}
+            type="application/pdf"
+            style={{
+              width: "100%",
+              height: "90vh",
+              border: "none",
+            }}
+          >
+            <p className="text-center text-sm p-4" style={{ color: "#7a9060" }}>
+              PDF preview unavailable —{" "}
+              <a
+                href={idPreview.url}
+                download
+                style={{ color: "#1c4f09", textDecoration: "underline" }}
+              >
+                Download to view
+              </a>
+            </p>
+          </object>
+        )}
+      </div>
+    </div>
+  )}
+</Modal>
+
     </div>
   );
 }

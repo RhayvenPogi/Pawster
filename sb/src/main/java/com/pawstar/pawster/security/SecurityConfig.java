@@ -85,6 +85,7 @@ public class SecurityConfig {
                         // ── Missing Pets: anyone can view & report ──────────
                         .requestMatchers(HttpMethod.GET, "/api/missing-pets/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/missing-pets").permitAll()
+                        .requestMatchers("/api/users/*/photo/public").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((req, res, e) -> {

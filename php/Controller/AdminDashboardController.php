@@ -35,6 +35,7 @@ class AdminDashboardController
                 'add_user'           => $this->addUser(),
                 'update_user'        => $this->updateUser(),
                 'update_user_status' => $this->updateUserStatus(),
+                'get_id_file' => $this->getIdFile(),
                 'get_activity'       => $this->getActivity(),
                 'get_chart_data'     => $this->getChartData(),
                 'get_dashboard_stats'=> $this->stats(),   // alias
@@ -59,10 +60,10 @@ class AdminDashboardController
     private function stats(): void
     {
         $db = $this->db();
-
-        $q = fn(string $sql) => (int) $db->query($sql)->fetchColumn();
+        $q  = fn(string $sql) => (int) $db->query($sql)->fetchColumn();
 
         $this->ok([
+            // existing
             'animals'           => $q("SELECT COUNT(*) FROM animals"),
             'adoptions'         => $q("SELECT COUNT(*) FROM adoption_requests"),
             'rehome'            => $q("SELECT COUNT(*) FROM rehome_requests"),
@@ -73,9 +74,12 @@ class AdminDashboardController
             'health_healthy'    => $q("SELECT COUNT(*) FROM animals WHERE health='Healthy'"),
             'health_care'       => $q("SELECT COUNT(*) FROM animals WHERE health='Needs Care'"),
             'health_treatment'  => $q("SELECT COUNT(*) FROM animals WHERE health='Under Treatment'"),
+            // new badges
+            'missing_pets'      => $q("SELECT COUNT(*) FROM missing_pets"),
+            'activity_today'    => $q("SELECT COUNT(*) FROM activity_logs WHERE created_at::date = CURRENT_DATE"),
+            'total_records'     => $q("SELECT (SELECT COUNT(*) FROM animals) + (SELECT COUNT(*) FROM adoption_requests) + (SELECT COUNT(*) FROM rehome_requests)"),
         ]);
     }
-
     // ── Animals ──────────────────────────────────────────────────────────────
     private function getAnimals(): void
     {
@@ -298,33 +302,35 @@ private function getChartData(): void
 }
 
     // ── Users ─────────────────────────────────────────────────────────────────
-    private function getUsers(): void
-    {
-        $role = $this->body('role') ?: ($_GET['role'] ?? 'all');
-        $db   = $this->db();
+private function getUsers(): void
+{
+    $role = $this->body('role') ?: ($_GET['role'] ?? 'all');
+    $db   = $this->db();
 
-        if ($role && $role !== 'all') {
-            $stmt = $db->prepare(
-                "SELECT id, first_name, last_name, email, phone, role, is_active, created_at, last_login
-                 FROM users WHERE role = :role ORDER BY created_at DESC"
-            );
-            $stmt->execute(['role' => $role]);
-        } else {
-            $stmt = $db->query(
-                "SELECT id, first_name, last_name, email, phone, role, is_active, created_at, last_login
-                 FROM users ORDER BY created_at DESC"
-            );
-        }
-
-        $this->ok($stmt->fetchAll());
+    if ($role && $role !== 'all') {
+        $stmt = $db->prepare(
+            "SELECT id, first_name, last_name, email, phone, role, is_active, created_at, last_login,
+                    id_file_name, photo_name
+             FROM users WHERE role = :role ORDER BY created_at DESC"
+        );
+        $stmt->execute(['role' => $role]);
+    } else {
+        $stmt = $db->query(
+            "SELECT id, first_name, last_name, email, phone, role, is_active, created_at, last_login,
+                    id_file_name, photo_name
+             FROM users ORDER BY created_at DESC"
+        );
     }
 
+    $this->ok($stmt->fetchAll());
+}
     private function getUsersGeo(): void
 {
     $stmt = $this->db()->query(
         "SELECT id, first_name, last_name, email, phone, role,
                 is_active, created_at, last_login,
-                address, city, province, zip_code
+                address, city, province, zip_code,
+                id_file_name
          FROM users
          ORDER BY created_at DESC"
     );
@@ -629,4 +635,28 @@ private function body(string $key, mixed $default = null): mixed
             // non-fatal
         }
     }
+
+private function getIdFile(): void
+{
+    $userId = (int) ($_GET['user_id'] ?? 0);
+    if (!$userId) $this->fail('User ID required.');
+
+    $stmt = $this->db()->prepare("SELECT id_file_name, id_file, id_file_type FROM users WHERE id = :id");
+    $stmt->execute(['id' => $userId]);
+    $row = $stmt->fetch();
+
+    if (!$row || !$row['id_file']) {
+        http_response_code(404);
+        echo "No ID file found.";
+        exit();
+    }
+
+    // BYTEA comes back as a PHP resource — read it into a string
+    $data = is_resource($row['id_file']) ? stream_get_contents($row['id_file']) : $row['id_file'];
+
+    header('Content-Type: ' . ($row['id_file_type'] ?: 'application/octet-stream'));
+    header('Content-Disposition: inline; filename="' . $row['id_file_name'] . '"');
+    echo $data;
+    exit();
+}
 }

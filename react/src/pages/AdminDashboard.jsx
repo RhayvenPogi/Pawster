@@ -4,40 +4,53 @@ import { phpApi, useToast, ToastContainer } from "../shared";
 import { useAuth } from "../hooks/useAuth";
 import logo from "../images/logo.png";
 
-import DashboardPanel    from "./admin/DashboardPanel";
-import AnimalsPanel      from "./admin/AnimalsPanel";
-import RequestsPanel     from "./admin/RequestsPanel";
-import SurveysPanel      from "./admin/SurveysPanel";
-import UsersPanel        from "./admin/UsersPanel";
-import GeoMapPanel       from "./admin/GeoMapPanel";
-import ActivityPanel     from "./admin/ActivityPanel";
-import ProfilePanel      from "./admin/ProfilePanel";
-import MissingPetsPanel  from "./admin/MissingPetsPanel";   // ← NEW
+import DashboardPanel   from "./admin/DashboardPanel";
+import AnimalsPanel     from "./admin/AnimalsPanel";
+import RequestsPanel    from "./admin/RequestsPanel";
+import SurveysPanel     from "./admin/SurveysPanel";
+import UsersPanel       from "./admin/UsersPanel";
+import GeoMapPanel      from "./admin/GeoMapPanel";
+import ActivityPanel    from "./admin/ActivityPanel";
+import ProfilePanel     from "./admin/ProfilePanel";
+import MissingPetsPanel from "./admin/MissingPetsPanel";
 
 const NAV = [
   {
     group: "Overview",
-    items: [{ id: "overview", label: "Dashboard", ico: "ico-blue", faIcon: "chart-line" }],
+    items: [
+      { id: "overview", label: "Dashboard", ico: "ico-blue", faIcon: "chart-line",
+        badge: "total_records", badgeWarn: false },
+    ],
   },
   {
     group: "Management",
     items: [
-      { id: "animals",      label: "Animals",       ico: "ico-green",  faIcon: "paw",            badge: "animals",           badgeWarn: false },
-      { id: "adoptions",    label: "Adoptions",     ico: "ico-orange", faIcon: "heart",          badge: "pending_adoptions", badgeWarn: true  },
-      { id: "rehome",       label: "Rehoming",      ico: "ico-amber",  faIcon: "home",           badge: "pending_rehome",    badgeWarn: false },
-      { id: "surveys",      label: "Surveys",       ico: "ico-teal",   faIcon: "clipboard-list", badge: "surveys",           badgeWarn: false },
-      { id: "missingpets",  label: "Missing Pets",  ico: "ico-rose",   faIcon: "search",         badge: "missing_pets",      badgeWarn: false }, // ← NEW
+      { id: "animals",     label: "Animals",      ico: "ico-green",  faIcon: "paw",
+        badge: "animals",           badgeWarn: false },
+      { id: "adoptions",   label: "Adoptions",    ico: "ico-orange", faIcon: "heart",
+        badge: "pending_adoptions", badgeWarn: true  },
+      { id: "rehome",      label: "Rehoming",     ico: "ico-amber",  faIcon: "home",
+        badge: "pending_rehome",    badgeWarn: true  },
+      { id: "surveys",     label: "Surveys",      ico: "ico-teal",   faIcon: "clipboard-list",
+        badge: "surveys",           badgeWarn: false },
+      { id: "missingpets", label: "Missing Pets", ico: "ico-rose",   faIcon: "search",
+        badge: "missing_pets",      badgeWarn: true  },
     ],
   },
   {
     group: "Analytics",
-    items: [{ id: "map", label: "Geographic Map", ico: "ico-blue", faIcon: "globe-asia" }],
+    items: [
+      { id: "map", label: "Geographic Map", ico: "ico-blue", faIcon: "globe-asia",
+        badge: "users", badgeWarn: false },
+    ],
   },
   {
     group: "System",
     items: [
-      { id: "users",    label: "User Management", ico: "ico-purple", faIcon: "users",   badge: "users", badgeWarn: false },
-      { id: "activity", label: "Activity Log",    ico: "ico-rose",   faIcon: "history" },
+      { id: "users",    label: "User Management", ico: "ico-purple", faIcon: "users",
+        badge: "users",          badgeWarn: false },
+      { id: "activity", label: "Activity Log",    ico: "ico-rose",   faIcon: "history",
+        badge: "activity_today", badgeWarn: false },
     ],
   },
 ];
@@ -97,7 +110,7 @@ function FaIcon({ name, size = 14, color = "currentColor" }) {
     "sign-out-alt":      "M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z",
     "arrow-left":        "M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z",
     "external-link-alt": "M19 19H5V5h7V3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z",
-    "user-cog":          "M12 14c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0-6c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2zm-1 9.93V22h2v-4.07c3.62-.44 6.5-3.34 6.94-7H22v-2h-2.06C19.5 5.34 16.62 2.44 13 2V0h-2v2C7.38 2.44 4.5 5.34 4.06 9H2v2h2.06c.44 3.66 3.32 6.56 6.94 7z",
+    "user-cog":          "M12 14c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0-6c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2zm-1 9.93V22h2v-4.07c3.62-.44 6.5-3.34 6.94-7H22v-2h-2.06C19.5 5.34 16.62 2.44 13 2V0h-2v2C7.38 2.44 4.5 5.34 4.06 9H2v2h2.06c.44 3.66 3.32 6.56 6.94 7z",
     "shield-alt":        "M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z",
     "times":             "M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z",
     "search":            "M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z",
@@ -184,18 +197,29 @@ function ProfileModal({ user, onClose, onUserUpdate, defaultTab = "profile" }) {
     reader.readAsDataURL(f);
   };
 
-  const uploadPhoto = async () => {
-    if (!pendingFile) return;
-    const fd = new FormData();
-    fd.append("action", "upload_photo");
-    fd.append("photo", pendingFile);
-    try {
-      const res = await fetch("../php/admin_dashboard.php", { method: "POST", body: fd, credentials: "include" });
-      const r = await res.json();
-      if (r.success) { setPendingFile(null); onUserUpdate({ avatar: r.url }); showMsg("success", "Photo updated!"); }
-      else showMsg("error", "Upload failed.");
-    } catch { showMsg("error", "Upload error."); }
-  };
+const uploadPhoto = async () => {
+  if (!pendingFile) return;
+  const fd = new FormData();
+  fd.append("action", "upload_photo");
+  fd.append("photo", pendingFile);
+  try {
+    const res = await fetch("/php/admin/dashboard", {  // ← fix URL
+      method: "POST",
+      body: fd,
+      credentials: "include"
+    });
+    const r = await res.json();
+    if (r.success) {
+      setPendingFile(null);
+      const newAvatar = r.data?.url || r.url;
+      setPhotoSrc(newAvatar);
+      onUserUpdate({ avatar: newAvatar });
+      showMsg("success", "Photo updated!");
+    } else {
+      showMsg("error", r.message || "Upload failed.");
+    }
+  } catch { showMsg("error", "Upload error."); }
+};
 
   const tabs = [
     { id: "profile",  label: "Personal Info", icon: "👤" },
@@ -348,8 +372,8 @@ function Sidebar({ active, onNav, stats, user, collapsed, onToggle, onLogout }) 
             {!collapsed && <div className="text-[0.61rem] font-black uppercase tracking-widest text-[#6a7a50] px-2 pt-3 pb-1">{group.group}</div>}
             {group.items.map(item => {
               const isActive = active === item.id;
-              const ico = ICO_COLORS[item.ico] || ICO_COLORS["ico-blue"];
-              const count = item.badge ? (stats[item.badge] || 0) : 0;
+              const ico      = ICO_COLORS[item.ico] || ICO_COLORS["ico-blue"];
+              const count    = item.badge ? (stats[item.badge] ?? 0) : 0;
               return (
                 <button key={item.id} onClick={() => onNav(item.id)}
                   className={`w-full flex items-center gap-2 mb-0.5 rounded-xl text-[0.855rem] font-bold whitespace-nowrap transition-all duration-150 cursor-pointer border-none bg-transparent ${collapsed ? "p-2.5 justify-center" : "py-2 px-2.5"} ${isActive ? "text-[#1a4a08]" : "text-[#3a5020] hover:bg-[rgba(90,170,48,0.10)] hover:text-[#1a4a08]"}`}
@@ -359,9 +383,20 @@ function Sidebar({ active, onNav, stats, user, collapsed, onToggle, onLogout }) 
                   </div>
                   {!collapsed && <span className="flex-1 text-left">{item.label}</span>}
                   {!collapsed && count > 0 && (
-                    <div className="text-[0.63rem] font-black px-2 py-0.5 rounded-full" style={{ background: item.badgeWarn ? "rgba(180,90,34,0.15)" : (isActive ? "rgba(90,170,48,0.20)" : "rgba(180,140,60,0.14)"), color: item.badgeWarn ? "#B45A22" : (isActive ? "#1c4f09" : "#6a7a50") }}>
+                    <div className="text-[0.63rem] font-black px-2 py-0.5 rounded-full" style={{
+                      background: item.badgeWarn
+                        ? "rgba(180,90,34,0.15)"
+                        : (isActive ? "rgba(90,170,48,0.20)" : "rgba(180,140,60,0.14)"),
+                      color: item.badgeWarn
+                        ? "#B45A22"
+                        : (isActive ? "#1c4f09" : "#6a7a50"),
+                    }}>
                       {count}
                     </div>
+                  )}
+                  {/* Show dot on collapsed sidebar when there's a warn badge */}
+                  {collapsed && item.badgeWarn && count > 0 && (
+                    <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[#B45A22]" />
                   )}
                 </button>
               );
@@ -448,7 +483,21 @@ export default function AdminDashboard() {
   const [user, setUser]       = useState(null);
   const [panel, setPanel]     = useState("overview");
   const [collapsed, setCollapsed] = useState(false);
-  const [stats, setStats]     = useState({ animals: 0, pending_adoptions: 0, pending_rehome: 0, surveys: 0, users: 0, missing_pets: 0 });
+  const [stats, setStats]     = useState({
+    animals:           0,
+    adoptions:         0,
+    rehome:            0,
+    users:             0,
+    pending_adoptions: 0,
+    pending_rehome:    0,
+    surveys:           0,
+    health_healthy:    0,
+    health_care:       0,
+    health_treatment:  0,
+    missing_pets:      0,
+    activity_today:    0,
+    total_records:     0,
+  });
   const [refreshKey, setRefreshKey] = useState(0);
   const { toasts, show: toast }     = useToast();
   const [profileModal, setProfileModal] = useState({ open: false, tab: "profile" });
@@ -463,7 +512,9 @@ export default function AdminDashboard() {
       ]);
       const phpData = phpRes.success ? (phpRes.data || {}) : {};
       const mpData  = mpRes.ok ? await mpRes.json() : [];
-      setStats({ ...phpData, missing_pets: Array.isArray(mpData) ? mpData.length : 0 });
+      // missing_pets: prefer Spring Boot count, fall back to PHP
+      const missingCount = Array.isArray(mpData) ? mpData.length : (phpData.missing_pets ?? 0);
+      setStats({ ...phpData, missing_pets: missingCount });
     } catch (err) { console.error("Failed to fetch stats:", err); }
   }, []);
 
@@ -472,8 +523,14 @@ export default function AdminDashboard() {
 
   if (!user) return null;
 
-  const refresh = () => { setRefreshKey(k => k + 1); toast("Dashboard refreshed", "success"); };
-  const updateUser = (updates) => setUser(u => ({ ...u, ...updates }));
+  const refresh    = () => { setRefreshKey(k => k + 1); toast("Dashboard refreshed", "success"); };
+  const updateUser = (updates) => {
+  setUser(u => {
+    const updated = { ...u, ...updates };
+    localStorage.setItem('pawster_user', JSON.stringify(updated)); // ← persist
+    return updated;
+  });
+};
   const sidebarWidth = collapsed ? 64 : 252;
 
   return (
@@ -488,7 +545,7 @@ export default function AdminDashboard() {
           {panel === "adoptions"   && <RequestsPanel    type="adoptions" show onStatsChange={fetchStats} />}
           {panel === "rehome"      && <RequestsPanel    type="rehome"    show onStatsChange={fetchStats} />}
           {panel === "surveys"     && <SurveysPanel     show onStatsChange={fetchStats} />}
-          {panel === "missingpets" && <MissingPetsPanel show onStatsChange={fetchStats} />}  {/* ← NEW */}
+          {panel === "missingpets" && <MissingPetsPanel show onStatsChange={fetchStats} />}
           {panel === "users"       && <UsersPanel       show onStatsChange={fetchStats} />}
           {panel === "activity"    && <ActivityPanel    show onStatsChange={fetchStats} />}
           {panel === "map"         && <GeoMapPanel      show user={user} onStatsChange={fetchStats} />}

@@ -103,7 +103,7 @@ function RehomeStepContent({ step, form, set, setV }) {
           <RField label="Any known medical conditions?">
             <textarea value={form.medicalNotes} onChange={set("medicalNotes")} rows={3} placeholder="Allergies, ongoing treatments, illnesses…" style={{...inp,resize:"vertical",minHeight:80}} onFocus={focIn} onBlur={focOut}/>
           </RField>
-          {form.isVaccinated==="no"&&(
+          {form.isVaccinated==="yes"&&(
             <div style={{padding:"0.625rem 0.875rem",borderRadius:10,background:"rgba(224,120,32,0.08)",border:"1px solid rgba(224,120,32,0.25)",fontSize:"0.8rem",fontWeight:700,color:"#b05010"}}>
               <i className="fas fa-exclamation-triangle" style={{marginRight:"0.4rem"}}/>Please provide vaccination records when arranging the handover.
             </div>
@@ -285,7 +285,7 @@ export default function Rehome(){
               <div style={{textAlign:"center",padding:"3rem 0"}}>
                 <div style={{fontSize:"3.5rem",marginBottom:"1rem"}}>🏡</div>
                 <div style={{fontFamily:"'Playfair Display',serif",fontSize:"1.6rem",fontWeight:900,color:"#1a4a08",marginBottom:"0.5rem"}}>Thank You!</div>
-                <p style={{fontSize:"0.9rem",fontWeight:700,color:"#3a5020",lineHeight:1.7}}>Your rehoming request has been received. Our team will contact you at <strong>{form.contact}</strong> within 24–48 hours.</p>
+                <p style={{fontSize:"0.9rem",fontWeight:700,color:"#3a5020",lineHeight:1.7}}>Your rehoming request has been received. Our team will contact you at your email within 24–48 hours.</p>
                 <Link to="/home" style={{display:"inline-flex",alignItems:"center",gap:"0.5rem",marginTop:"1.5rem",padding:"0.75rem 1.75rem",borderRadius:12,fontWeight:900,fontSize:"0.9rem",color:"#fff",background:"#1c4f09",textDecoration:"none"}}>Back to Home</Link>
               </div>
             ) : (

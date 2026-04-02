@@ -210,25 +210,63 @@ public class UserController {
     }
 
     // =========================================================================
+    // GET /api/users/{id}/id-file   — admin views a user's uploaded ID
+    // =========================================================================
+    @GetMapping("/{id}/id-file")
+    public ResponseEntity<byte[]> getIdFile(@PathVariable String id) {
+        User user = resolveAndAuthorise(id);
+        if (user == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        if (user.getIdFile() == null) return ResponseEntity.notFound().build();
+
+        String mime = user.getIdFileType() != null ? user.getIdFileType() : "application/octet-stream";
+        String filename = user.getIdFileName() != null ? user.getIdFileName() : "id-file";
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(mime))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
+                .body(user.getIdFile());
+    }
+
+    // ── GET /api/users/{id}/photo/public — no auth required ──
+@GetMapping("/{id}/photo/public")
+public ResponseEntity<byte[]> getPhotoPublic(@PathVariable String id) {
+    try {
+        int userId = Integer.parseInt(id);
+        User user = userRepository.findById(userId).orElse(null);
+        if (user == null || user.getPhoto() == null) {
+            return ResponseEntity.notFound().build();
+        }
+        String mime = user.getPhotoType() != null ? user.getPhotoType() : "image/jpeg";
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(mime))
+                .cacheControl(org.springframework.http.CacheControl.maxAge(7, java.util.concurrent.TimeUnit.DAYS))
+                .body(user.getPhoto());
+    } catch (NumberFormatException e) {
+        return ResponseEntity.badRequest().build();
+    }
+}
+    // =========================================================================
     // DTO — never send password hash or raw file bytes to the client
     // =========================================================================
-   private Map<String, Object> toDto(User u) {
-    Map<String, Object> dto = new java.util.HashMap<>();
-    dto.put("id",         u.getId());
-    dto.put("firstName",  u.getFirstName());
-    dto.put("lastName",   u.getLastName()   != null ? u.getLastName()   : "");
-    dto.put("email",      u.getEmail());
-    dto.put("phone",      u.getPhone()      != null ? u.getPhone()      : "");
-    dto.put("address",    u.getAddress()    != null ? u.getAddress()    : "");
-    dto.put("city",       u.getCity()       != null ? u.getCity()       : "");
-    dto.put("province",   u.getProvince()   != null ? u.getProvince()   : "");
-    dto.put("zip",        u.getZip()        != null ? u.getZip()        : "");
-    dto.put("role",       u.getRole());
-    dto.put("status",     u.getStatus());
-    dto.put("idFileName", u.getIdFileName() != null ? u.getIdFileName() : "");
-    dto.put("photoUrl",   u.getPhoto()      != null
-                              ? "/api/users/" + u.getId() + "/photo"
-                              : "");
-    return dto;
+    private Map<String, Object> toDto(User u) {
+        Map<String, Object> dto = new java.util.HashMap<>();
+        dto.put("id",         u.getId());
+        dto.put("firstName",  u.getFirstName());
+        dto.put("lastName",   u.getLastName()   != null ? u.getLastName()   : "");
+        dto.put("email",      u.getEmail());
+        dto.put("phone",      u.getPhone()      != null ? u.getPhone()      : "");
+        dto.put("address",    u.getAddress()    != null ? u.getAddress()    : "");
+        dto.put("city",       u.getCity()       != null ? u.getCity()       : "");
+        dto.put("province",   u.getProvince()   != null ? u.getProvince()   : "");
+        dto.put("zip",        u.getZip()        != null ? u.getZip()        : "");
+        dto.put("role",       u.getRole());
+        dto.put("status",     u.getStatus());
+        dto.put("idFileName", u.getIdFileName() != null ? u.getIdFileName() : "");
+        // hasIdFile lets the frontend know a file exists without sending bytes
+        dto.put("hasIdFile",  u.getIdFile() != null);
+        dto.put("photoUrl",   u.getPhoto()      != null
+                                  ? "/api/users/" + u.getId() + "/photo"
+                                  : "");
+        return dto;
     }
 }
