@@ -818,7 +818,20 @@ export default function FindAPet() {
       </footer>
 
       {showReview && adoptTarget && <ReviewDetailsModal animal={adoptTarget} user={user} onContinue={handleContinue} onClose={handleCloseAll} />}
-      {showForm   && adoptTarget && <AdoptModal animal={adoptTarget} user={user} onClose={handleCloseAll} onSuccess={(msg, kind) => { showToast(msg, kind); handleCloseAll(); }} />}
+      {showForm && adoptTarget && (
+  <AdoptModal
+    animal={adoptTarget}
+    user={user}
+    onClose={handleCloseAll}
+    onSuccess={(msg, kind) => {
+      showToast(msg, kind);
+      handleCloseAll();
+      if (!kind || kind === "ok") {
+        fetchAnimals(search, type, status); // ✅ re-fetch after successful submission
+      }
+    }}
+  />
+)}
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>
   );

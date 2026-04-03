@@ -1,7 +1,7 @@
 # PAWSTER — Django Backend
 
 <!-- AUTO:START -->
-> 🔍 **Auto-generated documentation** — last updated: 2026-04-02 12:51:07 UTC
+> 🔍 **Auto-generated documentation** — last updated: 2026-04-02 16:34:15 UTC
 > Run `node scripts/generate-readme.js django` to refresh.
 
 ---
@@ -16,30 +16,30 @@ PAWSTER's Django backend is a RESTful API built with Django REST Framework (DRF)
 
 | File                              | Role                                                   |
 | --------------------------------- | ------------------------------------------------------ |
-| apps/approvals/admin.py           | Django admin registration                              |
-| apps/approvals/apps.py            | App configuration (AppConfig)                          |
-| apps/approvals/authentication.py  | Custom authentication backend                          |
-| apps/approvals/models.py          | Django ORM models (DB schema)                          |
-| apps/approvals/serializers.py     | DRF Serializers (data validation & transformation)     |
-| apps/approvals/urls.py            | URL configuration (urlpatterns)                        |
-| apps/approvals/views.py           | DRF Function-Based API View                            |
-| apps/notifications/admin.py       | Django admin registration                              |
-| apps/notifications/apps.py        | App configuration (AppConfig)                          |
-| apps/notifications/models.py      | Django ORM models (DB schema)                          |
-| apps/notifications/serializers.py | DRF Serializers (data validation & transformation)     |
-| apps/notifications/urls.py        | URL configuration (urlpatterns)                        |
-| apps/notifications/views.py       | DRF Function-Based API View                            |
-| apps/surveys/admin.py             | Django admin registration                              |
-| apps/surveys/apps.py              | App configuration (AppConfig)                          |
-| apps/surveys/models.py            | Django ORM models (DB schema)                          |
-| apps/surveys/serializers.py       | DRF Serializers (data validation & transformation)     |
-| apps/surveys/tasks.py             | Celery async tasks                                     |
-| apps/surveys/urls.py              | URL configuration (urlpatterns)                        |
-| apps/surveys/views.py             | DRF Function-Based API View                            |
+| apps\approvals\admin.py           | Django admin registration                              |
+| apps\approvals\apps.py            | App configuration (AppConfig)                          |
+| apps\approvals\authentication.py  | Custom authentication backend                          |
+| apps\approvals\models.py          | Django ORM models (DB schema)                          |
+| apps\approvals\serializers.py     | DRF Serializers (data validation & transformation)     |
+| apps\approvals\urls.py            | URL configuration (urlpatterns)                        |
+| apps\approvals\views.py           | DRF Function-Based API View                            |
+| apps\notifications\admin.py       | Django admin registration                              |
+| apps\notifications\apps.py        | App configuration (AppConfig)                          |
+| apps\notifications\models.py      | Django ORM models (DB schema)                          |
+| apps\notifications\serializers.py | DRF Serializers (data validation & transformation)     |
+| apps\notifications\urls.py        | URL configuration (urlpatterns)                        |
+| apps\notifications\views.py       | DRF Function-Based API View                            |
+| apps\surveys\admin.py             | Django admin registration                              |
+| apps\surveys\apps.py              | App configuration (AppConfig)                          |
+| apps\surveys\models.py            | Django ORM models (DB schema)                          |
+| apps\surveys\serializers.py       | DRF Serializers (data validation & transformation)     |
+| apps\surveys\tasks.py             | Celery async tasks                                     |
+| apps\surveys\urls.py              | URL configuration (urlpatterns)                        |
+| apps\surveys\views.py             | DRF Function-Based API View                            |
 | manage.py                         | Django management CLI entry point                      |
-| pawster/settings.py               | Django settings (DB, auth, installed apps, DRF config) |
-| pawster/urls.py                   | URL configuration (urlpatterns)                        |
-| pawster/wsgi.py                   | WSGI server entry point (production)                   |
+| pawster\settings.py               | Django settings (DB, auth, installed apps, DRF config) |
+| pawster\urls.py                   | URL configuration (urlpatterns)                        |
+| pawster\wsgi.py                   | WSGI server entry point (production)                   |
 
 ## 🔐 Authentication Flow
 
@@ -226,6 +226,7 @@ CORS_ALLOWED_ORIGINS = os.environ.get(
 django/
 ├── ./
 │   ├── Dockerfile
+│   ├── README.md
 │   ├── apps/
 │   │   ├── __init__.py
 │   │   ├── approvals/

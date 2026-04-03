@@ -276,7 +276,7 @@ export default function RegisterPage() {
     try {
       // ✅ register() → useAuth → api (axios) → http://localhost:8080/api/auth/register
       await register(fd);
-      // navigation to /home is handled inside useAuth.register()
+     
     } catch (err) {
       const msg = err.response?.data?.message || "An error occurred during registration.";
       setAlert({ type:"error", msg });

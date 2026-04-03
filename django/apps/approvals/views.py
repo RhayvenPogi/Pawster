@@ -2,6 +2,8 @@
 apps/approvals/views.py
 8 endpoints — submit adoption/rehome, list all, approve, reject (each sends email).
 """
+import requests
+from django.conf import settings
 from django.utils import timezone
 from django.core.mail import send_mail
 from django.conf import settings
@@ -12,6 +14,8 @@ from rest_framework.response import Response
 
 from .models import AdoptionRequest, RehomingRequest
 from .serializers import AdoptionRequestSerializer, RehomingRequestSerializer
+
+
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -96,6 +100,17 @@ def submit_adoption(request):
     serializer = AdoptionRequestSerializer(data=request.data)
     if serializer.is_valid():
         obj = serializer.save(user=request.user)
+
+        # ✅ Tell Spring Boot to mark the animal as Pending
+        try:
+            requests.post(
+                f"{settings.SPRING_BOOT_API}/api/animals/mark-pending",
+                json={"animalName": obj.animal_name},
+                timeout=5
+            )
+        except Exception:
+            pass  # Don't fail the submission if Spring Boot is down
+
         return Response({"success": True, "id": obj.id, "message": "Adoption request submitted."}, status=201)
     return Response({"success": False, "errors": serializer.errors}, status=400)
 
@@ -125,6 +140,17 @@ def approve_adoption(request, pk):
     obj.decided_at    = timezone.now()
     obj.adoption_date = timezone.now()
     obj.save()
+
+    # ✅ NEW: Tell Spring Boot to mark the animal as Adopted
+    try:
+        spring_url = f"{settings.SPRING_BOOT_API}/api/animals/mark-adopted"
+        requests.post(
+            spring_url,
+            json={"animalName": obj.animal_name},
+            timeout=5
+        )
+    except Exception:
+        pass  # Do not break approval if Spring Boot is down
 
     # Create follow-up surveys via Celery
     from apps.surveys.tasks import create_followup_surveys_for_adoption

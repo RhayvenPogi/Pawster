@@ -22,10 +22,9 @@ public class AnimalService {
         }
         Animal saved = animalRepository.save(animal);
         activityLogService.log(
-            "ADD_ANIMAL",
-            "Added animal: " + saved.getName() + " (" + saved.getType() + ")",
-            adminId, adminName
-        );
+                "ADD_ANIMAL",
+                "Added animal: " + saved.getName() + " (" + saved.getType() + ")",
+                adminId, adminName);
         return saved;
     }
 
@@ -62,10 +61,9 @@ public class AnimalService {
         animal.setNotes(updated.getNotes());
         Animal saved = animalRepository.save(animal);
         activityLogService.log(
-            "UPDATE_ANIMAL",
-            "Updated animal: " + saved.getName() + " → status=" + saved.getStatus(),
-            adminId, adminName
-        );
+                "UPDATE_ANIMAL",
+                "Updated animal: " + saved.getName() + " → status=" + saved.getStatus(),
+                adminId, adminName);
         return saved;
     }
 
@@ -73,9 +71,42 @@ public class AnimalService {
         Animal animal = getById(id);
         animalRepository.deleteById(id);
         activityLogService.log(
-            "DELETE_ANIMAL",
-            "Deleted animal: " + animal.getName(),
-            adminId, adminName
-        );
+                "DELETE_ANIMAL",
+                "Deleted animal: " + animal.getName(),
+                adminId, adminName);
+    }
+
+    // ✅ Called by Django after approving an adoption
+    public boolean markAsAdopted(String animalName) {
+        return animalRepository.findByNameContainingIgnoreCase(animalName).stream()
+                .filter(a -> "Available".equals(a.getStatus()) || "Pending".equals(a.getStatus()))
+                .findFirst()
+                .map(a -> {
+                    a.setStatus("Adopted");
+                    animalRepository.save(a);
+                    activityLogService.log(
+                            "MARK_ADOPTED",
+                            "Animal marked as Adopted via approval: " + a.getName(),
+                            null, "system");
+                    return true;
+                })
+                .orElse(false);
+    }
+
+    // ✅ Called by Django when a user submits an adoption request
+    public boolean markAsPending(String animalName) {
+        return animalRepository.findByNameContainingIgnoreCase(animalName).stream()
+                .filter(a -> "Available".equals(a.getStatus()))
+                .findFirst()
+                .map(a -> {
+                    a.setStatus("Pending");
+                    animalRepository.save(a);
+                    activityLogService.log(
+                            "MARK_PENDING",
+                            "Animal marked as Pending via adoption request: " + a.getName(),
+                            null, "system");
+                    return true;
+                })
+                .orElse(false);
     }
 }

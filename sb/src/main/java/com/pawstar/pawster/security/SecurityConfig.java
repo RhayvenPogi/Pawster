@@ -59,6 +59,8 @@ public class SecurityConfig {
 
                                                 // ── Animals: anyone can browse, only admin can write ───────
                                                 .requestMatchers(HttpMethod.GET, "/api/animals/**").permitAll()
+                                                .requestMatchers(HttpMethod.POST, "/api/animals/mark-adopted").permitAll() 
+                                                .requestMatchers(HttpMethod.POST, "/api/animals/mark-pending").permitAll()
                                                 .requestMatchers(HttpMethod.POST, "/api/animals/**")
                                                 .hasAnyAuthority("admin", "ADMIN")
                                                 .requestMatchers(HttpMethod.PUT, "/api/animals/**")

@@ -25,9 +25,12 @@ public class AnimalController {
             @RequestParam(required = false) String type,
             @RequestParam(required = false) String status) {
 
-        if (type != null && status != null) return animalService.getByTypeAndStatus(type, status);
-        if (type   != null)                 return animalService.getByType(type);
-        if (status != null)                 return animalService.getByStatus(status);
+        if (type != null && status != null)
+            return animalService.getByTypeAndStatus(type, status);
+        if (type != null)
+            return animalService.getByType(type);
+        if (status != null)
+            return animalService.getByStatus(status);
         return animalService.getAll();
     }
 
@@ -41,7 +44,7 @@ public class AnimalController {
         }
     }
 
-    // POST /api/animals  — ADMIN only
+    // POST /api/animals — ADMIN only
     @PostMapping
     public ResponseEntity<?> create(@RequestBody AnimalRequest dto, Authentication auth) {
         try {
@@ -53,11 +56,11 @@ public class AnimalController {
         }
     }
 
-    // PUT /api/animals/{id}  — ADMIN only
+    // PUT /api/animals/{id} — ADMIN only
     @PutMapping("/{id}")
     public ResponseEntity<?> update(@PathVariable Integer id,
-                                    @RequestBody AnimalRequest dto,
-                                    Authentication auth) {
+            @RequestBody AnimalRequest dto,
+            Authentication auth) {
         try {
             String adminName = auth != null ? auth.getName() : "admin";
             return ResponseEntity.ok(animalService.update(id, toEntity(dto), null, adminName));
@@ -66,7 +69,7 @@ public class AnimalController {
         }
     }
 
-    // DELETE /api/animals/{id}  — ADMIN only
+    // DELETE /api/animals/{id} — ADMIN only
     @DeleteMapping("/{id}")
     public ResponseEntity<?> delete(@PathVariable Integer id, Authentication auth) {
         try {
@@ -78,12 +81,39 @@ public class AnimalController {
         }
     }
 
+    // ✅ POST /api/animals/mark-adopted — called by Django after approval
+    // Body: { "animalName": "Buddy" }
+    @PostMapping("/mark-adopted")
+    public ResponseEntity<?> markAdopted(@RequestBody Map<String, String> body) {
+        String animalName = body.get("animalName");
+        if (animalName == null || animalName.isBlank()) {
+            return bad("animalName is required.");
+        }
+        boolean updated = animalService.markAsAdopted(animalName);
+        if (updated) {
+            return ResponseEntity.ok(Map.of("success", true, "message", "Animal marked as Adopted."));
+        } else {
+            return ResponseEntity.ok(Map.of("success", false, "message", "No available animal found with that name."));
+        }
+    }
+
+    // POST /api/animals/mark-pending — called by Django on submission
+    @PostMapping("/mark-pending")
+    public ResponseEntity<?> markPending(@RequestBody Map<String, String> body) {
+        String animalName = body.get("animalName");
+        if (animalName == null || animalName.isBlank()) {
+            return bad("animalName is required.");
+        }
+        boolean updated = animalService.markAsPending(animalName);
+        return ResponseEntity.ok(Map.of("success", true, "updated", updated));
+    }
+
     // ── DTO → Entity ───────────────────────────────────────────────────────────
 
     private Animal toEntity(AnimalRequest dto) {
         Animal a = new Animal();
         a.setName(dto.getName());
-        a.setType(dto.getType()     != null ? dto.getType()   : "Dog");
+        a.setType(dto.getType() != null ? dto.getType() : "Dog");
         a.setBreed(dto.getBreed());
         a.setAge(dto.getAge());
         a.setHealth(dto.getHealth() != null ? dto.getHealth() : "Healthy");

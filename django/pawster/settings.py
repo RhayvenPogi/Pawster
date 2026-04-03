@@ -80,41 +80,47 @@ REST_FRAMEWORK = {
 }
 
 # ── Spring Boot JWT secret (base64-encoded in docker-compose) ─────────────────
-# Spring Boot stores it base64-encoded; we decode it to get the raw signing key.
 _raw_jwt_secret = os.environ.get(
     "JWT_SECRET",
-    "Zm9ydHktdHdvLWlzLXRoZS1hbnN3ZXItdG8tbGlmZS10aGUtdW5pdmVyc2UtYW5kLWV2ZXJ5dGhpbmc="
+    "Zm9ydHktdHdvLXRoZS1hbnN3ZXItdG8tbGlmZS10aGUtdW5pdmVyc2UtYW5kLWV2ZXJ5dGhpbmc="
 )
 try:
     SPRING_JWT_SECRET = base64.b64decode(_raw_jwt_secret)
 except Exception:
     SPRING_JWT_SECRET = _raw_jwt_secret.encode()
 
-# ── CORS ─────────────────────────────────────────────────────────────────────
+# ── CORS ──────────────────────────────────────────────────────────────────────
 CORS_ALLOWED_ORIGINS = os.environ.get(
     "CORS_ALLOWED_ORIGINS",
     "http://localhost:3000,http://localhost:5173"
 ).split(",")
 CORS_ALLOW_CREDENTIALS = True
 
-# ── Email (shared SMTP config from Spring Boot) ───────────────────────────────
-EMAIL_BACKEND         = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST            = os.environ.get("SPRING_MAIL_HOST",     "smtp.gmail.com")
-EMAIL_PORT            = int(os.environ.get("SPRING_MAIL_PORT", "587"))
-EMAIL_USE_TLS         = True
-EMAIL_HOST_USER       = os.environ.get("SPRING_MAIL_USERNAME", "")
-EMAIL_HOST_PASSWORD   = os.environ.get("SPRING_MAIL_PASSWORD", "")
-DEFAULT_FROM_EMAIL    = EMAIL_HOST_USER
-APP_BASE_URL          = os.environ.get("APP_BASE_URL", "http://localhost:3000")
+# ── Email ─────────────────────────────────────────────────────────────────────
+EMAIL_BACKEND       = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST          = os.environ.get("SPRING_MAIL_HOST",     "smtp.gmail.com")
+EMAIL_PORT          = int(os.environ.get("SPRING_MAIL_PORT", "587"))
+EMAIL_USE_TLS       = True
+EMAIL_HOST_USER     = os.environ.get("SPRING_MAIL_USERNAME", "")
+EMAIL_HOST_PASSWORD = os.environ.get("SPRING_MAIL_PASSWORD", "")
+DEFAULT_FROM_EMAIL  = EMAIL_HOST_USER
+APP_BASE_URL        = os.environ.get("APP_BASE_URL", "http://localhost:3000")
 
 # ── Celery ────────────────────────────────────────────────────────────────────
-CELERY_BROKER_URL        = os.environ.get("CELERY_BROKER_URL",    "redis://redis:6379/0")
-CELERY_RESULT_BACKEND    = os.environ.get("CELERY_RESULT_BACKEND", "redis://redis:6379/0")
+CELERY_BROKER_URL        = os.environ.get("CELERY_BROKER_URL",     "redis://redis:6379/0")
+CELERY_RESULT_BACKEND    = os.environ.get("CELERY_RESULT_BACKEND",  "redis://redis:6379/0")
 CELERY_ACCEPT_CONTENT    = ["json"]
 CELERY_TASK_SERIALIZER   = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE          = "Asia/Manila"
 CELERY_BEAT_SCHEDULER    = "django_celery_beat.schedulers:DatabaseScheduler"
+
+CELERY_BEAT_SCHEDULE = {
+    "schedule-followup-surveys-every-10s": {
+        "task": "apps.surveys.tasks.schedule_followup_surveys",
+        "schedule": 10.0,   # every 10 seconds
+    },
+}
 
 # ── Static / Media ────────────────────────────────────────────────────────────
 STATIC_URL  = "/static/"
@@ -127,3 +133,5 @@ LANGUAGE_CODE = "en-us"
 TIME_ZONE     = "Asia/Manila"
 USE_I18N = True
 USE_TZ   = True
+
+SPRING_BOOT_API = os.environ.get("SPRING_BOOT_API", "http://sb:8080")

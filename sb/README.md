@@ -3,7 +3,7 @@
 ## 📁 File Structure
 
 <!-- AUTO:START -->
-> 🔍 **Auto-generated documentation** — last updated: 2026-04-02 16:34:15 UTC
+> 🔍 **Auto-generated documentation** — last updated: 2026-04-03 11:33:52 UTC
 > Run `node scripts/generate-readme.js sb` to refresh.
 
 ---
@@ -73,7 +73,7 @@ PAWSTER's Spring Boot backend is a RESTful API secured with Spring Security and 
 ```
 
 **Security Rules:**
-- Public (no auth): HttpMethod.GET,/api/animals/**, /uploads/**, HttpMethod.GET,/api/missing-pets/**, HttpMethod.POST,/api/missing-pets, /api/users/*/photo/public
+- Public (no auth): HttpMethod.GET,/api/animals/**, HttpMethod.POST,/api/animals/mark-adopted, HttpMethod.POST,/api/animals/mark-pending, /uploads/**, HttpMethod.GET,/api/missing-pets/**, HttpMethod.POST,/api/missing-pets, /api/users/*/photo/public
 - All other requests require JWT Bearer token
 - CORS is configured in SecurityConfig
 
@@ -108,14 +108,16 @@ PAWSTER's Spring Boot backend is a RESTful API secured with Spring Security and 
 
 ### AnimalController
 
-| Method | Path                     | Auth      | Description |
-| ------ | ------------------------ | --------- | ----------- |
-| GET    | /api/animals/api/animals | Yes (JWT) |             |
-| GET    | /api/animals             | Yes (JWT) | Get All     |
-| GET    | /api/animals/{id}        | Yes (JWT) | Get One     |
-| POST   | /api/animals             | Yes (JWT) | Create      |
-| PUT    | /api/animals/{id}        | Yes (JWT) | Update      |
-| DELETE | /api/animals/{id}        | Yes (JWT) | Delete      |
+| Method | Path                      | Auth      | Description  |
+| ------ | ------------------------- | --------- | ------------ |
+| GET    | /api/animals/api/animals  | Yes (JWT) |              |
+| GET    | /api/animals              | Yes (JWT) | Get All      |
+| GET    | /api/animals/{id}         | Yes (JWT) | Get One      |
+| POST   | /api/animals              | Yes (JWT) | Create       |
+| PUT    | /api/animals/{id}         | Yes (JWT) | Update       |
+| DELETE | /api/animals/{id}         | Yes (JWT) | Delete       |
+| POST   | /api/animals/mark-adopted | Yes (JWT) | Mark Adopted |
+| POST   | /api/animals/mark-pending | Yes (JWT) | Mark Pending |
 
 ### AuthController
 

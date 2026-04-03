@@ -1,16 +1,16 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
-import logo from "../images/logo.png"; // adjust path if needed
+import logo from "../images/logo.png";
 import NotificationBell from "./NotificationBell";
 
 const NAV_LINKS = [
-  { to: "/home", icon: "fas fa-house", label: "Home" },
-  { to: "/pets", icon: "fas fa-search", label: "Find a Pet" },
-  { to: "/how-it-works", icon: "fas fa-list-ol", label: "How It Works" },
-  { to: "/rehome", icon: "fas fa-home", label: "Rehome" },
-  { to: "/missing-pets", icon: "fas fa-search-location", label: "Missing Pets" },
-  { to: "/about", icon: "fas fa-info-circle", label: "About" },
+  { to: "/home",          icon: "fas fa-house",           label: "Home" },
+  { to: "/pets",          icon: "fas fa-search",          label: "Find a Pet" },
+  { to: "/how-it-works",  icon: "fas fa-list-ol",         label: "How It Works" },
+  { to: "/rehome",        icon: "fas fa-home",            label: "Rehome" },
+  { to: "/missing-pets",  icon: "fas fa-search-location", label: "Missing Pets" },
+  { to: "/about",         icon: "fas fa-info-circle",     label: "About" },
 ];
 
 export default function Navbar({ photoUrl: externalPhotoUrl }) {
@@ -37,8 +37,6 @@ export default function Navbar({ photoUrl: externalPhotoUrl }) {
 
   useEffect(() => setDropOpen(false), [location.pathname]);
 
- 
-
   return (
     <nav className="sticky top-0 z-50 flex items-center h-[70px] px-10 bg-[rgba(255,248,218,0.92)] backdrop-blur-xl border-b border-[rgba(90,170,48,0.45)] shadow-[0_2px_20px_rgba(100,70,20,0.09)]">
 
@@ -52,13 +50,12 @@ export default function Navbar({ photoUrl: externalPhotoUrl }) {
             onError={(e) => (e.target.style.display = "none")}
           />
         </div>
-
         <span className="font-black text-[1.25rem] text-[#1a4a08]">
           Paw<em className="italic text-[#e07820]">ster</em>
         </span>
       </Link>
 
-      {/* CENTER NAV (ABSOLUTE CENTER) */}
+      {/* CENTER NAV */}
       <div className="hidden md:flex absolute left-1/2 -translate-x-1/2 items-center bg-[rgba(255,245,210,0.5)] border border-[rgba(180,140,60,0.28)] rounded-full p-1">
 
         {NAV_LINKS.map(({ to, icon, label }) => {
@@ -85,6 +82,24 @@ export default function Navbar({ photoUrl: externalPhotoUrl }) {
             </Link>
           );
         })}
+
+        {/* Follow-Up Surveys — only shown when logged in */}
+        {user && (
+          <Link
+            to="/follow-up-surveys"
+            className={`
+              flex items-center gap-1 px-3 py-1.5 text-[0.78rem] font-extrabold rounded-full whitespace-nowrap h-[34px]
+              transition-all
+              ${location.pathname === "/follow-up-surveys"
+                ? "bg-gradient-to-br from-[rgba(28,79,9,0.16)] to-[rgba(90,170,48,0.12)] text-[#1a4a08] shadow"
+                : "text-[#1a5fbf] hover:bg-[rgba(26,95,191,0.08)]"
+              }
+            `}
+          >
+            <i className="fas fa-clipboard-list text-[0.7rem]" />
+            Surveys
+          </Link>
+        )}
       </div>
 
       {/* RIGHT SIDE */}
@@ -117,10 +132,7 @@ export default function Navbar({ photoUrl: externalPhotoUrl }) {
                 </div>
               </div>
 
-              <i
-                className={`fas fa-chevron-down text-[10px] transition-transform ${dropOpen ? "rotate-180" : ""
-                  }`}
-              />
+              <i className={`fas fa-chevron-down text-[10px] transition-transform ${dropOpen ? "rotate-180" : ""}`} />
             </button>
 
             {/* DROPDOWN */}
@@ -151,12 +163,29 @@ export default function Navbar({ photoUrl: externalPhotoUrl }) {
 
                 <div className="h-px bg-[rgba(180,140,60,0.22)] my-1" />
 
-                <Link to="/profile" className="block px-3 py-2 text-sm font-bold hover:bg-black/5 rounded-md">
+                <Link
+                  to="/profile"
+                  className="block px-3 py-2 text-sm font-bold hover:bg-black/5 rounded-md"
+                >
                   Dashboard
                 </Link>
 
-                <Link to="/profile/edit" className="block px-3 py-2 text-sm font-bold hover:bg-black/5 rounded-md">
+                <Link
+                  to="/profile/edit"
+                  className="block px-3 py-2 text-sm font-bold hover:bg-black/5 rounded-md"
+                >
                   My Profile
+                </Link>
+
+                {/* Follow-Up Surveys in dropdown too */}
+                <Link
+                  to="/follow-up-surveys"
+                  className={`flex items-center gap-2 px-3 py-2 text-sm font-bold hover:bg-black/5 rounded-md
+                    ${location.pathname === "/follow-up-surveys" ? "text-[#1a4a08]" : "text-[#1a5fbf]"}
+                  `}
+                >
+                  <i className="fas fa-clipboard-list text-xs" />
+                  Follow-Up Surveys
                 </Link>
 
                 <div className="h-px bg-[rgba(180,140,60,0.22)] my-1" />

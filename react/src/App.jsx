@@ -35,7 +35,7 @@ function App() {
                 <Route path="/missing-pets" element={<ProtectedRoute><MissingPets /></ProtectedRoute>} />
                 <Route path="/about"        element={<ProtectedRoute><About /></ProtectedRoute>} />
                 <Route path="/admin"        element={<ProtectedRoute requiredRole="admin"><AdminDashboard /></ProtectedRoute>} />
-                <Route path="/followup-surveys" element={<ProtectedRoute><FollowUpSurveys /></ProtectedRoute>} />
+                <Route path="/follow-up-surveys" element={<ProtectedRoute><FollowUpSurveys /></ProtectedRoute>} />
                 <Route path="*"             element={<Navigate to="/login" replace />} />
             </Routes>
         </BrowserRouter>

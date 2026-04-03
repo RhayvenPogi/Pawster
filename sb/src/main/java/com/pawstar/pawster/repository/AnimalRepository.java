@@ -18,6 +18,7 @@ public interface AnimalRepository extends JpaRepository<Animal, Integer> {
     List<Animal> findByTypeAndStatus(String type, String status);
 
     List<Animal> findByNameContainingIgnoreCase(String name);
+    
 
     @Query("SELECT a FROM Animal a WHERE " +
             "(LOWER(a.name) LIKE :q OR LOWER(a.breed) LIKE :q OR LOWER(a.type) LIKE :q " +
