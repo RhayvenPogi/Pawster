@@ -30,7 +30,6 @@ function PetPhoto({ pet }) {
 
   useEffect(() => { setImgErr(false); }, [pet.photoUrl]);
 
-  // Normalize: strip hardcoded localhost if present (fixes old records)
   const photoUrl = pet.photoUrl
     ? pet.photoUrl.replace(/^https?:\/\/localhost:\d+/, '')
     : null;
@@ -55,24 +54,41 @@ function PetPhoto({ pet }) {
   );
 }
 
-/* ── Species Combobox ── */
 const COMMON_SPECIES = ['Dog', 'Cat', 'Bird', 'Rabbit', 'Hamster', 'Guinea Pig', 'Turtle', 'Snake', 'Lizard', 'Fish'];
 
 function SpeciesCombobox({ value, onChange }) {
   const [open, setOpen] = useState(false);
   const [inputVal, setInputVal] = useState(value || '');
   const wrapRef = useRef(null);
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 });
 
   useEffect(() => { setInputVal(value || ''); }, [value]);
 
   useEffect(() => {
-    const handler = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false); };
+    const handler = (e) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
+    };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const filtered = COMMON_SPECIES.filter(s => s.toLowerCase().includes(inputVal.toLowerCase()));
-  const showCustom = inputVal && !COMMON_SPECIES.some(s => s.toLowerCase() === inputVal.toLowerCase());
+  const handleOpen = () => {
+    if (wrapRef.current) {
+      const rect = wrapRef.current.getBoundingClientRect();
+      setDropdownPos({
+        top: rect.bottom + window.scrollY + 4,
+        left: rect.left + window.scrollX,
+        width: rect.width,
+      });
+    }
+    setOpen(true);
+  };
+
+  const filtered = COMMON_SPECIES.filter(s =>
+    s.toLowerCase().includes(inputVal.toLowerCase())
+  );
+  const showCustom =
+    inputVal && !COMMON_SPECIES.some(s => s.toLowerCase() === inputVal.toLowerCase());
 
   const select = (val) => {
     setInputVal(val);
@@ -87,23 +103,51 @@ function SpeciesCombobox({ value, onChange }) {
           className="mp-field"
           placeholder="Type or select species…"
           value={inputVal}
-          onFocus={() => setOpen(true)}
-          onChange={e => { setInputVal(e.target.value); onChange(e.target.value); setOpen(true); }}
+          onFocus={handleOpen}
+          onChange={e => {
+            setInputVal(e.target.value);
+            onChange(e.target.value);
+            handleOpen();
+          }}
           autoComplete="off"
         />
         <button
           type="button"
-          onClick={() => setOpen(o => !o)}
-          style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#9aaa80', fontSize: '0.75rem', padding: 0 }}>
-          ▾
+          onClick={() => open ? setOpen(false) : handleOpen()}
+          style={{
+            position: 'absolute', right: 10, top: '50%',
+            transform: 'translateY(-50%)', background: 'none',
+            border: 'none', cursor: 'pointer', color: '#9aaa80',
+            fontSize: '0.75rem', padding: 0,
+          }}>
+          {open ? '▴' : '▾'}
         </button>
       </div>
-      {open && (
-        <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 999, background: 'rgba(255,252,235,0.99)', border: '1px solid rgba(180,140,60,0.35)', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', overflow: 'hidden' }}>
+{open && (
+  <div
+    style={{
+      position: 'absolute',
+      top: '100%',
+      left: 0,
+      width: '100%',
+      zIndex: 9999,
+      background: 'rgba(255,252,235,0.99)',
+      border: '1px solid rgba(180,140,60,0.35)',
+      borderRadius: 10,
+      boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+      maxHeight: 220,
+      overflowY: 'auto',
+    }}
+  >
           {showCustom && (
             <div
               onMouseDown={() => select(inputVal)}
-              style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', fontWeight: 700, color: '#B45A22', cursor: 'pointer', borderBottom: '1px solid rgba(180,140,60,0.15)', background: 'rgba(180,90,34,0.04)' }}>
+              style={{
+                padding: '0.6rem 1rem', fontSize: '0.85rem', fontWeight: 700,
+                color: '#B45A22', cursor: 'pointer',
+                borderBottom: '1px solid rgba(180,140,60,0.15)',
+                background: 'rgba(180,90,34,0.04)',
+              }}>
               + Use "{inputVal}"
             </div>
           )}
@@ -111,9 +155,18 @@ function SpeciesCombobox({ value, onChange }) {
             <div
               key={s}
               onMouseDown={() => select(s)}
-              style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', fontWeight: 700, color: inputVal === s ? '#B45A22' : '#1a4a08', cursor: 'pointer', background: inputVal === s ? 'rgba(180,90,34,0.08)' : 'transparent', transition: 'background 0.1s' }}
+              style={{
+                padding: '0.6rem 1rem', fontSize: '0.85rem', fontWeight: 700,
+                color: inputVal === s ? '#B45A22' : '#1a4a08',
+                cursor: 'pointer',
+                background: inputVal === s ? 'rgba(180,90,34,0.08)' : 'transparent',
+                transition: 'background 0.1s',
+              }}
               onMouseEnter={e => e.currentTarget.style.background = 'rgba(180,90,34,0.06)'}
-              onMouseLeave={e => e.currentTarget.style.background = inputVal === s ? 'rgba(180,90,34,0.08)' : 'transparent'}>
+              onMouseLeave={e => {
+                e.currentTarget.style.background =
+                  inputVal === s ? 'rgba(180,90,34,0.08)' : 'transparent';
+              }}>
               {s}
             </div>
           ))}
@@ -139,7 +192,11 @@ export default function MissingPets() {
   const [submitting, setSubmitting] = useState(false);
   const fileRef = useRef(null);
 
-  /* ── fetch only approved reports ── */
+  const [expandedComments, setExpandedComments] = useState({});
+  const [comments, setComments] = useState({});
+  const [commentInputs, setCommentInputs] = useState({});
+  const [commentSubmitting, setCommentSubmitting] = useState({});
+
   const fetchPets = async () => {
     try {
       const res = await fetch('/api/missing-pets');
@@ -163,13 +220,87 @@ export default function MissingPets() {
     return new Date(dateStr).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' });
   };
 
+  const formatRelative = (dateStr) => {
+    if (!dateStr) return '';
+    const now = new Date();
+    const past = new Date(dateStr);
+    const tzOffset = 8 * 60;
+    const localPast = new Date(past.getTime() + tzOffset * 60 * 1000);
+    const diffMs = now.getTime() - localPast.getTime();
+    const diffSeconds = Math.floor(diffMs / 1000);
+    const diffMinutes = Math.floor(diffSeconds / 60);
+    const diffHours = Math.floor(diffMinutes / 60);
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffSeconds < 60) return 'just now';
+    if (diffMinutes < 60) return `${diffMinutes}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return localPast.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  const fetchComments = async (petId) => {
+    try {
+      const res = await fetch(`/api/missing-pets/${petId}/comments`);
+      if (res.ok) {
+        const data = await res.json();
+        setComments(prev => ({ ...prev, [petId]: data }));
+      }
+    } catch (err) {
+      console.error('Failed to fetch comments:', err);
+    }
+  };
+
+  const toggleComments = (petId) => {
+    setExpandedComments(prev => {
+      const nowOpen = !prev[petId];
+      if (nowOpen && !comments[petId]) fetchComments(petId);
+      return { ...prev, [petId]: nowOpen };
+    });
+  };
+
+  const submitComment = async (petId) => {
+    const content = commentInputs[petId]?.trim();
+    if (!content || !user) return;
+    setCommentSubmitting(prev => ({ ...prev, [petId]: true }));
+    try {
+      const res = await fetch(`/api/missing-pets/${petId}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          authorName: `${user.firstName} ${user.lastName}`,
+          content,
+        }),
+      });
+      if (res.ok) {
+        setCommentInputs(prev => ({ ...prev, [petId]: '' }));
+        fetchComments(petId);
+      }
+    } catch (err) {
+      console.error('Comment submit failed:', err);
+    } finally {
+      setCommentSubmitting(prev => ({ ...prev, [petId]: false }));
+    }
+  };
+
+  const resolveReport = async (petId) => {
+    if (!user) return;
+    try {
+      const res = await fetch(`/api/missing-pets/${petId}/resolve?userId=${user.id}`, {
+        method: 'PUT',
+      });
+      if (res.ok) fetchPets();
+    } catch (err) {
+      console.error('Resolve failed:', err);
+    }
+  };
+
   const handlePhoto = (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
     if (f.size > 5 * 1024 * 1024) { alert('Photo must be under 5 MB.'); return; }
     setPhotoFile(f);
-    const url = URL.createObjectURL(f);
-    setPhotoPreview(url);
+    setPhotoPreview(URL.createObjectURL(f));
   };
 
   const handleSubmit = async (e) => {
@@ -177,14 +308,15 @@ export default function MissingPets() {
     setSubmitting(true);
     try {
       const fd = new FormData();
-      fd.append('type',    form.type);
-      fd.append('name',    form.name);
+      fd.append('type', form.type);
+      fd.append('name', form.name);
       fd.append('species', form.species || 'Dog');
-      fd.append('breed',   form.breed);
-      fd.append('area',    form.area);
+      fd.append('breed', form.breed);
+      fd.append('area', form.area);
       fd.append('address', form.address);
-      fd.append('color',   form.color);
+      fd.append('color', form.color);
       fd.append('details', form.details);
+      if (user?.id) fd.append('reporterUserId', user.id);
       if (photoFile) fd.append('photo', photoFile);
 
       const res = await fetch('/api/missing-pets', { method: 'POST', body: fd });
@@ -230,15 +362,19 @@ export default function MissingPets() {
         @keyframes spin{to{transform:rotate(360deg)}}
         *,*::before,*::after{box-sizing:border-box}
         ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:#eddabb}::-webkit-scrollbar-thumb{background:#b4903a;border-radius:3px}
-        .mp-upload-zone { border:2px dashed rgba(180,90,34,0.40); border-radius:12px; padding:1rem; text-align:center; cursor:pointer; background:rgba(255,248,220,0.5); transition:all 0.15s; }
-        .mp-upload-zone:hover { border-color:rgba(180,90,34,0.75); background:rgba(255,248,220,0.80); }
-        .mp-field { padding:0.75rem 1rem; border-radius:10px; border:1px solid rgba(180,140,60,0.28); background:rgba(255,250,232,0.7); font-family:'Nunito',sans-serif; font-weight:700; font-size:0.88rem; color:#1a4a08; outline:none; width:100%; transition:border-color 0.15s,box-shadow 0.15s; }
-        .mp-field:focus { border-color:#B45A22; box-shadow:0 0 0 3px rgba(180,90,34,0.12); }
-        .mp-card { background:rgba(255,248,225,0.88); border:1px solid rgba(180,140,60,0.28); border-radius:20px; overflow:hidden; box-shadow:0 4px 20px rgba(100,70,20,0.11); transition:transform 0.2s,box-shadow 0.2s; }
-        .mp-card:hover { transform:translateY(-5px); box-shadow:0 8px 32px rgba(100,70,20,0.18); }
+        .mp-upload-zone{border:2px dashed rgba(180,90,34,0.40);border-radius:12px;padding:1rem;text-align:center;cursor:pointer;background:rgba(255,248,220,0.5);transition:all 0.15s;}
+        .mp-upload-zone:hover{border-color:rgba(180,90,34,0.75);background:rgba(255,248,220,0.80);}
+        .mp-field{padding:0.75rem 1rem;border-radius:10px;border:1px solid rgba(180,140,60,0.28);background:rgba(255,250,232,0.7);font-family:'Nunito',sans-serif;font-weight:700;font-size:0.88rem;color:#1a4a08;outline:none;width:100%;transition:border-color 0.15s,box-shadow 0.15s;}
+        .mp-field:focus{border-color:#B45A22;box-shadow:0 0 0 3px rgba(180,90,34,0.12);}
+        .mp-card{background:rgba(255,248,225,0.88);border:1px solid rgba(180,140,60,0.28);border-radius:20px;overflow:visible;box-shadow:0 4px 20px rgba(100,70,20,0.11);transition:transform 0.2s,box-shadow 0.2s;}
+        .mp-card:hover{transform:translateY(-5px);box-shadow:0 8px 32px rgba(100,70,20,0.18);}
+        .mp-comment-toggle{width:100%;padding:0.55rem 1.25rem;background:rgba(255,248,220,0.5);border:none;border-top:1px solid rgba(180,140,60,0.18);font-size:0.75rem;font-weight:800;color:#6a7a50;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-family:'Nunito',sans-serif;}
+        .mp-comment-toggle:hover{background:rgba(255,244,210,0.75);}
+        .mp-resolve-btn{width:100%;padding:0.55rem;border-radius:10px;font-size:0.78rem;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;background:rgba(28,79,9,0.08);border:1px solid rgba(28,79,9,0.25);color:#1c4f09;display:flex;align-items:center;justify-content:center;gap:0.4rem;margin-top:0.75rem;transition:background 0.15s;}
+        .mp-resolve-btn:hover{background:rgba(28,79,9,0.15);}
       `}</style>
 
-      {/* Mesh bg */}
+      {/* Mesh background */}
       <div style={{ position: 'fixed', inset: 0, zIndex: 0, overflow: 'hidden', pointerEvents: 'none' }}>
         <div style={{ position: 'absolute', inset: 0, background: '#EDDABB' }} />
         <div style={{ position: 'absolute', width: 900, height: 900, top: '-20%', left: '-15%', borderRadius: '50%', background: 'radial-gradient(circle,#B45A22,transparent 70%)', filter: 'blur(120px)', opacity: 0.38, animation: 'fl1 9s ease-in-out infinite' }} />
@@ -313,22 +449,31 @@ export default function MissingPets() {
           </div>
         )}
 
-        {/* Grid */}
+        {/* Pet Grid */}
         {!loading && filtered.length > 0 && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(290px,1fr))', gap: '1.25rem' }}>
             {filtered.map((pet, i) => (
               <Reveal key={pet.id} delay={i * 60}>
                 <div className="mp-card">
+
+                  {/* Photo */}
                   <div style={{ position: 'relative', height: 200, overflow: 'hidden' }}>
                     <PetPhoto pet={pet} />
                     <span style={{ position: 'absolute', top: 10, left: 10, padding: '0.25rem 0.75rem', borderRadius: 50, fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', background: pet.type === 'lost' ? 'rgba(192,48,48,0.90)' : 'rgba(28,79,9,0.90)', color: '#fff', backdropFilter: 'blur(6px)' }}>
                       {pet.type === 'lost' ? '🔴 Lost' : '🟢 Found'}
                     </span>
+                    {pet.resolvedByUser && (
+                      <span style={{ position: 'absolute', bottom: 10, left: 10, padding: '0.25rem 0.75rem', borderRadius: 50, fontSize: '0.65rem', fontWeight: 800, background: 'rgba(24,95,165,0.88)', color: '#fff', backdropFilter: 'blur(6px)' }}>
+                        ✅ Resolved
+                      </span>
+                    )}
                     <span style={{ position: 'absolute', top: 10, right: 10, padding: '0.25rem 0.75rem', borderRadius: 50, fontSize: '0.65rem', fontWeight: 800, background: 'rgba(10,6,2,0.60)', color: 'rgba(255,235,150,0.95)', backdropFilter: 'blur(6px)' }}>
                       {formatDate(pet.reportedDate)}
                     </span>
                   </div>
-                  <div style={{ padding: '1.1rem 1.25rem' }}>
+
+                  {/* Info */}
+                  <div style={{ padding: '1.1rem 1.25rem 0.75rem' }}>
                     <div style={{ fontWeight: 900, fontSize: '1.05rem', color: '#1a4a08', marginBottom: '0.25rem' }}>{pet.name || 'Unknown'}</div>
                     <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#6a7a50', marginBottom: '0.55rem' }}>{[pet.species, pet.breed].filter(Boolean).join(' · ')}</div>
                     {pet.address && (
@@ -352,7 +497,73 @@ export default function MissingPets() {
                         {pet.details.length > 100 ? pet.details.slice(0, 100) + '…' : pet.details}
                       </p>
                     )}
+
+                    {/* Resolve button */}
+                    {user && user.id === pet.reporterUserId && (
+                      <>
+                        {!pet.resolvedByUser ? (
+                          <button className="mp-resolve-btn" onClick={() => resolveReport(pet.id)}>
+                            <i className="fas fa-check-circle" /> Mark as Resolved — Pet has been found
+                          </button>
+                        ) : (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.75rem', fontWeight: 800, color: '#1c4f09' }}>
+                            <i className="fas fa-check-circle" /> You marked this pet as found
+                          </span>
+                        )}
+                      </>
+                    )}
                   </div>
+
+                  {/* Comments toggle */}
+                  <button className="mp-comment-toggle" onClick={() => toggleComments(pet.id)}>
+                    <span>
+                      <i className="fas fa-comment-dots" style={{ marginRight: '0.35rem' }} />
+                      Comments {comments[pet.id] ? `(${comments[pet.id].length})` : ''}
+                    </span>
+                    <span style={{ fontSize: '0.65rem' }}>{expandedComments[pet.id] ? '▴' : '▾'}</span>
+                  </button>
+
+                  {/* Comments panel */}
+                  {expandedComments[pet.id] && (
+                    <div style={{ padding: '0.75rem 1.25rem 1rem', borderTop: '1px solid rgba(180,140,60,0.12)' }}>
+                      {(comments[pet.id] || []).length === 0 && (
+                        <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#9aaa80', margin: '0 0 0.75rem' }}>
+                          No comments yet. Be the first to leave a tip!
+                        </p>
+                      )}
+                      {(comments[pet.id] || []).map(c => (
+                        <div key={c.id} style={{ paddingBottom: '0.55rem', marginBottom: '0.55rem', borderBottom: '1px solid rgba(180,140,60,0.12)' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.2rem' }}>
+                            <span style={{ fontSize: '0.75rem', fontWeight: 900, color: '#1a4a08' }}>{c.authorName}</span>
+                            <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#9aaa80' }}>{formatRelative(c.createdAt)}</span>
+                          </div>
+                          <p style={{ fontSize: '0.78rem', fontWeight: 700, color: '#3a5020', margin: 0, lineHeight: 1.5 }}>{c.content}</p>
+                        </div>
+                      ))}
+                      {user ? (
+                        <div style={{ marginTop: '0.5rem' }}>
+                          <textarea
+                            className="mp-field"
+                            rows={2}
+                            placeholder="Leave a tip or sighting…"
+                            value={commentInputs[pet.id] || ''}
+                            onChange={e => setCommentInputs(prev => ({ ...prev, [pet.id]: e.target.value }))}
+                            style={{ resize: 'vertical', minHeight: 60, fontSize: '0.78rem' }}
+                          />
+                          <button
+                            onClick={() => submitComment(pet.id)}
+                            disabled={commentSubmitting[pet.id] || !commentInputs[pet.id]?.trim()}
+                            style={{ marginTop: '0.4rem', padding: '0.45rem 1.1rem', borderRadius: 8, fontSize: '0.75rem', fontWeight: 800, cursor: commentSubmitting[pet.id] || !commentInputs[pet.id]?.trim() ? 'not-allowed' : 'pointer', fontFamily: "'Nunito',sans-serif", background: '#B45A22', color: '#fff', border: 'none', opacity: commentSubmitting[pet.id] || !commentInputs[pet.id]?.trim() ? 0.5 : 1, transition: 'opacity 0.15s' }}>
+                            {commentSubmitting[pet.id] ? 'Posting…' : 'Post Comment'}
+                          </button>
+                        </div>
+                      ) : (
+                        <p style={{ fontSize: '0.73rem', fontWeight: 700, color: '#9aaa80', margin: '0.5rem 0 0' }}>
+                          <Link to="/login" style={{ color: '#B45A22', textDecoration: 'underline' }}>Log in</Link> to leave a comment.
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </Reveal>
             ))}
@@ -360,7 +571,7 @@ export default function MissingPets() {
         )}
       </div>
 
-      {/* ── Report Modal ── */}
+      {/* Report Modal */}
       {showModal && (
         <div
           style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.50)', backdropFilter: 'blur(6px)', padding: '1rem' }}
@@ -390,7 +601,7 @@ export default function MissingPets() {
                   </button>
                 </div>
 
-                {/* Modal body — scrollable */}
+                {/* Modal body — overflow:visible on the species row so dropdown isn't clipped */}
                 <div style={{ overflowY: 'auto', flex: 1, padding: '1.5rem' }}>
                   <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
 
@@ -407,12 +618,12 @@ export default function MissingPets() {
                       </div>
                     </div>
 
-                    {/* ── Species — typeable combobox ── */}
+                    {/* Species */}
                     <div>
                       <div style={{ fontSize: '0.67rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6a7a50', marginBottom: '0.5rem' }}>Species *</div>
                       <SpeciesCombobox
                         value={form.species}
-                        onChange={val => setForm(f => ({ ...f, species: val }))}
+                        onChange={(val) => setForm(prev => ({ ...prev, species: val }))}
                       />
                       <div style={{ fontSize: '0.64rem', fontWeight: 700, color: '#9aaa80', marginTop: '0.3rem' }}>
                         <i className="fas fa-info-circle" style={{ marginRight: '0.25rem' }} />
@@ -420,7 +631,7 @@ export default function MissingPets() {
                       </div>
                     </div>
 
-                    {/* Photo upload */}
+                    {/* Photo */}
                     <div>
                       <div style={{ fontSize: '0.67rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6a7a50', marginBottom: '0.5rem' }}>
                         Photo <span style={{ fontWeight: 700, textTransform: 'none', fontSize: '0.62rem', color: '#9aaa80' }}>(recommended)</span>
@@ -429,19 +640,10 @@ export default function MissingPets() {
                       <div className="mp-upload-zone" onClick={() => fileRef.current?.click()}>
                         {photoPreview ? (
                           <div style={{ position: 'relative' }}>
-                            <img
-                              src={photoPreview}
-                              alt="preview"
-                              style={{ width: '100%', maxHeight: 180, objectFit: 'cover', borderRadius: 8 }}
-                            />
+                            <img src={photoPreview} alt="preview" style={{ width: '100%', maxHeight: 180, objectFit: 'cover', borderRadius: 8 }} />
                             <button
                               type="button"
-                              onClick={e => {
-                                e.stopPropagation();
-                                setPhotoFile(null);
-                                setPhotoPreview(null);
-                                if (fileRef.current) fileRef.current.value = '';
-                              }}
+                              onClick={e => { e.stopPropagation(); setPhotoFile(null); setPhotoPreview(null); if (fileRef.current) fileRef.current.value = ''; }}
                               style={{ position: 'absolute', top: 6, right: 6, width: 26, height: 26, borderRadius: '50%', background: 'rgba(192,48,48,0.88)', border: 'none', color: '#fff', cursor: 'pointer', fontSize: '0.7rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                               <i className="fas fa-times" />
                             </button>
@@ -492,7 +694,7 @@ export default function MissingPets() {
                       </div>
                     </div>
 
-                    {/* Additional details */}
+                    {/* Details */}
                     <div>
                       <div style={{ fontSize: '0.67rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6a7a50', marginBottom: '0.4rem' }}>Additional Details</div>
                       <textarea
@@ -515,8 +717,7 @@ export default function MissingPets() {
                         style={{ flex: 2, padding: '0.78rem', borderRadius: 10, fontWeight: 900, fontSize: '0.88rem', cursor: submitting ? 'not-allowed' : 'pointer', fontFamily: "'Nunito',sans-serif", background: submitting ? '#9a6030' : '#B45A22', color: '#fff', border: 'none', boxShadow: '0 4px 14px rgba(180,90,34,0.28)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', opacity: submitting ? 0.75 : 1 }}>
                         {submitting
                           ? <><i className="fas fa-spinner" style={{ animation: 'spin 0.8s linear infinite' }} /> Submitting…</>
-                          : <><i className="fas fa-paper-plane" /> Submit Report</>
-                        }
+                          : <><i className="fas fa-paper-plane" /> Submit Report</>}
                       </button>
                     </div>
                   </form>
@@ -540,9 +741,9 @@ export default function MissingPets() {
             </p>
           </div>
           {[
-            { title: 'Adopt',    links: [['Browse Animals', '/pets'], ['My Profile', '/profile'], ['Log In', '/login'], ['Register', '/register']] },
+            { title: 'Adopt', links: [['Browse Animals', '/pets'], ['My Profile', '/profile'], ['Log In', '/login'], ['Register', '/register']] },
             { title: 'Services', links: [['How It Works', '/how-it-works'], ['Rehome a Pet', '/rehome'], ['Missing Pets', '/missing-pets'], ['About Us', '/about']] },
-            { title: 'Regions',  links: [['Ilocos Norte', '/pets'], ['Ilocos Sur', '/pets'], ['La Union', '/pets'], ['Pangasinan', '/pets']] },
+            { title: 'Regions', links: [['Ilocos Norte', '/pets'], ['Ilocos Sur', '/pets'], ['La Union', '/pets'], ['Pangasinan', '/pets']] },
           ].map(({ title, links }) => (
             <div key={title}>
               <div className="text-[0.72rem] font-black uppercase tracking-wider text-[#1c4f09] mb-4">{title}</div>

@@ -2,6 +2,7 @@ package com.pawstar.pawster.model;
 
 import jakarta.persistence.*;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "missing_pets")
@@ -28,6 +29,15 @@ public class MissingPet {
     private Double longitude; // geocoded lng for map
     private String photoUrl; // uploaded photo path
     private String status;
+
+    @Column(name = "reporter_user_id")
+    private Integer reporterUserId;
+
+    @Column(name = "resolved_by_user")
+    private Boolean resolvedByUser = false;
+
+    @Column(name = "resolved_at")
+    private LocalDateTime resolvedAt;
 
     @PrePersist
     public void prePersist() {
@@ -146,5 +156,29 @@ public class MissingPet {
 
     public void setReportedDate(LocalDate reportedDate) {
         this.reportedDate = reportedDate;
+    }
+
+    public Integer getReporterUserId() {
+        return reporterUserId;
+    }
+
+    public void setReporterUserId(Integer reporterUserId) {
+        this.reporterUserId = reporterUserId;
+    }
+
+    public Boolean getResolvedByUser() {
+        return resolvedByUser;
+    }
+
+    public void setResolvedByUser(Boolean resolvedByUser) {
+        this.resolvedByUser = resolvedByUser;
+    }
+
+    public LocalDateTime getResolvedAt() {
+        return resolvedAt;
+    }
+
+    public void setResolvedAt(LocalDateTime resolvedAt) {
+        this.resolvedAt = resolvedAt;
     }
 }

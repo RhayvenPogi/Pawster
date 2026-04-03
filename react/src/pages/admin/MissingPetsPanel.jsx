@@ -76,8 +76,121 @@ function ConfirmDialog({ message, title, icon, onConfirm, onCancel, confirmLabel
   );
 }
 
+/* ── Edit Modal ── */
+function EditModal({ pet, onClose, onSave, saving }) {
+  const [form, setForm] = useState({
+    name:    pet.name    || "",
+    species: pet.species || "",
+    breed:   pet.breed   || "",
+    color:   pet.color   || "",
+    area:    pet.area    || "",
+    address: pet.address || "",
+    details: pet.details || "",
+  });
+
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; };
+  }, []);
+
+  const handleChange = (e) =>
+    setForm(f => ({ ...f, [e.target.name]: e.target.value }));
+
+  const FIELDS = [
+    { name: "name",    label: "Pet Name",   placeholder: "e.g. Buddy"          },
+    { name: "species", label: "Species",    placeholder: "e.g. Dog, Cat"        },
+    { name: "breed",   label: "Breed",      placeholder: "e.g. Labrador"        },
+    { name: "color",   label: "Color",      placeholder: "e.g. Brown and white" },
+    { name: "area",    label: "Area",       placeholder: "e.g. Brgy. San Jose"  },
+    { name: "address", label: "Address",    placeholder: "Full address"         },
+  ];
+
+  return (
+    <div
+      className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div
+        className="bg-white rounded-2xl max-w-lg w-full max-h-[92vh] overflow-hidden flex flex-col shadow-2xl border border-black/10"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-black/8">
+          <div className="flex items-center gap-2">
+            <span>✏️</span>
+            <span className="font-bold text-[15px] text-[#1a3a08]">Edit Report</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <TypeBadge type={pet.type} />
+            <StatusBadge status={pet.status ?? "pending"} />
+            <button onClick={onClose}
+              className="w-7 h-7 rounded-lg border border-black/12 bg-transparent text-gray-400 hover:bg-gray-50 cursor-pointer flex items-center justify-center text-sm transition-colors">
+              ✕
+            </button>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="overflow-y-auto flex-1 p-5 flex flex-col gap-3">
+          <div className="grid grid-cols-2 gap-3">
+            {FIELDS.map(({ name, label, placeholder }) => (
+              <div key={name} className={name === "address" ? "col-span-2" : ""}>
+                <label className="block text-[10px] font-black uppercase tracking-wider text-[#B45A22] mb-1">
+                  {label}
+                </label>
+                <input
+                  name={name}
+                  value={form[name]}
+                  onChange={handleChange}
+                  placeholder={placeholder}
+                  className="w-full px-3 py-2 rounded-xl border border-[rgba(180,140,60,0.28)] bg-[rgba(255,250,232,0.88)] font-bold text-sm text-[#1a4a08] outline-none focus:border-[#B45A22] focus:ring-2 focus:ring-[rgba(180,90,34,0.12)] transition-all"
+                />
+              </div>
+            ))}
+          </div>
+
+          {/* Details textarea */}
+          <div>
+            <label className="block text-[10px] font-black uppercase tracking-wider text-[#B45A22] mb-1">
+              Details
+            </label>
+            <textarea
+              name="details"
+              value={form.details}
+              onChange={handleChange}
+              placeholder="Additional details about the pet…"
+              rows={4}
+              className="w-full px-3 py-2 rounded-xl border border-[rgba(180,140,60,0.28)] bg-[rgba(255,250,232,0.88)] font-bold text-sm text-[#1a4a08] outline-none focus:border-[#B45A22] focus:ring-2 focus:ring-[rgba(180,90,34,0.12)] transition-all resize-none"
+            />
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-5 py-3.5 border-t border-black/8 flex gap-2 bg-white shrink-0">
+          <button onClick={onClose}
+            disabled={saving}
+            className="flex-1 py-2.5 rounded-xl font-bold text-sm cursor-pointer bg-transparent border border-black/15 text-gray-500 hover:bg-gray-50 transition-colors disabled:opacity-50">
+            Cancel
+          </button>
+          <button
+            onClick={() => onSave(form)}
+            disabled={saving}
+            className="flex-1 py-2.5 rounded-xl font-bold text-sm cursor-pointer bg-[#2d5a1b] text-white border-none hover:bg-[#245015] transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
+            {saving ? (
+              <>
+                <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full inline-block" style={{ animation: "spin .7s linear infinite" }} />
+                Saving…
+              </>
+            ) : "💾 Save Changes"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── Detail Modal ── */
-function DetailModal({ pet, onClose, onApprove, onReject, onDelete }) {
+function DetailModal({ pet, onClose, onApprove, onReject, onDelete, onEdit }) {
   const [imgErr, setImgErr] = useState(false);
   useEffect(() => { setImgErr(false); }, [pet?.id, pet?.photoUrl]);
   useEffect(() => {
@@ -88,7 +201,6 @@ function DetailModal({ pet, onClose, onApprove, onReject, onDelete }) {
   const photoUrl = normalizePhotoUrl(pet.photoUrl);
   const isPending  = !pet.status || pet.status === "pending";
   const isApproved = pet.status === "approved";
-  const isLost     = pet.type === "lost";
 
   const pills = [
     { icon: "📍", label: "Area",     value: pet.area || "—"   },
@@ -192,6 +304,11 @@ function DetailModal({ pet, onClose, onApprove, onReject, onDelete }) {
               ✓ Re-approve
             </button>
           )}
+          {/* Edit button */}
+          <button onClick={() => onEdit(pet)}
+            className="px-4 py-2.5 rounded-xl font-bold text-sm cursor-pointer bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 transition-colors">
+            ✏️
+          </button>
           <button onClick={() => onDelete(pet)}
             className="px-4 py-2.5 rounded-xl font-bold text-sm cursor-pointer bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 transition-colors">
             🗑
@@ -215,6 +332,8 @@ export default function MissingPetsPanel({ show, onStatsChange }) {
   const [confirmDel, setConfirmDel] = useState(null);
   const [confirmAct, setConfirmAct] = useState(null);
   const [toast, setToast]           = useState(null);
+  const [editPet, setEditPet]       = useState(null);
+  const [saving, setSaving]         = useState(false);
 
   const showToast = (msg, type = "success") => {
     setToast({ msg, type });
@@ -271,6 +390,32 @@ export default function MissingPetsPanel({ show, onStatsChange }) {
     } catch { showToast("Network error.", "error"); }
   };
 
+  /* ── NEW: handle update ── */
+  const handleUpdate = async (formData) => {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/missing-pets/admin/${editPet.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setPets(p => p.map(x => x.id === editPet.id ? { ...x, ...updated } : x));
+        // Keep detail modal open but refresh the pet data shown
+        if (selected?.id === editPet.id) setSelected(prev => ({ ...prev, ...updated }));
+        setEditPet(null);
+        showToast("Report updated successfully.");
+      } else {
+        showToast("Failed to update report.", "error");
+      }
+    } catch {
+      showToast("Network error.", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const counts = {
     all:      pets.length,
     pending:  pets.filter(p => !p.status || p.status === "pending").length,
@@ -302,10 +447,10 @@ export default function MissingPetsPanel({ show, onStatsChange }) {
   ];
 
   const STATUS_FILTERS = [
-    { val: "all", label: "All", active: "bg-[#1a4a08] text-white" },
-    { val: "pending",  label: "Pending",  active: "bg-amber-600 text-white" },
-    { val: "approved", label: "Approved", active: "bg-[#1c4f09] text-white" },
-    { val: "rejected", label: "Rejected", active: "bg-red-600 text-white"   },
+    { val: "all",      label: "All",      active: "bg-[#1a4a08] text-white"  },
+    { val: "pending",  label: "Pending",  active: "bg-amber-600 text-white"  },
+    { val: "approved", label: "Approved", active: "bg-[#1c4f09] text-white"  },
+    { val: "rejected", label: "Rejected", active: "bg-red-600 text-white"    },
   ];
 
   return (
@@ -353,7 +498,6 @@ export default function MissingPetsPanel({ show, onStatsChange }) {
 
       {/* Filters */}
       <div className="flex gap-2.5 flex-wrap items-center mb-4">
-        {/* Status filter */}
         <div className="inline-flex gap-0.5 bg-[rgba(255,248,220,0.7)] rounded-full p-1 border border-[rgba(180,140,60,0.28)]">
           {STATUS_FILTERS.map(({ val, label, active }) => (
             <button key={val} onClick={() => setStatus(val)}
@@ -364,7 +508,6 @@ export default function MissingPetsPanel({ show, onStatsChange }) {
           ))}
         </div>
 
-        {/* Type filter */}
         <div className="inline-flex gap-0.5 bg-[rgba(255,248,220,0.7)] rounded-full p-1 border border-[rgba(180,140,60,0.28)]">
           {[["all", "All", "bg-[#555] text-white"], ["lost", "Lost", "bg-red-600 text-white"], ["found", "Found", "bg-[#1c4f09] text-white"]].map(([val, label, active]) => (
             <button key={val} onClick={() => setType(val)}
@@ -374,7 +517,6 @@ export default function MissingPetsPanel({ show, onStatsChange }) {
           ))}
         </div>
 
-        {/* Search */}
         <div className="flex-1 min-w-[200px] relative">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[#9aaa80] pointer-events-none">🔍</span>
           <input value={search} onChange={e => setSearch(e.target.value)}
@@ -422,20 +564,17 @@ export default function MissingPetsPanel({ show, onStatsChange }) {
       {/* Table */}
       {!loading && filtered.length > 0 && (
         <div className="bg-[rgba(255,248,225,0.9)] border border-[rgba(180,140,60,0.28)] rounded-2xl overflow-hidden shadow-sm">
-
-          {/* Table header */}
           <div className="grid gap-2 px-4 py-2.5 bg-[rgba(180,140,60,0.08)] border-b border-[rgba(180,140,60,0.18)]"
-            style={{ gridTemplateColumns: "56px 80px 1fr 90px 130px 100px 95px 140px" }}>
+            style={{ gridTemplateColumns: "56px 80px 1fr 90px 130px 100px 95px 160px" }}>
             {["Photo","Type","Pet / Breed","Species","Area / Address","Status","Reported","Actions"].map(h => (
               <div key={h} className="text-[10px] font-black uppercase tracking-widest text-[#6a7a50]">{h}</div>
             ))}
           </div>
 
-          {/* Rows */}
           {filtered.map((pet, i) => (
             <div key={pet.id}
               className="grid gap-2 px-4 py-3 items-center cursor-pointer transition-colors hover:bg-[rgba(90,170,48,0.05)]"
-              style={{ gridTemplateColumns: "56px 80px 1fr 90px 130px 100px 95px 140px", borderBottom: i < filtered.length - 1 ? "1px solid rgba(180,140,60,0.11)" : "none" }}
+              style={{ gridTemplateColumns: "56px 80px 1fr 90px 130px 100px 95px 160px", borderBottom: i < filtered.length - 1 ? "1px solid rgba(180,140,60,0.11)" : "none" }}
               onClick={() => setSelected(pet)}>
 
               {/* Photo */}
@@ -450,35 +589,33 @@ export default function MissingPetsPanel({ show, onStatsChange }) {
                 </span>
               </div>
 
-              {/* Type */}
               <div><TypeBadge type={pet.type} /></div>
 
-              {/* Name / breed */}
               <div>
                 <p className="font-black text-sm text-[#1a4a08] m-0">{pet.name || "Unknown"}</p>
                 <p className="text-[11px] font-bold text-[#6a7a50] m-0">{pet.breed || "—"}</p>
               </div>
 
-              {/* Species */}
               <div className="text-xs font-bold text-[#3a5020]">{pet.species}</div>
 
-              {/* Area / address */}
               <div>
                 <p className="text-xs font-bold text-[#3a5020] m-0 truncate">{pet.area || "—"}</p>
                 {pet.address && <p className="text-[10px] font-bold text-[#9aaa80] m-0 truncate">{pet.address}</p>}
               </div>
 
-              {/* Status */}
               <div><StatusBadge status={pet.status ?? "pending"} /></div>
 
-              {/* Date */}
               <div className="text-[11px] font-bold text-[#6a7a50]">{formatDate(pet.reportedDate)}</div>
 
-              {/* Actions */}
+              {/* Actions — now includes Edit ✏️ */}
               <div className="flex gap-1 flex-wrap" onClick={e => e.stopPropagation()}>
                 <button onClick={() => setSelected(pet)} title="View"
                   className="px-2 py-1 rounded-lg text-[11px] font-black border cursor-pointer transition-opacity hover:opacity-70 bg-blue-50 border-blue-200 text-blue-700">
                   👁
+                </button>
+                <button onClick={() => setEditPet(pet)} title="Edit"
+                  className="px-2 py-1 rounded-lg text-[11px] font-black border cursor-pointer transition-opacity hover:opacity-70 bg-amber-50 border-amber-200 text-amber-700">
+                  ✏️
                 </button>
                 {(pet.status === "pending" || !pet.status || pet.status === "rejected") && (
                   <button onClick={() => setConfirmAct({ pet, action: "approve" })} title="Approve"
@@ -502,7 +639,6 @@ export default function MissingPetsPanel({ show, onStatsChange }) {
         </div>
       )}
 
-      {/* Count */}
       {!loading && filtered.length > 0 && (
         <p className="text-right text-[11px] font-bold text-[#9aaa80] mt-2">
           Showing {filtered.length} of {pets.length} report{pets.length !== 1 ? "s" : ""}
@@ -510,13 +646,24 @@ export default function MissingPetsPanel({ show, onStatsChange }) {
       )}
 
       {/* Detail modal */}
-      {selected && (
+      {selected && !editPet && (
         <DetailModal
           pet={selected}
           onClose={() => setSelected(null)}
           onApprove={(pet) => { setSelected(null); setConfirmAct({ pet, action: "approve" }); }}
           onReject={(pet)  => { setSelected(null); setConfirmAct({ pet, action: "reject"  }); }}
           onDelete={(pet)  => { setSelected(null); setConfirmDel(pet); }}
+          onEdit={(pet)    => setEditPet(pet)}
+        />
+      )}
+
+      {/* Edit modal */}
+      {editPet && (
+        <EditModal
+          pet={editPet}
+          onClose={() => setEditPet(null)}
+          onSave={handleUpdate}
+          saving={saving}
         />
       )}
 

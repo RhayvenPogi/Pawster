@@ -406,8 +406,6 @@ function ResetPasswordStep({ onReset }) {
   const [confirm, setConfirm] = useState("");
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
-  const [showPw, setShowPw] = useState(false);
-  const [showCf, setShowCf] = useState(false);
 
   function validate() {
     const e = {};
@@ -441,11 +439,7 @@ function ResetPasswordStep({ onReset }) {
     { bottom: "3%", right: "10%", width: 80, fill: "rgba(195,130,70,0.22)", rotate: 12 },
   ];
 
-  const EyeIcon = ({ open }) => open ? (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5aaa30" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
-  ) : (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5aaa30" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" /><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" /><line x1="1" y1="1" x2="23" y2="23" /></svg>
-  );
+
 
   return (
     <div style={{ position: "relative", zIndex: 10, display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", width: "100vw" }}>
@@ -470,17 +464,15 @@ function ResetPasswordStep({ onReset }) {
             <label style={{ position: "absolute", top: "-0.55rem", left: "0.75rem", fontSize: "1rem", fontWeight: 800, textTransform: "uppercase", fontStyle: "italic", color: "#276010", textShadow: "-1px -1px 0 rgba(255,250,232,0.52),1px 1px 0 rgba(255,250,232,0.52)", zIndex: 2 }}>Password</label>
             <div style={{ position: "relative" }}>
               <input
-                type={showPw ? "text" : "password"}
+                type="password"
                 placeholder="Enter password..."
                 value={password}
                 onChange={e => { setPassword(e.target.value); setErrors(v => ({ ...v, password: "" })); }}
-                style={{ display: "block", width: "100%", padding: "0.82rem 2.8rem 0.82rem 0.95rem", border: `2px solid ${errors.password ? "#d04040" : "#5aaa30"}`, borderRadius: 10, background: "rgba(255,250,232,0.52)", fontFamily: "'Nunito',sans-serif", fontSize: "0.93rem", fontWeight: 600, color: "#222", outline: "none", boxSizing: "border-box" }}
+                style={{ display: "block", width: "100%", padding: "0.82rem 0.95rem", border: `2px solid ${errors.password ? "#d04040" : "#5aaa30"}`, borderRadius: 10, background: "rgba(255,250,232,0.52)", fontFamily: "'Nunito',sans-serif", fontSize: "0.93rem", fontWeight: 600, color: "#222", outline: "none", boxSizing: "border-box" }}
                 onFocus={e => { e.target.style.borderColor = "#1c4f09"; e.target.style.boxShadow = "0 0 0 3px rgba(28,79,9,0.09)"; }}
                 onBlur={e => { e.target.style.borderColor = errors.password ? "#d04040" : "#5aaa30"; e.target.style.boxShadow = "none"; }}
               />
-              <button type="button" onClick={() => setShowPw(v => !v)} style={{ position: "absolute", right: "0.7rem", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex" }}>
-                <EyeIcon open={showPw} />
-              </button>
+            
             </div>
             {errors.password && <span style={{ display: "block", fontSize: "0.75rem", fontWeight: 700, color: "#c03030", marginTop: "0.28rem" }}>{errors.password}</span>}
           </div>
@@ -489,17 +481,15 @@ function ResetPasswordStep({ onReset }) {
             <label style={{ position: "absolute", top: "-0.55rem", left: "0.75rem", fontSize: "1rem", fontWeight: 800, textTransform: "uppercase", fontStyle: "italic", color: "#276010", textShadow: "-1px -1px 0 rgba(255,250,232,0.52),1px 1px 0 rgba(255,250,232,0.52)", zIndex: 2 }}>Confirm Password</label>
             <div style={{ position: "relative" }}>
               <input
-                type={showCf ? "text" : "password"}
+                type="password"
                 placeholder="Enter password..."
                 value={confirm}
                 onChange={e => { setConfirm(e.target.value); setErrors(v => ({ ...v, confirm: "" })); }}
-                style={{ display: "block", width: "100%", padding: "0.82rem 2.8rem 0.82rem 0.95rem", border: `2px solid ${errors.confirm ? "#d04040" : "#5aaa30"}`, borderRadius: 10, background: "rgba(255,250,232,0.52)", fontFamily: "'Nunito',sans-serif", fontSize: "0.93rem", fontWeight: 600, color: "#222", outline: "none", boxSizing: "border-box" }}
+                style={{ display: "block", width: "100%", padding: "0.82rem 0.95rem", border: `2px solid ${errors.confirm ? "#d04040" : "#5aaa30"}`, borderRadius: 10, background: "rgba(255,250,232,0.52)", fontFamily: "'Nunito',sans-serif", fontSize: "0.93rem", fontWeight: 600, color: "#222", outline: "none", boxSizing: "border-box" }}
                 onFocus={e => { e.target.style.borderColor = "#1c4f09"; e.target.style.boxShadow = "0 0 0 3px rgba(28,79,9,0.09)"; }}
                 onBlur={e => { e.target.style.borderColor = errors.confirm ? "#d04040" : "#5aaa30"; e.target.style.boxShadow = "none"; }}
               />
-              <button type="button" onClick={() => setShowCf(v => !v)} style={{ position: "absolute", right: "0.7rem", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex" }}>
-                <EyeIcon open={showCf} />
-              </button>
+            
             </div>
             {errors.confirm && <span style={{ display: "block", fontSize: "0.75rem", fontWeight: 700, color: "#c03030", marginTop: "0.28rem" }}>{errors.confirm}</span>}
           </div>
