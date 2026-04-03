@@ -123,6 +123,14 @@ class RehomingRequest(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # ── Photo & vaccination extras ─────────────────────────────────────────────
+    photo_base64   = models.TextField(blank=True)
+    vaccine_type   = models.CharField(max_length=120, blank=True)
+    last_vacc_date = models.CharField(max_length=30, blank=True)
+    vacc_clinic    = models.CharField(max_length=120, blank=True)
+    vacc_notes     = models.TextField(blank=True)
+    vacc_photos    = models.JSONField(default=list, blank=True)
+
     class Meta:
         ordering = ["-created_at"]
         db_table = "django_rehoming_requests"

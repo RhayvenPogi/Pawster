@@ -229,7 +229,6 @@ def list_rehoming(request):
 @api_view(["POST"])
 @permission_classes([IsAdminUser])
 def approve_rehoming(request, pk):
-    """POST /api/approvals/rehoming/<pk>/approve/  — admin approves"""
     try:
         obj = RehomingRequest.objects.get(pk=pk)
     except RehomingRequest.DoesNotExist:
@@ -240,6 +239,42 @@ def approve_rehoming(request, pk):
     obj.decided_at = timezone.now()
     obj.save()
 
+    # ── Build notes from behavioral flags ─────────────────────────────────
+    desc_parts = [
+        obj.ideal_home_desc or "",
+        (f"Behavior: {obj.behavior}" + (f" ({obj.behavior_other})" if obj.behavior_other else "")) if obj.behavior else "",
+        f"Medical notes: {obj.medical_notes}" if obj.medical_notes else "",
+        "Good with children." if obj.good_with_children else "",
+        "Good with other pets." if obj.good_with_pets else "",
+        "House-trained." if obj.is_house_trained else "",
+        "Leash-trained." if obj.is_leash_trained else "",
+        f"Vaccinated ({obj.vaccine_type})." if obj.is_vaccinated and obj.vaccine_type else "",
+    ]
+    notes = " ".join(p for p in desc_parts if p).strip() or "Available for adoption."
+
+    # ── Post to Spring Boot ────────────────────────────────────────────────
+    try:
+        spring_payload = {
+            "name":   obj.pet_name or "Unknown",
+            "type":   obj.species  or "Other",
+            "breed":  obj.breed    or "",
+            "age":    obj.age      or "",
+            "health": "Healthy",
+            "status": "Available",
+            "notes":  notes,
+            "photo":  obj.photo_base64 or None,
+        }
+        resp = requests.post(
+            f"{settings.SPRING_BOOT_API}/api/animals",
+            json=spring_payload,
+            timeout=10,
+        )
+        if not resp.ok:
+            print(f"[approve_rehoming] Spring Boot {resp.status_code}: {resp.text[:200]}")
+    except Exception as e:
+        print(f"[approve_rehoming] Spring Boot unreachable: {e}")
+
+    # ── Notification ──────────────────────────────────────────────────────
     if obj.user:
         from apps.notifications.models import Notification
         Notification.objects.create(
@@ -251,7 +286,6 @@ def approve_rehoming(request, pk):
 
     _rehome_approval_email(obj)
     return Response({"success": True, "message": f"Rehoming #{pk} approved."})
-
 
 @api_view(["POST"])
 @permission_classes([IsAdminUser])

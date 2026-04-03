@@ -3,14 +3,14 @@
 ## 📁 File Structure
 
 <!-- AUTO:START -->
-> 🔍 **Auto-generated documentation** — last updated: 2026-04-03 11:33:52 UTC
+> 🔍 **Auto-generated documentation** — last updated: 2026-04-03 18:07:38 UTC
 > Run `node scripts/generate-readme.js sb` to refresh.
 
 ---
 
 ## 🏗️ Architecture Overview
 
-PAWSTER's Spring Boot backend is a RESTful API secured with Spring Security and JWT authentication. Clients receive a signed token on login and must send it as a `Bearer` header on every protected request. Spring Data JPA handles all database access with 8 entity models: AnimalRequest, ActivityLog, AdoptionRequest, Animal, MissingPet, RehomeRequest, Survey, User. The app follows standard Spring MVC: Controllers → Services → Repositories.
+PAWSTER's Spring Boot backend is a RESTful API secured with Spring Security and JWT authentication. Clients receive a signed token on login and must send it as a `Bearer` header on every protected request. Spring Data JPA handles all database access with 9 entity models: AnimalRequest, ActivityLog, AdoptionRequest, Animal, MissingPet, PetComment, RehomeRequest, Survey, User. The app follows standard Spring MVC: Controllers → Services → Repositories.
 
 ## 📁 Project Structure
 
@@ -23,6 +23,7 @@ PAWSTER's Spring Boot backend is a RESTful API secured with Spring Security and 
 | src\main\java\com\pawstar\pawster\controller\AnimalController.java       | REST Controller                                  |
 | src\main\java\com\pawstar\pawster\controller\AuthController.java         | REST Controller                                  |
 | src\main\java\com\pawstar\pawster\controller\MissingPetController.java   | REST Controller                                  |
+| src\main\java\com\pawstar\pawster\controller\PetCommentController.java   | REST Controller                                  |
 | src\main\java\com\pawstar\pawster\controller\RehomeController.java       | REST Controller                                  |
 | src\main\java\com\pawstar\pawster\controller\SurveyController.java       | REST Controller                                  |
 | src\main\java\com\pawstar\pawster\controller\UserController.java         | REST Controller                                  |
@@ -31,6 +32,7 @@ PAWSTER's Spring Boot backend is a RESTful API secured with Spring Security and 
 | src\main\java\com\pawstar\pawster\model\AdoptionRequest.java             | JPA Entity (DB table)                            |
 | src\main\java\com\pawstar\pawster\model\Animal.java                      | JPA Entity (DB table)                            |
 | src\main\java\com\pawstar\pawster\model\MissingPet.java                  | JPA Entity (DB table)                            |
+| src\main\java\com\pawstar\pawster\model\PetComment.java                  | JPA Entity (DB table)                            |
 | src\main\java\com\pawstar\pawster\model\RehomeRequest.java               | JPA Entity (DB table)                            |
 | src\main\java\com\pawstar\pawster\model\Survey.java                      | JPA Entity (DB table)                            |
 | src\main\java\com\pawstar\pawster\model\User.java                        | JPA Entity (DB table)                            |
@@ -39,6 +41,7 @@ PAWSTER's Spring Boot backend is a RESTful API secured with Spring Security and 
 | src\main\java\com\pawstar\pawster\repository\AdoptionRepository.java     | JPA Repository                                   |
 | src\main\java\com\pawstar\pawster\repository\AnimalRepository.java       | JPA Repository                                   |
 | src\main\java\com\pawstar\pawster\repository\MissingPetRepository.java   | JPA Repository                                   |
+| src\main\java\com\pawstar\pawster\repository\PetCommentRepository.java   | JPA Repository                                   |
 | src\main\java\com\pawstar\pawster\repository\RehomeRepository.java       | JPA Repository                                   |
 | src\main\java\com\pawstar\pawster\repository\SurveyRepository.java       | JPA Repository                                   |
 | src\main\java\com\pawstar\pawster\repository\UserRepository.java         | JPA Repository                                   |
@@ -52,6 +55,7 @@ PAWSTER's Spring Boot backend is a RESTful API secured with Spring Security and 
 | src\main\java\com\pawstar\pawster\service\AnimalService.java             | Service layer                                    |
 | src\main\java\com\pawstar\pawster\service\EmailService.java              | Service layer                                    |
 | src\main\java\com\pawstar\pawster\service\MissingPetService.java         | Service layer                                    |
+| src\main\java\com\pawstar\pawster\service\PetCommentService.java         | Service layer                                    |
 | src\main\java\com\pawstar\pawster\service\RehomeService.java             | Service layer                                    |
 | src\main\java\com\pawstar\pawster\service\SurveyService.java             | Service layer                                    |
 | src\main\resources\application.properties                                | App configuration (DB, JWT, mail, server)        |
@@ -135,15 +139,27 @@ PAWSTER's Spring Boot backend is a RESTful API secured with Spring Security and 
 
 ### MissingPetController
 
-| Method | Path                                 | Auth      | Description  |
-| ------ | ------------------------------------ | --------- | ------------ |
-| GET    | /api/missing-pets/api/missing-pets   | Yes (JWT) |              |
-| GET    | /api/missing-pets                    | Yes (JWT) | Get Approved |
-| GET    | /api/missing-pets/admin/all          | Yes (JWT) | Get All      |
-| POST   | /api/missing-pets                    | Yes (JWT) | Report       |
-| PUT    | /api/missing-pets/admin/{id}/approve | Yes (JWT) | Approve      |
-| PUT    | /api/missing-pets/admin/{id}/reject  | Yes (JWT) | Reject       |
-| DELETE | /api/missing-pets/admin/{id}         | Yes (JWT) | Delete       |
+| Method | Path                                 | Auth      | Description     |
+| ------ | ------------------------------------ | --------- | --------------- |
+| GET    | /api/missing-pets/api/missing-pets   | Yes (JWT) |                 |
+| GET    | /api/missing-pets                    | Yes (JWT) | Get Approved    |
+| GET    | /api/missing-pets/admin/all          | Yes (JWT) | Get All         |
+| POST   | /api/missing-pets                    | Yes (JWT) | Report          |
+| PUT    | /api/missing-pets/admin/{id}/approve | Yes (JWT) | Approve         |
+| PUT    | /api/missing-pets/admin/{id}/reject  | Yes (JWT) | Reject          |
+| PUT    | /api/missing-pets/admin/{id}         | Yes (JWT) | Admin Update    |
+| PUT    | /api/missing-pets/{id}               | Yes (JWT) | Update          |
+| DELETE | /api/missing-pets/admin/{id}         | Yes (JWT) | Delete          |
+| PUT    | /api/missing-pets/{id}/resolve       | Yes (JWT) | Resolve By User |
+
+### PetCommentController
+
+| Method | Path                                                                 | Auth      | Description    |
+| ------ | -------------------------------------------------------------------- | --------- | -------------- |
+| GET    | /api/missing-pets/{petId}/comments/api/missing-pets/{petId}/comments | Yes (JWT) |                |
+| GET    | /api/missing-pets/{petId}/comments                                   | Yes (JWT) | Get Comments   |
+| POST   | /api/missing-pets/{petId}/comments                                   | Yes (JWT) | Add Comment    |
+| DELETE | /api/missing-pets/{petId}/comments/{commentId}                       | Yes (JWT) | Delete Comment |
 
 ### RehomeController
 
@@ -217,6 +233,7 @@ jwt.expiration=86400000
 - `AdoptionRequest`
 - `Animal`
 - `MissingPet`
+- `PetComment`
 - `RehomeRequest`
 - `Survey`
 - `User`
@@ -237,6 +254,7 @@ sb/
 │   │   ├── AnimalController.java
 │   │   ├── AuthController.java
 │   │   ├── MissingPetController.java
+│   │   ├── PetCommentController.java
 │   │   ├── RehomeController.java
 │   │   ├── SurveyController.java
 │   │   └── UserController.java
@@ -244,12 +262,14 @@ sb/
 │   │   ├── AdoptionRequestDto.java
 │   │   ├── AnimalRequest.java
 │   │   ├── LoginRequest.java
+│   │   ├── PetCommentRequest.java
 │   │   └── SignupRequest.java
 │   ├── model/
 │   │   ├── ActivityLog.java
 │   │   ├── AdoptionRequest.java
 │   │   ├── Animal.java
 │   │   ├── MissingPet.java
+│   │   ├── PetComment.java
 │   │   ├── RehomeRequest.java
 │   │   ├── Survey.java
 │   │   └── User.java
@@ -258,6 +278,7 @@ sb/
 │   │   ├── AdoptionRepository.java
 │   │   ├── AnimalRepository.java
 │   │   ├── MissingPetRepository.java
+│   │   ├── PetCommentRepository.java
 │   │   ├── RehomeRepository.java
 │   │   ├── SurveyRepository.java
 │   │   └── UserRepository.java
@@ -273,6 +294,7 @@ sb/
 │       ├── AnimalService.java
 │       ├── EmailService.java
 │       ├── MissingPetService.java
+│       ├── PetCommentService.java
 │       ├── RehomeService.java
 │       └── SurveyService.java
 ├── src/main/resources/
@@ -281,7 +303,9 @@ sb/
 │       └── migration/
 │           ├── V1__create_user_table.sql
 │           ├── V2__pawster_animals_and_requests.sql
-│           └── V3__missing_pets.sql
+│           ├── V3__missing_pets.sql
+│           ├── V4__add_pet_comments_table.sql
+│           └── V5__resolved_by_user_column_for_missings.sql
 ```
 
 <!-- AUTO:END -->

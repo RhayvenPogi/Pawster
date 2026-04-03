@@ -10,32 +10,38 @@ function djFetch(path,opts={}){const token=getToken();return fetch(`${DJANGO}${p
 function useReveal(){const ref=useRef(null);const[vis,setVis]=useState(false);useEffect(()=>{const io=new IntersectionObserver(([e])=>{if(e.isIntersecting)setVis(true)},{threshold:0.1});if(ref.current)io.observe(ref.current);return()=>io.disconnect();},[]);return[ref,vis];}
 function Reveal({children,delay=0}){const[ref,vis]=useReveal();return(<div ref={ref} style={{transition:`opacity 0.7s ease ${delay}ms,transform 0.7s ease ${delay}ms`,opacity:vis?1:0,transform:vis?"translateY(0)":"translateY(20px)"}}>{children}</div>);}
 
+// ── Image → base64 helper ──────────────────────────────────────────────────
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload  = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 const REASONS=[{icon:"fas fa-plane-departure",label:"Moving abroad or relocating"},{icon:"fas fa-allergies",label:"Allergies in the household"},{icon:"fas fa-baby",label:"New baby or family changes"},{icon:"fas fa-briefcase-medical",label:"Medical or financial hardship"},{icon:"fas fa-home",label:"No longer pet-friendly housing"},{icon:"fas fa-clock",label:"Not enough time to care properly"}];
 const STEPS=["Pet Info","Health","Behavior","Reason"];
 
-// ─── Shared styles (module-level so they're stable references) ───
+// ─── Shared styles ───────────────────────────────────────────────────────────
 const inp={padding:"0.7rem 1rem",borderRadius:10,border:"1px solid rgba(180,140,60,0.28)",background:"rgba(255,250,232,0.7)",fontFamily:"'Nunito',sans-serif",fontWeight:700,fontSize:"0.9rem",color:"#1a4a08",outline:"none",width:"100%"};
 const focIn=(e)=>{e.target.style.borderColor="#5aaa30";e.target.style.boxShadow="0 0 0 3px rgba(90,170,48,0.12)";};
 const focOut=(e)=>{e.target.style.borderColor="rgba(180,140,60,0.28)";e.target.style.boxShadow="none";};
 const g2={display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0.75rem"};
 const col={display:"flex",flexDirection:"column",gap:"0.75rem"};
 
-// ─── Sub-components defined at MODULE level to keep stable references ───
 const RLabel=({children})=>(
   <label style={{fontSize:"0.72rem",fontWeight:800,textTransform:"uppercase",letterSpacing:"0.07em",color:"#5a7a40",display:"block",marginBottom:"0.3rem"}}>{children}</label>
 );
-
 const RField=({label,children})=>(
   <div style={{display:"flex",flexDirection:"column"}}><RLabel>{label}</RLabel>{children}</div>
 );
-
 const RSel=({value,onChange,opts})=>(
   <select value={value} onChange={onChange} style={inp} onFocus={focIn} onBlur={focOut}>
     <option value="">Select…</option>
     {opts.map(([v,l])=><option key={v} value={v}>{l}</option>)}
   </select>
 );
-
 const RYN=({value,onChange})=>(
   <div style={{display:"flex",gap:"0.5rem"}}>
     {[["yes","Yes"],["no","No"]].map(([v,l])=>(
@@ -49,7 +55,6 @@ const RYN=({value,onChange})=>(
     ))}
   </div>
 );
-
 const RSecTitle=({icon,title})=>(
   <div style={{display:"flex",alignItems:"center",gap:"0.5rem",padding:"0.4rem 0",borderBottom:"1px solid rgba(180,140,60,0.18)",marginBottom:"0.75rem",marginTop:"0.25rem"}}>
     <i className={`fas fa-${icon}`} style={{color:"#B45A22",fontSize:"0.8rem"}}/>
@@ -57,8 +62,84 @@ const RSecTitle=({icon,title})=>(
   </div>
 );
 
-// ─── Step content as a component (also module-level) ───
-function RehomeStepContent({ step, form, set, setV }) {
+// ─── Photo Upload Component (single main photo) ───────────────────────────────
+function PhotoUpload({ photoPreview, onPhotoChange, onPhotoClear }) {
+  const fileRef = useRef(null);
+  return (
+    <RField label="Pet Photo (recommended)">
+      <div
+        onClick={() => !photoPreview && fileRef.current?.click()}
+        style={{
+          borderRadius: 12,
+          border: `2px dashed ${photoPreview ? "rgba(90,170,48,0.5)" : "rgba(180,140,60,0.35)"}`,
+          background: photoPreview ? "transparent" : "rgba(255,250,232,0.5)",
+          overflow: "hidden",
+          cursor: photoPreview ? "default" : "pointer",
+          position: "relative",
+          minHeight: 140,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          transition: "all 0.2s",
+        }}
+      >
+        {photoPreview ? (
+          <>
+            <img src={photoPreview} alt="Pet preview" style={{ width: "100%", maxHeight: 200, objectFit: "cover", display: "block" }} />
+            <button type="button" onClick={(e) => { e.stopPropagation(); onPhotoClear(); }}
+              style={{ position:"absolute",top:8,right:8,width:28,height:28,borderRadius:"50%",background:"rgba(192,48,48,0.85)",border:"none",color:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"0.75rem",boxShadow:"0 2px 8px rgba(0,0,0,0.25)" }}>
+              <i className="fas fa-times" />
+            </button>
+            <button type="button" onClick={(e) => { e.stopPropagation(); fileRef.current?.click(); }}
+              style={{ position:"absolute",bottom:8,right:8,padding:"0.35rem 0.75rem",borderRadius:8,background:"rgba(28,79,9,0.85)",border:"none",color:"#fff",cursor:"pointer",fontSize:"0.75rem",fontWeight:800,fontFamily:"'Nunito',sans-serif",display:"flex",alignItems:"center",gap:"0.3rem" }}>
+              <i className="fas fa-camera" /> Change
+            </button>
+          </>
+        ) : (
+          <div style={{ textAlign:"center",padding:"1.5rem",color:"#9aaa80" }}>
+            <i className="fas fa-camera" style={{ fontSize:"2rem",display:"block",marginBottom:"0.5rem",color:"#B45A22",opacity:0.7 }} />
+            <div style={{ fontWeight:800,fontSize:"0.85rem",color:"#6a7a50" }}>Click to upload a photo</div>
+            <div style={{ fontSize:"0.72rem",fontWeight:700,marginTop:"0.25rem",color:"#9aaa80" }}>JPG, PNG, WebP · max 5 MB</div>
+          </div>
+        )}
+        <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" style={{ display:"none" }} onChange={onPhotoChange} />
+      </div>
+    </RField>
+  );
+}
+
+// ─── Vaccination Photos Upload (multiple) ────────────────────────────────────
+function VaccinationPhotos({ photos, onAdd, onRemove }) {
+  const fileRef = useRef(null);
+  return (
+    <div>
+      <RLabel>Vaccination Record Photos (optional but recommended)</RLabel>
+      <div style={{ display:"flex", flexWrap:"wrap", gap:"0.5rem", marginBottom:"0.5rem" }}>
+        {photos.map((src, i) => (
+          <div key={i} style={{ position:"relative", width:72, height:72, borderRadius:10, overflow:"hidden", border:"1px solid rgba(90,170,48,0.4)", flexShrink:0 }}>
+            <img src={src} alt={`Vacc record ${i+1}`} style={{ width:"100%",height:"100%",objectFit:"cover" }} />
+            <button type="button" onClick={() => onRemove(i)}
+              style={{ position:"absolute",top:2,right:2,width:18,height:18,borderRadius:"50%",background:"rgba(192,48,48,0.9)",border:"none",color:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"0.6rem" }}>
+              <i className="fas fa-times" />
+            </button>
+          </div>
+        ))}
+        {photos.length < 5 && (
+          <button type="button" onClick={() => fileRef.current?.click()}
+            style={{ width:72,height:72,borderRadius:10,border:"2px dashed rgba(90,170,48,0.4)",background:"rgba(255,250,232,0.5)",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:"0.2rem",color:"#6a7a50",flexShrink:0 }}>
+            <i className="fas fa-plus" style={{ fontSize:"0.85rem",color:"#5aaa30" }} />
+            <span style={{ fontSize:"0.58rem",fontWeight:800 }}>Add</span>
+          </button>
+        )}
+      </div>
+      <div style={{ fontSize:"0.7rem",fontWeight:700,color:"#9aaa80" }}>Upload up to 5 photos of vaccination cards, vet records, or health certificates.</div>
+      <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" style={{ display:"none" }} onChange={onAdd} />
+    </div>
+  );
+}
+
+// ─── Step content ─────────────────────────────────────────────────────────────
+function RehomeStepContent({ step, form, set, setV, photoPreview, onPhotoChange, onPhotoClear, vaccPhotos, onVaccPhotoAdd, onVaccPhotoRemove }) {
   return (
     <>
       {step === 1 && (
@@ -90,6 +171,7 @@ function RehomeStepContent({ step, form, set, setV }) {
           <RField label="How long have you had this pet? *">
             <RSel value={form.durationOwned} onChange={set("durationOwned")} opts={[["Less than 6 months","Less than 6 months"],["6 months-2 years","6 months–2 years"],["2+ years","2+ years"]]}/>
           </RField>
+          <PhotoUpload photoPreview={photoPreview} onPhotoChange={onPhotoChange} onPhotoClear={onPhotoClear} />
         </div>
       )}
 
@@ -100,14 +182,53 @@ function RehomeStepContent({ step, form, set, setV }) {
             <RField label="Vaccinated? *"><RYN value={form.isVaccinated} onChange={(v)=>setV("isVaccinated",v)}/></RField>
             <RField label="Spayed / Neutered? *"><RYN value={form.isNeutered} onChange={(v)=>setV("isNeutered",v)}/></RField>
           </div>
+
+          {/* ── Expanded vaccination section ── */}
+          {form.isVaccinated==="yes"&&(
+            <div style={{padding:"1rem",borderRadius:14,background:"rgba(28,79,9,0.05)",border:"1px solid rgba(90,170,48,0.28)",display:"flex",flexDirection:"column",gap:"0.75rem"}}>
+              <div style={{display:"flex",alignItems:"center",gap:"0.5rem",marginBottom:"0.1rem"}}>
+                <i className="fas fa-shield-virus" style={{color:"#1c7a09",fontSize:"0.85rem"}}/>
+                <span style={{fontSize:"0.75rem",fontWeight:900,textTransform:"uppercase",letterSpacing:"0.07em",color:"#1c4f09"}}>Vaccination Details</span>
+              </div>
+
+              <div style={g2}>
+                <RField label="Vaccine Type(s)">
+                  <input type="text" value={form.vaccineType} onChange={set("vaccineType")} placeholder="e.g. Anti-rabies, 5-in-1" style={inp} onFocus={focIn} onBlur={focOut}/>
+                </RField>
+                <RField label="Last Vaccinated">
+                  <input type="date" value={form.lastVaccDate} onChange={set("lastVaccDate")} style={inp} onFocus={focIn} onBlur={focOut}/>
+                </RField>
+              </div>
+
+              <RField label="Vet / Clinic Name">
+                <input type="text" value={form.vaccClinic} onChange={set("vaccClinic")} placeholder="e.g. PetCare Clinic, Baguio" style={inp} onFocus={focIn} onBlur={focOut}/>
+              </RField>
+
+              <RField label="Vaccination Notes">
+                <textarea value={form.vaccNotes} onChange={set("vaccNotes")} rows={2} placeholder="Any additional vaccine info, boosters due, etc." style={{...inp,resize:"vertical",minHeight:60}} onFocus={focIn} onBlur={focOut}/>
+              </RField>
+
+              <VaccinationPhotos
+                photos={vaccPhotos}
+                onAdd={onVaccPhotoAdd}
+                onRemove={onVaccPhotoRemove}
+              />
+
+              <div style={{padding:"0.5rem 0.75rem",borderRadius:9,background:"rgba(224,120,32,0.08)",border:"1px solid rgba(224,120,32,0.25)",fontSize:"0.78rem",fontWeight:700,color:"#b05010"}}>
+                <i className="fas fa-exclamation-triangle" style={{marginRight:"0.4rem"}}/>Please bring original vaccination records during the handover so the new owner can continue care.
+              </div>
+            </div>
+          )}
+
+          {form.isVaccinated==="no"&&(
+            <div style={{padding:"0.625rem 0.875rem",borderRadius:10,background:"rgba(224,120,32,0.06)",border:"1px solid rgba(224,120,32,0.22)",fontSize:"0.8rem",fontWeight:700,color:"#b05010"}}>
+              <i className="fas fa-info-circle" style={{marginRight:"0.4rem"}}/>The new owner will be informed that vaccination is pending and may be required before adoption finalizes.
+            </div>
+          )}
+
           <RField label="Any known medical conditions?">
             <textarea value={form.medicalNotes} onChange={set("medicalNotes")} rows={3} placeholder="Allergies, ongoing treatments, illnesses…" style={{...inp,resize:"vertical",minHeight:80}} onFocus={focIn} onBlur={focOut}/>
           </RField>
-          {form.isVaccinated==="yes"&&(
-            <div style={{padding:"0.625rem 0.875rem",borderRadius:10,background:"rgba(224,120,32,0.08)",border:"1px solid rgba(224,120,32,0.25)",fontSize:"0.8rem",fontWeight:700,color:"#b05010"}}>
-              <i className="fas fa-exclamation-triangle" style={{marginRight:"0.4rem"}}/>Please provide vaccination records when arranging the handover.
-            </div>
-          )}
         </div>
       )}
 
@@ -185,9 +306,53 @@ export default function Rehome(){
   const[submitted,setSubmitted]=useState(false);
   const[loading,setLoading]=useState(false);
   const[error,setError]=useState("");
+
+  // ── Main pet photo ───────────────────────────────────────────────────────
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const [photoBase64,  setPhotoBase64]  = useState(null);
+
+  // ── Vaccination record photos (up to 5) ─────────────────────────────────
+  const [vaccPhotos, setVaccPhotos] = useState([]); // array of base64 data-URLs
+
+  const handlePhotoChange = useCallback(async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { setError("Photo must be under 5 MB."); return; }
+    try {
+      const dataUrl = await fileToBase64(file);
+      setPhotoPreview(dataUrl);
+      setPhotoBase64(dataUrl);
+      setError("");
+    } catch { setError("Could not read the image. Please try another file."); }
+    e.target.value = "";
+  }, []);
+
+  const handlePhotoClear = useCallback(() => {
+    setPhotoPreview(null);
+    setPhotoBase64(null);
+  }, []);
+
+  const handleVaccPhotoAdd = useCallback(async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { setError("Photo must be under 5 MB."); return; }
+    try {
+      const dataUrl = await fileToBase64(file);
+      setVaccPhotos(prev => [...prev.slice(0, 4), dataUrl]);
+      setError("");
+    } catch { setError("Could not read the image. Please try another file."); }
+    e.target.value = "";
+  }, []);
+
+  const handleVaccPhotoRemove = useCallback((idx) => {
+    setVaccPhotos(prev => prev.filter((_, i) => i !== idx));
+  }, []);
+
   const[form,setForm]=useState({
     petName:"",species:"Dog",breed:"",age:"",gender:"Male",durationOwned:"",
     isVaccinated:"",isNeutered:"",medicalNotes:"",
+    // vaccination details
+    vaccineType:"",lastVaccDate:"",vaccClinic:"",vaccNotes:"",
     behavior:"",behaviorOther:"",hasAggression:"",isHouseTrained:"",isLeashTrained:"",
     goodWithChildren:"",goodWithPets:"",idealHomeDesc:"",
     contact:"",reason:"",details:"",triedAlternatives:"",
@@ -207,14 +372,23 @@ export default function Rehome(){
       const res=await djFetch("/api/approvals/rehoming/",{method:"POST",body:JSON.stringify({
         pet_name:form.petName,species:form.species,breed:form.breed,age:form.age,gender:form.gender,
         duration_owned:form.durationOwned,is_vaccinated:form.isVaccinated==="yes",is_neutered:form.isNeutered==="yes",
-        medical_notes:form.medicalNotes,behavior:form.behavior,behavior_other:form.behaviorOther,
+        medical_notes:form.medicalNotes,
+        // vaccination details
+        vaccine_type: form.vaccineType || null,
+        last_vacc_date: form.lastVaccDate || null,
+        vacc_clinic: form.vaccClinic || null,
+        vacc_notes: form.vaccNotes || null,
+        vacc_photos: vaccPhotos.length > 0 ? vaccPhotos : null,
+        behavior:form.behavior,behavior_other:form.behaviorOther,
         has_aggression:form.hasAggression==="yes",is_house_trained:form.isHouseTrained==="yes",
         is_leash_trained:form.isLeashTrained==="yes",good_with_children:form.goodWithChildren==="yes",
         good_with_pets:form.goodWithPets==="yes",ideal_home_desc:form.idealHomeDesc,contact:form.contact,
         reason:form.reason,details:form.details,tried_alternatives:form.triedAlternatives,
         can_provide_food:form.canProvideFood,can_provide_carrier:form.canProvideCarrier,
         can_provide_records:form.canProvideRecords,understands_permanent:form.understandsPermanent,
-        open_to_followup:form.openToFollowup
+        open_to_followup:form.openToFollowup,
+        // ── Main pet photo ──
+        photo_base64: photoBase64 ?? null,
       })});
       let data={};try{data=await res.json();}catch{}
       if(res.ok&&data.success!==false){setSubmitted(true);}
@@ -236,7 +410,6 @@ export default function Rehome(){
         @media(max-width:768px){.rehome-grid{grid-template-columns:1fr!important}}
       `}</style>
 
-      {/* Background */}
       <div style={{position:"fixed",inset:0,zIndex:0,overflow:"hidden",pointerEvents:"none"}}>
         <div style={{position:"absolute",inset:0,background:"#EDDABB"}}/>
         <div style={{position:"absolute",width:900,height:900,top:"-20%",left:"-15%",borderRadius:"50%",background:"radial-gradient(circle,#B45A22,transparent 70%)",filter:"blur(120px)",opacity:0.38,animation:"fl1 9s ease-in-out infinite"}}/>
@@ -307,8 +480,21 @@ export default function Rehome(){
 
                 <form onSubmit={handleSubmit}>
                   <div style={{maxHeight:"52vh",overflowY:"auto",paddingRight:"0.25rem"}}>
-                    <RehomeStepContent step={step} form={form} set={set} setV={setV}/>
-                    {step === 4 && error && (
+                    <RehomeStepContent
+                      step={step} form={form} set={set} setV={setV}
+                      photoPreview={photoPreview}
+                      onPhotoChange={handlePhotoChange}
+                      onPhotoClear={handlePhotoClear}
+                      vaccPhotos={vaccPhotos}
+                      onVaccPhotoAdd={handleVaccPhotoAdd}
+                      onVaccPhotoRemove={handleVaccPhotoRemove}
+                    />
+                    {(step === 4 || step === 1) && error && (
+                      <div style={{padding:"0.625rem 0.875rem",borderRadius:10,background:"rgba(192,48,48,0.08)",border:"1px solid rgba(192,48,48,0.25)",fontSize:"0.82rem",fontWeight:700,color:"#c03030",marginTop:"0.75rem"}}>
+                        <i className="fas fa-times-circle" style={{marginRight:"0.4rem"}}/>{error}
+                      </div>
+                    )}
+                    {step === 2 && error && (
                       <div style={{padding:"0.625rem 0.875rem",borderRadius:10,background:"rgba(192,48,48,0.08)",border:"1px solid rgba(192,48,48,0.25)",fontSize:"0.82rem",fontWeight:700,color:"#c03030",marginTop:"0.75rem"}}>
                         <i className="fas fa-times-circle" style={{marginRight:"0.4rem"}}/>{error}
                       </div>

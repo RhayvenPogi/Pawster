@@ -39,6 +39,33 @@ function djFetch(path, opts = {}) {
   });
 }
 
+/**
+ * Resolve a photo URL from a Spring Boot animal object.
+ * Spring Boot may return the photo under different field names depending
+ * on the entity mapping. We try them all in priority order.
+ */
+function resolvePhotoUrl(a) {
+  // Try every common field name Spring Boot might use
+  const raw =
+    a.photoUrl    ||   // camelCase JPA
+    a.photo_url   ||   // snake_case
+    a.photo       ||   // short form
+    a.imageUrl    ||
+    a.image_url   ||
+    a.imgUrl      ||
+    null;
+
+  if (!raw) return null;
+
+  // Already a data-URL or absolute URL — use as-is
+  if (raw.startsWith("data:") || raw.startsWith("http://") || raw.startsWith("https://")) {
+    return raw;
+  }
+
+  // Relative path — prepend Spring Boot base
+  return `${API_BASE}${raw.startsWith("/") ? "" : "/"}${raw}`;
+}
+
 // ─── Reveal hook ───
 function useReveal(delay = 0) {
   const ref = useRef(null);
@@ -399,12 +426,10 @@ function AdoptModal({ animal, user, onClose, onSuccess }) {
   const [loading, setLoading] = useState(false);
 
   const [form, setForm] = useState({
-    // track which fields were prefilled (for border highlight)
     _prefill_name:    !![user?.firstName, user?.lastName].filter(Boolean).join(" "),
     _prefill_phone:   !!user?.phone,
     _prefill_email:   !!user?.email,
     _prefill_address: !!user?.address,
-    // Step 1
     name:    [user?.firstName, user?.lastName].filter(Boolean).join(" ") || "",
     phone:   user?.phone    || "",
     email:   user?.email    || "",
@@ -413,7 +438,6 @@ function AdoptModal({ animal, user, onClose, onSuccess }) {
     previousPet: "",
     previousPetDetails: "",
     primaryCaregiver: "",
-    // Step 2
     housing:       user?.housing || "",
     ownsHome:      "",
     petPermission: "",
@@ -421,12 +445,10 @@ function AdoptModal({ animal, user, onClose, onSuccess }) {
     householdSize: "",
     hasChildren:   "",
     childrenAges:  "",
-    // Step 3
     hasOtherPets:        "",
     otherPetsDetail:     "",
     otherPetsVaccinated: "",
     introductionPlan:    "",
-    // Step 4
     exp:              user?.petExperience || "",
     aloneHours:       "",
     backupCare:       "",
@@ -434,7 +456,6 @@ function AdoptModal({ animal, user, onClose, onSuccess }) {
     vetPlan:          "",
     behaviorResponse: "",
     openToGuidance:   "",
-    // Step 5
     agreeProperCare: false,
     agreeLongTerm:   false,
     agreeNoAbandon:  false,
@@ -507,8 +528,6 @@ function AdoptModal({ animal, user, onClose, onSuccess }) {
     <div style={{ position:"fixed", inset:0, zIndex:600, display:"flex", alignItems:"center", justifyContent:"center", padding:"1rem", background:"rgba(10,6,2,0.65)", backdropFilter:"blur(8px)" }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div style={{ width:"100%", maxWidth:580, borderRadius:20, overflow:"hidden", border:"1px solid rgba(180,140,60,0.28)", background:"rgba(255,252,235,0.98)", boxShadow:"0 24px 64px rgba(40,20,5,0.45)", animation:"modalIn .28s cubic-bezier(.22,.68,0,1.15) both", display:"flex", flexDirection:"column", maxHeight:"90vh" }}>
-
-        {/* Header */}
         <div style={{ display:"flex", alignItems:"center", gap:"0.75rem", padding:"1rem 1.25rem", borderBottom:"1px solid rgba(180,140,60,0.22)", background:"linear-gradient(135deg,rgba(28,79,9,0.08),rgba(90,170,48,0.05))", flexShrink:0 }}>
           <div style={{ width:38, height:38, borderRadius:10, background:"#1c4f09", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff" }}>
             <i className="fas fa-heart" />
@@ -521,20 +540,14 @@ function AdoptModal({ animal, user, onClose, onSuccess }) {
             <i className="fas fa-times" />
           </button>
         </div>
-
-        {/* Progress bar */}
         <div style={{ display:"flex", gap:0, flexShrink:0 }}>
           {STEPS.map((_, i) => (
             <div key={i} style={{ flex:1, height:3, background:step > i ? "#1c4f09" : "rgba(180,140,60,0.20)", transition:"background 0.3s" }} />
           ))}
         </div>
-
-        {/* Body */}
         <div style={{ padding:"1rem 1.25rem", overflowY:"auto", flex:1 }}>
           <AdoptStepContent step={step} form={form} set={set} setV={setV} animal={animal} />
         </div>
-
-        {/* Footer navigation */}
         <div style={{ padding:"0.875rem 1.25rem", borderTop:"1px solid rgba(180,140,60,0.18)", display:"flex", gap:"0.625rem", flexShrink:0, background:"rgba(255,252,235,0.95)" }}>
           {step > 1 && (
             <button type="button" onClick={() => setStep((s) => s - 1)}
@@ -570,28 +583,38 @@ function AnimalCard({ animal, index, onAdopt }) {
   const [ref, vis] = useReveal();
   const [hov, setHov] = useState(false);
   const [imgErr, setImgErr] = useState(false);
-  const emoji  = TYPE_EMOJI[animal.type] ?? "🐾";
-  const st     = STATUS_STYLE[animal.status] ?? STATUS_STYLE.Adopted;
+  const emoji   = TYPE_EMOJI[animal.type] ?? "🐾";
+  const st      = STATUS_STYLE[animal.status] ?? STATUS_STYLE.Adopted;
   const isAvail = animal.status === "Available";
+
+  // ── Resolve photo from whatever field Spring Boot returned ──
+  const photoSrc = animal._resolvedPhotoUrl || null;
 
   return (
     <div ref={ref}
       style={{ borderRadius:18, overflow:"hidden", border:`1px solid ${hov?"rgba(90,170,48,0.42)":"rgba(180,140,60,0.28)"}`, display:"flex", flexDirection:"column", background:"rgba(255,248,225,0.75)", backdropFilter:"blur(14px)", boxShadow:hov?"0 8px 40px rgba(100,70,20,0.20)":"0 4px 24px rgba(100,70,20,0.13)", transform:vis?(hov?"translateY(-5px)":"translateY(0)"):"translateY(20px)", opacity:vis?1:0, transition:"all 0.3s", transitionDelay:(index%4)*70+"ms", cursor:"pointer" }}
       onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}>
       <div style={{ position:"relative", height:190, display:"flex", alignItems:"center", justifyContent:"center", background:"linear-gradient(135deg,rgba(255,248,220,0.6),rgba(255,240,200,0.4))", borderBottom:"1px solid rgba(180,140,60,0.28)", overflow:"hidden" }}>
-        {(!animal.photoUrl || imgErr) ? (
-          <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"5rem" }}>{emoji}</div>
-        ) : (
-          <>
-            <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:"5rem" }}>{emoji}</div>
-            <img src={animal.photoUrl} alt={animal.name} referrerPolicy="no-referrer"
-              style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", transition:"transform 0.5s", transform:hov?"scale(1.06)":"scale(1)" }}
-              onLoad={(e) => { e.target.previousElementSibling.style.display = "none"; }}
-              onError={() => setImgErr(true)} />
-          </>
+        {/* Emoji placeholder always rendered underneath */}
+        <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:"5rem" }}>{emoji}</div>
+
+        {/* Photo on top — shown only if we have a src and it hasn't errored */}
+        {photoSrc && !imgErr && (
+          <img
+            src={photoSrc}
+            alt={animal.name}
+            referrerPolicy="no-referrer"
+            style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", transition:"transform 0.5s", transform:hov?"scale(1.06)":"scale(1)" }}
+            onError={() => {
+              console.warn("[AnimalCard] photo failed to load:", photoSrc?.slice(0, 80));
+              setImgErr(true);
+            }}
+          />
         )}
+
         <span style={{ position:"absolute", top:10, right:10, padding:"0.2rem 0.6rem", borderRadius:50, fontSize:10, fontWeight:900, textTransform:"uppercase", zIndex:10, background:st.bg, color:st.text }}>{animal.status}</span>
       </div>
+
       <div style={{ padding:"1rem", display:"flex", flexDirection:"column", flex:1 }}>
         <div style={{ fontFamily:"'Playfair Display',serif", fontWeight:900, fontSize:"1.1rem", color:"#1a4a08", lineHeight:1.2 }}>{animal.name}</div>
         <div style={{ fontFamily:"'DM Mono',monospace", fontSize:"0.72rem", fontWeight:700, color:"#6a7a50", marginTop:"0.25rem" }}>{[animal.type, animal.breed, animal.age, animal.gender].filter(Boolean).join(" · ")}</div>
@@ -672,7 +695,19 @@ export default function FindAPet() {
       const data = await res.json();
       const list  = Array.isArray(data) ? data : (data.content ?? []);
       const total = Array.isArray(data) ? list.length : (data.totalElements ?? list.length);
-      setAnimals(list.map((a) => ({ ...a, photoUrl: a.photoUrl ?? (a.photo ? (a.photo.startsWith("http") ? a.photo : `http://localhost:8081${a.photo}`) : null) })));
+
+      // ── Normalize animals: resolve photo from whichever field Spring Boot uses ──
+      const normalized = list.map((a) => {
+        const resolved = resolvePhotoUrl(a);
+        if (resolved) {
+          console.log(`[FindAPet] ${a.name} → photo resolved (${resolved.startsWith("data:") ? `base64 ${Math.round(resolved.length/1024)}KB` : resolved})`);
+        } else {
+          console.log(`[FindAPet] ${a.name} → no photo. Raw fields: photoUrl=${a.photoUrl}, photo=${a.photo}, photo_url=${a.photo_url}`);
+        }
+        return { ...a, _resolvedPhotoUrl: resolved };
+      });
+
+      setAnimals(normalized);
       setTotal(total);
     } catch {
       setError("Could not load animals. Make sure the Spring Boot server is running.");
@@ -819,19 +854,19 @@ export default function FindAPet() {
 
       {showReview && adoptTarget && <ReviewDetailsModal animal={adoptTarget} user={user} onContinue={handleContinue} onClose={handleCloseAll} />}
       {showForm && adoptTarget && (
-  <AdoptModal
-    animal={adoptTarget}
-    user={user}
-    onClose={handleCloseAll}
-    onSuccess={(msg, kind) => {
-      showToast(msg, kind);
-      handleCloseAll();
-      if (!kind || kind === "ok") {
-        fetchAnimals(search, type, status); // ✅ re-fetch after successful submission
-      }
-    }}
-  />
-)}
+        <AdoptModal
+          animal={adoptTarget}
+          user={user}
+          onClose={handleCloseAll}
+          onSuccess={(msg, kind) => {
+            showToast(msg, kind);
+            handleCloseAll();
+            if (!kind || kind === "ok") {
+              fetchAnimals(search, type, status);
+            }
+          }}
+        />
+      )}
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>
   );
