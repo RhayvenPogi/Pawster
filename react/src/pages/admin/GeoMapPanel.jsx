@@ -140,7 +140,7 @@ const PROV_MAP = {
 
 // In-memory cache — avoids duplicate Nominatim calls across renders
 const _geoCache = new Map();
-let _lastNomCall = 0;
+
 
 function inRegion(lat, lng) {
   return lat >= ILOCOS_BBOX.minLat && lat <= ILOCOS_BBOX.maxLat &&
@@ -177,27 +177,41 @@ async function nominatim(query) {
   const key = query.toLowerCase().trim();
   if (_geoCache.has(key)) return _geoCache.get(key);
 
-  // Throttle: Nominatim ToS requires max 1 req/sec
-  const wait = 1150 - (Date.now() - _lastNomCall);
-  if (wait > 0) await new Promise(r => setTimeout(r, wait));
-  _lastNomCall = Date.now();
-
   try {
-    const url = `https://nominatim.openstreetmap.org/search?` +
-      `q=${encodeURIComponent(query)}&format=jsonv2&limit=5&countrycodes=ph` +
-      `&viewbox=${ILOCOS_BBOX.minLng},${ILOCOS_BBOX.maxLat},${ILOCOS_BBOX.maxLng},${ILOCOS_BBOX.minLat}&bounded=0`;
-    const res = await fetch(url, {
-      headers: { "Accept-Language": "en", "User-Agent": "IlocosMapApp/1.0" }
-    });
+    const token = localStorage.getItem("pawster_token") ||
+                  localStorage.getItem("token") || "";
+
+    const res = await fetch(
+      `/php/admin/dashboard?action=nominatim_search&q=${encodeURIComponent(query)}`,
+      {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      }
+    );
+
     if (!res.ok) { _geoCache.set(key, null); return null; }
+
     const data = await res.json();
-    // Prefer results inside Ilocos region bounding box
-    const hit = data.find(r => inRegion(parseFloat(r.lat), parseFloat(r.lon))) || data[0];
+    if (!Array.isArray(data) || data.length === 0) {
+      _geoCache.set(key, null);
+      return null;
+    }
+
+    const hit = data.find(r =>
+      inRegion(parseFloat(r.lat), parseFloat(r.lon))
+    ) || data[0];
+
     if (!hit) { _geoCache.set(key, null); return null; }
-    const result = { lat: parseFloat(hit.lat), lng: parseFloat(hit.lon), displayName: hit.display_name, type: hit.type };
+
+    const result = {
+      lat: parseFloat(hit.lat),
+      lng: parseFloat(hit.lon),
+      displayName: hit.display_name,
+      type: hit.type,
+    };
     _geoCache.set(key, result);
     return result;
   } catch {
+    _geoCache.set(key, null);
     return null;
   }
 }

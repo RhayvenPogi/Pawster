@@ -90,14 +90,18 @@ export default function UsersPanel({ show: isVisible }) {
     try {
       if (form.id) {
         const r = await phpApi("update_user", {
-          id:         form.id,
-          first_name: form.first_name,
-          last_name:  form.last_name,
-          email:      form.email,
-          phone:      form.phone,
-          role:       form.role,
-          is_active:  form.is_active,
-        });
+  id:         form.id,
+  first_name: form.first_name,
+  last_name:  form.last_name,
+  email:      form.email,
+  phone:      form.phone,
+  role:       form.role,
+  is_active:  form.is_active,
+  address:    form.address || "",
+  city:       form.city    || "",
+  province:   form.province || "",
+  zip:        form.zip     || "",
+});
         if (r.success) {
           toast("User updated", "success");
           setModal(null);
@@ -106,18 +110,17 @@ export default function UsersPanel({ show: isVisible }) {
           setErrs({ api: r.message || "Error updating user" });
         }
       } else {
-        const r = await fetch("/api/admin/users", {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            firstName: form.first_name,
-            lastName:  form.last_name,
-            email:     form.email,
-            phone:     form.phone,
-            role:      form.role,
-          }),
-        }).then(res => res.json());
+        const r = await phpApi("add_user", {
+    first_name: form.first_name,
+    last_name:  form.last_name,
+    email:      form.email,
+    phone:      form.phone,
+    role:       form.role,
+    address:    form.address  || "",
+    city:       form.city     || "",
+    province:   form.province || "",
+    zip:        form.zip      || "",
+  });
 
         if (r.success) {
           toast("User added ✉️ credentials emailed!", "success");
@@ -376,6 +379,50 @@ export default function UsersPanel({ show: isVisible }) {
             <option value="admin">Admin</option>
           </Select>
         </Field>
+
+        {/* Address */}
+<Field label="Address">
+  <Input
+    value={form.address || ""}
+    onChange={e => setField("address", e.target.value)}
+    placeholder="Street address"
+    style={inp("address")}
+  />
+  <FieldErr msg={errs.address} />
+</Field>
+
+{/* City */}
+<Field label="City">
+  <Input
+    value={form.city || ""}
+    onChange={e => setField("city", e.target.value)}
+    placeholder="City"
+    style={inp("city")}
+  />
+  <FieldErr msg={errs.city} />
+</Field>
+
+{/* Province */}
+<Field label="Province">
+  <Input
+    value={form.province || ""}
+    onChange={e => setField("province", e.target.value)}
+    placeholder="Province"
+    style={inp("province")}
+  />
+  <FieldErr msg={errs.province} />
+</Field>
+
+{/* Zip */}
+<Field label="Zip / Postal Code">
+  <Input
+    value={form.zip || ""}
+    onChange={e => setField("zip", e.target.value)}
+    placeholder="Zip / Postal Code"
+    style={inp("zip")}
+  />
+  <FieldErr msg={errs.zip} />
+</Field>
 
       </Modal>
 

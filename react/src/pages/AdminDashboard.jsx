@@ -343,7 +343,7 @@ function Sidebar({ active, onNav, stats, user, collapsed, onToggle, onLogout }) 
   return (
     <aside className="fixed left-0 top-0 z-[200] h-screen flex flex-col overflow-hidden transition-all duration-300"
       style={{ width: collapsed ? 64 : 252, background: "rgba(255,248,220,0.90)", backdropFilter: "blur(22px)", borderRight: "1.5px solid rgba(90,170,48,0.45)", boxShadow: "4px 0 24px rgba(100,70,20,0.10)", transitionTimingFunction: "cubic-bezier(0.4,0,0.2,1)" }}>
-      <div className="flex items-center gap-2.5 px-3.5 shrink-0 overflow-hidden h-[90px]" style={{ borderBottom: "1.5px solid rgba(180,140,60,0.28)" }}>
+      <div className="flex items-center gap-2.5 px-3.5 shrink-0 overflow-hidden h-16px" style={{ borderBottom: "1.5px solid rgba(180,140,60,0.28)" }}>
         <img src={logo} alt="Pawster" className="object-contain shrink-0" style={{ width: collapsed ? 36 : 50, height: collapsed ? 36 : 50 }} onError={e => { e.target.style.display = "none"; }} />
         {!collapsed && (
           <div className="flex-1 min-w-0">

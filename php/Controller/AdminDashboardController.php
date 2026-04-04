@@ -42,12 +42,48 @@ class AdminDashboardController
                 'update_profile'     => $this->updateProfile(),
                 'change_password'    => $this->changePassword(),
                 'upload_photo'       => $this->uploadPhoto(),
+                'nominatim_search'   => $this->nominatimSearch(),
                 default              => $this->json(['success' => false, 'message' => "Unknown action: $action"], 404),
             };
         } catch (PDOException $e) {
             $this->json(['success' => false, 'message' => 'Database error: ' . $e->getMessage()], 500);
         }
     }
+
+    private function nominatimSearch(): void
+{
+    $q = trim($_GET['q'] ?? $_POST['q'] ?? '');
+    if (!$q) {
+        header('Content-Type: application/json');
+        echo json_encode([]);
+        exit();
+    }
+
+    $url = "https://nominatim.openstreetmap.org/search?" . http_build_query([
+        "q"            => $q,
+        "format"       => "jsonv2",
+        "limit"        => 5,
+        "countrycodes" => "ph",
+    ]);
+
+    $ctx = stream_context_create([
+        "http" => [
+            "method"  => "GET",
+            "header"  => implode("\r\n", [
+                "User-Agent: Pawster/1.0 (" . gethostname() . "@pawster.com)",
+                "Accept-Language: en",
+                "Accept: application/json",
+            ]),
+            "timeout" => 10,
+        ]
+    ]);
+
+    $result = @file_get_contents($url, false, $ctx);
+
+    header('Content-Type: application/json');
+    echo $result !== false ? $result : json_encode([]);
+    exit();
+}
 
     // ── Resolve the authenticated user's ID from the JWT ─────────────────────
     private function adminId(): int
@@ -338,101 +374,130 @@ private function getUsers(): void
 }
 
     private function addUser(): void
-    {
-        $firstName = trim($this->body('first_name', ''));
-        $lastName  = trim($this->body('last_name',  ''));
-        $email     = trim($this->body('email',      ''));
-        $phone     = trim($this->body('phone',      ''));
-        $password  = $this->body('password', '');
-        $role      = $this->body('role',     'user');
-        $isActive  = (int) $this->body('is_active', 1);
+{
+    $firstName = trim($this->body('first_name', ''));
+    $lastName  = trim($this->body('last_name',  ''));
+    $email     = trim($this->body('email',      ''));
+    $phone     = trim($this->body('phone',      ''));
+    $role      = $this->body('role',     'user');
+    $isActive  = (int) $this->body('is_active', 1);
+    $address   = $this->body('address',  '');
+    $city      = $this->body('city',     '');
+    $province  = $this->body('province', '');
+    $zip       = $this->body('zip',      '');
 
-        if (!$firstName || !$lastName || !$email || !$password || !$phone) {
-            $this->fail('All fields are required.');
-        }
+    if (!$firstName || !$lastName || !$email || !$phone) {
+        $this->fail('All fields are required.');
+    }
 
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $this->fail('Invalid email format.');
-        }
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $this->fail('Invalid email format.');
+    }
 
+    $db = $this->db();
+
+    $chk = $db->prepare("SELECT id FROM users WHERE email = :email");
+    $chk->execute(['email' => $email]);
+    if ($chk->fetch()) {
+        $this->fail('Email already in use.');
+    }
+
+    // Auto-generate a random password
+    $password = bin2hex(random_bytes(8));
+    $hash = password_hash($password, PASSWORD_BCRYPT);
+
+    $stmt = $db->prepare(
+        "INSERT INTO users
+            (first_name, last_name, email, phone, password_hash, role, is_active, address, city, province, zip_code)
+         VALUES
+            (:firstName, :lastName, :email, :phone, :hash, :role, :isActive, :address, :city, :province, :zip)
+         RETURNING id"
+    );
+    $stmt->execute(compact(
+        'firstName', 'lastName', 'email', 'phone', 'hash',
+        'role', 'isActive', 'address', 'city', 'province', 'zip'
+    ));
+    $id = (int) $stmt->fetchColumn();
+
+    $this->logActivity('Add User', "Created user: $email (ID $id)");
+    $this->ok(['id' => $id], 'User created.');
+}
+
+   private function updateUser(): void
+{
+    $id        = (int) $this->body('id', 0);
+    $firstName = trim($this->body('first_name', ''));
+    $lastName  = trim($this->body('last_name',  ''));
+    $email     = trim($this->body('email',      ''));
+    $phone     = trim($this->body('phone',      ''));
+    $password  = $this->body('password', '');
+    $role      = $this->body('role',     'user');
+    $isActive  = (int) $this->body('is_active', 1);
+
+    // ✅ Address fields
+    $address  = $this->body('address',  '');
+    $city     = $this->body('city',     '');
+    $province = $this->body('province', '');
+    $zip      = $this->body('zip',      '');
+
+    if (!$id || !$firstName || !$email) {
+        $this->fail('ID, first name, and email are required.');
+    }
+
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $this->fail('Invalid email format.');
+    }
+
+    $db = $this->db();
+
+    $chk = $db->prepare("SELECT id FROM users WHERE email = :email AND id != :id");
+    $chk->execute(compact('email', 'id'));
+    if ($chk->fetch()) {
+        $this->fail('Email already in use by another account.');
+    }
+
+    // ✅ Build query dynamically
+    if ($password) {
         if (strlen($password) < 8) {
             $this->fail('Password must be at least 8 characters.');
         }
 
-        $db = $this->db();
-
-        $chk = $db->prepare("SELECT id FROM users WHERE email = :email");
-        $chk->execute(['email' => $email]);
-        if ($chk->fetch()) {
-            $this->fail('Email already in use.');
-        }
-
         $hash = password_hash($password, PASSWORD_BCRYPT);
+
         $stmt = $db->prepare(
-            "INSERT INTO users (first_name, last_name, email, phone, password_hash, role, is_active)
-             VALUES (:firstName, :lastName, :email, :phone, :hash, :role, :isActive)
-             RETURNING id"
+            "UPDATE users
+             SET first_name=:firstName, last_name=:lastName, email=:email, phone=:phone,
+                 password_hash=:hash, role=:role, is_active=:isActive,
+                 address=:address, city=:city, province=:province, zip_code=:zip
+             WHERE id=:id"
         );
-        $stmt->execute(compact('firstName', 'lastName', 'email', 'phone', 'hash', 'role', 'isActive'));
-        $id = (int) $stmt->fetchColumn();
 
-        $this->logActivity('Add User', "Created user: $email (ID $id)");
-        $this->ok(['id' => $id], 'User created.');
+        $stmt->execute(compact(
+            'firstName', 'lastName', 'email', 'phone',
+            'hash', 'role', 'isActive',
+            'address', 'city', 'province', 'zip', 'id'
+        ));
+
+    } else {
+        // ✅ No password update
+        $stmt = $db->prepare(
+            "UPDATE users
+             SET first_name=:firstName, last_name=:lastName, email=:email, phone=:phone,
+                 role=:role, is_active=:isActive,
+                 address=:address, city=:city, province=:province, zip_code=:zip
+             WHERE id=:id"
+        );
+
+        $stmt->execute(compact(
+            'firstName', 'lastName', 'email', 'phone',
+            'role', 'isActive',
+            'address', 'city', 'province', 'zip', 'id'
+        ));
     }
 
-    private function updateUser(): void
-    {
-        $id        = (int) $this->body('id', 0);
-        $firstName = trim($this->body('first_name', ''));
-        $lastName  = trim($this->body('last_name',  ''));
-        $email     = trim($this->body('email',      ''));
-        $phone     = trim($this->body('phone',      ''));
-        $password  = $this->body('password', '');
-        $role      = $this->body('role',     'user');
-        $isActive  = (int) $this->body('is_active', 1);
-
-        if (!$id || !$firstName || !$email) {
-            $this->fail('ID, first name, and email are required.');
-        }
-
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $this->fail('Invalid email format.');
-        }
-
-        $db = $this->db();
-
-        $chk = $db->prepare("SELECT id FROM users WHERE email = :email AND id != :id");
-        $chk->execute(compact('email', 'id'));
-        if ($chk->fetch()) {
-            $this->fail('Email already in use by another account.');
-        }
-
-        if ($password) {
-            if (strlen($password) < 8) {
-                $this->fail('Password must be at least 8 characters.');
-            }
-            $hash = password_hash($password, PASSWORD_BCRYPT);
-            $stmt = $db->prepare(
-                "UPDATE users
-                 SET first_name=:firstName, last_name=:lastName, email=:email, phone=:phone,
-                     password_hash=:hash, role=:role, is_active=:isActive
-                 WHERE id=:id"
-            );
-            $stmt->execute(compact('firstName', 'lastName', 'email', 'phone', 'hash', 'role', 'isActive', 'id'));
-        } else {
-            $stmt = $db->prepare(
-                "UPDATE users
-                 SET first_name=:firstName, last_name=:lastName, email=:email, phone=:phone,
-                     role=:role, is_active=:isActive
-                 WHERE id=:id"
-            );
-            $stmt->execute(compact('firstName', 'lastName', 'email', 'phone', 'role', 'isActive', 'id'));
-        }
-
-        $this->logActivity('Update User', "Updated user ID $id: $email");
-        $this->ok(null, 'User updated.');
-    }
-
+    $this->logActivity('Update User', "Updated user ID $id: $email");
+    $this->ok(null, 'User updated.');
+}
     private function updateUserStatus(): void
     {
         $id       = (int) $this->body('id', 0);
