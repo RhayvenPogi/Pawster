@@ -343,7 +343,7 @@ function Sidebar({ active, onNav, stats, user, collapsed, onToggle, onLogout }) 
   return (
     <aside className="fixed left-0 top-0 z-[200] h-screen flex flex-col overflow-hidden transition-all duration-300"
       style={{ width: collapsed ? 64 : 252, background: "rgba(255,248,220,0.90)", backdropFilter: "blur(22px)", borderRight: "1.5px solid rgba(90,170,48,0.45)", boxShadow: "4px 0 24px rgba(100,70,20,0.10)", transitionTimingFunction: "cubic-bezier(0.4,0,0.2,1)" }}>
-      <div className="flex items-center gap-2.5 px-3.5 shrink-0 overflow-hidden h-16px" style={{ borderBottom: "1.5px solid rgba(180,140,60,0.28)" }}>
+      <div className="flex items-center gap-2.5 px-3.5 shrink-0 overflow-hidden h-16" style={{ borderBottom: "1.5px solid rgba(180,140,60,0.28)" }}>
         <img src={logo} alt="Pawster" className="object-contain shrink-0" style={{ width: collapsed ? 36 : 50, height: collapsed ? 36 : 50 }} onError={e => { e.target.style.display = "none"; }} />
         {!collapsed && (
           <div className="flex-1 min-w-0">
@@ -411,7 +411,6 @@ function Sidebar({ active, onNav, stats, user, collapsed, onToggle, onLogout }) 
 // ── TOPBAR ─────────────────────────────────────────────────────────────────────
 function Topbar({ panel, user, onRefresh, onToggle, collapsed, onNav, onOpenProfile, onLogout }) {
   const [profileOpen, setProfileOpen] = useState(false);
-  const [notifOpen,   setNotifOpen]   = useState(false);
   const avatarSrc = user?.avatar || "";
   return (
     <header className="fixed top-0 right-0 z-[150] h-16 flex items-center justify-between px-5 gap-2.5 transition-all duration-300"
@@ -423,22 +422,12 @@ function Topbar({ panel, user, onRefresh, onToggle, collapsed, onNav, onOpenProf
         <button onClick={onRefresh} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[#6a7a50] text-sm font-bold hover:text-[#1a4a08] hover:border-[#5aaa30] transition-all duration-150 cursor-pointer" style={{ background: "rgba(255,250,232,0.78)", border: "1.5px solid rgba(180,140,60,0.28)" }} title="Refresh">
           <FaIcon name="rotate-right" size={14} color="currentColor" />
         </button>
-        <div className="relative">
-          <button onClick={() => { setNotifOpen(o => !o); setProfileOpen(false); }} className="flex items-center px-3 py-2 rounded-lg text-[#6a7a50] hover:text-[#1a4a08] hover:border-[#5aaa30] transition-all duration-150 cursor-pointer" style={{ background: "rgba(255,250,232,0.78)", border: "1.5px solid rgba(180,140,60,0.28)" }}>
-            <FaIcon name="bell" size={14} color="currentColor" />
-          </button>
-          {notifOpen && (
-            <div className="fade-up absolute top-[calc(100%+8px)] right-0 z-[999] rounded-2xl p-2 min-w-[230px] shadow-2xl" style={{ background: "rgba(255,252,235,0.98)", border: "1.5px solid rgba(180,140,60,0.28)" }}>
-              <div className="flex items-center gap-2 px-2 pt-2 pb-2 font-extrabold text-[0.92rem] text-[#1a4a08]" style={{ borderBottom: "1px solid rgba(180,140,60,0.28)" }}><FaIcon name="bell" size={14} color="#1a4a08" /> Notifications</div>
-              <div className="flex flex-col items-center py-10 px-5 text-[#6a7a50] gap-3 text-center"><FaIcon name="bell" size={28} color="rgba(180,140,60,0.28)" /><p className="text-sm font-bold m-0">No new notifications</p></div>
-            </div>
-          )}
-        </div>
+
         <button onClick={() => window.open("/home", "_blank")} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold text-[#1c4f09] hover:bg-[#1c4f09] hover:text-white transition-all duration-150 cursor-pointer" style={{ background: "rgba(90,170,48,0.13)", border: "1.5px solid rgba(90,170,48,0.35)" }}>
           <FaIcon name="external-link-alt" size={13} color="currentColor" /> View Site
         </button>
         <div className="relative">
-          <div onClick={() => { setProfileOpen(o => !o); setNotifOpen(false); }} className="flex items-center gap-2 cursor-pointer px-3 py-1.5 rounded-xl transition-all duration-200 hover:border-[#5aaa30]" style={{ background: "rgba(255,250,232,0.78)", border: "1.5px solid rgba(180,140,60,0.28)" }}>
+          <div onClick={() => { setProfileOpen(o => !o); }} className="flex items-center gap-2 cursor-pointer px-3 py-1.5 rounded-xl transition-all duration-200 hover:border-[#5aaa30]" style={{ background: "rgba(255,250,232,0.78)", border: "1.5px solid rgba(180,140,60,0.28)" }}>
             <div className="w-7 h-7 rounded-full flex items-center justify-center text-white overflow-hidden border border-[#5aaa30]" style={{ background: "linear-gradient(135deg,#1c4f09,#2a7010)" }}>
               {avatarSrc ? <img src={avatarSrc} alt="avatar" className="w-full h-full object-cover rounded-full" /> : <FaIcon name="user-shield" size={14} color="#fff" />}
             </div>

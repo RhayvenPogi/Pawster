@@ -532,23 +532,28 @@ export default function HomePage() {
       `}</style>
 
       {/* ══ MESH BACKGROUND ══ */}
-      <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
-        <div className="absolute inset-0" style={{ background: "#EDD9A3" }} />
-        {[
-          { k:"a", style:{ width:"1100px", height:"1100px", top:"-28%",    left:"-20%",  background:"radial-gradient(circle,#4f8038,transparent 68%)",  animation:"fl1 10s ease-in-out infinite" } },
-          { k:"b", style:{ width:"950px",  height:"950px",  top:"5%",     right:"-22%", background:"radial-gradient(circle,#a54a1a,transparent 68%)",  animation:"fl2 12s ease-in-out infinite" } },
-          { k:"c", style:{ width:"800px",  height:"800px",  bottom:"-20%",left:"16%",   background:"radial-gradient(circle,#e8dfc8,transparent 60%)",  animation:"fl3 9s  ease-in-out infinite" } },
-          { k:"d", style:{ width:"700px",  height:"700px",  top:"40%",    right:"20%",  background:"radial-gradient(circle,#4f8038,transparent 70%)",  animation:"fl4 11s ease-in-out infinite" } },
-        ].map(({ k, style }) => (
-          <div key={k} className="absolute rounded-full"
-            style={{ ...style, filter: "blur(130px)", mixBlendMode: "multiply", opacity: 0.44 }} />
-        ))}
-        <div className="absolute inset-0" style={{ backgroundImage:"linear-gradient(rgba(90,55,10,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(90,55,10,.025) 1px,transparent 1px)", backgroundSize:"64px 64px" }} />
-        <div className="absolute inset-0" style={{ background:"radial-gradient(ellipse at 50% 50%,transparent 38%,rgba(120,75,20,0.14) 100%)" }} />
-        <div className="absolute inset-0 opacity-[0.025]"
-          style={{ backgroundImage:"url(\"data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E\")", backgroundSize:"160px 160px" }} />
-      </div>
-
+     {/* ══ MESH BACKGROUND ══ */}
+<div style={{ position: "fixed", inset: 0, zIndex: 0, overflow: "hidden", pointerEvents: "none" }}>
+  <div style={{ position: "absolute", inset: 0, background: "#EDDABB" }} />
+  {[
+    { width: "1000px", height: "1000px", top: "-25%",   left: "-18%",  background: "radial-gradient(circle,#588B41,transparent 70%)", animation: "fl1 9s ease-in-out infinite" },
+    { width: "900px",  height: "900px",  top: "8%",     right: "-20%", background: "radial-gradient(circle,#B45A22,transparent 70%)", animation: "fl2 11s ease-in-out infinite" },
+    { width: "800px",  height: "800px",  bottom: "-18%", left: "18%",  background: "radial-gradient(circle,#e8dfc8,transparent 60%)", animation: "fl3 8s ease-in-out infinite" },
+  ].map((s, i) => (
+    <div
+      key={i}
+      style={{
+        position: "absolute",
+        borderRadius: "50%",
+        filter: "blur(120px)",
+        mixBlendMode: "multiply",
+        opacity: 0.48,
+        ...s,
+      }}
+    />
+  ))}
+  <div style={{ position: "absolute", inset: 0, backgroundImage: "linear-gradient(rgba(100,70,30,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(100,70,30,.03) 1px,transparent 1px)", backgroundSize: "60px 60px" }} />
+</div>
       <Navbar />
 
       {/* ══ HERO ══ */}
@@ -845,46 +850,37 @@ export default function HomePage() {
       </section>
 
       {/* ══ FOOTER ══ */}
-      <footer className="relative z-10 border-t px-10 py-[52px]"
-        style={{ background:"rgba(255,248,215,0.88)", backdropFilter:"blur(18px)", borderColor:"rgba(90,170,48,0.38)" }}>
-        <div className="max-w-[1200px] mx-auto grid gap-12 mb-[44px]"
-          style={{ gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))" }}>
+           <footer className="relative z-10 border-t border-[rgba(90,170,48,0.45)] bg-[rgba(255,248,218,0.85)] backdrop-blur-md px-10 py-12">
+        <div className="max-w-[1200px] mx-auto grid gap-12 mb-10 grid-cols-[repeat(auto-fit,minmax(160px,1fr))]">
           <div>
-            <img src={logo} alt="Pawster" className="w-9 h-9 object-contain mb-2" onError={e => e.target.style.display="none"} />
-            <div className="font-black text-[1.25rem]" style={{ color:"#192e08", fontFamily:"'Playfair Display',serif" }}>
-              Paw<em className="em-orange">ster</em>
+            <div className="mb-2">
+              <img src={logo} alt="Pawster" className="w-8 h-8 object-contain" onError={(e) => (e.target.style.display = "none")} />
             </div>
-            <p className="text-[0.81rem] font-semibold leading-[1.7] max-w-[250px] mt-[10px]" style={{ color:"#7a8a5a" }}>
-              Connecting loving homes with animals in need across the Ilocos Region since 2023.
+            <div className="font-black text-[1.2rem] text-[#1a4a08]">
+              Paw<em className="italic text-[#e07820]">ster</em>
+            </div>
+            <p className="text-[0.82rem] font-bold leading-7 text-[#6a7a50] max-w-[260px] mt-2">
+              Screening, placing, and supporting animal adoptions across the Ilocos Region with care and accountability.
             </p>
           </div>
           {[
-            { title:"Adopt",    links:[["Browse Animals","/pets"],["My Profile","/profile"],["Log In","/login"],["Register","/register"]] },
-            { title:"Services", links:[["How It Works","/how-it-works"],["Rehome a Pet","/rehome"],["Missing Pets","/missing-pets"],["About Us","/about"]] },
-            { title:"Regions",  links:[["Ilocos Norte","/pets"],["Ilocos Sur","/pets"],["La Union","/pets"],["Pangasinan","/pets"]] },
+            { title: "Adopt",    links: [["Browse Animals", "/pets"], ["My Profile", "/profile"], ["Log In", "/login"], ["Register", "/register"]] },
+            { title: "Services", links: [["How It Works", "/how-it-works"], ["Rehome a Pet", "/rehome"], ["Missing Pets", "/missing-pets"], ["About Us", "/about"]] },
+            { title: "Regions",  links: [["Ilocos Norte", "/pets"], ["Ilocos Sur", "/pets"], ["La Union", "/pets"], ["Pangasinan", "/pets"]] },
           ].map(({ title, links }) => (
             <div key={title}>
-              <div className="text-[0.70rem] font-black uppercase tracking-[.1em] mb-[16px]" style={{ color:"#1c4f09" }}>{title}</div>
+              <div className="text-[0.72rem] font-black uppercase tracking-wider text-[#1c4f09] mb-4">{title}</div>
               {links.map(([label, to]) => (
-                <Link key={label} to={to}
-                  className="block text-[0.82rem] font-semibold mb-[8px] transition-colors duration-150 hover:text-[#1c4f09]"
-                  style={{ color:"#3a5020", textDecoration:"none" }}>
-                  {label}
-                </Link>
+                <Link key={label} to={to} className="block text-[0.83rem] font-bold text-[#3a5020] mb-2 hover:underline">{label}</Link>
               ))}
             </div>
           ))}
         </div>
-        <div className="max-w-[1200px] mx-auto pt-[22px] border-t flex flex-wrap items-center justify-between gap-4"
-          style={{ borderColor:"rgba(180,140,60,0.26)" }}>
-          <div className="text-[0.74rem] font-semibold" style={{ color:"#8a9a70" }}>
-            © 2025 Pawster. All rights reserved. Made with 🐾 in the Ilocos Region.
-          </div>
-          <div className="flex gap-[8px]">
-            {["fab fa-facebook-f","fab fa-instagram","fab fa-twitter"].map(icon => (
-              <a key={icon} href="#"
-                className="w-8 h-8 flex items-center justify-center rounded-[8px] text-[0.78rem] transition-all duration-200 hover:bg-[rgba(28,79,9,0.10)]"
-                style={{ color:"#7a8a5a", background:"rgba(255,250,232,0.65)", border:"1px solid rgba(180,140,60,0.26)" }}>
+        <div className="max-w-[1200px] mx-auto pt-6 border-t border-[rgba(180,140,60,0.28)] flex flex-wrap items-center justify-between gap-4">
+          <div className="text-[0.75rem] font-bold text-[#6a7a50]">© 2025 Pawster. All rights reserved. Made with 🐾 in the Ilocos Region.</div>
+          <div className="flex gap-2">
+            {["fab fa-facebook-f", "fab fa-instagram", "fab fa-twitter"].map(icon => (
+              <a key={icon} href="#" className="w-8 h-8 flex items-center justify-center rounded-md text-[0.8rem] text-[#6a7a50] bg-[rgba(255,250,232,0.7)] border border-[rgba(180,140,60,0.28)] hover:bg-black/5 transition">
                 <i className={icon} />
               </a>
             ))}
