@@ -6,6 +6,21 @@ import {
   PageHeader, SearchBar, roleBadge
 } from "../../shared";
 
+// ─── Inline field error ───────────────────────────────────────────────────────
+function FieldErr({ msg }) {
+  if (!msg) return null;
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: "0.3rem", marginTop: "0.35rem", padding: "0.25rem 0.55rem", borderRadius: 6, background: "rgba(192,48,48,0.08)", border: "1px solid rgba(192,48,48,0.22)" }}>
+      <svg width="11" height="11" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0 }}>
+        <circle cx="6" cy="6" r="5.5" stroke="#c03030" strokeWidth="1"/>
+        <path d="M6 3.5V6.5" stroke="#c03030" strokeWidth="1.4" strokeLinecap="round"/>
+        <circle cx="6" cy="8.5" r="0.6" fill="#c03030"/>
+      </svg>
+      <span style={{ fontSize: "0.72rem", fontWeight: 800, color: "#c03030" }}>{msg}</span>
+    </div>
+  );
+}
+
 export default function UsersPanel({ show: isVisible }) {
   const [users, setUsers]       = useState([]);
   const [loading, setLoading]   = useState(false);
@@ -15,7 +30,7 @@ export default function UsersPanel({ show: isVisible }) {
   const [form, setForm]         = useState({});
   const [delModal, setDel]      = useState(null);
   const [errs, setErrs]         = useState({});
-  const [idPreview, setIdPreview] = useState(null); // { url, name }
+  const [idPreview, setIdPreview] = useState(null);
   const { show: toast }         = useToast();
 
   const load = useCallback(async () => {
@@ -33,31 +48,47 @@ export default function UsersPanel({ show: isVisible }) {
 
   useEffect(() => { if (isVisible) load(); }, [isVisible, load]);
 
-// ── View ID file in modal ──────────────────────────────────────────────────
-const viewId = (u) => {
-  setIdPreview({
-    url:  `/php/admin/dashboard?action=get_id_file&user_id=${u.id}`,
-    name: u.id_file_name || "ID File",
-    isImage: /\.(jpg|jpeg|png|webp|gif)$/i.test(u.id_file_name || ""),
-  });
-};
-  const save = async () => {
-    const e = {};
-    if (!form.first_name?.trim()) e.first_name = "Required";
-    if (!form.last_name?.trim())  e.last_name  = "Required";
-    if (!form.email?.trim())      e.email      = "Required";
-    if (!form.phone?.trim()) {
-      e.phone = "Required";
-    } else if (!/^09\d{9}$/.test(form.phone.trim())) {
-      e.phone = "Invalid PH number (e.g. 09123456789)";
-    }
+  const viewId = (u) => {
+    setIdPreview({
+      url:  `/php/admin/dashboard?action=get_id_file&user_id=${u.id}`,
+      name: u.id_file_name || "ID File",
+      isImage: /\.(jpg|jpeg|png|webp|gif)$/i.test(u.id_file_name || ""),
+    });
+  };
 
+  // ── Validate form fields ──────────────────────────────────────────────────
+  function validateForm(f) {
+    const e = {};
+    if (!f.first_name?.trim()) e.first_name = "First name is required.";
+    if (!f.last_name?.trim())  e.last_name  = "Last name is required.";
+    if (!f.email?.trim())      e.email      = "Email address is required.";
+    else if (!/\S+@\S+\.\S+/.test(f.email.trim())) e.email = "Enter a valid email address.";
+    if (!f.phone?.trim()) {
+      e.phone = "Phone number is required.";
+    } else if (!/^09\d{9}$/.test(f.phone.trim())) {
+      e.phone = "Must be a valid PH number (e.g. 09123456789).";
+    }
+    return e;
+  }
+
+  // Live-clear individual field error as user types
+  const setField = (key, value) => {
+    setForm(f => ({ ...f, [key]: value }));
+    setErrs(prev => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
+
+  const save = async () => {
+    const e = validateForm(form);
     setErrs(e);
-    if (Object.keys(e).length) return;
+    if (Object.keys(e).length) return; // ← BLOCKED
 
     try {
       if (form.id) {
-        // ── Edit: use PHP API ──────────────────────────────────────────────
         const r = await phpApi("update_user", {
           id:         form.id,
           first_name: form.first_name,
@@ -75,7 +106,6 @@ const viewId = (u) => {
           setErrs({ api: r.message || "Error updating user" });
         }
       } else {
-        // ── Add: use Spring Boot API — password auto-generated & emailed ──
         const r = await fetch("/api/admin/users", {
           method: "POST",
           credentials: "include",
@@ -137,6 +167,12 @@ const viewId = (u) => {
   const isAdd  = modal === "add";
   const isEdit = modal === "edit";
 
+  // Shared input style — red border when field has an error
+  const inp = (key) => ({
+    border: errs[key] ? "1.5px solid #c03030" : undefined,
+    boxShadow: errs[key] ? "0 0 0 3px rgba(192,48,48,0.10)" : undefined,
+  });
+
   return (
     <div className="flex flex-col gap-5">
       <PageHeader
@@ -180,36 +216,34 @@ const viewId = (u) => {
           empty="No users found.">
           {filtered.map(u => (
             <Tr key={u.id}>
-<Td>
-  <div className="flex items-center gap-2.5">
-<div
-  className="w-9 h-9 rounded-full flex-shrink-0 border-2 border-green-200 overflow-hidden"
-  style={{ background: "linear-gradient(135deg,#1c4f09,#2a7010)" }}>
-  {u.photo_name ? (
-    <img
-      src={`/api/users/${u.id}/photo/public`}
-      alt="avatar"
-      className="w-full h-full object-cover"
-      onError={e => { e.target.style.display = "none"; }}
-    />
-  ) : (
-    <div className="w-full h-full flex items-center justify-center text-white font-black text-xs">
-      {(u.first_name?.[0] || "").toUpperCase()}{(u.last_name?.[0] || "").toUpperCase()}
-    </div>
-  )}
-</div>
-    <div>
-      <div className="font-black text-sm">{u.first_name} {u.last_name}</div>
-      <div className="text-[11px] font-semibold" style={{ color: "#9aaa80" }}>#{u.id}</div>
-    </div>
-  </div>
-</Td>
+              <Td>
+                <div className="flex items-center gap-2.5">
+                  <div
+                    className="w-9 h-9 rounded-full flex-shrink-0 border-2 border-green-200 overflow-hidden"
+                    style={{ background: "linear-gradient(135deg,#1c4f09,#2a7010)" }}>
+                    {u.photo_name ? (
+                      <img
+                        src={`/api/users/${u.id}/photo/public`}
+                        alt="avatar"
+                        className="w-full h-full object-cover"
+                        onError={e => { e.target.style.display = "none"; }}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-white font-black text-xs">
+                        {(u.first_name?.[0] || "").toUpperCase()}{(u.last_name?.[0] || "").toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <div className="font-black text-sm">{u.first_name} {u.last_name}</div>
+                    <div className="text-[11px] font-semibold" style={{ color: "#9aaa80" }}>#{u.id}</div>
+                  </div>
+                </div>
+              </Td>
               <Td>{u.email}</Td>
               <Td className="text-xs">{u.phone || "—"}</Td>
               <Td><Badge color={roleBadge(u.role)}>{u.role}</Badge></Td>
               <Td><Badge color={u.is_active == 1 ? "green" : "red"}>{u.is_active == 1 ? "Active" : "Inactive"}</Badge></Td>
-
-              {/* ── ID File column ───────────────────────────────────────── */}
               <Td>
                 {u.id_file_name ? (
                   <button
@@ -223,7 +257,6 @@ const viewId = (u) => {
                   <span className="text-xs font-semibold" style={{ color: "#c0b080" }}>None</span>
                 )}
               </Td>
-
               <Td className="text-xs whitespace-nowrap">
                 {u.created_at
                   ? new Date(u.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
@@ -273,6 +306,7 @@ const viewId = (u) => {
           </>
         }>
 
+        {/* API-level error */}
         {errs.api && (
           <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-2 text-red-700 text-xs font-bold">
             {errs.api}
@@ -286,40 +320,54 @@ const viewId = (u) => {
         )}
 
         <div className="grid grid-cols-2 gap-3">
-          <Field label="First Name *" error={errs.first_name}>
+          {/* First name */}
+          <Field label="First Name *">
             <Input
               value={form.first_name || ""}
-              onChange={e => setForm(f => ({ ...f, first_name: e.target.value }))}
+              onChange={e => setField("first_name", e.target.value)}
               placeholder="e.g. Juan"
+              style={inp("first_name")}
             />
+            <FieldErr msg={errs.first_name} />
           </Field>
-          <Field label="Last Name *" error={errs.last_name}>
+
+          {/* Last name */}
+          <Field label="Last Name *">
             <Input
               value={form.last_name || ""}
-              onChange={e => setForm(f => ({ ...f, last_name: e.target.value }))}
+              onChange={e => setField("last_name", e.target.value)}
               placeholder="e.g. Dela Cruz"
+              style={inp("last_name")}
             />
+            <FieldErr msg={errs.last_name} />
           </Field>
         </div>
 
-        <Field label="Email *" error={errs.email}>
+        {/* Email */}
+        <Field label="Email *">
           <Input
             type="email"
             value={form.email || ""}
-            onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+            onChange={e => setField("email", e.target.value)}
             placeholder="example@email.com"
+            style={inp("email")}
           />
+          <FieldErr msg={errs.email} />
         </Field>
 
-        <Field label="Phone *" error={errs.phone}>
+        {/* Phone */}
+        <Field label="Phone *">
           <Input
             value={form.phone || ""}
-            onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+            onChange={e => setField("phone", e.target.value)}
             placeholder="e.g. 09123456789"
             maxLength={11}
+            style={inp("phone")}
           />
+          <FieldErr msg={errs.phone} />
         </Field>
 
+        {/* Role */}
         <Field label="Role">
           <Select
             value={form.role || "user"}
@@ -350,74 +398,48 @@ const viewId = (u) => {
       </Modal>
 
       {/* ── ID File Preview Modal ─────────────────────────────────────────────── */}
-{/* ── Responsive ID Preview Modal ───────────────────────────────────────── */}
-<Modal
-  open={!!idPreview}
-  onClose={() => setIdPreview(null)}
-  title="ID Verification"
-  icon="🪪"
-  className="!w-full !max-w-full !p-0"
-  contentClassName="!p-0 !overflow-visible"
-  footer={
-    <div className="flex justify-between items-center w-full px-4 py-2">
-      {idPreview && (
-        <a
-          href={idPreview.url}
-          download={idPreview.name}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black border transition-all hover:bg-green-50 hover:border-green-400 hover:text-green-700"
-          style={{ borderColor: "#c5d8a0", color: "#4a7020" }}
-        >
-          ⬇ Download
-        </a>
-      )}
-      <BtnCancel onClick={() => setIdPreview(null)} />
-    </div>
-  }
->
-  {idPreview && (
-    <div className="flex justify-center items-center p-4 w-full">
-      <div
-        className="bg-white rounded-xl shadow-lg flex justify-center items-center"
-        style={{
-          maxWidth: "95vw",
-          maxHeight: "90vh",
-          width: "auto",
-          height: "auto",
-        }}
-      >
-        {idPreview.isImage ? (
-          <img
-            src={idPreview.url}
-            alt="User ID"
-            className="w-full h-auto max-h-[90vh] object-contain"
-          />
-        ) : (
-          <object
-            data={idPreview.url}
-            type="application/pdf"
-            style={{
-              width: "100%",
-              height: "90vh",
-              border: "none",
-            }}
-          >
-            <p className="text-center text-sm p-4" style={{ color: "#7a9060" }}>
-              PDF preview unavailable —{" "}
+      <Modal
+        open={!!idPreview}
+        onClose={() => setIdPreview(null)}
+        title="ID Verification"
+        icon="🪪"
+        className="!w-full !max-w-full !p-0"
+        contentClassName="!p-0 !overflow-visible"
+        footer={
+          <div className="flex justify-between items-center w-full px-4 py-2">
+            {idPreview && (
               <a
                 href={idPreview.url}
-                download
-                style={{ color: "#1c4f09", textDecoration: "underline" }}
-              >
-                Download to view
+                download={idPreview.name}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black border transition-all hover:bg-green-50 hover:border-green-400 hover:text-green-700"
+                style={{ borderColor: "#c5d8a0", color: "#4a7020" }}>
+                ⬇ Download
               </a>
-            </p>
-          </object>
+            )}
+            <BtnCancel onClick={() => setIdPreview(null)} />
+          </div>
+        }>
+        {idPreview && (
+          <div className="flex justify-center items-center p-4 w-full">
+            <div
+              className="bg-white rounded-xl shadow-lg flex justify-center items-center"
+              style={{ maxWidth: "95vw", maxHeight: "90vh", width: "auto", height: "auto" }}>
+              {idPreview.isImage ? (
+                <img src={idPreview.url} alt="User ID" className="w-full h-auto max-h-[90vh] object-contain" />
+              ) : (
+                <object data={idPreview.url} type="application/pdf" style={{ width: "100%", height: "90vh", border: "none" }}>
+                  <p className="text-center text-sm p-4" style={{ color: "#7a9060" }}>
+                    PDF preview unavailable —{" "}
+                    <a href={idPreview.url} download style={{ color: "#1c4f09", textDecoration: "underline" }}>
+                      Download to view
+                    </a>
+                  </p>
+                </object>
+              )}
+            </div>
+          </div>
         )}
-      </div>
-    </div>
-  )}
-</Modal>
-
+      </Modal>
     </div>
   );
 }

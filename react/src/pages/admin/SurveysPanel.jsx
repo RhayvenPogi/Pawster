@@ -31,7 +31,7 @@ function SurveyDetailModal({ s, open, onClose }) {
   const rating  = parseInt(s.rating || 0);
   const isHealth = s.health_flag || s.showing_illness;
 
-  const surveyTypeLabel = s.survey_type === "30_sec" ? "30-Second Check-In" : "60-Second Check-In";
+  const surveyTypeLabel = s.survey_type === "7_day" ? "7-Day Check-In" : "30-Day Check-In";
 
   const fields = [
     ["Adopter",          s.adopter_name],
@@ -131,7 +131,7 @@ function SurveyCard({ s, onView }) {
           </div>
           <div className="flex flex-col items-end gap-1">
             <span className="text-[11px] font-black px-2.5 py-1 rounded-full bg-blue-100 text-blue-700">
-              {s.survey_type === "30_sec" ? "30-Sec" : "60-Sec"}
+              {s.survey_type === "7_day" ? "7-Day" : "30-Day"}
             </span>
             {isHealth && (
               <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-red-100 text-red-700 flex items-center gap-0.5">
@@ -198,7 +198,7 @@ export default function SurveysPanel({ show }) {
     try {
       let url = "/api/surveys/admin/";
       const params = new URLSearchParams();
-      if (f === "30_sec" || f === "60_sec") params.set("survey_type", f);
+      if (f === "7_day" || f === "30_day") params.set("survey_type", f);
       if (f === "health") params.set("health_flag", "true");
       if ([...params].length) url += "?" + params.toString();
 
@@ -217,12 +217,13 @@ export default function SurveysPanel({ show }) {
 
   const healthCount = surveys.filter(s => s.health_flag || s.showing_illness).length;
 
-  const tabs = [
-    { key: "all",    label: "All" },
-    { key: "30_sec", label: "30-Sec" },
-    { key: "60_sec", label: "60-Sec" },
-    { key: "health", label: "⚠ Health flags", warn: true },
-  ];
+  // Fix the tabs
+const tabs = [
+  { key: "all",    label: "All" },
+  { key: "7_day",  label: "7-Day" },
+  { key: "30_day", label: "30-Day" },
+  { key: "health", label: "⚠ Health flags", warn: true },
+];
 
   return (
     <div className="flex flex-col gap-5">

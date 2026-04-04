@@ -1,29 +1,23 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "../hooks/useAuth";
 import Navbar from "./Navbar";
 
-const DJANGO = import.meta.env.VITE_DJANGO_API ?? "http://localhost:8082";
+const DJANGO      = import.meta.env.VITE_DJANGO_API ?? "http://localhost:8082";
+const POLL_7DAY   = 30_000;  // 30s — 7-day surveys check frequently
+const POLL_30DAY  = 60_000;  // 60s — 30-day surveys check every minute
 
-function getToken() {
-  return (
-    localStorage.getItem("pawster_token") ||
-    localStorage.getItem("token") ||
-    localStorage.getItem("authToken") ||
-    sessionStorage.getItem("token") ||
-    ""
-  );
-}
-
-function djFetch(path, opts = {}) {
-  const token = getToken();
-  return fetch(`${DJANGO}${path}`, {
-    ...opts,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...opts.headers,
-    },
-  });
+// Token is passed in from the component — sourced from useAuth, not guessed from localStorage
+function makeDjFetch(token) {
+  return function djFetch(path, opts = {}) {
+    return fetch(`${DJANGO}${path}`, {
+      ...opts,
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...opts.headers,
+      },
+    });
+  };
 }
 
 const TYPE_INFO = {
@@ -64,7 +58,6 @@ function YesNo({ value, onChange }) {
   );
 }
 
-// ── Field / SectionBox helpers (module-level = no focus loss) ─────────────────
 const sInp = { padding: "0.625rem 0.875rem", borderRadius: 10, border: "1px solid rgba(180,140,60,0.28)", background: "rgba(255,250,232,0.7)", fontFamily: "'Nunito',sans-serif", fontWeight: 700, fontSize: "0.88rem", color: "#1a2e0a", outline: "none", width: "100%" };
 const sFocIn  = (e) => { e.target.style.borderColor = "#5aaa30"; e.target.style.boxShadow = "0 0 0 3px rgba(90,170,48,0.12)"; };
 const sFocOut = (e) => { e.target.style.borderColor = "rgba(180,140,60,0.28)"; e.target.style.boxShadow = "none"; };
@@ -86,7 +79,7 @@ const SectionBox = ({ icon, title, children }) => (
 );
 
 // ── Survey form modal ─────────────────────────────────────────────────────────
-function SurveyModal({ survey, onClose, onSuccess }) {
+function SurveyModal({ survey, onClose, onSuccess, token }) {
   const [form, setForm] = useState({
     adjustment: "", behavioralNotes: "", showingIllness: "",
     vetVisited: "", satisfied: "", needsSupport: "",
@@ -108,7 +101,7 @@ function SurveyModal({ survey, onClose, onSuccess }) {
     }
     setLoading(true);
     try {
-      const res  = await djFetch("/api/surveys/response/", {
+      const res  = await makeDjFetch(token)("/api/surveys/response/", {
         method: "POST",
         body: JSON.stringify({
           survey_id:        survey.id,
@@ -273,6 +266,12 @@ function SurveyCard({ survey, onOpen }) {
           </div>
         )}
 
+        {/* Poll badge */}
+        <div style={{ display: "inline-flex", alignItems: "center", gap: "0.28rem", marginBottom: "0.75rem", padding: "0.18rem 0.55rem", borderRadius: 50, fontSize: "0.6rem", fontWeight: 900, letterSpacing: "0.05em", background: survey.survey_type === "7_day" ? "rgba(28,122,9,0.10)" : "rgba(26,95,191,0.10)", color: survey.survey_type === "7_day" ? "#1c7a09" : "#1a5fbf" }}>
+          <i className={`fas ${survey.survey_type === "7_day" ? "fa-sync-alt" : "fa-clock"}`} style={{ fontSize: "0.55rem" }} />
+          {survey.survey_type === "7_day" ? "Refreshes every 30s" : "Refreshes every 60s"}
+        </div>
+
         {/* Action */}
         {isPending ? (
           <button onClick={() => onOpen(survey)}
@@ -319,39 +318,210 @@ function UpcomingCard({ survey }) {
   );
 }
 
+// ── Poll status indicator ─────────────────────────────────────────────────────
+function PollIndicator({ label, intervalMs, lastPolled }) {
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setElapsed(lastPolled ? Math.floor((Date.now() - lastPolled) / 1000) : 0);
+    }, 1000);
+    return () => clearInterval(id);
+  }, [lastPolled]);
+
+  const progress = lastPolled ? Math.min((Date.now() - lastPolled) / intervalMs, 1) : 0;
+  const secs     = Math.floor(intervalMs / 1000);
+
+  return (
+    <div style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", padding: "0.3rem 0.75rem", borderRadius: 50, background: "rgba(255,248,220,0.85)", border: "1px solid rgba(180,140,60,0.25)" }}>
+      {/* Mini ring progress */}
+      <svg width="14" height="14" viewBox="0 0 14 14">
+        <circle cx="7" cy="7" r="5.5" fill="none" stroke="rgba(180,140,60,0.22)" strokeWidth="1.5" />
+        <circle cx="7" cy="7" r="5.5" fill="none" stroke="#5aaa30" strokeWidth="1.5"
+          strokeDasharray={`${2 * Math.PI * 5.5}`}
+          strokeDashoffset={`${2 * Math.PI * 5.5 * (1 - progress)}`}
+          strokeLinecap="round" transform="rotate(-90 7 7)"
+          style={{ transition: "stroke-dashoffset 1s linear" }} />
+      </svg>
+      <span style={{ fontSize: "0.64rem", fontWeight: 800, color: "#6a7a50", fontFamily: "'Nunito',sans-serif" }}>
+        {label} · next in {Math.max(0, secs - elapsed)}s
+      </span>
+    </div>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function FollowUpSurveys() {
-  const { user }               = useAuth();
-  const [data,    setData]     = useState({ pending: [], completed: [], pending_count: 0 });
-  const [loading, setLoading]  = useState(true);
-  const [active,  setActive]   = useState(null);
-  const [toast,   setToast]    = useState(null);
-  const [tab,     setTab]      = useState("pending");
+  const auth                  = useAuth();
+  const user                  = auth.user;
+  // useAuth may expose the token as auth.token, auth.accessToken, or user.token —
+  // try all three so this works regardless of how your hook is shaped.
+  const token                 = auth.token ?? auth.accessToken ?? user?.token ??
+    localStorage.getItem("pawster_token") ?? localStorage.getItem("token") ?? "";
+  const [data,    setData]    = useState({ pending: [], completed: [], pending_count: 0 });
+  const [loading, setLoading] = useState(true);
+  const [active,  setActive]  = useState(null);
+  const [toast,   setToast]   = useState(null);
+  const [tab,     setTab]     = useState("pending");
 
-  const fetchSurveys = async () => {
-    setLoading(true);
+  // Track when each type was last polled (for the ring indicators)
+  const [last7,  setLast7]  = useState(null);
+  const [last30, setLast30] = useState(null);
+
+  // Interval refs — managed manually so we can start/stop them dynamically
+  // without causing re-renders or stale closure issues
+  const interval7Ref  = useRef(null);
+  const interval30Ref = useRef(null);
+
+  // ── Core fetcher: fetches both types in one call, merges state, then
+  //    starts/stops each interval based on whether that survey type actually
+  //    exists for this user (i.e. they have an approved adoption).
+  //    Poll for 7-day starts the moment a 7-day survey appears.
+  //    Poll for 30-day starts only once a 30-day survey appears (30 days post-approval).
+  // ────────────────────────────────────────────────────────────────────────────
+  const fetchAll = useCallback(async (isFirstLoad = false) => {
+    if (isFirstLoad) setLoading(true);
     try {
-      const res = await djFetch("/api/surveys/user/");
+      const res = await makeDjFetch(token)("/api/surveys/user/");
       if (res.ok) {
         const json = await res.json();
-        if (json.success) setData(json);
+        if (json.success) {
+          const pending   = json.pending   || [];
+          const completed = json.completed || [];
+
+          setData({
+            pending,
+            completed,
+            pending_count: pending.filter(s => new Date(s.scheduled_for) <= Date.now()).length,
+          });
+          setLast7(Date.now());
+          setLast30(Date.now());
+
+          // ── Smart interval management ────────────────────────────────────
+          // A survey type is "active" when the user has at least one pending
+          // OR upcoming entry of that type — meaning an adoption was approved
+          // and the backend has created the survey record.
+
+          const has7Day  = pending.some(s => s.survey_type === "7_day")  ||
+                           completed.some(s => s.survey_type === "7_day");
+          const has30Day = pending.some(s => s.survey_type === "30_day") ||
+                           completed.some(s => s.survey_type === "30_day");
+
+          // 7-day: start 30s interval if surveys exist and not already running
+          if (has7Day && !interval7Ref.current) {
+            interval7Ref.current = setInterval(() => fetch7DayOnly(), POLL_7DAY);
+          }
+          // 7-day: stop if no surveys exist
+          if (!has7Day && interval7Ref.current) {
+            clearInterval(interval7Ref.current);
+            interval7Ref.current = null;
+          }
+
+          // 30-day: start 60s interval if surveys exist and not already running
+          if (has30Day && !interval30Ref.current) {
+            interval30Ref.current = setInterval(() => fetch30DayOnly(), POLL_30DAY);
+          }
+          // 30-day: stop if no surveys exist
+          if (!has30Day && interval30Ref.current) {
+            clearInterval(interval30Ref.current);
+            interval30Ref.current = null;
+          }
+        }
       }
     } catch { /* silent */ }
-    setLoading(false);
-  };
+    if (isFirstLoad) setLoading(false);
+  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
+  // (fetch7DayOnly / fetch30DayOnly are defined below and referenced via closure)
 
-  useEffect(() => { fetchSurveys(); }, []);
+  // ── Targeted fetchers called by each interval ────────────────────────────
+  // These only replace their own type's slice of state, leaving the other intact.
+
+  const fetch7DayOnly = useCallback(async () => {
+    try {
+      const res = await makeDjFetch(token)("/api/surveys/user/?type=7_day");
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success) {
+          setData(prev => {
+            const keep30  = prev.pending.filter(s => s.survey_type === "30_day");
+            const keep30c = prev.completed.filter(s => s.survey_type === "30_day");
+            const new7    = (json.pending   || []).filter(s => s.survey_type === "7_day");
+            const new7c   = (json.completed || []).filter(s => s.survey_type === "7_day");
+            const merged  = [...keep30, ...new7];
+            return {
+              pending:       merged,
+              completed:     [...keep30c, ...new7c],
+              pending_count: merged.filter(s => new Date(s.scheduled_for) <= Date.now()).length,
+            };
+          });
+          setLast7(Date.now());
+        }
+      }
+    } catch { /* silent */ }
+  }, [token]);
+
+  const fetch30DayOnly = useCallback(async () => {
+    try {
+      const res = await makeDjFetch(token)("/api/surveys/user/?type=30_day");
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success) {
+          setData(prev => {
+            const keep7   = prev.pending.filter(s => s.survey_type === "7_day");
+            const keep7c  = prev.completed.filter(s => s.survey_type === "7_day");
+            const new30   = (json.pending   || []).filter(s => s.survey_type === "30_day");
+            const new30c  = (json.completed || []).filter(s => s.survey_type === "30_day");
+            const merged  = [...keep7, ...new30];
+            return {
+              pending:       merged,
+              completed:     [...keep7c, ...new30c],
+              pending_count: merged.filter(s => new Date(s.scheduled_for) <= Date.now()).length,
+            };
+          });
+          setLast30(Date.now());
+        }
+      }
+    } catch { /* silent */ }
+  }, [token]);
+
+  // ── Bootstrap: one combined fetch on mount + a slow "approval watcher" ───
+  // The approval watcher polls /api/surveys/user/ every 30s just to detect
+  // when a new survey type appears (i.e. an adoption just got approved).
+  // Once detected, the smart interval management above takes over.
+  useEffect(() => {
+    if (!token) return; // don't poll until authenticated
+
+    // First load — show spinner, fetch everything, start intervals if needed
+    fetchAll(true);
+
+    // Approval watcher: checks every 30s for newly approved adoptions that
+    // would generate new survey records on the backend.
+    // This is the *only* always-on interval — it's cheap (one GET).
+    const approvalWatcher = setInterval(() => fetchAll(false), POLL_7DAY);
+
+    return () => {
+      clearInterval(approvalWatcher);
+      // Clean up any type-specific intervals on unmount
+      if (interval7Ref.current)  clearInterval(interval7Ref.current);
+      if (interval30Ref.current) clearInterval(interval30Ref.current);
+    };
+  }, [fetchAll, token]);
 
   const handleSuccess = () => {
     setToast("Thank you for your feedback! 🐾");
     setTimeout(() => setToast(null), 3500);
-    fetchSurveys();
+    // Refresh everything after submission so intervals re-evaluate
+    fetchAll(false);
   };
 
-  const now        = Date.now();
-  const dueSurveys = data.pending.filter(s => new Date(s.scheduled_for) <= now);
-  const upcoming   = data.pending.filter(s => new Date(s.scheduled_for) > now);
+  const now          = Date.now();
+  const dueSurveys   = data.pending.filter(s => new Date(s.scheduled_for) <= now);
+  const upcoming     = data.pending.filter(s => new Date(s.scheduled_for) > now);
   const totalPending = dueSurveys.length;
+
+  // Split due surveys by type for display clarity
+  const due7Day  = dueSurveys.filter(s => s.survey_type === "7_day");
+  const due30Day = dueSurveys.filter(s => s.survey_type === "30_day");
 
   return (
     <div style={{ minHeight: "100vh", background: "#EDDABB", fontFamily: "'Nunito',sans-serif", color: "#1a2e0a" }}>
@@ -388,9 +558,21 @@ export default function FollowUpSurveys() {
           We check in at 7 and 30 days after adoption to make sure both you and your pet are settling in well.
         </p>
 
+        {/* Poll indicators — only shown when that survey type is active */}
+        {!loading && (
+          <div style={{ display: "inline-flex", gap: "0.5rem", marginTop: "1rem", flexWrap: "wrap", justifyContent: "center" }}>
+            {(data.pending.some(s => s.survey_type === "7_day") || data.completed.some(s => s.survey_type === "7_day")) && (
+              <PollIndicator label="7-Day"  intervalMs={POLL_7DAY}  lastPolled={last7}  />
+            )}
+            {(data.pending.some(s => s.survey_type === "30_day") || data.completed.some(s => s.survey_type === "30_day")) && (
+              <PollIndicator label="30-Day" intervalMs={POLL_30DAY} lastPolled={last30} />
+            )}
+          </div>
+        )}
+
         {/* Stats row */}
         {!loading && (
-          <div style={{ display: "inline-flex", gap: "1rem", marginTop: "1.5rem", flexWrap: "wrap", justifyContent: "center" }}>
+          <div style={{ display: "inline-flex", gap: "1rem", marginTop: "1rem", flexWrap: "wrap", justifyContent: "center" }}>
             {[
               { label: "Pending",   value: totalPending,          color: "#1c4f09" },
               { label: "Upcoming",  value: upcoming.length,       color: "#1a5fbf" },
@@ -422,6 +604,7 @@ export default function FollowUpSurveys() {
                 <div>
                   <div style={{ fontWeight: 900, fontSize: "0.9rem", color: "#1a4a08" }}>
                     You have {totalPending} survey{totalPending > 1 ? "s" : ""} ready to fill in
+                    {due7Day.length > 0 && due30Day.length > 0 && ` (${due7Day.length} × 7-day, ${due30Day.length} × 30-day)`}
                   </div>
                   <div style={{ fontWeight: 700, fontSize: "0.78rem", color: "#5a7a40", marginTop: "0.1rem" }}>
                     Your feedback helps us improve our adoption process for everyone.
@@ -451,11 +634,38 @@ export default function FollowUpSurveys() {
               </div>
             )}
 
-            {/* Due now */}
+            {/* Due Now — grouped by type */}
             {tab === "pending" && (
               dueSurveys.length > 0 ? (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: "1rem" }}>
-                  {dueSurveys.map(s => <SurveyCard key={s.id} survey={s} onOpen={setActive} />)}
+                <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+                  {/* 7-Day group */}
+                  {due7Day.length > 0 && (
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.75rem" }}>
+                        <div style={{ height: 3, width: 20, borderRadius: 2, background: TYPE_INFO["7_day"].color }} />
+                        <span style={{ fontSize: "0.7rem", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.08em", color: TYPE_INFO["7_day"].color }}>
+                          7-Day Surveys <span style={{ opacity: 0.6 }}>· polls every 30s</span>
+                        </span>
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: "1rem" }}>
+                        {due7Day.map(s => <SurveyCard key={s.id} survey={s} onOpen={setActive} />)}
+                      </div>
+                    </div>
+                  )}
+                  {/* 30-Day group */}
+                  {due30Day.length > 0 && (
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.75rem" }}>
+                        <div style={{ height: 3, width: 20, borderRadius: 2, background: TYPE_INFO["30_day"].color }} />
+                        <span style={{ fontSize: "0.7rem", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.08em", color: TYPE_INFO["30_day"].color }}>
+                          30-Day Surveys <span style={{ opacity: 0.6 }}>· polls every 60s</span>
+                        </span>
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: "1rem" }}>
+                        {due30Day.map(s => <SurveyCard key={s.id} survey={s} onOpen={setActive} />)}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div style={{ textAlign: "center", padding: "4rem 2rem", borderRadius: 18, border: "1px solid rgba(180,140,60,0.28)", background: "rgba(255,248,225,0.75)" }}>
@@ -498,7 +708,7 @@ export default function FollowUpSurveys() {
         )}
       </div>
 
-      {active && <SurveyModal survey={active} onClose={() => setActive(null)} onSuccess={handleSuccess} />}
+      {active && <SurveyModal survey={active} onClose={() => setActive(null)} onSuccess={handleSuccess} token={token} />}
 
       {toast && (
         <div style={{ position: "fixed", bottom: "1.5rem", left: "50%", transform: "translateX(-50%)", zIndex: 9999, padding: "0.75rem 1.25rem", borderRadius: 12, fontWeight: 800, fontSize: "0.85rem", background: "#1c4f09", color: "#fff", boxShadow: "0 8px 32px rgba(0,0,0,0.25)", fontFamily: "'Nunito',sans-serif", display: "flex", alignItems: "center", gap: "0.5rem", animation: "fadeUp .25s ease both", whiteSpace: "nowrap" }}>

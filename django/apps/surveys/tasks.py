@@ -16,18 +16,16 @@ logger = logging.getLogger(__name__)
 
 
 def _send_survey_ready_email(user, animal_name, survey_type):
-    """Email the adopter telling them a follow-up survey is ready."""
-    label = "30-second" if survey_type == "30_sec" else "60-second"  # ← changed
+    label = "7-day" if survey_type == "7_day" else "30-day"
+    days  = "7 days" if survey_type == "7_day" else "30 days"
     try:
         send_mail(
             subject=f"🐾 Your {label} follow-up for {animal_name} is ready",
             message=(
                 f"Hi {user.first_name or user.username},\n\n"
-                f"It's been {'30 seconds' if survey_type == '30_sec' else '60 seconds'} since you adopted {animal_name}!\n\n"  # ← changed
-                f"We'd love to hear how things are going. Please fill in your short "
-                f"follow-up survey at:\n\n"
+                f"It's been {days} since you adopted {animal_name}!\n\n"
+                f"Please fill in your short follow-up survey at:\n\n"
                 f"{settings.APP_BASE_URL}/followup-surveys\n\n"
-                f"It only takes 2 minutes and helps us keep improving our adoption process.\n\n"
                 f"— The Pawster Team"
             ),
             from_email=settings.DEFAULT_FROM_EMAIL,
@@ -40,11 +38,6 @@ def _send_survey_ready_email(user, animal_name, survey_type):
 
 @shared_task
 def create_followup_surveys_for_adoption(adoption_id: int):
-    """
-    Called immediately when admin approves an adoption (from approvals/views.py).
-    Creates FollowUpSurvey records for 30-sec and 60-sec.
-    Also fires in-app notifications + emails.
-    """
     from apps.surveys.models import FollowUpSurvey
     from apps.approvals.models import AdoptionRequest
     from apps.notifications.models import Notification
@@ -61,26 +54,26 @@ def create_followup_surveys_for_adoption(adoption_id: int):
 
     base = adoption.adoption_date or timezone.now()
 
-    for survey_type, seconds in [("30_sec", 30), ("60_sec", 60)]:  # ← changed
+    # apps/surveys/tasks.py
+    for survey_type, delta in [("7_day", timedelta(seconds=30)), ("30_day", timedelta(seconds=60))]:
         survey, created = FollowUpSurvey.objects.get_or_create(
             adoption=adoption,
             survey_type=survey_type,
             defaults={
                 "user": adoption.user,
-                "scheduled_for": base + timedelta(seconds=seconds),  # ← changed
+                "scheduled_for": base + delta,  # 30s and 60s from approval
                 "status": "Pending",
             }
         )
         if created:
             logger.info(f"Created {survey_type} survey for Adoption #{adoption_id}.")
 
-    # Notify the adopter that surveys are coming
     Notification.objects.create(
         user=adoption.user,
         title="Follow-up surveys scheduled 📋",
         body=(
             f"You'll receive two short check-in surveys for {adoption.animal_name} — "
-            f"one at 30 seconds and one at 60 seconds after adoption."  # ← changed
+            f"one at 7 days and one at 30 days after adoption."
         ),
         notif_type="survey_scheduled",
     )
@@ -88,12 +81,6 @@ def create_followup_surveys_for_adoption(adoption_id: int):
 
 @shared_task
 def schedule_followup_surveys():
-    """
-    Runs every 10 seconds via Celery Beat.
-    Scans all approved adoptions and:
-      - Creates any missing FollowUpSurvey records
-      - Sends email + in-app notification when a survey first becomes due
-    """
     from apps.surveys.models import FollowUpSurvey
     from apps.approvals.models import AdoptionRequest
     from apps.notifications.models import Notification
@@ -105,13 +92,13 @@ def schedule_followup_surveys():
         user__isnull=False,
     ).select_related("user")
 
-    created_count = 0
+    created_count  = 0
     notified_count = 0
 
     for adoption in approved:
         base = adoption.adoption_date
-        for survey_type, seconds in [("30_sec", 30), ("60_sec", 60)]:  # ← changed
-            due_date = base + timedelta(seconds=seconds)  # ← changed
+        for survey_type, delta in [("7_day", timedelta(seconds=30)), ("30_day", timedelta(seconds=60))]:
+            due_date = base + delta
 
             survey, created = FollowUpSurvey.objects.get_or_create(
                 adoption=adoption,
@@ -126,33 +113,24 @@ def schedule_followup_surveys():
             if created:
                 created_count += 1
 
-            # Send email + notification once the survey becomes due
-            if (
-                survey.status == "Pending"
-                and now >= due_date  # ← changed: seconds-based, not date comparison
-                and adoption.user.email
-            ):
+            if survey.status == "Pending" and now >= due_date and adoption.user.email:
                 _send_survey_ready_email(adoption.user, adoption.animal_name, survey_type)
 
-                # In-app notification (avoid duplicates)
                 already_notified = Notification.objects.filter(
                     user=adoption.user,
                     notif_type="survey_due",
                     body__icontains=adoption.animal_name,
-                ).exists()  # ← changed: dropped date filter, seconds are too fast for date bucketing
+                ).exists()
 
                 if not already_notified:
-                    label = "30-second" if survey_type == "30_sec" else "60-second"  # ← changed
+                    label = "7-day" if survey_type == "7_day" else "30-day"
                     Notification.objects.create(
                         user=adoption.user,
                         title=f"Follow-up survey ready — {adoption.animal_name} 📋",
-                        body=f"Your {label} check-in survey for {adoption.animal_name} is now available. Tap to fill it in.",
+                        body=f"Your {label} check-in survey for {adoption.animal_name} is now available.",
                         notif_type="survey_due",
                     )
                     notified_count += 1
 
-    logger.info(
-        f"Survey scheduler: created={created_count} surveys, "
-        f"notified={notified_count} adopters."
-    )
+    logger.info(f"Survey scheduler: created={created_count}, notified={notified_count}.")
     return f"Created {created_count} surveys, notified {notified_count} adopters."

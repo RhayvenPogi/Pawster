@@ -10,6 +10,21 @@ const TYPE_ICONS  = { Dog: "🐶", Cat: "🐱", Bird: "🐦", Rabbit: "🐰", Ot
 const TYPE_COLORS = { Dog: "#2a7010", Cat: "#7a3dc0", Bird: "#0a7ab4", Rabbit: "#c87820", Other: "#6a7a50" };
 const SPRING = import.meta.env.VITE_API_BASE ?? "http://localhost:8080";
 
+// ─── Inline field error ────────────────────────────────────────────────────────
+function FieldErr({ msg }) {
+  if (!msg) return null;
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: "0.3rem", marginTop: "0.35rem", padding: "0.25rem 0.55rem", borderRadius: 6, background: "rgba(192,48,48,0.08)", border: "1px solid rgba(192,48,48,0.22)" }}>
+      <svg width="11" height="11" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0 }}>
+        <circle cx="6" cy="6" r="5.5" stroke="#c03030" strokeWidth="1"/>
+        <path d="M6 3.5V6.5" stroke="#c03030" strokeWidth="1.4" strokeLinecap="round"/>
+        <circle cx="6" cy="8.5" r="0.6" fill="#c03030"/>
+      </svg>
+      <span style={{ fontSize: "0.72rem", fontWeight: 800, color: "#c03030" }}>{msg}</span>
+    </div>
+  );
+}
+
 function photoUrl(path) {
   if (!path) return null;
   if (path.startsWith("data:")) return path;
@@ -23,20 +38,12 @@ function AnimalAvatar({ animal, size = 38 }) {
   if (src) {
     return (
       <img src={src} alt={animal.name}
-        style={{
-          width: size, height: size, borderRadius: 10, flexShrink: 0,
-          objectFit: "cover", border: "2px solid rgba(42,112,16,0.2)",
-        }}
+        style={{ width: size, height: size, borderRadius: 10, flexShrink: 0, objectFit: "cover", border: "2px solid rgba(42,112,16,0.2)" }}
       />
     );
   }
   return (
-    <div style={{
-      width: size, height: size, borderRadius: 10, flexShrink: 0,
-      background: `${TYPE_COLORS[animal.type] || "#6a7a50"}18`,
-      display: "flex", alignItems: "center", justifyContent: "center",
-      fontSize: size * 0.5,
-    }}>
+    <div style={{ width: size, height: size, borderRadius: 10, flexShrink: 0, background: `${TYPE_COLORS[animal.type] || "#6a7a50"}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.5 }}>
       {TYPE_ICONS[animal.type] || "🐾"}
     </div>
   );
@@ -49,44 +56,26 @@ function PhotoUploader({ existingUrl, file, onChange }) {
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-      <div onClick={() => inputRef.current?.click()} style={{
-        width: 80, height: 80, borderRadius: 14, flexShrink: 0, cursor: "pointer",
-        border: "2px dashed rgba(42,112,16,0.35)", overflow: "hidden",
-        background: preview ? "transparent" : "rgba(42,112,16,0.04)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        transition: "border-color .15s",
-      }}
+      <div onClick={() => inputRef.current?.click()} style={{ width: 80, height: 80, borderRadius: 14, flexShrink: 0, cursor: "pointer", border: "2px dashed rgba(42,112,16,0.35)", overflow: "hidden", background: preview ? "transparent" : "rgba(42,112,16,0.04)", display: "flex", alignItems: "center", justifyContent: "center", transition: "border-color .15s" }}
         onMouseEnter={e => e.currentTarget.style.borderColor = "rgba(42,112,16,0.7)"}
-        onMouseLeave={e => e.currentTarget.style.borderColor = "rgba(42,112,16,0.35)"}
-      >
+        onMouseLeave={e => e.currentTarget.style.borderColor = "rgba(42,112,16,0.35)"}>
         {preview
           ? <img src={preview} alt="preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-          : <span style={{ fontSize: 28, opacity: 0.4 }}>📷</span>
-        }
+          : <span style={{ fontSize: 28, opacity: 0.4 }}>📷</span>}
       </div>
-
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <button type="button" onClick={() => inputRef.current?.click()} style={{
-          padding: "5px 14px", borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: "pointer",
-          background: "rgba(42,112,16,0.1)", border: "1px solid rgba(42,112,16,0.25)", color: "#2a7010",
-        }}>
+        <button type="button" onClick={() => inputRef.current?.click()} style={{ padding: "5px 14px", borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: "pointer", background: "rgba(42,112,16,0.1)", border: "1px solid rgba(42,112,16,0.25)", color: "#2a7010" }}>
           {preview ? "Change photo" : "Upload photo"}
         </button>
         {preview && (
-          <button type="button" onClick={() => onChange(null, true)} style={{
-            padding: "5px 14px", borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: "pointer",
-            background: "rgba(192,48,48,0.07)", border: "1px solid rgba(192,48,48,0.2)", color: "#c03030",
-          }}>
+          <button type="button" onClick={() => onChange(null, true)} style={{ padding: "5px 14px", borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: "pointer", background: "rgba(192,48,48,0.07)", border: "1px solid rgba(192,48,48,0.2)", color: "#c03030" }}>
             Remove
           </button>
         )}
         <span style={{ fontSize: 10, color: "#9aaa80", fontWeight: 600 }}>JPG, PNG, WEBP · max 2 MB</span>
       </div>
-
-      <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif"
-        style={{ display: "none" }}
-        onChange={e => onChange(e.target.files?.[0] || null, false)}
-      />
+      <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" style={{ display: "none" }}
+        onChange={e => onChange(e.target.files?.[0] || null, false)} />
     </div>
   );
 }
@@ -98,6 +87,7 @@ export default function AnimalsPanel({ show }) {
   const [search,      setSearch]      = useState("");
   const [modal,       setModal]       = useState(null);
   const [form,        setForm]        = useState({});
+  const [formErrs,    setFormErrs]    = useState({});
   const [photoFile,   setPhotoFile]   = useState(null);
   const [removePhoto, setRemovePhoto] = useState(false);
   const [saving,      setSaving]      = useState(false);
@@ -105,40 +95,34 @@ export default function AnimalsPanel({ show }) {
   const { show: toast } = useToast();
 
   const load = useCallback(async () => {
-  setLoading(true);
-  try {
-    const r = await phpApi("get_animals");
-    const phpAnimals = r.success ? (r.data || []) : [];
+    setLoading(true);
+    try {
+      const r = await phpApi("get_animals");
+      const phpAnimals = r.success ? (r.data || []) : [];
 
-    const sbRes = await fetch(`${SPRING}/api/animals`);
-    const sbData = await sbRes.json();
-    const sbAnimals = Array.isArray(sbData) ? sbData
-      .filter(a => !phpAnimals.some(
-        p => p.name?.toLowerCase() === a.name?.toLowerCase() &&
-             p.type?.toLowerCase() === a.type?.toLowerCase()
-      ))
-      .map(a => ({
-        id:              `sb_${a.id}`,
-        name:            a.name,
-        type:            a.type,
-        breed:           a.breed,
-        age:             a.age,
-        health:          a.health,
-        status:          a.status,
-        notes:           a.notes,
-        photo:           a.photo,
-        _fromSpringBoot: true,
-      })) : [];
+      const sbRes = await fetch(`${SPRING}/api/animals`);
+      const sbData = await sbRes.json();
+      const sbAnimals = Array.isArray(sbData) ? sbData
+        .filter(a => !phpAnimals.some(
+          p => p.name?.toLowerCase() === a.name?.toLowerCase() &&
+               p.type?.toLowerCase() === a.type?.toLowerCase()
+        ))
+        .map(a => ({
+          id: `sb_${a.id}`, name: a.name, type: a.type, breed: a.breed,
+          age: a.age, health: a.health, status: a.status, notes: a.notes,
+          photo: a.photo, _fromSpringBoot: true,
+        })) : [];
 
-    setAnimals([...phpAnimals, ...sbAnimals]);
-  } catch {}
-  setLoading(false);
-}, []);
+      setAnimals([...phpAnimals, ...sbAnimals]);
+    } catch {}
+    setLoading(false);
+  }, []);
 
   useEffect(() => { if (show) load(); }, [show, load]);
 
   const openAdd = () => {
     setForm({ type: "Dog", health: "Healthy", status: "Available" });
+    setFormErrs({});
     setPhotoFile(null);
     setRemovePhoto(false);
     setModal("add");
@@ -146,13 +130,12 @@ export default function AnimalsPanel({ show }) {
 
   const openEdit = (animal) => {
     setForm({ ...animal });
+    setFormErrs({});
     setPhotoFile(null);
     setRemovePhoto(false);
     setModal("edit");
   };
 
-  // file=null + remove=true  → user clicked "Remove"
-  // file=File + remove=false → user picked a new file
   const handlePhotoChange = (file, remove) => {
     if (remove) {
       setPhotoFile(null);
@@ -168,8 +151,28 @@ export default function AnimalsPanel({ show }) {
     }
   };
 
+  // ── Validation ─────────────────────────────────────────────────────────────
+  function validateAnimal(f) {
+    const e = {};
+    if (!f.name?.trim()) e.name = "Animal name is required.";
+    return e;
+  }
+
+  const setField = (key, value) => {
+    setForm(f => ({ ...f, [key]: value }));
+    setFormErrs(prev => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
+
   const save = async () => {
-    if (!form.name?.trim()) { toast("Name is required", "error"); return; }
+    const e = validateAnimal(form);
+    setFormErrs(e);
+    if (Object.keys(e).length) return; // ← BLOCKED
+
     setSaving(true);
     try {
       const data = {
@@ -183,7 +186,6 @@ export default function AnimalsPanel({ show }) {
         notes:  form.notes  || "",
       };
 
-      // Tell PHP to keep the old URL if user didn't change or remove the photo
       if (!photoFile && !removePhoto && form.photo) {
         data.existing_photo = form.photo;
       }
@@ -191,9 +193,8 @@ export default function AnimalsPanel({ show }) {
       const r = await phpApi(
         form.id ? "update_animal" : "add_animal",
         data,
-        photoFile  // File or null — phpApi appends it as "photo" when present
+        photoFile
       );
-      console.log("SAVE RESPONSE:", JSON.stringify(r)); // ← add this
 
       if (r.success) {
         toast(form.id ? "Animal updated" : "Animal added", "success");
@@ -257,21 +258,21 @@ export default function AnimalsPanel({ show }) {
               <Td><Badge color={healthBadge(a.health)}>{a.health}</Badge></Td>
               <Td><Badge color={statusBadge(a.status)}>{a.status}</Badge></Td>
               <Td>
-  <div className="flex gap-2">
-    {!a._fromSpringBoot && (
-      <button onClick={() => openEdit(a)}
-        className="px-3 py-1.5 rounded-lg text-xs font-black border transition-all hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700"
-        style={{ borderColor: "#ddd0a8", color: "#7a9060" }}>✏ Edit
-      </button>
-    )}
-    {!a._fromSpringBoot && (
-      <button onClick={() => setDel(a)}
-        className="px-3 py-1.5 rounded-lg text-xs font-black border transition-all hover:bg-red-50 hover:border-red-300 hover:text-red-600"
-        style={{ borderColor: "#ddd0a8", color: "#7a9060" }}>🗑
-      </button>
-    )}
-  </div>
-</Td>
+                <div className="flex gap-2">
+                  {!a._fromSpringBoot && (
+                    <button onClick={() => openEdit(a)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-black border transition-all hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700"
+                      style={{ borderColor: "#ddd0a8", color: "#7a9060" }}>✏ Edit
+                    </button>
+                  )}
+                  {!a._fromSpringBoot && (
+                    <button onClick={() => setDel(a)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-black border transition-all hover:bg-red-50 hover:border-red-300 hover:text-red-600"
+                      style={{ borderColor: "#ddd0a8", color: "#7a9060" }}>🗑
+                    </button>
+                  )}
+                </div>
+              </Td>
             </Tr>
           ))}
         </Table>
@@ -293,39 +294,48 @@ export default function AnimalsPanel({ show }) {
         }>
 
         <Field label="Photo">
-          <PhotoUploader
-            existingUrl={form.photo || null}
-            file={photoFile}
-            onChange={handlePhotoChange}
-          />
+          <PhotoUploader existingUrl={form.photo || null} file={photoFile} onChange={handlePhotoChange} />
         </Field>
 
         <div className="grid grid-cols-2 gap-3">
+          {/* Name — required */}
           <Field label="Name *">
-            <Input value={form.name || ""} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Animal name" />
+            <Input
+              value={form.name || ""}
+              onChange={e => setField("name", e.target.value)}
+              placeholder="Animal name"
+              style={formErrs.name ? { border: "1.5px solid #c03030", boxShadow: "0 0 0 3px rgba(192,48,48,0.10)" } : {}}
+            />
+            <FieldErr msg={formErrs.name} />
           </Field>
+
           <Field label="Type">
             <Select value={form.type || "Dog"} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}>
               {["Dog","Cat","Bird","Rabbit","Other"].map(t => <option key={t}>{t}</option>)}
             </Select>
           </Field>
+
           <Field label="Breed">
             <Input value={form.breed || ""} onChange={e => setForm(f => ({ ...f, breed: e.target.value }))} placeholder="e.g. Labrador" />
           </Field>
+
           <Field label="Age">
             <Input value={form.age || ""} onChange={e => setForm(f => ({ ...f, age: e.target.value }))} placeholder="e.g. 2 years" />
           </Field>
+
           <Field label="Health Status">
             <Select value={form.health || "Healthy"} onChange={e => setForm(f => ({ ...f, health: e.target.value }))}>
               {["Healthy","Needs Care","Under Treatment"].map(h => <option key={h}>{h}</option>)}
             </Select>
           </Field>
+
           <Field label="Adoption Status">
             <Select value={form.status || "Available"} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
               {["Available","Pending","Adopted","Not Available"].map(s => <option key={s}>{s}</option>)}
             </Select>
           </Field>
         </div>
+
         <Field label="Notes">
           <Input value={form.notes || ""} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Any additional notes…" />
         </Field>

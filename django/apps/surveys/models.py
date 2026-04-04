@@ -9,7 +9,10 @@ from apps.approvals.models import AdoptionRequest
 
 
 class FollowUpSurvey(models.Model):
-    SURVEY_TYPE = [("30_sec", "30-Second Follow-Up"), ("60_sec", "60-Second Follow-Up")]  # ← changed
+    SURVEY_TYPE = [
+    ("7_day",  "7-Day Follow-Up"),
+    ("30_day", "30-Day Follow-Up"),
+]
     STATUS      = [("Pending", "Pending"), ("Completed", "Completed")]
 
     adoption      = models.ForeignKey(AdoptionRequest, on_delete=models.CASCADE, related_name="followup_surveys")
