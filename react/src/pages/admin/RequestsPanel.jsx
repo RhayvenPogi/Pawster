@@ -674,34 +674,23 @@ export default function RequestsPanel({ type, show }) {
 
   // ── Approve ──────────────────────────────────────────────────────────────
   const approve = async (id) => {
-    try {
-      const res  = await djFetch(`${apiBase}/${id}/approve/`, { method:"POST" });
-      const data = await res.json();
+  try {
+    const res  = await djFetch(`${apiBase}/${id}/approve/`, { method: "POST" });
+    const data = await res.json();
 
-      if (!data.success) { showToast(data.message || "Error approving","err"); return; }
+    if (!data.success) { showToast(data.message || "Error approving", "err"); return; }
 
-      if (type === "rehoming") {
-        const record = records.find(r => r.id === id);
-        if (record) {
-          try {
-            const animal = await createAnimalFromRehoming(record);
-            console.log("✅ Animal created in Spring Boot:", animal);
-            showToast(`Approved! ${record.pet_name || "Pet"} is now listed for adoption 🐾`);
-          } catch (springErr) {
-            console.error("❌ Spring Boot listing failed:", springErr);
-            showToast(`Django approved but pet listing FAILED: ${springErr.message}`,"err");
-          }
-        }
-      } else {
-        showToast("Request approved ✓");
-      }
-
-      load(filter);
-    } catch (e) {
-      console.error("Approve error:", e);
-      showToast("Network error","err");
-    }
-  };
+    showToast(
+      type === "rehoming"
+        ? `Approved! ${records.find(r => r.id === id)?.pet_name || "Pet"} is now listed 🐾`
+        : "Request approved ✓"
+    );
+    load(filter);
+  } catch (e) {
+    console.error("Approve error:", e);
+    showToast("Network error", "err");
+  }
+};
 
   // ── Reject ───────────────────────────────────────────────────────────────
   const doReject = async (reason) => {

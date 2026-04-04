@@ -135,3 +135,4 @@ USE_I18N = True
 USE_TZ   = True
 
 SPRING_BOOT_API = os.environ.get("SPRING_BOOT_API", "http://sb:8080")
+SPRING_BOOT_INTERNAL_TOKEN = os.environ.get("SPRING_BOOT_INTERNAL_TOKEN", "")

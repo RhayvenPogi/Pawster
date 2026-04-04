@@ -66,6 +66,7 @@ services:
       - SPRING_MAIL_PASSWORD=uwumvzcufkytdceb
       - APP_BASE_URL=http://localhost:3000
       - SPRING_BOOT_API=http://sb:8080  
+      
     volumes:
       - ./django:/app             # live reload — edit files locally, reflects instantly
     working_dir: /app

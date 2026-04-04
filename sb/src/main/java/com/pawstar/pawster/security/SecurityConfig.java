@@ -61,6 +61,7 @@ public class SecurityConfig {
                                                 .requestMatchers(HttpMethod.GET, "/api/animals/**").permitAll()
                                                 .requestMatchers(HttpMethod.POST, "/api/animals/mark-adopted").permitAll() 
                                                 .requestMatchers(HttpMethod.POST, "/api/animals/mark-pending").permitAll()
+                                                .requestMatchers(HttpMethod.POST, "/api/animals").permitAll()  
                                                 .requestMatchers(HttpMethod.POST, "/api/animals/**")
                                                 .hasAnyAuthority("admin", "ADMIN")
                                                 .requestMatchers(HttpMethod.PUT, "/api/animals/**")

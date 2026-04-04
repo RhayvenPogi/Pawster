@@ -1,7 +1,7 @@
 # PAWSTER — Django Backend
 
 <!-- AUTO:START -->
-> 🔍 **Auto-generated documentation** — last updated: 2026-04-02 16:34:15 UTC
+> 🔍 **Auto-generated documentation** — last updated: 2026-04-03 18:07:38 UTC
 > Run `node scripts/generate-readme.js django` to refresh.
 
 ---

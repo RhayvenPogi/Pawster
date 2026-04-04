@@ -8,9 +8,11 @@ import {
 
 const TYPE_ICONS  = { Dog: "🐶", Cat: "🐱", Bird: "🐦", Rabbit: "🐰", Other: "🐾" };
 const TYPE_COLORS = { Dog: "#2a7010", Cat: "#7a3dc0", Bird: "#0a7ab4", Rabbit: "#c87820", Other: "#6a7a50" };
+const SPRING = import.meta.env.VITE_API_BASE ?? "http://localhost:8080";
 
 function photoUrl(path) {
   if (!path) return null;
+  if (path.startsWith("data:")) return path;
   if (path.startsWith("http")) return path;
   return `http://localhost:8081${path}`;
 }
@@ -103,13 +105,35 @@ export default function AnimalsPanel({ show }) {
   const { show: toast } = useToast();
 
   const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const r = await phpApi("get_animals");
-      if (r.success) setAnimals(r.data || []);
-    } catch {}
-    setLoading(false);
-  }, []);
+  setLoading(true);
+  try {
+    const r = await phpApi("get_animals");
+    const phpAnimals = r.success ? (r.data || []) : [];
+
+    const sbRes = await fetch(`${SPRING}/api/animals`);
+    const sbData = await sbRes.json();
+    const sbAnimals = Array.isArray(sbData) ? sbData
+      .filter(a => !phpAnimals.some(
+        p => p.name?.toLowerCase() === a.name?.toLowerCase() &&
+             p.type?.toLowerCase() === a.type?.toLowerCase()
+      ))
+      .map(a => ({
+        id:              `sb_${a.id}`,
+        name:            a.name,
+        type:            a.type,
+        breed:           a.breed,
+        age:             a.age,
+        health:          a.health,
+        status:          a.status,
+        notes:           a.notes,
+        photo:           a.photo,
+        _fromSpringBoot: true,
+      })) : [];
+
+    setAnimals([...phpAnimals, ...sbAnimals]);
+  } catch {}
+  setLoading(false);
+}, []);
 
   useEffect(() => { if (show) load(); }, [show, load]);
 
@@ -233,17 +257,21 @@ export default function AnimalsPanel({ show }) {
               <Td><Badge color={healthBadge(a.health)}>{a.health}</Badge></Td>
               <Td><Badge color={statusBadge(a.status)}>{a.status}</Badge></Td>
               <Td>
-                <div className="flex gap-2">
-                  <button onClick={() => openEdit(a)}
-                    className="px-3 py-1.5 rounded-lg text-xs font-black border transition-all hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700"
-                    style={{ borderColor: "#ddd0a8", color: "#7a9060" }}>✏ Edit
-                  </button>
-                  <button onClick={() => setDel(a)}
-                    className="px-3 py-1.5 rounded-lg text-xs font-black border transition-all hover:bg-red-50 hover:border-red-300 hover:text-red-600"
-                    style={{ borderColor: "#ddd0a8", color: "#7a9060" }}>🗑
-                  </button>
-                </div>
-              </Td>
+  <div className="flex gap-2">
+    {!a._fromSpringBoot && (
+      <button onClick={() => openEdit(a)}
+        className="px-3 py-1.5 rounded-lg text-xs font-black border transition-all hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700"
+        style={{ borderColor: "#ddd0a8", color: "#7a9060" }}>✏ Edit
+      </button>
+    )}
+    {!a._fromSpringBoot && (
+      <button onClick={() => setDel(a)}
+        className="px-3 py-1.5 rounded-lg text-xs font-black border transition-all hover:bg-red-50 hover:border-red-300 hover:text-red-600"
+        style={{ borderColor: "#ddd0a8", color: "#7a9060" }}>🗑
+      </button>
+    )}
+  </div>
+</Td>
             </Tr>
           ))}
         </Table>
