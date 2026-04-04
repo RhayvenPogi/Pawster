@@ -48,7 +48,7 @@ function MeshBackground() {
       <div style={{ position:"absolute",inset:0,background:"#EDDABB" }} />
       {orbStyles.map((s, i) => (
         <div key={i} ref={el => orbRefs.current[i] = el}
-          style={{ position:"absolute",borderRadius:"50%",width:s.width,height:s.height,top:s.top,left:s.left,right:s.right,bottom:s.bottom,background:s.background,animation:s.animation }}>
+          style={{ position:"absolute",borderRadius:"50%",...s }}>
           <div style={{ width:"100%",height:"100%",borderRadius:"50%",filter:"blur(110px)",mixBlendMode:"multiply",opacity:0.7 }} />
         </div>
       ))}
@@ -134,6 +134,45 @@ function DogCursor() {
   );
 }
 
+// ── Improved Field with show/hide toggle for password ─────────────────────────
+function Field({ label, id, type="text", placeholder, value, onChange, error }) {
+  return (
+    <div style={{ marginBottom:"1.1rem" }}>
+      <label htmlFor={id} style={{
+        display:"block", fontSize:"0.72rem", fontWeight:900,
+        textTransform:"uppercase", letterSpacing:"0.07em",
+        color: error ? "#c03030" : "#276010", marginBottom:"0.4rem",
+        fontStyle:"italic",
+      }}>
+        {label}
+      </label>
+      <div style={{ position:"relative" }}>
+        <input
+          id={id} type={type} placeholder={placeholder}
+          value={value} onChange={onChange} className="field-input"
+          style={{
+            display:"block", width:"100%",
+            padding:"0.78rem 0.95rem",
+            border:`2px solid ${error ? "#d04040" : "#5aaa30"}`,
+            borderLeft: error ? "4px solid #d04040" : "2px solid #5aaa30",
+            borderRadius:10,
+            background: error ? "rgba(253,240,240,0.60)" : "rgba(255,250,232,0.52)",
+            fontFamily:"'Nunito',sans-serif", fontSize:"0.93rem",
+            fontWeight:600, color:"#222", outline:"none",
+            transition:"border-color 0.18s,box-shadow 0.18s,background 0.18s",
+          }}
+        />
+      </div>
+      {error && (
+        <span style={{ display:"flex", alignItems:"center", gap:"0.3rem", fontSize:"0.74rem", fontWeight:700, color:"#c03030", marginTop:"0.3rem" }}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          {error}
+        </span>
+      )}
+    </div>
+  );
+}
+
 export default function LoginPage() {
   const { login }               = useAuth();
   const [email, setEmail]       = useState("");
@@ -202,6 +241,7 @@ export default function LoginPage() {
         @keyframes earFlop{0%,100%{transform-origin:36px 10px;transform:rotate(0deg)}50%{transform-origin:36px 10px;transform:rotate(8deg)}}
         @keyframes sitSettle{0%{transform:translateY(0px)}40%{transform:translateY(-3px)}100%{transform:translateY(0px)}}
         @keyframes pawTap{0%,100%{transform-origin:30px 28px;transform:rotate(0deg)}50%{transform-origin:30px 28px;transform:rotate(-30deg)}}
+        @keyframes cardIn{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
         .dog-cursor.walking #dog-body{animation:bodyBob .28s ease-in-out infinite}
         .dog-cursor.walking #dog-leg-front{animation:legFrontWalk .28s ease-in-out infinite}
         .dog-cursor.walking #dog-leg-back{animation:legBackWalk .28s ease-in-out infinite}
@@ -210,28 +250,32 @@ export default function LoginPage() {
         .dog-cursor.idle #dog-tail{animation:tailWag .6s ease-in-out infinite}
         .dog-cursor.clicking #dog-body{animation:sitSettle .2s ease-out forwards}
         .dog-cursor.clicking #dog-leg-front{animation:pawTap .18s ease-in-out 2}
-        .field-input:focus{border-color:#1c4f09!important;background:rgba(255,252,238,0.78)!important;box-shadow:0 0 0 3px rgba(28,79,9,0.09)!important}
-        .field-input::placeholder{color:#a09060;font-style:italic;font-weight:600;}
-        .social-btn:hover{border-color:#a09060;transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,0.12);background:rgba(255,255,255,0.92)!important}
-        .signin-btn:hover:not(:disabled){background:#143806!important;transform:translateY(-1px);box-shadow:0 6px 20px rgba(28,79,9,0.32)}
+        .field-input:focus{border-color:#1c4f09!important;border-left-color:#1c4f09!important;background:rgba(255,252,238,0.78)!important;box-shadow:0 0 0 3px rgba(28,79,9,0.09)!important}
+        .field-input::placeholder{color:#b0a07a;font-style:italic;font-weight:600;}
+        .signin-btn:hover:not(:disabled){background:#143806!important;transform:translateY(-2px);box-shadow:0 8px 24px rgba(28,79,9,0.35)!important}
+        .signin-btn:active:not(:disabled){transform:translateY(0)!important;}
         .nav-register:hover{background:#143806!important;}
-        .forgot-btn:hover{text-decoration:underline;opacity:0.85;}
+        .forgot-btn:hover{text-decoration:underline;color:#a06010!important;}
         .footer-link:hover{text-decoration:underline;}
+        .social-btn{transition:all 0.18s!important;}
+        .social-btn:hover{border-color:#a09060!important;transform:translateY(-2px)!important;box-shadow:0 6px 16px rgba(0,0,0,0.12)!important;background:rgba(255,255,255,0.92)!important}
+        .remember-check:focus-within{outline:2px solid #1c4f09;outline-offset:3px;border-radius:4px;}
       `}</style>
 
       <MeshBackground />
       <DogCursor />
 
-      <nav style={{ position:"fixed",top:0,right:0,zIndex:300,display:"flex",alignItems:"center",gap:"1rem",padding:"0.85rem 1.6rem" }}>
-        <button style={{ background:"none",border:"none",borderBottom:"2.5px solid #1c4f09",fontFamily:"'Nunito',sans-serif",fontSize:"1rem",fontWeight:800,color:"#1c4f09",padding:"0.15rem 0.3rem 0.2rem" }}>
+      {/* Nav */}
+      <nav style={{ position:"fixed",top:0,right:0,zIndex:300,display:"flex",alignItems:"center",gap:"0.9rem",padding:"0.85rem 1.6rem" }}>
+        <span style={{ fontFamily:"'Nunito',sans-serif",fontSize:"0.95rem",fontWeight:800,color:"#1c4f09",borderBottom:"2.5px solid #1c4f09",padding:"0.15rem 0.3rem 0.2rem" }}>
           Sign in
-        </button>
+        </span>
         <button className="nav-register" onClick={() => window.location.href = "/register"}
-          style={{ background:"#1c4f09",color:"#fff",border:"none",borderRadius:50,fontFamily:"'Nunito',sans-serif",fontSize:"1rem",fontWeight:800,padding:"0.5rem 1.6rem",transition:"background 0.18s" }}>
+          style={{ background:"#1c4f09",color:"#fff",border:"none",borderRadius:50,fontFamily:"'Nunito',sans-serif",fontSize:"0.95rem",fontWeight:800,padding:"0.45rem 1.5rem",transition:"background 0.18s" }}>
           Register
         </button>
         <a href="/" style={{ display:"flex",alignItems:"center" }}>
-          <img src={logo} alt="Pawster Logo" style={{ width:70,height:70,objectFit:"cover" }} />
+          <img src={logo} alt="Pawster Logo" style={{ width:64,height:64,objectFit:"cover" }} />
         </a>
       </nav>
 
@@ -257,85 +301,128 @@ export default function LoginPage() {
         </div>
 
         {/* Right Panel */}
-        <div style={{ width:400,minWidth:400,flexShrink:0,alignSelf:"center",marginRight:"3vw",marginTop:"3vh",display:"flex",flexDirection:"column",justifyContent:"center",padding:"2.2rem 2.6rem",background:"rgba(255,248,225,0.38)",backdropFilter:"blur(18px)",WebkitBackdropFilter:"blur(18px)",border:"1.5px solid rgba(255,238,190,0.50)",borderRadius:26,boxShadow:"0 8px 40px rgba(160,105,30,0.13),0 2px 10px rgba(0,0,0,0.06)" }}>
+        <div style={{
+          width:420, minWidth:380, flexShrink:0, alignSelf:"center",
+          marginRight:"3vw", marginTop:"3vh",
+          display:"flex", flexDirection:"column", justifyContent:"center",
+          padding:"2.4rem 2.6rem",
+          background:"rgba(255,248,225,0.42)",
+          backdropFilter:"blur(20px)", WebkitBackdropFilter:"blur(20px)",
+          border:"1.5px solid rgba(255,238,190,0.55)",
+          borderRadius:28,
+          boxShadow:"0 12px 48px rgba(160,105,30,0.15),0 2px 12px rgba(0,0,0,0.07)",
+          animation:"cardIn 0.4s cubic-bezier(0.22,1,0.36,1) both",
+        }}>
 
-          <h2 style={{ fontSize:"clamp(2rem,2.6vw,2.8rem)",fontWeight:900,color:"#1a4a08",textAlign:"center",marginBottom:"0.45rem",lineHeight:1.05 }}>Welcome Back!</h2>
-          <p style={{ fontSize:"0.88rem",fontWeight:600,color:"#3a6020",textAlign:"center",lineHeight:1.55,marginBottom:"1.6rem" }}>
-            Sign in to continue your journey of making a difference in an animal's life
-          </p>
+          {/* Header */}
+          <div style={{ textAlign:"center", marginBottom:"1.6rem" }}>
+            <h2 style={{ fontSize:"clamp(1.8rem,2.4vw,2.6rem)",fontWeight:900,color:"#1a4a08",lineHeight:1.05,marginBottom:"0.4rem" }}>
+              Welcome Back!
+            </h2>
+            <p style={{ fontSize:"0.86rem",fontWeight:600,color:"#5a7a40",lineHeight:1.5 }}>
+              Sign in to continue your journey of making<br/>a difference in an animal's life
+            </p>
+          </div>
 
+          {/* Alert */}
           {alert.msg && (
-            <div style={{ borderRadius:8,padding:"0.7rem 0.9rem",fontSize:"0.86rem",fontWeight:700,marginBottom:"1rem",
+            <div style={{
+              borderRadius:10, padding:"0.75rem 1rem",
+              fontSize:"0.84rem", fontWeight:700, marginBottom:"1rem",
+              display:"flex", alignItems:"center", gap:"0.5rem",
               background: alert.type==="success" ? "rgba(230,245,220,0.9)" : "rgba(253,232,232,0.9)",
               color:       alert.type==="success" ? "#276010" : "#b83030",
-              border:      alert.type==="success" ? "1px solid #90d060" : "1px solid #f0a0a0" }}>
+              border:      alert.type==="success" ? "1px solid #90d060" : "1px solid #f0a0a0",
+              borderLeft:  alert.type==="success" ? "4px solid #5aaa30" : "4px solid #d04040",
+            }}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
               {alert.msg}
             </div>
           )}
 
           <form onSubmit={handleSubmit} noValidate>
-            <div style={{ position:"relative",marginBottom:"1.25rem" }}>
-              <label style={{ position:"absolute",top:"-0.55rem",left:"0.75rem",fontSize:"1rem",fontWeight:800,textTransform:"uppercase",fontStyle:"italic",color:"#276010",textShadow:"-1px -1px 0 rgba(255,250,232,0.52),1px -1px 0 rgba(255,250,232,0.52),-1px 1px 0 rgba(255,250,232,0.52),1px 1px 0 rgba(255,250,232,0.52)",zIndex:2 }}>Email</label>
-              <input className="field-input" type="email" placeholder="Enter email..."
-                value={email} onChange={e => { setEmail(e.target.value); setErrors(v=>({...v,email:""})); setAlert({type:"",msg:""}); }}
-                style={{ display:"block",width:"100%",padding:"0.82rem 0.95rem",border:`2px solid ${errors.email?"#d04040":"#5aaa30"}`,borderRadius:10,background:"rgba(255,250,232,0.52)",fontFamily:"'Nunito',sans-serif",fontSize:"0.93rem",fontWeight:600,color:"#222",outline:"none",transition:"border-color 0.18s,box-shadow 0.18s,background 0.18s" }} />
-              {errors.email && <span style={{ display:"block",fontSize:"0.75rem",fontWeight:700,color:"#c03030",marginTop:"0.28rem",paddingLeft:"0.2rem" }}>{errors.email}</span>}
-            </div>
+            <Field
+              label="Email" id="email" type="email"
+              placeholder="Enter your email…"
+              value={email}
+              onChange={e => { setEmail(e.target.value); setErrors(v=>({...v,email:""})); setAlert({type:"",msg:""}); }}
+              error={errors.email}
+            />
+            <Field
+              label="Password" id="password" type="password"
+              placeholder="Enter your password…"
+              value={password}
+              onChange={e => { setPassword(e.target.value); setErrors(v=>({...v,password:""})); setAlert({type:"",msg:""}); }}
+              error={errors.password}
+            />
 
-            <div style={{ position:"relative",marginBottom:"1.25rem" }}>
-              <label style={{ position:"absolute",top:"-0.55rem",left:"0.75rem",fontSize:"1rem",fontWeight:800,textTransform:"uppercase",fontStyle:"italic",color:"#276010",textShadow:"-1px -1px 0 rgba(255,250,232,0.52),1px -1px 0 rgba(255,250,232,0.52),-1px 1px 0 rgba(255,250,232,0.52),1px 1px 0 rgba(255,250,232,0.52)",zIndex:2 }}>Password</label>
-              <input className="field-input" type="password" placeholder="Enter password..."
-                value={password} onChange={e => { setPassword(e.target.value); setErrors(v=>({...v,password:""})); setAlert({type:"",msg:""}); }}
-                style={{ display:"block",width:"100%",padding:"0.82rem 0.95rem",border:`2px solid ${errors.password?"#d04040":"#5aaa30"}`,borderRadius:10,background:"rgba(255,250,232,0.52)",fontFamily:"'Nunito',sans-serif",fontSize:"0.93rem",fontWeight:600,color:"#222",outline:"none",transition:"border-color 0.18s,box-shadow 0.18s,background 0.18s" }} />
-              {errors.password && <span style={{ display:"block",fontSize:"0.75rem",fontWeight:700,color:"#c03030",marginTop:"0.28rem",paddingLeft:"0.2rem" }}>{errors.password}</span>}
-            </div>
-
-            <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"1.3rem" }}>
-              <label style={{ display:"flex",alignItems:"center",gap:"0.55rem",fontSize:"0.9rem",fontWeight:700,color:"#222",userSelect:"none" }}>
+            {/* Remember + Forgot */}
+            <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"1.4rem",marginTop:"0.2rem" }}>
+              <label className="remember-check" style={{ display:"flex",alignItems:"center",gap:"0.5rem",fontSize:"0.88rem",fontWeight:700,color:"#3a5020",userSelect:"none" }}>
                 <input type="checkbox" checked={remember} onChange={e=>setRemember(e.target.checked)}
-                  style={{ width:19,height:19,accentColor:"#1c4f09" }} />
+                  style={{ width:17,height:17,accentColor:"#1c4f09",flexShrink:0 }} />
                 Remember me
               </label>
               <button type="button" className="forgot-btn"
-  onClick={() => window.location.href = "/forgot-password"}
-  style={{ background:"none",border:"none",fontFamily:"'Nunito',sans-serif",fontSize:"0.9rem",fontWeight:800,color:"#c87820",padding:0,transition:"opacity 0.15s" }}>
-  Forgot password?
-</button>
+                onClick={() => window.location.href = "/forgot-password"}
+                style={{ background:"none",border:"none",fontFamily:"'Nunito',sans-serif",fontSize:"0.88rem",fontWeight:800,color:"#c87820",padding:0,transition:"color 0.15s" }}>
+                Forgot password?
+              </button>
             </div>
 
+            {/* Sign in button */}
             <button type="submit" className="signin-btn" disabled={loading}
-              style={{ display:"block",width:"100%",padding:"1rem",background:"#1c4f09",color:"#fff",border:"none",borderRadius:12,fontFamily:"'Nunito',sans-serif",fontSize:"1.05rem",fontWeight:900,letterSpacing:"0.02em",transition:"background 0.18s,transform 0.15s,box-shadow 0.15s",opacity:loading?0.65:1 }}>
-              {loading ? "Signing in..." : "Sign in"}
+              style={{
+                display:"block", width:"100%", padding:"0.95rem",
+                background:"linear-gradient(135deg,#1c4f09,#2a6e10)",
+                color:"#fff", border:"none", borderRadius:13,
+                fontFamily:"'Nunito',sans-serif", fontSize:"1rem", fontWeight:900,
+                letterSpacing:"0.04em",
+                boxShadow:"0 4px 16px rgba(28,79,9,0.28)",
+                transition:"background 0.18s,transform 0.15s,box-shadow 0.15s",
+                opacity:loading?0.65:1,
+                position:"relative", overflow:"hidden",
+              }}>
+              {loading ? (
+                <span style={{ display:"flex",alignItems:"center",justifyContent:"center",gap:"0.5rem" }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ animation:"spin 0.8s linear infinite" }}><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                  Signing in…
+                </span>
+              ) : "Sign in →"}
             </button>
           </form>
 
-          <div style={{ display:"flex",alignItems:"center",gap:"0.7rem",margin:"1.2rem 0" }}>
-            <div style={{ flex:1,height:1.5,background:"rgba(160,120,60,0.45)" }}/>
-            <span style={{ fontSize:"0.86rem",fontWeight:700,color:"#6a7a50",whiteSpace:"nowrap" }}>Or continue with</span>
-            <div style={{ flex:1,height:1.5,background:"rgba(160,120,60,0.45)" }}/>
+          {/* Divider */}
+          <div style={{ display:"flex",alignItems:"center",gap:"0.8rem",margin:"1.3rem 0 1.1rem" }}>
+            <div style={{ flex:1,height:1,background:"rgba(160,120,60,0.30)" }}/>
+            <span style={{ fontSize:"0.80rem",fontWeight:700,color:"#8a9a70",whiteSpace:"nowrap",letterSpacing:"0.03em" }}>or continue with</span>
+            <div style={{ flex:1,height:1,background:"rgba(160,120,60,0.30)" }}/>
           </div>
 
-          <div style={{ display:"flex",justifyContent:"center",gap:"0.9rem",marginBottom:"1.2rem" }}>
+          {/* Social buttons */}
+          <div style={{ display:"flex",justifyContent:"center",gap:"0.8rem",marginBottom:"1.3rem" }}>
             {[
-              <svg key="g" width="22" height="22" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>,
-              <svg key="a" width="22" height="22" viewBox="0 0 24 24" fill="#000"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>,
-              <svg key="f" width="22" height="22" viewBox="0 0 24 24" fill="#1877F2"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>,
-            ].map((icon, i) => (
-              <button key={i} className="social-btn"
-                style={{ width:58,height:58,borderRadius:13,border:"1.5px solid rgba(200,170,100,0.55)",background:"rgba(255,255,255,0.75)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 2px 8px rgba(0,0,0,0.07)",backdropFilter:"blur(5px)",transition:"all 0.18s" }}>
+              { key:"g", icon: <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>, label:"Google" },
+              { key:"a", icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="#000"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>, label:"Apple" },
+              { key:"f", icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="#1877F2"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>, label:"Facebook" },
+            ].map(({ key, icon, label }) => (
+              <button key={key} className="social-btn" aria-label={`Sign in with ${label}`}
+                style={{ width:54,height:54,borderRadius:13,border:"1.5px solid rgba(200,170,100,0.45)",background:"rgba(255,255,255,0.70)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 2px 8px rgba(0,0,0,0.06)",backdropFilter:"blur(5px)" }}>
                 {icon}
               </button>
             ))}
           </div>
 
-          <p style={{ textAlign:"center",fontSize:"0.88rem",fontWeight:700,color:"#3a6020" }}>
+          <p style={{ textAlign:"center",fontSize:"0.86rem",fontWeight:700,color:"#4a6030" }}>
             Don't have an account?{" "}
-            <a href="/register" className="footer-link" style={{ color:"#c87820",fontStyle:"italic",fontWeight:800,textDecoration:"none",marginLeft:"0.2rem" }}>
+            <a href="/register" className="footer-link" style={{ color:"#c87820",fontStyle:"italic",fontWeight:800,textDecoration:"none",marginLeft:"0.15rem" }}>
               Create Account!
             </a>
           </p>
         </div>
       </div>
+
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </>
   );
 }

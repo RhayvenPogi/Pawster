@@ -54,6 +54,7 @@ public class SecurityConfig {
                                                                 "/api/auth/forgot-password", // ← add
                                                                 "/api/auth/verify-otp", // ← add
                                                                 "/api/auth/reset-password", // ← add
+                                                                "/swagger-ui.html",
                                                                 "/error")
                                                 .permitAll()
 

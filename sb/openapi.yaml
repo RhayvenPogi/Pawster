@@ -1,0 +1,1919 @@
+openapi: 3.0.0
+info:
+  title: Pawstar API
+  version: 1.0.0
+  description: >
+    Full REST API for the Pawstar Spring Boot backend.
+    Security rules are derived directly from SecurityConfig.java.
+
+    🔓 Public      = no token required
+    🔐 Auth        = any valid JWT (user or admin)
+    🛡️  Admin only  = JWT with role admin/ADMIN
+
+servers:
+  - url: http://localhost:8080
+
+security:
+  - bearerAuth: []   # default — overridden per-operation where needed
+
+tags:
+  - name: Auth
+    description: 🔓 All public except /me (any valid JWT)
+  - name: Users
+    description: 🔐 Authenticated — owner or admin
+  - name: Animals
+    description: GET public · POST/PUT/DELETE admin (mark-adopted & mark-pending public)
+  - name: Adoption
+    description: POST/GET my-requests/DELETE auth · GET all/PATCH admin
+  - name: Rehome
+    description: POST/GET my-requests/DELETE auth · GET all/PATCH admin
+  - name: Surveys
+    description: POST/GET my-surveys auth · GET all/single admin
+  - name: Missing Pets
+    description: 🔓 GET & POST public · admin routes require admin role
+  - name: Pet Comments
+    description: 🔓 GET public · POST auth · DELETE admin
+  - name: Activity Logs
+    description: 🛡️ Admin only
+  - name: Admin Users
+    description: 🛡️ Admin only
+
+# ═══════════════════════════════════════════════════════════════════════════════
+paths:
+
+  # ── Auth ─────────────────────────────────────────────────────────────────────
+  # SecurityConfig: login, register, logout, me, forgot-password,
+  #                 verify-otp, reset-password → permitAll
+
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: 🔓 Login with email and password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  example: juan@example.com
+                password:
+                  type: string
+                  example: secret123
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/UserDto'
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: true
+                      token:
+                        type: string
+                        example: eyJhbGciOiJIUzI1NiJ9...
+                      message:
+                        type: string
+                        example: Login successful!
+                      role:
+                        type: string
+                        example: user
+                      redirect:
+                        type: string
+                        example: php/index.php
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/auth/register:
+    post:
+      tags: [Auth]
+      summary: 🔓 Register a new user (multipart with ID file)
+      security: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - firstName
+                - lastName
+                - email
+                - phone
+                - password
+                - address
+                - city
+                - province
+                - zip
+                - idFile
+              properties:
+                firstName:
+                  type: string
+                  example: Juan
+                lastName:
+                  type: string
+                  example: Dela Cruz
+                email:
+                  type: string
+                  example: juan@example.com
+                phone:
+                  type: string
+                  example: "09171234567"
+                password:
+                  type: string
+                  example: secret123
+                address:
+                  type: string
+                  example: 123 Rizal St
+                city:
+                  type: string
+                  example: Manila
+                province:
+                  type: string
+                  example: Metro Manila
+                zip:
+                  type: string
+                  example: "1000"
+                idFile:
+                  type: string
+                  format: binary
+                  description: JPG, PNG, or PDF — max 5 MB
+      responses:
+        '200':
+          description: Registration successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/auth/logout:
+    post:
+      tags: [Auth]
+      summary: 🔓 Logout (clears JWT cookie)
+      security: []
+      responses:
+        '200':
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessMessage'
+
+  /api/auth/me:
+    get:
+      tags: [Auth]
+      summary: 🔓 Get currently authenticated user (permitAll — returns 401 if no JWT)
+      security: []
+      responses:
+        '200':
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/auth/forgot-password:
+    post:
+      tags: [Auth]
+      summary: 🔓 Request a password-reset OTP
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  example: juan@example.com
+      responses:
+        '200':
+          description: OTP sent (always 200 to prevent email enumeration)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessMessage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/auth/verify-otp:
+    post:
+      tags: [Auth]
+      summary: 🔓 Verify the password-reset OTP
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, otp]
+              properties:
+                email:
+                  type: string
+                  example: juan@example.com
+                otp:
+                  type: string
+                  example: "482910"
+      responses:
+        '200':
+          description: OTP verified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessMessage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '410':
+          description: OTP expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                message: OTP has expired. Please request a new one.
+
+  /api/auth/reset-password:
+    post:
+      tags: [Auth]
+      summary: 🔓 Reset password after OTP verification
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, newPassword]
+              properties:
+                email:
+                  type: string
+                  example: juan@example.com
+                newPassword:
+                  type: string
+                  example: NewPass@123
+      responses:
+        '200':
+          description: Password reset successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessMessage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/auth/id-file/{userId}:
+    get:
+      tags: [Auth]
+      summary: 🔐 Serve a user's uploaded ID file
+      parameters:
+        - $ref: '#/components/parameters/UserIdPath'
+      responses:
+        '200':
+          description: ID file bytes (PDF / JPG / PNG)
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ── Users ─────────────────────────────────────────────────────────────────────
+  # SecurityConfig: /api/users/*/photo/public → permitAll
+  #                 everything else            → anyRequest().authenticated()
+
+  /api/users/{id}:
+    get:
+      tags: [Users]
+      summary: 🔐 Get a user profile ("me" resolves to caller)
+      parameters:
+        - $ref: '#/components/parameters/UserIdOrMe'
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    put:
+      tags: [Users]
+      summary: 🔐 Update profile (text fields + optional photo); owner or admin only
+      parameters:
+        - $ref: '#/components/parameters/UserIdOrMe'
+      requestBody:
+        required: false
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                firstName:
+                  type: string
+                lastName:
+                  type: string
+                email:
+                  type: string
+                phone:
+                  type: string
+                address:
+                  type: string
+                city:
+                  type: string
+                province:
+                  type: string
+                zip:
+                  type: string
+                photo:
+                  type: string
+                  format: binary
+                  description: JPG, PNG, or WEBP — max 5 MB
+      responses:
+        '200':
+          description: Updated user profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/users/{id}/password:
+    put:
+      tags: [Users]
+      summary: 🔐 Change password; owner or admin only
+      parameters:
+        - $ref: '#/components/parameters/UserIdOrMe'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentPassword, newPassword]
+              properties:
+                currentPassword:
+                  type: string
+                  example: oldpass123
+                newPassword:
+                  type: string
+                  example: NewPass@456
+      responses:
+        '200':
+          description: Password updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessMessage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/users/{id}/id-file:
+    get:
+      tags: [Users]
+      summary: 🔐 Download a user's ID file; owner or admin only
+      parameters:
+        - $ref: '#/components/parameters/UserIdOrMe'
+      responses:
+        '200':
+          description: ID file bytes
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [Users]
+      summary: 🔐 Upload or replace a user's ID file; owner or admin only
+      parameters:
+        - $ref: '#/components/parameters/UserIdOrMe'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [idFile]
+              properties:
+                idFile:
+                  type: string
+                  format: binary
+                  description: JPG, PNG, or PDF — max 5 MB
+      responses:
+        '200':
+          description: ID file updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessMessage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/users/{id}/photo:
+    get:
+      tags: [Users]
+      summary: 🔐 Get profile photo; owner or admin only
+      parameters:
+        - $ref: '#/components/parameters/UserIdOrMe'
+      responses:
+        '200':
+          description: Photo image bytes
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/users/{id}/photo/public:
+    get:
+      tags: [Users]
+      summary: 🔓 Get profile photo with no auth (cached 7 days)
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 3
+      responses:
+        '200':
+          description: Photo image bytes
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ── Animals ───────────────────────────────────────────────────────────────────
+  # GET /**           → permitAll
+  # POST mark-adopted → permitAll
+  # POST mark-pending → permitAll
+  # POST /            → permitAll (note: controller enforces auth via Authentication param)
+  # POST /**          → admin
+  # PUT  /**          → admin
+  # DELETE /**        → admin
+
+  /api/animals:
+    get:
+      tags: [Animals]
+      summary: 🔓 Get all animals (optional type / status filter)
+      security: []
+      parameters:
+        - name: type
+          in: query
+          required: false
+          schema:
+            type: string
+            example: Dog
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            example: Available
+      responses:
+        '200':
+          description: List of animals
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Animal'
+
+    post:
+      tags: [Animals]
+      summary: 🛡️ Create a new animal (admin only)
+      responses:
+        '201':
+          description: Animal created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Animal'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnimalRequest'
+
+  /api/animals/{id}:
+    get:
+      tags: [Animals]
+      summary: 🔓 Get a single animal by ID
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/IntIdPath'
+      responses:
+        '200':
+          description: Animal record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Animal'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [Animals]
+      summary: 🛡️ Update an animal (admin only)
+      parameters:
+        - $ref: '#/components/parameters/IntIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnimalRequest'
+      responses:
+        '200':
+          description: Updated animal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Animal'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags: [Animals]
+      summary: 🛡️ Delete an animal (admin only)
+      parameters:
+        - $ref: '#/components/parameters/IntIdPath'
+      responses:
+        '200':
+          description: Animal deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessMessage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/animals/mark-adopted:
+    post:
+      tags: [Animals]
+      summary: 🔓 Mark an animal as Adopted (called by Django after approval)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [animalName]
+              properties:
+                animalName:
+                  type: string
+                  example: Buddy
+      responses:
+        '200':
+          description: Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessMessage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/animals/mark-pending:
+    post:
+      tags: [Animals]
+      summary: 🔓 Mark an animal as Pending (called by Django on submission)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [animalName]
+              properties:
+                animalName:
+                  type: string
+                  example: Buddy
+      responses:
+        '200':
+          description: Result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  updated:
+                    type: boolean
+                    example: true
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  # ── Adoption ──────────────────────────────────────────────────────────────────
+  # POST /api/adoption                → authenticated
+  # GET  /api/adoption/my-requests    → authenticated
+  # DELETE /api/adoption/**           → authenticated
+  # GET  /api/adoption/**             → admin
+  # PATCH /api/adoption/**            → admin
+
+  /api/adoption:
+    post:
+      tags: [Adoption]
+      summary: 🔐 Submit an adoption application
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdoptionRequest'
+      responses:
+        '201':
+          description: Application submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdoptionRequestDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    get:
+      tags: [Adoption]
+      summary: 🛡️ Get all adoption applications (admin); optional status filter
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [Pending, Approved, Rejected]
+      responses:
+        '200':
+          description: List of adoption applications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AdoptionRequestDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/adoption/my-requests:
+    get:
+      tags: [Adoption]
+      summary: 🔐 Get the current user's adoption applications
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: integer
+            example: 3
+      responses:
+        '200':
+          description: User's applications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AdoptionRequestDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/adoption/{id}:
+    get:
+      tags: [Adoption]
+      summary: 🛡️ Get a single adoption application (admin)
+      parameters:
+        - $ref: '#/components/parameters/IntIdPath'
+      responses:
+        '200':
+          description: Adoption application
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdoptionRequestDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags: [Adoption]
+      summary: 🔐 Cancel an adoption application (authenticated user)
+      parameters:
+        - $ref: '#/components/parameters/IntIdPath'
+      responses:
+        '200':
+          description: Application cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessMessage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/adoption/{id}/status:
+    patch:
+      tags: [Adoption]
+      summary: 🛡️ Approve or reject an adoption application (admin)
+      parameters:
+        - $ref: '#/components/parameters/IntIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [Approved, Rejected, Pending]
+                  example: Approved
+                rejectNote:
+                  type: string
+                  example: Pet already adopted.
+      responses:
+        '200':
+          description: Updated adoption application
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdoptionRequestDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ── Rehome ────────────────────────────────────────────────────────────────────
+  # POST /api/rehome                → authenticated
+  # GET  /api/rehome/my-requests   → authenticated
+  # DELETE /api/rehome/**          → authenticated
+  # GET  /api/rehome/**            → admin
+  # PATCH /api/rehome/**           → admin
+
+  /api/rehome:
+    post:
+      tags: [Rehome]
+      summary: 🔐 Submit a rehome request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RehomeRequest'
+      responses:
+        '201':
+          description: Rehome request created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RehomeRequest'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    get:
+      tags: [Rehome]
+      summary: 🛡️ Get all rehome requests (admin); optional status filter
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [Pending, Approved, Rejected]
+      responses:
+        '200':
+          description: List of rehome requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RehomeRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/rehome/my-requests:
+    get:
+      tags: [Rehome]
+      summary: 🔐 Get the current user's rehome requests
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: integer
+            example: 3
+      responses:
+        '200':
+          description: User's rehome requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RehomeRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/rehome/{id}:
+    get:
+      tags: [Rehome]
+      summary: 🛡️ Get a single rehome request (admin)
+      parameters:
+        - $ref: '#/components/parameters/IntIdPath'
+      responses:
+        '200':
+          description: Rehome request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RehomeRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags: [Rehome]
+      summary: 🔐 Cancel a rehome request (authenticated user)
+      parameters:
+        - $ref: '#/components/parameters/IntIdPath'
+      responses:
+        '200':
+          description: Rehome request cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessMessage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/rehome/{id}/status:
+    patch:
+      tags: [Rehome]
+      summary: 🛡️ Approve or reject a rehome request (admin)
+      parameters:
+        - $ref: '#/components/parameters/IntIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [Approved, Rejected, Pending]
+                  example: Approved
+                rejectNote:
+                  type: string
+                  example: Insufficient details provided.
+      responses:
+        '200':
+          description: Updated rehome request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RehomeRequest'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ── Surveys ───────────────────────────────────────────────────────────────────
+  # POST /api/surveys              → authenticated
+  # GET  /api/surveys/my-surveys  → authenticated
+  # GET  /api/surveys/**          → admin
+
+  /api/surveys:
+    post:
+      tags: [Surveys]
+      summary: 🔐 Submit a post-adoption survey
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Survey'
+      responses:
+        '201':
+          description: Survey submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Survey'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    get:
+      tags: [Surveys]
+      summary: 🛡️ Get all surveys (admin)
+      responses:
+        '200':
+          description: List of surveys
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Survey'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/surveys/my-surveys:
+    get:
+      tags: [Surveys]
+      summary: 🔐 Get the current user's surveys
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: integer
+            example: 3
+      responses:
+        '200':
+          description: User's surveys
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Survey'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/surveys/{id}:
+    get:
+      tags: [Surveys]
+      summary: 🛡️ Get a single survey (admin)
+      parameters:
+        - $ref: '#/components/parameters/IntIdPath'
+      responses:
+        '200':
+          description: Survey record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Survey'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ── Missing Pets ──────────────────────────────────────────────────────────────
+  # GET  /api/missing-pets/**  → permitAll
+  # POST /api/missing-pets     → permitAll
+  # admin sub-routes           → admin (under /api/admin/** catch-all? No —
+  #   these are /api/missing-pets/admin/... → covered by anyRequest().authenticated
+  #   but admin-specific paths use hasAnyAuthority in controller logic / admin tag)
+
+  /api/missing-pets:
+    get:
+      tags: [Missing Pets]
+      summary: 🔓 Get all approved missing pet reports
+      security: []
+      responses:
+        '200':
+          description: Approved missing pet reports
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MissingPet'
+
+    post:
+      tags: [Missing Pets]
+      summary: 🔓 Submit a new missing/found pet report (multipart)
+      security: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [type, species, area, address]
+              properties:
+                type:
+                  type: string
+                  example: missing
+                name:
+                  type: string
+                  example: Buddy
+                species:
+                  type: string
+                  example: Dog
+                breed:
+                  type: string
+                  example: Labrador
+                area:
+                  type: string
+                  example: Tondo, Manila
+                address:
+                  type: string
+                  example: 123 Rizal Street
+                color:
+                  type: string
+                  example: Brown
+                details:
+                  type: string
+                  example: Last seen near the park wearing a red collar.
+                latitude:
+                  type: number
+                  format: double
+                  example: 14.5995
+                longitude:
+                  type: number
+                  format: double
+                  example: 120.9842
+                reporterUserId:
+                  type: integer
+                  example: 3
+                photo:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Report submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MissingPet'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/missing-pets/admin/all:
+    get:
+      tags: [Missing Pets]
+      summary: 🔐 Get all reports regardless of status (authenticated — admin recommended)
+      responses:
+        '200':
+          description: All reports
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MissingPet'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/missing-pets/admin/{id}:
+    put:
+      tags: [Missing Pets]
+      summary: 🔐 Admin update a report via JSON body
+      parameters:
+        - $ref: '#/components/parameters/LongIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MissingPet'
+      responses:
+        '200':
+          description: Updated report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MissingPet'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    delete:
+      tags: [Missing Pets]
+      summary: 🔐 Admin delete a report
+      parameters:
+        - $ref: '#/components/parameters/LongIdPath'
+      responses:
+        '204':
+          description: Report deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/missing-pets/admin/{id}/approve:
+    put:
+      tags: [Missing Pets]
+      summary: 🔐 Approve a missing pet report
+      parameters:
+        - $ref: '#/components/parameters/LongIdPath'
+      responses:
+        '200':
+          description: Report approved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MissingPet'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/missing-pets/admin/{id}/reject:
+    put:
+      tags: [Missing Pets]
+      summary: 🔐 Reject a missing pet report
+      parameters:
+        - $ref: '#/components/parameters/LongIdPath'
+      responses:
+        '200':
+          description: Report rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MissingPet'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/missing-pets/{id}:
+    put:
+      tags: [Missing Pets]
+      summary: 🔐 User updates their own report (multipart, optional new photo)
+      parameters:
+        - $ref: '#/components/parameters/LongIdPath'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [type, species, area, address]
+              properties:
+                type:
+                  type: string
+                name:
+                  type: string
+                species:
+                  type: string
+                breed:
+                  type: string
+                area:
+                  type: string
+                address:
+                  type: string
+                color:
+                  type: string
+                details:
+                  type: string
+                latitude:
+                  type: number
+                  format: double
+                longitude:
+                  type: number
+                  format: double
+                photo:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Updated report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MissingPet'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/missing-pets/{id}/resolve:
+    put:
+      tags: [Missing Pets]
+      summary: 🔐 User marks their report as resolved
+      parameters:
+        - $ref: '#/components/parameters/LongIdPath'
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: integer
+            example: 3
+      responses:
+        '200':
+          description: Report resolved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MissingPet'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ── Pet Comments ──────────────────────────────────────────────────────────────
+  # GET /api/missing-pets/**  → permitAll (covers comments too)
+  # POST / DELETE             → anyRequest().authenticated()
+
+  /api/missing-pets/{petId}/comments:
+    get:
+      tags: [Pet Comments]
+      summary: 🔓 Get all comments for a missing pet report
+      security: []
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+            example: 10
+      responses:
+        '200':
+          description: List of comments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PetComment'
+
+    post:
+      tags: [Pet Comments]
+      summary: 🔐 Add a comment to a missing pet report
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+            example: 10
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PetCommentRequest'
+      responses:
+        '200':
+          description: Comment added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PetComment'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/missing-pets/{petId}/comments/{commentId}:
+    delete:
+      tags: [Pet Comments]
+      summary: 🔐 Delete a comment (admin recommended)
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: commentId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Comment deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ── Activity Logs ─────────────────────────────────────────────────────────────
+  # /api/admin/** → hasAnyAuthority("admin","ADMIN")
+
+  /api/admin/activity-logs:
+    get:
+      tags: [Activity Logs]
+      summary: 🛡️ Get recent 50 activity log entries (admin only)
+      responses:
+        '200':
+          description: Recent activity logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ActivityLog'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/activity-logs/by-user:
+    get:
+      tags: [Activity Logs]
+      summary: 🛡️ Get activity logs for a specific user (admin only)
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: integer
+            example: 5
+      responses:
+        '200':
+          description: Activity logs for the user
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ActivityLog'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  # ── Admin Users ───────────────────────────────────────────────────────────────
+  # /api/admin/** → hasAnyAuthority("admin","ADMIN")
+
+  /api/admin/users:
+    post:
+      tags: [Admin Users]
+      summary: 🛡️ Create a user and email auto-generated credentials (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [firstName, lastName, email, phone]
+              properties:
+                firstName:
+                  type: string
+                  example: Maria
+                lastName:
+                  type: string
+                  example: Santos
+                email:
+                  type: string
+                  example: maria@example.com
+                phone:
+                  type: string
+                  example: "09181234567"
+                role:
+                  type: string
+                  enum: [user, admin]
+                  default: user
+      responses:
+        '201':
+          description: User created and credentials emailed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: User created and credentials emailed to maria@example.com
+                  userId:
+                    type: integer
+                    example: 12
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+# ═══════════════════════════════════════════════════════════════════════════════
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >
+        JWT issued by /api/auth/login. Also accepted via HttpOnly cookie "jwt".
+        Roles: user | admin. Admin routes require authority "admin" or "ADMIN".
+
+  parameters:
+    IntIdPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        example: 1
+
+    LongIdPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        example: 1
+
+    UserIdPath:
+      name: userId
+      in: path
+      required: true
+      schema:
+        type: integer
+        example: 3
+
+    UserIdOrMe:
+      name: id
+      in: path
+      required: true
+      description: Numeric user ID or the literal string "me" (resolves to the caller)
+      schema:
+        type: string
+        example: me
+
+  responses:
+    BadRequest:
+      description: Bad request – validation or missing fields
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            message: Missing required fields.
+
+    Unauthorized:
+      description: Unauthorized – missing or invalid JWT
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: Unauthorized
+
+    Forbidden:
+      description: Forbidden – valid JWT but insufficient role (not admin)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: Forbidden
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            message: Resource not found.
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            message: An unexpected server error occurred.
+
+  schemas:
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: An error occurred.
+
+    SuccessMessage:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Operation successful.
+
+    UserDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 3
+        firstName:
+          type: string
+          example: Juan
+        lastName:
+          type: string
+          example: Dela Cruz
+        email:
+          type: string
+          example: juan@example.com
+        phone:
+          type: string
+          example: "09171234567"
+        address:
+          type: string
+          example: 123 Rizal St
+        city:
+          type: string
+          example: Manila
+        province:
+          type: string
+          example: Metro Manila
+        zip:
+          type: string
+          example: "1000"
+        role:
+          type: string
+          example: user
+        status:
+          type: string
+          example: approved
+        isActive:
+          type: integer
+          example: 1
+        idFileName:
+          type: string
+          example: national_id.jpg
+        hasIdFile:
+          type: boolean
+          example: true
+        photoUrl:
+          type: string
+          example: /api/users/3/photo
+        createdAt:
+          type: string
+          format: date-time
+          example: "2024-01-01T00:00:00Z"
+
+    Animal:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: Buddy
+        type:
+          type: string
+          example: Dog
+        breed:
+          type: string
+          example: Labrador
+        age:
+          type: string
+          example: 2 years
+        health:
+          type: string
+          example: Healthy
+        status:
+          type: string
+          example: Available
+        photo:
+          type: string
+          example: uploads/buddy.jpg
+        notes:
+          type: string
+          example: Vaccinated and friendly
+
+    AnimalRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          example: Buddy
+        type:
+          type: string
+          example: Dog
+        breed:
+          type: string
+          example: Labrador
+        age:
+          type: string
+          example: 2 years
+        health:
+          type: string
+          example: Healthy
+        status:
+          type: string
+          example: Available
+        photo:
+          type: string
+          example: uploads/buddy.jpg
+        notes:
+          type: string
+          example: Friendly and vaccinated
+
+    AdoptionRequest:
+      type: object
+      required: [petName, name, email, phone, address, reason, userId]
+      properties:
+        petName:
+          type: string
+          example: Buddy
+        name:
+          type: string
+          example: Juan Dela Cruz
+        email:
+          type: string
+          example: juan@example.com
+        phone:
+          type: string
+          example: "09171234567"
+        address:
+          type: string
+          example: 123 Rizal St, Manila
+        reason:
+          type: string
+          example: I want to give Buddy a loving home.
+        userId:
+          type: integer
+          example: 3
+
+    AdoptionRequestDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 5
+        petName:
+          type: string
+          example: Buddy
+        name:
+          type: string
+          example: Juan Dela Cruz
+        email:
+          type: string
+          example: juan@example.com
+        phone:
+          type: string
+          example: "09171234567"
+        address:
+          type: string
+          example: 123 Rizal St, Manila
+        reason:
+          type: string
+          example: I want to give Buddy a loving home.
+        status:
+          type: string
+          example: Pending
+        rejectNote:
+          type: string
+          example: ""
+        userId:
+          type: integer
+          example: 3
+        createdAt:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:00Z"
+
+    RehomeRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 2
+        petName:
+          type: string
+          example: Max
+        species:
+          type: string
+          example: Cat
+        breed:
+          type: string
+          example: Siamese
+        age:
+          type: string
+          example: 3 years
+        reason:
+          type: string
+          example: Moving abroad and cannot bring him.
+        status:
+          type: string
+          example: Pending
+        rejectNote:
+          type: string
+          example: ""
+        userId:
+          type: integer
+          example: 3
+        createdAt:
+          type: string
+          format: date-time
+          example: "2024-02-01T09:00:00Z"
+
+    Survey:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        userId:
+          type: integer
+          example: 3
+        animalName:
+          type: string
+          example: Buddy
+        rating:
+          type: integer
+          example: 5
+        feedback:
+          type: string
+          example: Amazing experience. Buddy is thriving!
+        submittedAt:
+          type: string
+          format: date-time
+          example: "2024-03-01T12:00:00Z"
+
+    MissingPet:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 10
+        type:
+          type: string
+          example: missing
+        name:
+          type: string
+          example: Buddy
+        species:
+          type: string
+          example: Dog
+        breed:
+          type: string
+          example: Labrador
+        area:
+          type: string
+          example: Tondo, Manila
+        address:
+          type: string
+          example: 123 Rizal Street
+        color:
+          type: string
+          example: Brown
+        details:
+          type: string
+          example: Last seen near the park wearing a red collar.
+        latitude:
+          type: number
+          format: double
+          example: 14.5995
+        longitude:
+          type: number
+          format: double
+          example: 120.9842
+        status:
+          type: string
+          example: approved
+        reporterUserId:
+          type: integer
+          example: 3
+        createdAt:
+          type: string
+          format: date-time
+          example: "2024-04-01T08:00:00Z"
+
+    PetComment:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        petId:
+          type: integer
+          format: int64
+          example: 10
+        userId:
+          type: integer
+          example: 3
+        content:
+          type: string
+          example: I think I saw this dog near SM Mall!
+        createdAt:
+          type: string
+          format: date-time
+          example: "2024-04-02T10:00:00Z"
+
+    PetCommentRequest:
+      type: object
+      required: [userId, content]
+      properties:
+        userId:
+          type: integer
+          example: 3
+        content:
+          type: string
+          example: I think I saw this dog near SM Mall!
+
+    ActivityLog:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 100
+        userId:
+          type: integer
+          example: 3
+        action:
+          type: string
+          example: Submitted adoption request for Buddy
+        createdAt:
+          type: string
+          format: date-time
+          example: "2024-04-03T14:30:00Z"

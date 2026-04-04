@@ -128,7 +128,13 @@ function TermsModal({ onAccept, onDecline, onClose }) {
       <div style={{ background:"#fff",borderRadius:20,width:"100%",maxWidth:600,maxHeight:"88vh",display:"flex",flexDirection:"column",boxShadow:"0 24px 64px rgba(60,100,30,0.18)",animation:"modalSlideUp .26s cubic-bezier(.34,1.3,.64,1)",overflow:"hidden" }}>
         <div style={{ display:"flex",alignItems:"center",gap:"0.9rem",padding:"1.4rem 1.6rem 1.2rem",borderBottom:"1.5px solid #e8f0e2",background:"linear-gradient(135deg,#f4faf0,#edf7e5)",flexShrink:0 }}>
           <div style={{ width:48,height:48,background:"#fff",borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 2px 8px rgba(90,138,48,0.15)",flexShrink:0 }}>
-            <svg width="28" height="28" viewBox="0 0 100 100" fill="#5a8a30"><ellipse cx="50" cy="66" rx="24" ry="21"/><ellipse cx="25" cy="43" rx="11" ry="14" transform="rotate(-14 25 43)"/><ellipse cx="43" cy="33" rx="11" ry="14" transform="rotate(-5 43 33)"/><ellipse cx="62" cy="33" rx="11" ry="14" transform="rotate(5 62 33)"/><ellipse cx="78" cy="43" rx="10" ry="13" transform="rotate(14 78 43)"/></svg>
+            <svg width="28" height="28" viewBox="0 0 100 100" fill="#5a8a30">
+              <ellipse cx="50" cy="66" rx="24" ry="21"/>
+              <ellipse cx="25" cy="43" rx="11" ry="14" transform="rotate(-14 25 43)"/>
+              <ellipse cx="43" cy="33" rx="11" ry="14" transform="rotate(-5 43 33)"/>
+              <ellipse cx="62" cy="33" rx="11" ry="14" transform="rotate(5 62 33)"/>
+              <ellipse cx="78" cy="43" rx="10" ry="13" transform="rotate(14 78 43)"/>
+            </svg>
           </div>
           <div>
             <h2 style={{ fontFamily:"'Nunito',sans-serif",fontSize:"1.05rem",fontWeight:800,color:"#2a4a18",margin:"0 0 0.15rem" }}>Terms of Service &amp; Privacy Policy</h2>
@@ -157,41 +163,82 @@ function TermsModal({ onAccept, onDecline, onClose }) {
         </div>
         <div style={{ display:"flex",gap:"0.75rem",padding:"1.1rem 1.6rem 1.3rem",borderTop:"1.5px solid #e8f0e2",background:"#fafdf8",flexShrink:0 }}>
           <button onClick={onDecline} style={{ flex:1,padding:"0.7rem 1rem",border:"2px solid #c8ddb8",background:"#fff",color:"#5a7a48",fontFamily:"'Nunito',sans-serif",fontSize:"0.9rem",fontWeight:700,borderRadius:10 }}>Decline</button>
-          <button onClick={onAccept}  style={{ flex:2,padding:"0.7rem 1rem",border:"none",background:"linear-gradient(135deg,#6aaa38,#4a8a20)",color:"#fff",fontFamily:"'Nunito',sans-serif",fontSize:"0.9rem",fontWeight:800,borderRadius:10,boxShadow:"0 4px 14px rgba(90,138,48,0.3)" }}>I Accept</button>
+          <button onClick={onAccept}  style={{ flex:2,padding:"0.7rem 1rem",border:"none",background:"linear-gradient(135deg,#6aaa38,#4a8a20)",color:"#fff",fontFamily:"'Nunito',sans-serif",fontSize:"0.9rem",fontWeight:800,borderRadius:10,boxShadow:"0 4px 14px rgba(90,138,48,0.3)" }}>I Accept &amp; Create Account</button>
         </div>
       </div>
     </div>
   );
 }
 
+// ── Improved Field — label above, show/hide for passwords, accent error border ─
 function Field({ label, id, type="text", placeholder, value, onChange, error, style }) {
   return (
-    <div style={{ position:"relative",marginBottom:"1.1rem",display:"flex",flexDirection:"column",...style }}>
-      <label style={{ position:"absolute",top:"-0.55rem",left:"0.75rem",fontSize:"1rem",fontWeight:800,textTransform:"uppercase",fontStyle:"italic",color:"#276010",textShadow:"-1px -1px 0 rgba(255,250,232,0.52),1px -1px 0 rgba(255,250,232,0.52),-1px 1px 0 rgba(255,250,232,0.52),1px 1px 0 rgba(255,250,232,0.52)",zIndex:2 }}>
+    <div style={{ marginBottom:"0.95rem", display:"flex", flexDirection:"column", ...style }}>
+      <label htmlFor={id} style={{
+        fontSize:"0.72rem", fontWeight:900, textTransform:"uppercase",
+        letterSpacing:"0.07em", color: error ? "#c03030" : "#276010",
+        marginBottom:"0.38rem", fontStyle:"italic",
+      }}>
         {label}
       </label>
-      <input id={id} type={type} placeholder={placeholder} value={value} onChange={onChange} className="field-input"
-        style={{ display:"block",width:"100%",padding:"0.82rem 0.95rem",border:`2px solid ${error?"#d04040":"#5aaa30"}`,borderRadius:10,background:"rgba(255,250,232,0.52)",fontFamily:"'Nunito',sans-serif",fontSize:"0.93rem",fontWeight:600,color:"#222",outline:"none",transition:"border-color 0.18s,box-shadow 0.18s,background 0.18s" }} />
-      {error && <span style={{ display:"block",fontSize:"0.75rem",fontWeight:700,color:"#c03030",marginTop:"0.28rem",paddingLeft:"0.2rem" }}>{error}</span>}
+      <div style={{ position:"relative" }}>
+        <input
+          id={id} type={type} placeholder={placeholder}
+          value={value} onChange={onChange} className="field-input"
+          style={{
+            display:"block", width:"100%",
+            padding:"0.75rem 0.9rem",
+            border:`2px solid ${error ? "#d04040" : "#5aaa30"}`,
+            borderLeft: error ? "4px solid #d04040" : "2px solid #5aaa30",
+            borderRadius:10,
+            background: error ? "rgba(253,240,240,0.60)" : "rgba(255,250,232,0.52)",
+            fontFamily:"'Nunito',sans-serif", fontSize:"0.9rem",
+            fontWeight:600, color:"#222", outline:"none",
+            transition:"border-color 0.18s,box-shadow 0.18s,background 0.18s",
+          }}
+        />
+      </div>
+      {error && (
+        <span style={{ display:"flex",alignItems:"center",gap:"0.3rem",fontSize:"0.72rem",fontWeight:700,color:"#c03030",marginTop:"0.28rem" }}>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ flexShrink:0 }}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          {error}
+        </span>
+      )}
     </div>
   );
 }
 
+// ── Slimmer Stepper ────────────────────────────────────────────────────────────
 function Stepper({ current }) {
   const steps = ["Personal Info","Location","Verification"];
   return (
-    <div style={{ display:"flex",alignItems:"flex-start",gap:0,marginBottom:"1.8rem" }}>
+    <div style={{ display:"flex",alignItems:"center",marginBottom:"1.5rem" }}>
       {steps.map((label,i) => {
         const n = i+1, done = n < current, active = n === current;
         return (
           <div key={n} style={{ display:"contents" }}>
-            <div style={{ display:"flex",flexDirection:"column",alignItems:"center",gap:"0.35rem" }}>
-              <div style={{ width:52,height:52,borderRadius:"50%",border:`2.5px solid ${done||active?"#1c4f09":"#ccc"}`,background:done||active?"#1c4f09":"#f0e8d0",color:done||active?"#fff":"#999",fontSize:done?0:"1.2rem",fontWeight:900,display:"flex",alignItems:"center",justifyContent:"center",position:"relative" }}>
-                {done ? <span style={{ display:"block",width:10,height:18,border:"3px solid #fff",borderTop:"none",borderLeft:"none",transform:"rotate(45deg) translateY(-3px)" }}/> : n}
+            <div style={{ display:"flex",flexDirection:"column",alignItems:"center",gap:"0.3rem",minWidth:0 }}>
+              <div style={{
+                width:36, height:36, borderRadius:"50%",
+                border:`2.5px solid ${done||active?"#1c4f09":"rgba(180,150,80,0.35)"}`,
+                background: done ? "#1c4f09" : active ? "rgba(28,79,9,0.10)" : "rgba(255,248,225,0.60)",
+                color: done ? "#fff" : active ? "#1c4f09" : "#a09060",
+                fontSize: done ? 0 : "0.88rem", fontWeight:900,
+                display:"flex", alignItems:"center", justifyContent:"center",
+                transition:"all 0.3s",
+                boxShadow: active ? "0 0 0 4px rgba(28,79,9,0.12)" : "none",
+              }}>
+                {done
+                  ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  : n}
               </div>
-              <span style={{ fontSize:"0.78rem",fontWeight:700,color:active||done?"#1c4f09":"#999",textAlign:"center",whiteSpace:"nowrap" }}>{label}</span>
+              <span style={{ fontSize:"0.67rem",fontWeight:800,color:active?"#1c4f09":done?"#4a7a28":"#a09060",textAlign:"center",whiteSpace:"nowrap",letterSpacing:"0.02em" }}>
+                {label}
+              </span>
             </div>
-            {i < 2 && <div style={{ flex:1,height:2,background:done?"#1c4f09":"#ccc",marginTop:25,minWidth:60,transition:"background 0.3s" }}/>}
+            {i < 2 && (
+              <div style={{ flex:1,height:2,margin:"0 6px",marginBottom:18,background:done?"#1c4f09":"rgba(180,150,80,0.28)",borderRadius:2,transition:"background 0.3s",minWidth:20 }}/>
+            )}
           </div>
         );
       })}
@@ -200,19 +247,20 @@ function Stepper({ current }) {
 }
 
 export default function RegisterPage() {
-  const { register }              = useAuth(); // ✅ axios → http://localhost:8080
+  const { register }              = useAuth();
   const [step, setStep]           = useState(1);
   const [showTerms, setShowTerms] = useState(false);
+  const [pendingSubmit, setPendingSubmit] = useState(false);
   const [alert, setAlert]         = useState({ type:"",msg:"" });
   const [loading, setLoading]     = useState(false);
   const [form, setForm]           = useState({
     firstName:"", lastName:"", email:"", phone:"", password:"", confirmPassword:"",
     address:"", city:"", province:"", zip:"",
   });
-  const [idFile, setIdFile]             = useState(null);
-  const [termsChecked, setTerms]        = useState(false);
-  const [errors, setErrors]             = useState({});
-  const [uploadLabel, setUploadLabel]   = useState("No file selected");
+  const [idFile, setIdFile]           = useState(null);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [errors, setErrors]           = useState({});
+  const [uploadLabel, setUploadLabel] = useState("No file selected");
 
   const set = (k) => (e) => {
     setForm(f=>({...f,[k]:e.target.value}));
@@ -254,13 +302,8 @@ export default function RegisterPage() {
     setStep(next);
   }
 
-  async function handleSubmit() {
-    setAlert({type:"",msg:""});
-    if (!idFile) { setUploadLabel("Please upload a government-issued ID."); return; }
-    if (!termsChecked) { setErrors(v=>({...v,terms:"You must agree to the Terms of Service."})); return; }
+  async function doRegister() {
     setLoading(true);
-
-    // Build FormData and pass to useAuth.register → api (axios) → http://localhost:8080
     const fd = new FormData();
     fd.append("firstName", form.firstName.trim());
     fd.append("lastName",  form.lastName.trim());
@@ -272,16 +315,36 @@ export default function RegisterPage() {
     fd.append("province",  form.province.trim());
     fd.append("zip",       form.zip.trim());
     fd.append("idFile",    idFile);
-
     try {
-      // ✅ register() → useAuth → api (axios) → http://localhost:8080/api/auth/register
       await register(fd);
-     
     } catch (err) {
       const msg = err.response?.data?.message || "An error occurred during registration.";
       setAlert({ type:"error", msg });
       setLoading(false);
     }
+  }
+
+  function handleSubmit() {
+    setAlert({ type:"", msg:"" });
+    if (!idFile) {
+      setUploadLabel("⚠ Please upload a government-issued ID.");
+      return;
+    }
+    setPendingSubmit(true);
+    setShowTerms(true);
+  }
+
+  async function handleTermsAccept() {
+    setTermsAccepted(true);
+    setShowTerms(false);
+    setPendingSubmit(false);
+    await doRegister();
+  }
+
+  function handleTermsDecline() {
+    setTermsAccepted(false);
+    setPendingSubmit(false);
+    setShowTerms(false);
   }
 
   const pawData = [
@@ -293,7 +356,7 @@ export default function RegisterPage() {
     { top:"24%",left:"38%", width:60, fill:"rgba(72,95,42,0.17)",  rotate:-5  },
   ];
 
-  const btnBase = { fontFamily:"'Nunito',sans-serif",fontWeight:900,fontSize:"1.05rem",border:"none",borderRadius:12,padding:"1rem",cursor:"pointer",transition:"background 0.18s,transform 0.15s,box-shadow 0.15s" };
+  const btnBase = { fontFamily:"'Nunito',sans-serif",fontWeight:900,fontSize:"1rem",border:"none",borderRadius:12,padding:"0.88rem",cursor:"pointer",transition:"background 0.18s,transform 0.15s,box-shadow 0.15s" };
 
   return (
     <>
@@ -317,6 +380,8 @@ export default function RegisterPage() {
         @keyframes pawTap{0%,100%{transform-origin:30px 28px;transform:rotate(0deg)}50%{transform-origin:30px 28px;transform:rotate(-30deg)}}
         @keyframes modalFadeIn{from{opacity:0}to{opacity:1}}
         @keyframes modalSlideUp{from{transform:translateY(28px) scale(.97);opacity:0}to{transform:translateY(0) scale(1);opacity:1}}
+        @keyframes cardIn{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes stepFadeIn{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:translateX(0)}}
         .dog-cursor.walking #dog-body{animation:bodyBob .28s ease-in-out infinite}
         .dog-cursor.walking #dog-leg-front{animation:legFrontWalk .28s ease-in-out infinite}
         .dog-cursor.walking #dog-leg-back{animation:legBackWalk .28s ease-in-out infinite}
@@ -325,27 +390,31 @@ export default function RegisterPage() {
         .dog-cursor.idle #dog-tail{animation:tailWag .6s ease-in-out infinite}
         .dog-cursor.clicking #dog-body{animation:sitSettle .2s ease-out forwards}
         .dog-cursor.clicking #dog-leg-front{animation:pawTap .18s ease-in-out 2}
-        .field-input:focus{border-color:#1c4f09!important;background:rgba(255,252,238,0.78)!important;box-shadow:0 0 0 3px rgba(28,79,9,0.09)!important}
-        .field-input::placeholder{color:#a09060;font-style:italic;font-weight:600;}
+        .field-input:focus{border-color:#1c4f09!important;border-left-color:#1c4f09!important;background:rgba(255,252,238,0.78)!important;box-shadow:0 0 0 3px rgba(28,79,9,0.09)!important}
+        .field-input::placeholder{color:#b0a07a;font-style:italic;font-weight:600;}
         .upload-btn:hover{background:rgba(236,221,184,0.8)!important;border-style:solid!important;}
+        .btn-primary:hover:not(:disabled){background:linear-gradient(135deg,#143806,#1e5c0a)!important;transform:translateY(-2px);box-shadow:0 8px 24px rgba(28,79,9,0.32)!important}
+        .btn-primary:active:not(:disabled){transform:translateY(0)!important}
+        .btn-outline:hover{background:rgba(28,79,9,0.06)!important;transform:translateY(-1px);}
+        .step-content{animation:stepFadeIn 0.22s ease both}
       `}</style>
 
       <MeshBackground />
       <DogCursor />
-      {showTerms && <TermsModal
-        onAccept={() => { setTerms(true); setErrors(v=>({...v,terms:""})); setShowTerms(false); }}
-        onDecline={() => { setTerms(false); setShowTerms(false); }}
-        onClose={() => setShowTerms(false)} />}
 
-      <nav style={{ position:"fixed",top:0,right:0,zIndex:300,display:"flex",alignItems:"center",gap:"1rem",padding:"0.85rem 1.6rem" }}>
+      {showTerms && (
+        <TermsModal onAccept={handleTermsAccept} onDecline={handleTermsDecline} onClose={handleTermsDecline} />
+      )}
+
+      <nav style={{ position:"fixed",top:0,right:0,zIndex:300,display:"flex",alignItems:"center",gap:"0.9rem",padding:"0.85rem 1.6rem" }}>
         <button onClick={()=>window.location.href="/login"}
-          style={{ background:"#1c4f09",color:"#fff",border:"none",borderRadius:50,fontFamily:"'Nunito',sans-serif",fontSize:"1rem",fontWeight:800,padding:"0.5rem 1.6rem" }}>
+          style={{ background:"#1c4f09",color:"#fff",border:"none",borderRadius:50,fontFamily:"'Nunito',sans-serif",fontSize:"0.95rem",fontWeight:800,padding:"0.45rem 1.5rem" }}>
           Sign in
         </button>
-        <button style={{ background:"none",border:"none",borderBottom:"2.5px solid #1c4f09",fontFamily:"'Nunito',sans-serif",fontSize:"1rem",fontWeight:800,color:"#1c4f09",padding:"0.15rem 0.3rem 0.2rem" }}>
+        <span style={{ fontFamily:"'Nunito',sans-serif",fontSize:"0.95rem",fontWeight:800,color:"#1c4f09",borderBottom:"2.5px solid #1c4f09",padding:"0.15rem 0.3rem 0.2rem" }}>
           Register
-        </button>
-        <a href="/"><img src={logo} alt="Pawster Logo" style={{ width:70,height:70,objectFit:"cover" }}/></a>
+        </span>
+        <a href="/"><img src={logo} alt="Pawster Logo" style={{ width:64,height:64,objectFit:"cover" }}/></a>
       </nav>
 
       <div style={{ position:"relative",zIndex:10,display:"flex",alignItems:"center",height:"100vh",width:"100vw",maxWidth:1920,maxHeight:1200,margin:"0 auto",padding:"0 6vw",gap:"2vw" }}>
@@ -357,7 +426,7 @@ export default function RegisterPage() {
               <PawSVG key={i} style={{ position:"absolute",top:p.top,left:p.left,bottom:p.bottom,width:p.width,height:p.width,fill:p.fill,transform:`rotate(${p.rotate}deg)` }}/>
             ))}
           </div>
-          <img src= {Dogs} alt="Pawster Dog Mascot"
+          <img src={Dogs} alt="Pawster Dog Mascot"
             style={{ position:"absolute",bottom:0,left:"-1%",zIndex:10,height:"82vh",maxHeight:760,width:"auto",objectFit:"contain",filter:"drop-shadow(0 10px 28px rgba(0,0,0,0.16))" }}/>
           <div style={{ position:"absolute",top:"4%",left:"15%",zIndex:20,textAlign:"center",maxWidth:560 }}>
             <h1 style={{ fontSize:"clamp(3rem,3.8vw,4.8rem)",fontWeight:900,color:"#1a4a08",lineHeight:0.95,textTransform:"uppercase",letterSpacing:-1,textShadow:"0 2px 14px rgba(255,255,255,0.22)" }}>
@@ -369,65 +438,119 @@ export default function RegisterPage() {
           </div>
         </div>
 
-        {/* Right Panel */}
-        <div style={{ width:500,minWidth:500,flexShrink:0,alignSelf:"center",marginRight:"3vw",marginTop:"3vh",display:"flex",flexDirection:"column",justifyContent:"center",padding:"2.2rem 2.6rem",background:"rgba(255,248,225,0.38)",backdropFilter:"blur(18px)",WebkitBackdropFilter:"blur(18px)",border:"1.5px solid rgba(255,238,190,0.50)",borderRadius:26,boxShadow:"0 8px 40px rgba(160,105,30,0.13),0 2px 10px rgba(0,0,0,0.06)",overflowY:"auto",maxHeight:"90vh" }}>
+        {/* Right Panel — Form */}
+        <div style={{
+          width:500, minWidth:460, flexShrink:0, alignSelf:"center",
+          marginRight:"3vw", marginTop:"3vh",
+          display:"flex", flexDirection:"column", justifyContent:"center",
+          padding:"2rem 2.4rem",
+          background:"rgba(255,248,225,0.42)",
+          backdropFilter:"blur(20px)", WebkitBackdropFilter:"blur(20px)",
+          border:"1.5px solid rgba(255,238,190,0.55)",
+          borderRadius:28,
+          boxShadow:"0 12px 48px rgba(160,105,30,0.15),0 2px 12px rgba(0,0,0,0.07)",
+          overflowY:"auto", maxHeight:"92vh",
+          animation:"cardIn 0.4s cubic-bezier(0.22,1,0.36,1) both",
+        }}>
 
-          <h2 style={{ fontSize:"clamp(2rem,2.6vw,2.8rem)",fontWeight:900,color:"#1a4a08",textAlign:"center",marginBottom:"0.45rem",lineHeight:1.05 }}>Create Your Account</h2>
-          <p style={{ fontSize:"0.88rem",fontWeight:600,color:"#3a6020",textAlign:"center",lineHeight:1.55,marginBottom:"1.6rem" }}>Join our community and start making a difference</p>
+          {/* Header */}
+          <div style={{ textAlign:"center",marginBottom:"1.4rem" }}>
+            <h2 style={{ fontSize:"clamp(1.7rem,2.2vw,2.4rem)",fontWeight:900,color:"#1a4a08",lineHeight:1.05,marginBottom:"0.35rem" }}>
+              Create Your Account
+            </h2>
+            <p style={{ fontSize:"0.84rem",fontWeight:600,color:"#5a7a40",lineHeight:1.5 }}>
+              Join our community and start making a difference
+            </p>
+          </div>
 
           <Stepper current={step} />
 
           {alert.msg && (
-            <div style={{ borderRadius:8,padding:"0.7rem 0.9rem",fontSize:"0.86rem",fontWeight:700,marginBottom:"1rem",
+            <div style={{
+              borderRadius:10, padding:"0.7rem 0.9rem",
+              fontSize:"0.84rem", fontWeight:700, marginBottom:"0.9rem",
+              display:"flex", alignItems:"center", gap:"0.5rem",
               background:alert.type==="success"?"rgba(230,245,220,0.9)":"rgba(253,232,232,0.9)",
               color:alert.type==="success"?"#276010":"#b83030",
-              border:alert.type==="success"?"1px solid #90d060":"1px solid #f0a0a0" }}>
+              border:alert.type==="success"?"1px solid #90d060":"1px solid #f0a0a0",
+              borderLeft:alert.type==="success"?"4px solid #5aaa30":"4px solid #d04040",
+            }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
               {alert.msg}
             </div>
           )}
 
-          {/* Step 1 */}
+          {/* ── Step 1 ── */}
           {step===1 && (
-            <div>
-              <div style={{ display:"flex",gap:"1rem" }}>
-                <Field label="First name" id="firstName" placeholder="Enter first name..." value={form.firstName} onChange={set("firstName")} error={errors.firstName} style={{ flex:1 }}/>
-                <Field label="Last name"  id="lastName"  placeholder="Enter last name..."  value={form.lastName}  onChange={set("lastName")}  error={errors.lastName}  style={{ flex:1 }}/>
+            <div className="step-content">
+              <div style={{ display:"flex",gap:"0.9rem" }}>
+                <Field label="First name" id="firstName" placeholder="First name…" value={form.firstName} onChange={set("firstName")} error={errors.firstName} style={{ flex:1 }}/>
+                <Field label="Last name"  id="lastName"  placeholder="Last name…"  value={form.lastName}  onChange={set("lastName")}  error={errors.lastName}  style={{ flex:1 }}/>
               </div>
-              <Field label="Email"        id="email"    type="email"    placeholder="Enter email..."        value={form.email}    onChange={set("email")}    error={errors.email}/>
-              <Field label="Phone Number" id="phone"    type="tel"      placeholder="Enter phone number..." value={form.phone}    onChange={set("phone")}    error={errors.phone}/>
-              <div style={{ display:"flex",gap:"1rem" }}>
-                <Field label="Password"         id="password"        type="password" placeholder="Enter password..."   value={form.password}        onChange={set("password")}        error={errors.password}        style={{ flex:1 }}/>
-                <Field label="Confirm password" id="confirmPassword" type="password" placeholder="Confirm password..."  value={form.confirmPassword} onChange={set("confirmPassword")} error={errors.confirmPassword} style={{ flex:1 }}/>
+              <Field label="Email"        id="email"    type="email"    placeholder="your@email.com"    value={form.email}    onChange={set("email")}    error={errors.email}/>
+              <Field label="Phone Number" id="phone"    type="tel"      placeholder="+1 (555) 000-0000" value={form.phone}    onChange={set("phone")}    error={errors.phone}/>
+              <div style={{ display:"flex",gap:"0.9rem" }}>
+                <Field label="Password"         id="password"        type="password" placeholder="Min. 8 characters"   value={form.password}        onChange={set("password")}        error={errors.password}        style={{ flex:1 }}/>
+                <Field label="Confirm password" id="confirmPassword" type="password" placeholder="Repeat password"     value={form.confirmPassword} onChange={set("confirmPassword")} error={errors.confirmPassword} style={{ flex:1 }}/>
               </div>
-              <button onClick={()=>goTo(2)} style={{ ...btnBase,display:"block",width:"100%",background:"#1c4f09",color:"#fff" }}>Next →</button>
+              <button className="btn-primary" onClick={()=>goTo(2)}
+                style={{ ...btnBase,display:"block",width:"100%",background:"linear-gradient(135deg,#1c4f09,#2a6e10)",color:"#fff",boxShadow:"0 4px 16px rgba(28,79,9,0.25)",marginTop:"0.4rem" }}>
+                Continue →
+              </button>
             </div>
           )}
 
-          {/* Step 2 */}
+          {/* ── Step 2 ── */}
           {step===2 && (
-            <div>
+            <div className="step-content">
               <Field label="Home Address" id="address" placeholder="Street address" value={form.address} onChange={set("address")} error={errors.address}/>
-              <p style={{ fontSize:"0.8rem",fontWeight:700,color:"#5a8a30",marginTop:"-0.6rem",marginBottom:"0.9rem",paddingLeft:"0.2rem" }}>This helps us match you with animals in your area</p>
-              <div style={{ display:"flex",gap:"1rem" }}>
+              <p style={{ fontSize:"0.76rem",fontWeight:700,color:"#5a8a30",marginTop:"-0.5rem",marginBottom:"0.85rem",paddingLeft:"0.15rem",display:"flex",alignItems:"center",gap:"0.35rem" }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                This helps us match you with animals in your area
+              </p>
+              <div style={{ display:"flex",gap:"0.9rem" }}>
                 <Field label="City"     id="city"     placeholder="City"     value={form.city}     onChange={set("city")}     error={errors.city}     style={{ flex:1 }}/>
                 <Field label="Province" id="province" placeholder="Province" value={form.province} onChange={set("province")} error={errors.province} style={{ flex:1 }}/>
               </div>
               <Field label="Zip / Postal Code" id="zip" placeholder="Zip / Postal Code" value={form.zip} onChange={set("zip")} error={errors.zip}/>
-              <div style={{ display:"flex",gap:"1rem",marginTop:"0.6rem" }}>
-                <button onClick={()=>goTo(1)} style={{ ...btnBase,flex:1,background:"transparent",color:"#1c4f09",border:"2px solid #1c4f09",fontWeight:800,fontSize:"1rem" }}>← Previous</button>
-                <button onClick={()=>goTo(3)} style={{ ...btnBase,flex:1,background:"#1c4f09",color:"#fff" }}>Next →</button>
+              <div style={{ display:"flex",gap:"0.9rem",marginTop:"0.4rem" }}>
+                <button className="btn-outline" onClick={()=>goTo(1)} style={{ ...btnBase,flex:1,background:"transparent",color:"#1c4f09",border:"2px solid rgba(28,79,9,0.35)",fontWeight:800,fontSize:"0.95rem" }}>← Back</button>
+                <button className="btn-primary" onClick={()=>goTo(3)} style={{ ...btnBase,flex:2,background:"linear-gradient(135deg,#1c4f09,#2a6e10)",color:"#fff",boxShadow:"0 4px 16px rgba(28,79,9,0.25)" }}>Continue →</button>
               </div>
             </div>
           )}
 
-          {/* Step 3 */}
+          {/* ── Step 3 ── */}
           {step===3 && (
-            <div>
-              <div style={{ marginBottom:"1.1rem" }}>
-                <span style={{ display:"inline-block",fontSize:"0.71rem",fontWeight:800,letterSpacing:"0.09em",textTransform:"uppercase",fontStyle:"italic",color:"#2a5e10",marginBottom:"0.6rem" }}>Government-Issued ID</span>
-                <label className="upload-btn" style={{ display:"inline-flex",alignItems:"center",gap:"0.6rem",padding:"0.75rem 1.4rem",background:"rgba(255,250,232,0.52)",border:"2.5px dashed #5aaa30",borderRadius:10,fontFamily:"'Nunito',sans-serif",fontSize:"0.95rem",fontWeight:800,color:"#1c4f09",marginBottom:"0.5rem",transition:"background 0.18s" }}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4a6741" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
-                  Choose File
+            <div className="step-content">
+              {/* Upload zone */}
+              <div style={{ marginBottom:"1rem" }}>
+                <label style={{ display:"block",fontSize:"0.72rem",fontWeight:900,textTransform:"uppercase",letterSpacing:"0.07em",color:"#276010",marginBottom:"0.45rem",fontStyle:"italic" }}>
+                  Government-Issued ID
+                </label>
+                <label className="upload-btn" style={{
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                  gap:"0.7rem", padding:"1rem 1.2rem",
+                  background: idFile ? "rgba(210,240,195,0.45)" : "rgba(255,250,232,0.52)",
+                  border: idFile ? "2px solid #5aaa30" : "2.5px dashed #5aaa30",
+                  borderRadius:12, cursor:"pointer",
+                  transition:"background 0.18s,border 0.18s",
+                }}>
+                  {idFile ? (
+                    <>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2a7010" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                      <span style={{ fontSize:"0.88rem",fontWeight:800,color:"#2a7010" }}>{idFile.name}</span>
+                      <span style={{ fontSize:"0.74rem",fontWeight:700,color:"#5a9a40",marginLeft:"auto" }}>✓ Ready</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4a6741" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+                      <div>
+                        <div style={{ fontSize:"0.88rem",fontWeight:800,color:"#1c4f09" }}>Click to upload ID</div>
+                        <div style={{ fontSize:"0.72rem",fontWeight:700,color:"#7a9060" }}>PDF, JPG, or PNG · max 5MB</div>
+                      </div>
+                    </>
+                  )}
                   <input type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display:"none" }}
                     onChange={e => {
                       const f = e.target.files?.[0];
@@ -435,44 +558,60 @@ export default function RegisterPage() {
                       else   { setIdFile(null); setUploadLabel("No file selected"); }
                     }}/>
                 </label>
-                <p style={{ fontSize:"0.82rem",fontWeight:700,color:idFile?"#2a6010":"#5a8a30",marginBottom:"0.2rem" }}>{uploadLabel}</p>
-                <p style={{ fontSize:"0.78rem",fontWeight:700,color:"#5a8a30",marginBottom:"1rem" }}>Accepted formats: PDF, JPG, PNG (Max 5MB). Required for verification.</p>
+                {!idFile && uploadLabel.startsWith("⚠") && (
+                  <p style={{ fontSize:"0.74rem",fontWeight:700,color:"#c03030",marginTop:"0.3rem",display:"flex",alignItems:"center",gap:"0.3rem" }}>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    Please upload a government-issued ID.
+                  </p>
+                )}
               </div>
 
-              <div style={{ display:"flex",gap:"1rem",alignItems:"flex-start",background:"rgba(249,243,227,0.9)",borderLeft:"4px solid #e07820",borderRadius:10,padding:"1rem 1.2rem",marginBottom:"1.2rem" }}>
-                <div style={{ width:38,height:38,minWidth:38,background:"#e07820",color:"#fff",fontSize:"1.1rem",fontWeight:900,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontStyle:"italic" }}>I</div>
+              {/* Why we need ID */}
+              <div style={{ display:"flex",gap:"0.85rem",alignItems:"flex-start",background:"rgba(255,245,225,0.80)",borderLeft:"4px solid #e07820",borderRadius:10,padding:"0.85rem 1rem",marginBottom:"1rem" }}>
+                <div style={{ width:32,height:32,minWidth:32,background:"#e07820",color:"#fff",fontSize:"1rem",fontWeight:900,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontStyle:"italic",flexShrink:0 }}>!</div>
                 <div>
-                  <p style={{ fontSize:"0.95rem",fontWeight:900,color:"#1c4f09",marginBottom:"0.35rem" }}>Why do we need this?</p>
-                  <p style={{ fontSize:"0.85rem",fontWeight:600,color:"#4a5a40",lineHeight:1.55 }}>We verify all adopters to ensure the safety and well-being of our rescued animals. Your information is kept secure and confidential.</p>
+                  <p style={{ fontSize:"0.88rem",fontWeight:900,color:"#1c4f09",marginBottom:"0.25rem" }}>Why do we need this?</p>
+                  <p style={{ fontSize:"0.80rem",fontWeight:600,color:"#4a5a40",lineHeight:1.55,margin:0 }}>We verify all adopters to ensure the safety and well-being of our rescued animals. Your information is kept secure and confidential.</p>
                 </div>
               </div>
 
-              <label style={{ display:"flex",alignItems:"flex-start",gap:"0.7rem",fontSize:"0.83rem",fontWeight:600,color:"#4a5a40",lineHeight:1.55,marginBottom:"0.3rem" }}>
-                <input type="checkbox" checked={termsChecked} onChange={e=>{ setTerms(e.target.checked); setErrors(v=>({...v,terms:""})); }}
-                  style={{ width:20,height:20,minWidth:20,accentColor:"#1c4f09",marginTop:2 }}/>
-                <span>I agree the{" "}
-                  <a href="#" onClick={e=>{e.preventDefault();setShowTerms(true);}} style={{ color:"#c87820",fontWeight:700,textDecoration:"none" }}>Terms of Service and Privacy Policy</a>
-                  {" "}and understand that my information will be used to evaluate my adoption readiness
-                </span>
-              </label>
-              {errors.terms && <span style={{ display:"block",fontSize:"0.75rem",fontWeight:700,color:"#c03030",marginBottom:"0.5rem",paddingLeft:"0.2rem" }}>{errors.terms}</span>}
+              {/* Terms notice */}
+              <div style={{ display:"flex",alignItems:"flex-start",gap:"0.55rem",background:"rgba(230,245,220,0.55)",border:"1.5px solid rgba(90,170,48,0.28)",borderRadius:10,padding:"0.8rem 0.95rem",marginBottom:"1.1rem" }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5aaa30" strokeWidth="2.2" style={{ flexShrink:0,marginTop:1 }}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                <p style={{ fontSize:"0.79rem",fontWeight:700,color:"#3a6020",lineHeight:1.55,margin:0 }}>
+                  By clicking <strong>Submit</strong>, you'll be asked to review and accept our{" "}
+                  <button onClick={()=>{ setPendingSubmit(false); setShowTerms(true); }}
+                    style={{ background:"none",border:"none",color:"#c87820",fontWeight:800,fontSize:"0.79rem",fontFamily:"'Nunito',sans-serif",textDecoration:"underline",padding:0 }}>
+                    Terms of Service &amp; Privacy Policy
+                  </button>
+                  {" "}before your account is created.
+                  {termsAccepted && <span style={{ color:"#2a7010",fontWeight:800,marginLeft:"0.35rem" }}>✓ Accepted</span>}
+                </p>
+              </div>
 
-              <div style={{ display:"flex",gap:"1rem",marginTop:"0.6rem" }}>
-                <button onClick={()=>goTo(2)} style={{ ...btnBase,flex:1,background:"transparent",color:"#1c4f09",border:"2px solid #1c4f09",fontWeight:800,fontSize:"1rem" }}>← Previous</button>
-                <button onClick={handleSubmit} disabled={loading}
-                  style={{ ...btnBase,flex:1,background:"#e07820",color:"#fff",fontSize:"1.1rem",opacity:loading?0.65:1 }}>
-                  {loading?"Creating Account...":"Submit"}
+              <div style={{ display:"flex",gap:"0.9rem" }}>
+                <button className="btn-outline" onClick={()=>goTo(2)} style={{ ...btnBase,flex:1,background:"transparent",color:"#1c4f09",border:"2px solid rgba(28,79,9,0.35)",fontWeight:800,fontSize:"0.95rem" }}>← Back</button>
+                <button className="btn-primary" onClick={handleSubmit} disabled={loading}
+                  style={{ ...btnBase,flex:2,background:"linear-gradient(135deg,#d06010,#e07820)",color:"#fff",boxShadow:"0 4px 16px rgba(180,90,20,0.28)",opacity:loading?0.65:1 }}>
+                  {loading ? (
+                    <span style={{ display:"flex",alignItems:"center",justifyContent:"center",gap:"0.5rem" }}>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ animation:"spin 0.8s linear infinite" }}><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                      Creating…
+                    </span>
+                  ) : "Submit →"}
                 </button>
               </div>
             </div>
           )}
 
-          <p style={{ textAlign:"center",fontSize:"0.88rem",fontWeight:700,color:"#3a6020",marginTop:"1rem" }}>
-            Do you have an account?{" "}
-            <a href="/login" style={{ color:"#c87820",fontStyle:"italic",fontWeight:800,textDecoration:"none",marginLeft:"0.2rem" }}>Log in here!</a>
+          <p style={{ textAlign:"center",fontSize:"0.85rem",fontWeight:700,color:"#4a6030",marginTop:"1rem" }}>
+            Already have an account?{" "}
+            <a href="/login" style={{ color:"#c87820",fontStyle:"italic",fontWeight:800,textDecoration:"none" }}>Log in here!</a>
           </p>
         </div>
       </div>
+
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </>
   );
 }

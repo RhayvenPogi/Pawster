@@ -1,0 +1,707 @@
+openapi: 3.0.0
+info:
+  title: Admin Dashboard API
+  version: 1.0.0
+  description: Action-based Admin Dashboard API using PHP (single endpoint with action parameter)
+
+servers:
+  - url: http://localhost
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: Service is running
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  message:
+                    type: string
+                    example: Service is running
+
+  /admin/dashboard:
+    get:
+      summary: GET actions for admin dashboard
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: action
+          in: query
+          required: true
+          schema:
+            type: string
+            enum:
+              - stats
+              - get_animals
+              - get_requests
+              - get_surveys
+              - get_users
+              - get_users_geo
+              - get_activity
+              - get_chart_data
+              - get_id_file
+        - name: user_id
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: type
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            example: 200
+      responses:
+        '200':
+          description: Successful response (varies by action)
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - title: stats
+                    type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: true
+                      data:
+                        type: object
+                        properties:
+                          total_animals:
+                            type: integer
+                            example: 120
+                          total_users:
+                            type: integer
+                            example: 45
+                          total_requests:
+                            type: integer
+                            example: 30
+                          total_surveys:
+                            type: integer
+                            example: 10
+                          pending_requests:
+                            type: integer
+                            example: 8
+
+                  - title: get_animals
+                    type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: true
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 1
+                            name:
+                              type: string
+                              example: Buddy
+                            type:
+                              type: string
+                              example: Dog
+                            breed:
+                              type: string
+                              example: Labrador
+                            age:
+                              type: string
+                              example: 2 years
+                            health:
+                              type: string
+                              example: Healthy
+                            status:
+                              type: string
+                              example: Available
+                            notes:
+                              type: string
+                              example: Vaccinated and friendly
+                            photo:
+                              type: string
+                              example: uploads/buddy.jpg
+
+                  - title: get_requests
+                    type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: true
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 5
+                            user_id:
+                              type: integer
+                              example: 3
+                            animal_id:
+                              type: integer
+                              example: 1
+                            status:
+                              type: string
+                              example: Pending
+                            created_at:
+                              type: string
+                              format: date-time
+                              example: "2024-01-15T10:30:00Z"
+
+                  - title: get_surveys
+                    type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: true
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 1
+                            user_id:
+                              type: integer
+                              example: 3
+                            answers:
+                              type: object
+                              additionalProperties: true
+                            submitted_at:
+                              type: string
+                              format: date-time
+                              example: "2024-01-15T10:30:00Z"
+
+                  - title: get_users
+                    type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: true
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 3
+                            first_name:
+                              type: string
+                              example: Juan
+                            last_name:
+                              type: string
+                              example: Dela Cruz
+                            email:
+                              type: string
+                              example: juan@example.com
+                            phone:
+                              type: string
+                              example: "09171234567"
+                            role:
+                              type: string
+                              example: user
+                            is_active:
+                              type: integer
+                              example: 1
+                            created_at:
+                              type: string
+                              format: date-time
+                              example: "2024-01-01T00:00:00Z"
+
+                  - title: get_users_geo
+                    type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: true
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            user_id:
+                              type: integer
+                              example: 3
+                            city:
+                              type: string
+                              example: Manila
+                            region:
+                              type: string
+                              example: NCR
+                            country:
+                              type: string
+                              example: Philippines
+                            count:
+                              type: integer
+                              example: 5
+
+                  - title: get_activity
+                    type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: true
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 10
+                            user_id:
+                              type: integer
+                              example: 3
+                            action:
+                              type: string
+                              example: Adopted Buddy
+                            timestamp:
+                              type: string
+                              format: date-time
+                              example: "2024-01-15T10:30:00Z"
+
+                  - title: get_chart_data
+                    type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: true
+                      data:
+                        type: object
+                        properties:
+                          labels:
+                            type: array
+                            items:
+                              type: string
+                            example: ["Jan", "Feb", "Mar", "Apr"]
+                          datasets:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                label:
+                                  type: string
+                                  example: Adoptions
+                                data:
+                                  type: array
+                                  items:
+                                    type: integer
+                                  example: [5, 10, 8, 12]
+
+                  - title: get_id_file
+                    type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: true
+                      data:
+                        type: object
+                        properties:
+                          user_id:
+                            type: integer
+                            example: 3
+                          file_url:
+                            type: string
+                            example: uploads/ids/user3_id.jpg
+                          uploaded_at:
+                            type: string
+                            format: date-time
+                            example: "2024-01-10T08:00:00Z"
+
+        '401':
+          description: Unauthorized – missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                message: Unauthorized. Invalid or missing token.
+
+        '403':
+          description: Forbidden – insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                message: Forbidden. You do not have access to this resource.
+
+        '404':
+          description: Not found – action or resource does not exist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                message: Resource not found.
+
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                message: An unexpected server error occurred.
+
+    post:
+      summary: POST actions for admin dashboard
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: action
+          in: query
+          required: true
+          schema:
+            type: string
+            enum:
+              - add_animal
+              - update_animal
+              - delete
+              - update_request
+              - add_user
+              - update_user
+              - update_user_status
+              - update_profile
+              - change_password
+              - upload_photo
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - title: add_animal
+                  type: object
+                  required:
+                    - name
+                  properties:
+                    name:
+                      type: string
+                      example: Buddy
+                    type:
+                      type: string
+                      example: Dog
+                    breed:
+                      type: string
+                      example: Labrador
+                    age:
+                      type: string
+                      example: 2 years
+                    health:
+                      type: string
+                      example: Healthy
+                    status:
+                      type: string
+                      example: Available
+                    notes:
+                      type: string
+                      example: Friendly and vaccinated
+
+                - title: update_animal
+                  type: object
+                  required:
+                    - id
+                  properties:
+                    id:
+                      type: integer
+                      example: 1
+                    name:
+                      type: string
+                    type:
+                      type: string
+                    breed:
+                      type: string
+                    age:
+                      type: string
+                    health:
+                      type: string
+                    status:
+                      type: string
+                    notes:
+                      type: string
+
+                - title: delete
+                  type: object
+                  required:
+                    - id
+                  properties:
+                    id:
+                      type: integer
+                      example: 1
+
+                - title: update_request
+                  type: object
+                  required:
+                    - id
+                    - status
+                  properties:
+                    id:
+                      type: integer
+                      example: 5
+                    status:
+                      type: string
+                      example: Approved
+
+                - title: add_user
+                  type: object
+                  required:
+                    - first_name
+                    - last_name
+                    - email
+                    - password
+                    - phone
+                  properties:
+                    first_name:
+                      type: string
+                      example: Juan
+                    last_name:
+                      type: string
+                      example: Dela Cruz
+                    email:
+                      type: string
+                      example: juan@example.com
+                    phone:
+                      type: string
+                      example: "09171234567"
+                    password:
+                      type: string
+                      example: secret123
+                    role:
+                      type: string
+                      example: user
+                    is_active:
+                      type: integer
+                      example: 1
+
+                - title: update_user
+                  type: object
+                  required:
+                    - user_id
+                  properties:
+                    user_id:
+                      type: integer
+                      example: 3
+                    first_name:
+                      type: string
+                    last_name:
+                      type: string
+                    email:
+                      type: string
+                    phone:
+                      type: string
+                    role:
+                      type: string
+
+                - title: update_user_status
+                  type: object
+                  required:
+                    - user_id
+                    - is_active
+                  properties:
+                    user_id:
+                      type: integer
+                      example: 3
+                    is_active:
+                      type: integer
+                      example: 0
+
+                - title: update_profile
+                  type: object
+                  properties:
+                    first_name:
+                      type: string
+                    last_name:
+                      type: string
+                    phone:
+                      type: string
+                    email:
+                      type: string
+
+                - title: change_password
+                  type: object
+                  required:
+                    - old_password
+                    - new_password
+                  properties:
+                    old_password:
+                      type: string
+                      example: oldpass123
+                    new_password:
+                      type: string
+                      example: newpass456
+
+          multipart/form-data:
+            schema:
+              title: upload_photo
+              type: object
+              properties:
+                photo:
+                  type: string
+                  format: binary
+
+      responses:
+        '200':
+          description: Successful response (varies by action)
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - title: add_animal / add_user
+                    type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: true
+                      message:
+                        type: string
+                        example: Record added successfully.
+                      id:
+                        type: integer
+                        example: 42
+
+                  - title: update_animal / update_user / update_user_status / update_profile / update_request
+                    type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: true
+                      message:
+                        type: string
+                        example: Record updated successfully.
+
+                  - title: delete
+                    type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: true
+                      message:
+                        type: string
+                        example: Record deleted successfully.
+
+                  - title: change_password
+                    type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: true
+                      message:
+                        type: string
+                        example: Password changed successfully.
+
+                  - title: upload_photo
+                    type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: true
+                      message:
+                        type: string
+                        example: Photo uploaded successfully.
+                      file_url:
+                        type: string
+                        example: uploads/photos/user3_photo.jpg
+
+        '400':
+          description: Bad request – missing or invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                message: Missing required fields.
+
+        '401':
+          description: Unauthorized – missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                message: Unauthorized. Invalid or missing token.
+
+        '403':
+          description: Forbidden – insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                message: Forbidden. You do not have access to this resource.
+
+        '404':
+          description: Not found – record does not exist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                message: Record not found.
+
+        '422':
+          description: Unprocessable entity – validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                message: Validation failed. Email is already in use.
+
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                message: An unexpected server error occurred.
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: An error occurred.

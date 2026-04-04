@@ -79,12 +79,12 @@ function StatCard({ val, label, sub, subWarn, icon, theme, onClick }) {
       <div style={{ width: 52, height: 52, borderRadius: 12, flexShrink: 0, background: t.iconBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.6rem", marginLeft: 8 }}>
         {icon}
       </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
+<div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: "2rem", fontWeight: 900, lineHeight: 1.1, color: t.valColor, fontFamily: "'Playfair Display',Georgia,serif" }}>{val}</div>
         <div style={{ fontSize: "0.76rem", fontWeight: 800, color: "#6a7a50", textTransform: "uppercase", letterSpacing: "0.06em", marginTop: 3 }}>{label}</div>
-      </div>
-      <div style={{ fontSize: "0.72rem", fontWeight: 800, color: subWarn ? "#B45A22" : "#1c4f09", textAlign: "right", flexShrink: 0, background: subWarn ? "rgba(180,90,34,0.10)" : "rgba(90,170,48,0.10)", padding: "4px 9px", borderRadius: 20 }}>
-        {sub}
+        <div style={{ fontSize: "0.68rem", fontWeight: 800, color: subWarn ? "#B45A22" : "#1c4f09", marginTop: 5, display: "inline-block", background: subWarn ? "rgba(180,90,34,0.10)" : "rgba(90,170,48,0.10)", padding: "3px 8px", borderRadius: 20 }}>
+          {sub}
+        </div>
       </div>
     </div>
   );

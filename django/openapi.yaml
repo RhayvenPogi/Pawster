@@ -1,0 +1,699 @@
+openapi: 3.0.3
+info:
+  title: Pawster Django API
+  version: 1.0.0
+  description: |
+    REST API for the Pawster pet adoption platform.
+    Handles adoption requests, rehoming requests, follow-up surveys, and in-app notifications.
+
+    **Authentication**: All protected endpoints require a `Bearer` JWT issued by the Spring Boot service.
+    Pass it in the `Authorization` header.
+
+    **Admin endpoints** require the token to carry a role of `ROLE_ADMIN`, `ADMIN`, or `admin`.
+
+servers:
+  - url: http://localhost:8000
+    description: Local development
+
+security:
+  - BearerAuth: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  # ── Reusable schemas ──────────────────────────────────────────────────────
+
+  schemas:
+
+    # ── Adoption ─────────────────────────────────────────────────────────
+
+    AdoptionRequest:
+      type: object
+      properties:
+        id:              { type: integer, readOnly: true }
+        user:            { type: integer, readOnly: true, nullable: true }
+        animal_id:       { type: integer }
+        animal_name:     { type: string, maxLength: 120 }
+        name:            { type: string, maxLength: 200 }
+        phone:           { type: string, maxLength: 30 }
+        email:           { type: string, format: email }
+        address:         { type: string }
+        reason:          { type: string }
+        previous_pet:    { type: boolean, nullable: true }
+        previous_pet_details: { type: string }
+        primary_caregiver:    { type: string, maxLength: 50 }
+        housing:         { type: string, maxLength: 50 }
+        owns_home:       { type: boolean, nullable: true }
+        pet_permission:  { type: boolean, nullable: true }
+        pet_space:       { type: string, maxLength: 60 }
+        household_size:  { type: string, maxLength: 20 }
+        has_children:    { type: boolean, nullable: true }
+        children_ages:   { type: string, maxLength: 50 }
+        has_other_pets:  { type: boolean, nullable: true }
+        other_pets_detail:     { type: string, maxLength: 120 }
+        other_pets_vaccinated: { type: boolean, nullable: true }
+        introduction_plan:     { type: string }
+        exp:             { type: string, maxLength: 50 }
+        alone_hours:     { type: string, maxLength: 30 }
+        backup_care:     { type: string, maxLength: 50 }
+        budget:          { type: string, maxLength: 20 }
+        vet_plan:        { type: string }
+        behavior_response: { type: string, maxLength: 60 }
+        open_to_guidance:  { type: boolean, nullable: true }
+        agree_proper_care: { type: boolean }
+        agree_long_term:   { type: boolean }
+        agree_no_abandon:  { type: boolean }
+        agree_followup:    { type: boolean }
+        status:
+          type: string
+          readOnly: true
+          enum: [Pending, Approved, Rejected]
+          default: Pending
+        reject_note:   { type: string, readOnly: true }
+        decided_by:    { type: integer, readOnly: true, nullable: true }
+        decided_at:    { type: string, format: date-time, readOnly: true, nullable: true }
+        adoption_date: { type: string, format: date-time, readOnly: true, nullable: true }
+        created_at:    { type: string, format: date-time, readOnly: true }
+        updated_at:    { type: string, format: date-time, readOnly: true }
+      required:
+        - animal_id
+        - name
+        - phone
+        - email
+        - address
+        - reason
+
+    # ── Rehoming ──────────────────────────────────────────────────────────
+
+    RehomingRequest:
+      type: object
+      properties:
+        id:           { type: integer, readOnly: true }
+        user:         { type: integer, readOnly: true, nullable: true }
+        pet_name:     { type: string, maxLength: 120 }
+        species:      { type: string, maxLength: 50 }
+        breed:        { type: string, maxLength: 100 }
+        age:          { type: string, maxLength: 50 }
+        gender:       { type: string, maxLength: 20 }
+        duration_owned: { type: string, maxLength: 30 }
+        is_vaccinated:  { type: boolean, nullable: true }
+        is_neutered:    { type: boolean, nullable: true }
+        medical_notes:  { type: string }
+        behavior:       { type: string, maxLength: 30 }
+        behavior_other: { type: string, maxLength: 100 }
+        has_aggression:     { type: boolean, nullable: true }
+        is_house_trained:   { type: boolean, nullable: true }
+        is_leash_trained:   { type: boolean, nullable: true }
+        good_with_children: { type: boolean, nullable: true }
+        good_with_pets:     { type: boolean, nullable: true }
+        ideal_home_desc:    { type: string }
+        contact:            { type: string, maxLength: 50 }
+        reason:             { type: string, maxLength: 80 }
+        details:            { type: string }
+        tried_alternatives: { type: string }
+        can_provide_food:    { type: boolean, default: false }
+        can_provide_carrier: { type: boolean, default: false }
+        can_provide_records: { type: boolean, default: false }
+        understands_permanent: { type: boolean, default: false }
+        open_to_followup:      { type: boolean, default: true }
+        photo_base64:   { type: string, nullable: true, description: "Base64-encoded pet photo" }
+        vaccine_type:   { type: string, nullable: true }
+        last_vacc_date: { type: string, nullable: true }
+        vacc_clinic:    { type: string, nullable: true }
+        vacc_notes:     { type: string, nullable: true }
+        vacc_photos:
+          type: array
+          items: { type: string }
+          description: "Array of base64-encoded vaccination record photos"
+        status:
+          type: string
+          readOnly: true
+          enum: [Pending, Approved, Rejected]
+          default: Pending
+        reject_note: { type: string, readOnly: true }
+        decided_by:  { type: integer, readOnly: true, nullable: true }
+        decided_at:  { type: string, format: date-time, readOnly: true, nullable: true }
+        created_at:  { type: string, format: date-time, readOnly: true }
+        updated_at:  { type: string, format: date-time, readOnly: true }
+      required:
+        - pet_name
+        - species
+        - age
+        - gender
+        - contact
+
+    # ── Surveys ───────────────────────────────────────────────────────────
+
+    FollowUpSurvey:
+      type: object
+      properties:
+        id:           { type: integer, readOnly: true }
+        survey_type:
+          type: string
+          enum: ["30_sec", "60_sec"]
+          description: "30-second or 60-second follow-up"
+        status:
+          type: string
+          enum: [Pending, Completed]
+          default: Pending
+        scheduled_for: { type: string, format: date-time }
+        submitted_at:  { type: string, format: date-time, nullable: true }
+        animal_name:   { type: string, readOnly: true }
+        adoption_date: { type: string, format: date-time, readOnly: true, nullable: true }
+        has_response:  { type: boolean, readOnly: true }
+
+    SurveyResponseSubmit:
+      type: object
+      description: "Payload for submitting a follow-up survey response"
+      properties:
+        survey_id:
+          type: integer
+          description: "ID of the FollowUpSurvey to answer"
+        adjustment:
+          type: string
+          enum: ["Very well", "Moderate", "Struggling"]
+        behavioral_notes: { type: string }
+        showing_illness:  { type: boolean, default: false }
+        vet_visited:      { type: boolean, default: false }
+        satisfied:        { type: boolean, default: true }
+        needs_support:    { type: boolean, default: false }
+        additional_notes: { type: string }
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+          default: 5
+      required:
+        - survey_id
+        - adjustment
+        - rating
+
+    SurveyResponseAdmin:
+      type: object
+      properties:
+        id:           { type: integer }
+        survey:       { type: integer }
+        survey_type:  { type: string }
+        animal_name:  { type: string }
+        adopter_name: { type: string }
+        adopter_email: { type: string, format: email }
+        adjustment:   { type: string }
+        behavioral_notes: { type: string }
+        showing_illness:  { type: boolean }
+        vet_visited:      { type: boolean }
+        satisfied:        { type: boolean }
+        needs_support:    { type: boolean }
+        additional_notes: { type: string }
+        rating:           { type: integer }
+        health_flag:      { type: boolean, description: "True when the pet showed illness" }
+        submitted_at:     { type: string, format: date-time }
+
+    # ── Notifications ─────────────────────────────────────────────────────
+
+    Notification:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:  { type: string, maxLength: 200 }
+        body:   { type: string }
+        notif_type:
+          type: string
+          enum:
+            - adoption_approved
+            - adoption_rejected
+            - rehoming_approved
+            - rehoming_rejected
+            - survey_scheduled
+            - survey_due
+            - general
+        is_read:    { type: boolean, default: false }
+        created_at: { type: string, format: date-time, readOnly: true }
+
+    # ── Common responses ──────────────────────────────────────────────────
+
+    SuccessMessage:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        message: { type: string }
+
+    ErrorResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: false }
+        message: { type: string }
+        errors:  { type: object, additionalProperties: true }
+
+    RejectBody:
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string, description: "Rejection reason (required)" }
+
+  # ── Reusable responses ────────────────────────────────────────────────────
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid JWT
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Forbidden:
+      description: Admin role required
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+# ── Paths ─────────────────────────────────────────────────────────────────────
+
+paths:
+
+  # ════════════════════════════════════════════════════
+  # ADOPTIONS
+  # ════════════════════════════════════════════════════
+
+  /api/approvals/adoptions/:
+    post:
+      tags: [Adoptions]
+      summary: Submit an adoption request
+      description: Authenticated user submits a new adoption request. Also notifies Spring Boot to mark the animal as Pending.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdoptionRequest' }
+      responses:
+        "201":
+          description: Adoption request submitted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  id:      { type: integer }
+                  message: { type: string, example: "Adoption request submitted." }
+        "400":
+          description: Validation errors
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+  /api/approvals/adoptions/admin/:
+    get:
+      tags: [Adoptions]
+      summary: List all adoption requests (admin)
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [Pending, Approved, Rejected]
+          description: Filter by status
+      responses:
+        "200":
+          description: List of adoption requests
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/AdoptionRequest' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+
+  /api/approvals/adoptions/{id}/approve/:
+    post:
+      tags: [Adoptions]
+      summary: Approve an adoption request (admin)
+      description: |
+        Sets status to Approved, records adoption_date, notifies Spring Boot to mark the animal as Adopted,
+        schedules follow-up surveys via Celery, and sends approval email + in-app notification.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Adoption approved
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuccessMessage' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+        "404": { $ref: '#/components/responses/NotFound' }
+
+  /api/approvals/adoptions/{id}/reject/:
+    post:
+      tags: [Adoptions]
+      summary: Reject an adoption request (admin)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RejectBody' }
+      responses:
+        "200":
+          description: Adoption rejected
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuccessMessage' }
+        "400":
+          description: Rejection reason missing
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+        "404": { $ref: '#/components/responses/NotFound' }
+
+  # ════════════════════════════════════════════════════
+  # REHOMING
+  # ════════════════════════════════════════════════════
+
+  /api/approvals/rehoming/:
+    post:
+      tags: [Rehoming]
+      summary: Submit a rehoming request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RehomingRequest' }
+      responses:
+        "201":
+          description: Rehoming request submitted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  id:      { type: integer }
+                  message: { type: string }
+        "400":
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+          description: Validation errors
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+  /api/approvals/rehoming/admin/:
+    get:
+      tags: [Rehoming]
+      summary: List all rehoming requests (admin)
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [Pending, Approved, Rejected]
+      responses:
+        "200":
+          description: List of rehoming requests
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/RehomingRequest' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+
+  /api/approvals/rehoming/{id}/approve/:
+    post:
+      tags: [Rehoming]
+      summary: Approve a rehoming request (admin)
+      description: |
+        Sets status to Approved, posts the pet to Spring Boot as a new Available animal,
+        sends an approval email, and creates an in-app notification.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Rehoming approved
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuccessMessage' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+        "404": { $ref: '#/components/responses/NotFound' }
+
+  /api/approvals/rehoming/{id}/reject/:
+    post:
+      tags: [Rehoming]
+      summary: Reject a rehoming request (admin)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RejectBody' }
+      responses:
+        "200":
+          description: Rehoming rejected
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuccessMessage' }
+        "400":
+          description: Rejection reason missing
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+        "404": { $ref: '#/components/responses/NotFound' }
+
+  # ════════════════════════════════════════════════════
+  # SURVEYS
+  # ════════════════════════════════════════════════════
+
+  /api/surveys/user/:
+    get:
+      tags: [Surveys]
+      summary: Get current user's follow-up surveys
+      description: Returns pending and completed surveys for the authenticated adopter.
+      responses:
+        "200":
+          description: Survey lists
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:       { type: boolean }
+                  pending_count: { type: integer }
+                  pending:
+                    type: array
+                    items: { $ref: '#/components/schemas/FollowUpSurvey' }
+                  completed:
+                    type: array
+                    items: { $ref: '#/components/schemas/FollowUpSurvey' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+  /api/surveys/response/:
+    post:
+      tags: [Surveys]
+      summary: Submit a follow-up survey response
+      description: |
+        Submit answers for a pending FollowUpSurvey. Marks the survey as Completed.
+        Duplicate submissions are blocked (OneToOne constraint).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SurveyResponseSubmit' }
+      responses:
+        "201":
+          description: Response submitted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string, example: "Thank you for your feedback! 🐾" }
+        "400":
+          description: Validation errors or survey already completed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+  /api/surveys/admin/:
+    get:
+      tags: [Surveys]
+      summary: List all survey responses (admin)
+      parameters:
+        - in: query
+          name: survey_type
+          schema:
+            type: string
+            enum: ["30_sec", "60_sec"]
+          description: Filter by survey type
+        - in: query
+          name: health_flag
+          schema:
+            type: string
+            enum: ["true"]
+          description: Pass `true` to return only responses where the pet showed illness
+      responses:
+        "200":
+          description: All survey responses
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  count:   { type: integer }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/SurveyResponseAdmin' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+
+  /api/surveys/admin/pending/:
+    get:
+      tags: [Surveys]
+      summary: List pending (unanswered) surveys (admin)
+      parameters:
+        - in: query
+          name: survey_type
+          schema:
+            type: string
+            enum: ["30_sec", "60_sec"]
+      responses:
+        "200":
+          description: Pending surveys
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  count:   { type: integer }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/FollowUpSurvey' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+
+  # ════════════════════════════════════════════════════
+  # NOTIFICATIONS
+  # ════════════════════════════════════════════════════
+
+  /api/notifications/:
+    get:
+      tags: [Notifications]
+      summary: List notifications for the current user
+      description: Returns the 40 most recent notifications plus unread count.
+      responses:
+        "200":
+          description: Notification list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:      { type: boolean }
+                  unread_count: { type: integer }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Notification' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+  /api/notifications/unread-count/:
+    get:
+      tags: [Notifications]
+      summary: Get unread notification count
+      description: Lightweight endpoint polled by the NotificationBell component every 60 seconds.
+      responses:
+        "200":
+          description: Unread count
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:      { type: boolean }
+                  unread_count: { type: integer }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+  /api/notifications/{id}/read/:
+    post:
+      tags: [Notifications]
+      summary: Mark a single notification as read
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Marked as read
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "404": { $ref: '#/components/responses/NotFound' }
+
+  /api/notifications/read-all/:
+    post:
+      tags: [Notifications]
+      summary: Mark all notifications as read
+      responses:
+        "200":
+          description: All notifications marked read
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  marked:  { type: integer, description: "Number of notifications updated" }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+tags:
+  - name: Adoptions
+    description: Submit and manage pet adoption requests
+  - name: Rehoming
+    description: Submit and manage pet rehoming requests
+  - name: Surveys
+    description: Follow-up surveys sent 30 and 60 seconds after adoption approval
+  - name: Notifications
+    description: In-app notification inbox for adopters
