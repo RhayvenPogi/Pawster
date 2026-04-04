@@ -83,58 +83,67 @@ export default function UsersPanel({ show: isVisible }) {
   };
 
   const save = async () => {
-    const e = validateForm(form);
-    setErrs(e);
-    if (Object.keys(e).length) return; // ← BLOCKED
+  const e = validateForm(form);
+  setErrs(e);
+  if (Object.keys(e).length) return;
 
-    try {
-      if (form.id) {
-        const r = await phpApi("update_user", {
-  id:         form.id,
-  first_name: form.first_name,
-  last_name:  form.last_name,
-  email:      form.email,
-  phone:      form.phone,
-  role:       form.role,
-  is_active:  form.is_active,
-  address:    form.address || "",
-  city:       form.city    || "",
-  province:   form.province || "",
-  zip:        form.zip     || "",
-});
-        if (r.success) {
-          toast("User updated", "success");
-          setModal(null);
-          load();
-        } else {
-          setErrs({ api: r.message || "Error updating user" });
-        }
+  try {
+    if (form.id) {
+      // Edit still goes through PHP as before
+      const r = await phpApi("update_user", {
+        id:         form.id,
+        first_name: form.first_name,
+        last_name:  form.last_name,
+        email:      form.email,
+        phone:      form.phone,
+        role:       form.role,
+        is_active:  form.is_active,
+        address:    form.address   || "",
+        city:       form.city      || "",
+        province:   form.province  || "",
+        zip:        form.zip       || "",
+      });
+      if (r.success) {
+        toast("User updated", "success");
+        setModal(null);
+        load();
       } else {
-        const r = await phpApi("add_user", {
-    first_name: form.first_name,
-    last_name:  form.last_name,
-    email:      form.email,
-    phone:      form.phone,
-    role:       form.role,
-    address:    form.address  || "",
-    city:       form.city     || "",
-    province:   form.province || "",
-    zip:        form.zip      || "",
-  });
-
-        if (r.success) {
-          toast("User added ✉️ credentials emailed!", "success");
-          setModal(null);
-          load();
-        } else {
-          setErrs({ api: r.message || "Error adding user" });
-        }
+        setErrs({ api: r.message || "Error updating user" });
       }
-    } catch (err) {
-      console.error("save user error:", err);
-      setErrs({ api: "Server error — check console for details" });
+
+    } else {
+      // ✅ ADD: call Spring Boot directly — it handles password gen + email
+      const res = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firstName: form.first_name,
+          lastName:  form.last_name,
+          email:     form.email,
+          phone:     form.phone,
+          role:      form.role,
+          address:   form.address  || "",
+          city:      form.city     || "",
+          province:  form.province || "",
+          zip:       form.zip      || "",
+        }),
+      });
+
+      const r = await res.json();
+      if (r.success) {
+        toast("User added ✉️ credentials emailed!", "success");
+        setModal(null);
+        load();
+      } else {
+        setErrs({ api: r.message || "Error adding user" });
+      }
     }
-  };
+
+  } catch (err) {
+    console.error("save user error:", err);
+    setErrs({ api: "Server error — check console for details" });
+  }
+};
 
   const del = async () => {
     try {
