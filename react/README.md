@@ -16,7 +16,7 @@ The React Compiler is not enabled on this template because of its impact on dev 
 If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
 
 <!-- AUTO:START -->
-> 🔍 **Auto-generated documentation** — last updated: 2026-04-04 16:57:58 UTC
+> 🔍 **Auto-generated documentation** — last updated: 2026-04-04 18:38:16 UTC
 > Run `node scripts/generate-readme.js react` to refresh.
 
 ---
@@ -93,6 +93,7 @@ PAWSTER's React frontend is a single-page application (SPA) using React Router f
 | Route              | Component      | Access    |
 | ------------------ | -------------- | --------- |
 | /                  | Navigate       | Public    |
+| /landing           | LandingPage    | Public    |
 | /login             | GuestRoute     | Public    |
 | /register          | GuestRoute     | Public    |
 | /forgot-password   | GuestRoute     | Protected |

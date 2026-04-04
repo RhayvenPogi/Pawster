@@ -3,7 +3,7 @@
 ## 📁 File Structure
 
 <!-- AUTO:START -->
-> 🔍 **Auto-generated documentation** — last updated: 2026-04-04 16:57:58 UTC
+> 🔍 **Auto-generated documentation** — last updated: 2026-04-04 18:38:16 UTC
 > Run `node scripts/generate-readme.js php` to refresh.
 
 ---

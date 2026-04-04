@@ -22,10 +22,13 @@ function App() {
     return (
         <BrowserRouter>
             <Routes>
-                <Route path="/"             element={<Navigate to="/login" replace />} />
+                {/* Landing is public — no GuestRoute or ProtectedRoute */}
+                <Route path="/"             element={<Navigate to="/landing" replace />} />
+                <Route path="/landing"      element={<LandingPage />} />
+
                 <Route path="/login"        element={<GuestRoute><LoginPage /></GuestRoute>} />
                 <Route path="/register"     element={<GuestRoute><RegisterPage /></GuestRoute>} />
-                <Route path="/forgot-password" element={<GuestRoute><ForgotPasswordPage /></GuestRoute>} />  {/* ← add this */}
+                <Route path="/forgot-password" element={<GuestRoute><ForgotPasswordPage /></GuestRoute>} />
                 <Route path="/home"         element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
                 <Route path="/pets"         element={<ProtectedRoute><FindAPet /></ProtectedRoute>} />
                 <Route path="/profile/edit" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
@@ -36,7 +39,7 @@ function App() {
                 <Route path="/about"        element={<ProtectedRoute><About /></ProtectedRoute>} />
                 <Route path="/admin"        element={<ProtectedRoute requiredRole="admin"><AdminDashboard /></ProtectedRoute>} />
                 <Route path="/follow-up-surveys" element={<ProtectedRoute><FollowUpSurveys /></ProtectedRoute>} />
-                <Route path="*"             element={<Navigate to="/login" replace />} />
+                <Route path="*"             element={<Navigate to="/landing" replace />} />
             </Routes>
         </BrowserRouter>
     );
