@@ -170,6 +170,49 @@ function TermsModal({ onAccept, onDecline, onClose }) {
   );
 }
 
+// ── Password strength scorer — purely advisory, never blocks submission ────────
+function getPasswordStrength(pw) {
+  if (!pw) return null;
+  let score = 0;
+  if (pw.length >= 8)          score++;
+  if (pw.length >= 12)         score++;
+  if (/[A-Z]/.test(pw))       score++;
+  if (/[a-z]/.test(pw))       score++;
+  if (/[0-9]/.test(pw))       score++;
+  if (/[!@#$%^&*]/.test(pw))  score++;
+
+  if (score <= 2) return { label:"Weak",   color:"#d04040", bars:1, tip:"Try adding numbers or symbols" };
+  if (score <= 3) return { label:"Fair",   color:"#e07820", bars:2, tip:"Add uppercase & special characters" };
+  if (score <= 4) return { label:"Good",   color:"#c8a020", bars:3, tip:"Almost there — try a longer password" };
+  return           { label:"Strong", color:"#3a9020", bars:4, tip:null };
+}
+
+function PasswordStrengthMeter({ password }) {
+  const s = getPasswordStrength(password);
+  if (!s) return null;
+  return (
+    <div style={{ marginTop:"-0.4rem", marginBottom:"0.9rem" }}>
+      <div style={{ display:"flex", gap:4, marginBottom:"0.3rem" }}>
+        {[1,2,3,4].map(i => (
+          <div key={i} style={{
+            flex:1, height:5, borderRadius:3,
+            background: i <= s.bars ? s.color : "rgba(180,150,80,0.22)",
+            transition:"background 0.25s",
+          }}/>
+        ))}
+      </div>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+        <span style={{ fontSize:"0.72rem", fontWeight:800, color:s.color, letterSpacing:"0.04em" }}>
+          {s.label} password
+        </span>
+        {s.tip && (
+          <span style={{ fontSize:"0.70rem", fontWeight:700, color:"#8a7a50" }}>{s.tip}</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function Field({ label, id, type="text", placeholder, value, onChange, error, style }) {
   return (
     <div style={{ marginBottom:"0.95rem", display:"flex", flexDirection:"column", ...style }}>
@@ -277,28 +320,15 @@ export default function RegisterPage() {
     else if (!/\S+@\S+\.\S+/.test(form.email))
       e.email = "Enter a valid email address.";
 
-    // Philippine mobile number: 09XXXXXXXXX or +639XXXXXXXXX
+    // Philippine mobile: 09XXXXXXXXX or +639XXXXXXXXX
     if (!form.phone.trim())
       e.phone = "Phone number is required.";
     else if (!/^(09\d{9}|\+639\d{9})$/.test(form.phone.trim()))
       e.phone = "Enter a valid PH number (e.g. 09171234567 or +639171234567).";
 
-    // Strict password validation
-    if (!form.password) {
+    // Password — only required, no strength restriction
+    if (!form.password)
       e.password = "Password is required.";
-    } else {
-      const pw = form.password;
-      if (pw.length < 8)
-        e.password = "Password must be at least 8 characters.";
-      else if (!/[A-Z]/.test(pw))
-        e.password = "Password must include at least one uppercase letter (A–Z).";
-      else if (!/[a-z]/.test(pw))
-        e.password = "Password must include at least one lowercase letter (a–z).";
-      else if (!/[0-9]/.test(pw))
-        e.password = "Password must include at least one number (0–9).";
-      else if (!/[!@#$%^&*]/.test(pw))
-        e.password = "Password must include at least one special character (!@#$%^&*).";
-    }
 
     if (!form.confirmPassword)
       e.confirmPassword = "Please confirm your password.";
@@ -516,31 +546,15 @@ export default function RegisterPage() {
               <Field label="Email"        id="email"    type="email"    placeholder="your@email.com"               value={form.email}    onChange={set("email")}    error={errors.email}/>
               <Field label="Phone Number" id="phone"    type="tel"      placeholder="09171234567 or +639171234567" value={form.phone}    onChange={set("phone")}    error={errors.phone}/>
               <div style={{ display:"flex",gap:"0.9rem" }}>
-                <Field label="Password"         id="password"        type="password" placeholder="Min. 8 characters"   value={form.password}        onChange={set("password")}        error={errors.password}        style={{ flex:1 }}/>
-                <Field label="Confirm password" id="confirmPassword" type="password" placeholder="Repeat password"     value={form.confirmPassword} onChange={set("confirmPassword")} error={errors.confirmPassword} style={{ flex:1 }}/>
+                <Field label="Password"         id="password"        type="password" placeholder="Enter password"  value={form.password}        onChange={set("password")}        error={errors.password}        style={{ flex:1 }}/>
+                <Field label="Confirm password" id="confirmPassword" type="password" placeholder="Repeat password" value={form.confirmPassword} onChange={set("confirmPassword")} error={errors.confirmPassword} style={{ flex:1 }}/>
               </div>
 
-              {/* Password requirements hint */}
-              <div style={{ background:"rgba(255,245,220,0.70)",border:"1.5px solid rgba(180,150,60,0.25)",borderRadius:10,padding:"0.7rem 0.9rem",marginBottom:"0.9rem",marginTop:"-0.2rem" }}>
-                <p style={{ fontSize:"0.72rem",fontWeight:800,color:"#5a6a30",marginBottom:"0.3rem",textTransform:"uppercase",letterSpacing:"0.04em" }}>Password must contain:</p>
-                <ul style={{ listStyle:"none",padding:0,margin:0,display:"flex",flexDirection:"column",gap:"0.18rem" }}>
-                  {[
-                    "At least 8 characters",
-                    "One uppercase letter (A–Z)",
-                    "One lowercase letter (a–z)",
-                    "One number (0–9)",
-                    "One special character (!@#$%^&*)",
-                  ].map(r => (
-                    <li key={r} style={{ fontSize:"0.74rem",fontWeight:700,color:"#6a7a48",display:"flex",alignItems:"center",gap:"0.35rem" }}>
-                      <svg width="9" height="9" viewBox="0 0 24 24" fill="#8aaa50"><circle cx="12" cy="12" r="10"/></svg>
-                      {r}
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              {/* Strength meter — shows live feedback, never blocks */}
+              <PasswordStrengthMeter password={form.password} />
 
               <button className="btn-primary" onClick={()=>goTo(2)}
-                style={{ ...btnBase,display:"block",width:"100%",background:"linear-gradient(135deg,#1c4f09,#2a6e10)",color:"#fff",boxShadow:"0 4px 16px rgba(28,79,9,0.25)",marginTop:"0.4rem" }}>
+                style={{ ...btnBase,display:"block",width:"100%",background:"linear-gradient(135deg,#1c4f09,#2a6e10)",color:"#fff",boxShadow:"0 4px 16px rgba(28,79,9,0.25)",marginTop:"0.2rem" }}>
                 Continue →
               </button>
             </div>
@@ -569,7 +583,6 @@ export default function RegisterPage() {
           {/* ── Step 3 ── */}
           {step===3 && (
             <div className="step-content">
-              {/* Upload zone */}
               <div style={{ marginBottom:"1rem" }}>
                 <label style={{ display:"block",fontSize:"0.72rem",fontWeight:900,textTransform:"uppercase",letterSpacing:"0.07em",color:"#276010",marginBottom:"0.45rem",fontStyle:"italic" }}>
                   Government-Issued ID
@@ -612,7 +625,6 @@ export default function RegisterPage() {
                 )}
               </div>
 
-              {/* Why we need ID */}
               <div style={{ display:"flex",gap:"0.85rem",alignItems:"flex-start",background:"rgba(255,245,225,0.80)",borderLeft:"4px solid #e07820",borderRadius:10,padding:"0.85rem 1rem",marginBottom:"1rem" }}>
                 <div style={{ width:32,height:32,minWidth:32,background:"#e07820",color:"#fff",fontSize:"1rem",fontWeight:900,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontStyle:"italic",flexShrink:0 }}>!</div>
                 <div>
@@ -621,7 +633,6 @@ export default function RegisterPage() {
                 </div>
               </div>
 
-              {/* Terms notice */}
               <div style={{ display:"flex",alignItems:"flex-start",gap:"0.55rem",background:"rgba(230,245,220,0.55)",border:"1.5px solid rgba(90,170,48,0.28)",borderRadius:10,padding:"0.8rem 0.95rem",marginBottom:"1.1rem" }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5aaa30" strokeWidth="2.2" style={{ flexShrink:0,marginTop:1 }}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                 <p style={{ fontSize:"0.79rem",fontWeight:700,color:"#3a6020",lineHeight:1.55,margin:0 }}>
