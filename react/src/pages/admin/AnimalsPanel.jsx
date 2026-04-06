@@ -110,7 +110,7 @@ export default function AnimalsPanel({ show }) {
         .map(a => ({
           id: `sb_${a.id}`, name: a.name, type: a.type, breed: a.breed,
           age: a.age, health: a.health, status: a.status, notes: a.notes,
-          photo: a.photo, _fromSpringBoot: true,
+          photo: a.photoUrl || a.photo_url || a.photo || null, _fromSpringBoot: true,
         })) : [];
 
       setAnimals([...phpAnimals, ...sbAnimals]);

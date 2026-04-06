@@ -4,8 +4,9 @@ import { useAuth } from "../hooks/useAuth";
 import Navbar from "./Navbar";
 import logo from "../images/logo.png";
 
-const API_BASE = import.meta.env.VITE_API_BASE   ?? "http://localhost:8080";
-const DJANGO   = import.meta.env.VITE_DJANGO_API ?? "http://localhost:8082";
+const API_BASE  = import.meta.env.VITE_API_BASE   ?? "http://localhost:8080";
+const DJANGO    = import.meta.env.VITE_DJANGO_API ?? "http://localhost:8082";
+const PHP_BASE  = import.meta.env.VITE_PHP_API    ?? "http://localhost:8081";
 
 const STATUS_STYLE = {
   Available: { bg: "rgba(88,139,65,0.88)",  text: "#fff" },
@@ -63,18 +64,59 @@ function getToken() {
     ""
   );
 }
+
 function djFetch(path, opts = {}) {
   const token = getToken();
   return fetch(`${DJANGO}${path}`, {
     ...opts,
-    headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...opts.headers },
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...opts.headers,
+    },
   });
 }
+
 function resolvePhotoUrl(a) {
-  const raw = a.photoUrl || a.photo_url || a.photo || a.imageUrl || a.image_url || a.imgUrl || null;
+  const raw =
+    a.photoUrl || a.photo_url || a.photo ||
+    a.imageUrl || a.image_url || a.imgUrl || null;
   if (!raw) return null;
   if (raw.startsWith("data:") || raw.startsWith("http://") || raw.startsWith("https://")) return raw;
-  return `${API_BASE}${raw.startsWith("/") ? "" : "/"}${raw}`;
+  // Relative paths come from the PHP backend, not Spring Boot
+  return `${PHP_BASE}${raw.startsWith("/") ? "" : "/"}${raw}`;
+}
+
+// ─── Client-side filter ───────────────────────────────────────────────────────
+// Searches across name, breed, type, description, age, gender
+// Supports multi-word: every word must match somewhere
+function matchesSearch(animal, term) {
+  if (!term) return true;
+  const haystack = [
+    animal.name,
+    animal.breed,
+    animal.type,
+    animal.description,
+    animal.age,
+    animal.gender,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  return term
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean)
+    .every((word) => haystack.includes(word));
+}
+
+function applyFilters(list, q, t, s) {
+  return list.filter((a) => {
+    if (t !== "all" && a.type !== t) return false;
+    if (s !== "all" && a.status !== s) return false;
+    if (!matchesSearch(a, q.trim())) return false;
+    return true;
+  });
 }
 
 // ─── Reveal hook ─────────────────────────────────────────────────────────────
@@ -82,7 +124,10 @@ function useReveal() {
   const ref = useRef(null);
   const [vis, setVis] = useState(false);
   useEffect(() => {
-    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) setVis(true); }, { threshold: 0.1 });
+    const io = new IntersectionObserver(
+      ([e]) => { if (e.isIntersecting) setVis(true); },
+      { threshold: 0.1 }
+    );
     if (ref.current) io.observe(ref.current);
     return () => io.disconnect();
   }, []);
@@ -91,7 +136,10 @@ function useReveal() {
 
 // ─── Toast ───────────────────────────────────────────────────────────────────
 function Toast({ message, type, onClose }) {
-  useEffect(() => { const t = setTimeout(onClose, 3500); return () => clearTimeout(t); }, [onClose]);
+  useEffect(() => {
+    const t = setTimeout(onClose, 3500);
+    return () => clearTimeout(t);
+  }, [onClose]);
   return (
     <div style={{ position:"fixed", bottom:"1.5rem", left:"50%", transform:"translateX(-50%)", zIndex:9999, display:"flex", alignItems:"center", gap:"0.6rem", padding:"0.75rem 1.25rem", borderRadius:12, fontWeight:800, fontSize:"0.85rem", boxShadow:"0 8px 32px rgba(0,0,0,0.25)", background:type==="err"?"#c03030":"#1c4f09", color:"#fff", animation:"fadeUp .25s ease both", fontFamily:"'Nunito',sans-serif" }}>
       <i className={"fas " + (type === "err" ? "fa-times-circle" : "fa-check-circle")} />
@@ -111,7 +159,6 @@ function FieldErr({ msg }) {
   );
 }
 
-// ─── fieldStyle: always computed fresh — never cached ────────────────────────
 function fieldStyle(hasErr, extra = {}) {
   return {
     background: "rgba(255,250,232,0.7)",
@@ -137,7 +184,11 @@ const mcol = { display:"flex", flexDirection:"column", gap:"0.875rem" };
 const MLabel = ({ children, prefill }) => (
   <label style={{ fontSize:"0.69rem", fontWeight:900, textTransform:"uppercase", letterSpacing:"0.07em", color:"#6a7a50", display:"flex", alignItems:"center", gap:"0.35rem", marginBottom:"0.3rem" }}>
     {children}
-    {prefill && <span style={{ fontSize:"0.65rem", background:"rgba(90,170,48,0.15)", color:"#1c7a09", borderRadius:4, padding:"0 5px", fontWeight:800 }}>✓ pre-filled</span>}
+    {prefill && (
+      <span style={{ fontSize:"0.65rem", background:"rgba(90,170,48,0.15)", color:"#1c7a09", borderRadius:4, padding:"0 5px", fontWeight:800 }}>
+        ✓ pre-filled
+      </span>
+    )}
   </label>
 );
 
@@ -156,7 +207,6 @@ const MSel = ({ value, onChange, opts, req = true, hasErr }) => (
   </select>
 );
 
-// ─── Yes/No toggle — shows required ring when untouched + has error ───────────
 const MYN = ({ value, onChange, hasErr }) => (
   <div style={{ display:"flex", gap:"0.5rem", padding: hasErr ? "3px" : "0", borderRadius: 11, boxShadow: hasErr ? "0 0 0 2px #c03030" : "none", transition:"box-shadow 0.15s" }}>
     {[["yes","Yes"],["no","No"]].map(([v, l]) => (
@@ -180,7 +230,12 @@ const MSecTitle = ({ icon, title }) => (
 
 // ─── Step content ─────────────────────────────────────────────────────────────
 function AdoptStepContent({ step, form, set, setV, animal, errs }) {
-  const pf = { name:!!form._prefill_name, phone:!!form._prefill_phone, email:!!form._prefill_email, address:!!form._prefill_address };
+  const pf = {
+    name:    !!form._prefill_name,
+    phone:   !!form._prefill_phone,
+    email:   !!form._prefill_email,
+    address: !!form._prefill_address,
+  };
 
   return (
     <>
@@ -436,11 +491,11 @@ function ReviewDetailsModal({ animal, user, onContinue, onClose }) {
 
 // ─── 5-Step Adopt Modal ────────────────────────────────────────────────────────
 function AdoptModal({ animal, user, onClose, onSuccess }) {
-  const [step, setStep]       = useState(1);
-  const [loading, setLoading] = useState(false);
-  const [errs, setErrs]       = useState({});
-  const [submitted, setSubmitted] = useState(false); // track if Next was attempted
-  const scrollRef             = useRef(null);
+  const [step, setStep]           = useState(1);
+  const [loading, setLoading]     = useState(false);
+  const [errs, setErrs]           = useState({});
+  const [submitted, setSubmitted] = useState(false);
+  const scrollRef                 = useRef(null);
 
   const [form, setForm] = useState({
     _prefill_name:    !![user?.firstName, user?.lastName].filter(Boolean).join(" "),
@@ -460,12 +515,10 @@ function AdoptModal({ animal, user, onClose, onSuccess }) {
     agreeProperCare: false, agreeLongTerm: false, agreeNoAbandon: false, agreeFollowup: false,
   });
 
-  // Update field + immediately clear its error
   const set = useCallback((k) => (e) => {
     const val = e.target.type === "checkbox" ? e.target.checked : e.target.value;
     setForm((f) => {
       const next = { ...f, [k]: val };
-      // live-revalidate only if user already tried to advance
       if (submitted) setErrs(validateStep(step, next));
       return next;
     });
@@ -488,7 +541,7 @@ function AdoptModal({ animal, user, onClose, onSuccess }) {
     setErrs(newErrs);
     if (Object.keys(newErrs).length > 0) {
       setTimeout(() => scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" }), 30);
-      return; // ← BLOCKED: do NOT advance
+      return;
     }
     setErrs({});
     setSubmitted(false);
@@ -528,10 +581,17 @@ function AdoptModal({ animal, user, onClose, onSuccess }) {
       });
       let data = {};
       try { data = await res.json(); } catch { /**/ }
-      if (res.ok && data.success !== false) { onSuccess("Request submitted! We'll be in touch soon 🐾"); onClose(); }
-      else if (res.status === 401) { onSuccess("Session expired — please log in again.", "err"); }
-      else { onSuccess(data.message || `Error submitting (${res.status})`, "err"); }
-    } catch { onSuccess("Server error. Please try again.", "err"); }
+      if (res.ok && data.success !== false) {
+        onSuccess("Request submitted! We'll be in touch soon 🐾");
+        onClose();
+      } else if (res.status === 401) {
+        onSuccess("Session expired — please log in again.", "err");
+      } else {
+        onSuccess(data.message || `Error submitting (${res.status})`, "err");
+      }
+    } catch {
+      onSuccess("Server error. Please try again.", "err");
+    }
     setLoading(false);
   };
 
@@ -561,14 +621,8 @@ function AdoptModal({ animal, user, onClose, onSuccess }) {
           ))}
         </div>
 
-        {/* Error banner — animated slide-in/out */}
-        <div style={{
-          flexShrink:0,
-          overflow:"hidden",
-          maxHeight: errCount > 0 ? "80px" : "0px",
-          padding: errCount > 0 ? "0.75rem 1.25rem 0" : "0 1.25rem",
-          transition:"max-height 0.25s ease, padding 0.25s ease",
-        }}>
+        {/* Error banner */}
+        <div style={{ flexShrink:0, overflow:"hidden", maxHeight: errCount > 0 ? "80px" : "0px", padding: errCount > 0 ? "0.75rem 1.25rem 0" : "0 1.25rem", transition:"max-height 0.25s ease, padding 0.25s ease" }}>
           <div style={{ display:"flex", alignItems:"center", gap:"0.55rem", padding:"0.6rem 0.875rem", borderRadius:10, background:"rgba(192,48,48,0.10)", border:"1px solid rgba(192,48,48,0.35)" }}>
             <i className="fas fa-exclamation-triangle" style={{ color:"#c03030", fontSize:"0.85rem", flexShrink:0 }} />
             <span style={{ fontSize:"0.8rem", fontWeight:800, color:"#c03030" }}>
@@ -600,7 +654,9 @@ function AdoptModal({ animal, user, onClose, onSuccess }) {
           ) : (
             <button type="button" onClick={submit} disabled={loading || !allAgreed}
               style={{ flex:1, padding:"0.7rem", borderRadius:11, fontWeight:900, fontSize:"0.88rem", color:"#fff", background:loading||!allAgreed?"#5a8a40":"#1c4f09", border:"none", cursor:loading||!allAgreed?"not-allowed":"pointer", fontFamily:"'Nunito',sans-serif", boxShadow:"0 4px 16px rgba(28,79,9,0.28)", display:"flex", alignItems:"center", justifyContent:"center", gap:"0.5rem" }}>
-              {loading ? <><i className="fas fa-spinner" style={{ animation:"spin .8s linear infinite" }} /> Submitting…</> : <><i className="fas fa-paper-plane" /> Submit Adoption Request</>}
+              {loading
+                ? <><i className="fas fa-spinner" style={{ animation:"spin .8s linear infinite" }} /> Submitting…</>
+                : <><i className="fas fa-paper-plane" /> Submit Adoption Request</>}
             </button>
           )}
         </div>
@@ -615,8 +671,8 @@ function AdoptModal({ animal, user, onClose, onSuccess }) {
 
 // ─── Animal Card ──────────────────────────────────────────────────────────────
 function AnimalCard({ animal, index, onAdopt }) {
-  const [ref, vis]    = useReveal();
-  const [hov, setHov] = useState(false);
+  const [ref, vis]      = useReveal();
+  const [hov, setHov]   = useState(false);
   const [imgErr, setImgErr] = useState(false);
   const emoji   = TYPE_EMOJI[animal.type] ?? "🐾";
   const st      = STATUS_STYLE[animal.status] ?? STATUS_STYLE.Adopted;
@@ -638,8 +694,14 @@ function AnimalCard({ animal, index, onAdopt }) {
       </div>
       <div style={{ padding:"1rem", display:"flex", flexDirection:"column", flex:1 }}>
         <div style={{ fontFamily:"'Playfair Display',serif", fontWeight:900, fontSize:"1.1rem", color:"#1a4a08", lineHeight:1.2 }}>{animal.name}</div>
-        <div style={{ fontFamily:"'DM Mono',monospace", fontSize:"0.72rem", fontWeight:700, color:"#6a7a50", marginTop:"0.25rem" }}>{[animal.type, animal.breed, animal.age, animal.gender].filter(Boolean).join(" · ")}</div>
-        {animal.description && <p style={{ fontSize:"0.82rem", fontWeight:700, lineHeight:1.6, marginTop:"0.5rem", flex:1, color:"#3a5020" }}>{animal.description.length>90?animal.description.slice(0,90)+"…":animal.description}</p>}
+        <div style={{ fontFamily:"'DM Mono',monospace", fontSize:"0.72rem", fontWeight:700, color:"#6a7a50", marginTop:"0.25rem" }}>
+          {[animal.type, animal.breed, animal.age, animal.gender].filter(Boolean).join(" · ")}
+        </div>
+        {animal.description && (
+          <p style={{ fontSize:"0.82rem", fontWeight:700, lineHeight:1.6, marginTop:"0.5rem", flex:1, color:"#3a5020" }}>
+            {animal.description.length > 90 ? animal.description.slice(0, 90) + "…" : animal.description}
+          </p>
+        )}
         {isAvail ? (
           <button onClick={() => onAdopt(animal)} style={{ width:"100%", marginTop:"0.875rem", display:"flex", alignItems:"center", justifyContent:"center", gap:"0.4rem", padding:"0.5625rem", borderRadius:9, fontSize:"0.78rem", fontWeight:900, border:`1px solid ${hov?"#1c4f09":"rgba(90,170,48,0.3)"}`, background:hov?"#1c4f09":"rgba(28,79,9,0.08)", color:hov?"#fff":"#1c4f09", cursor:"pointer", fontFamily:"'Nunito',sans-serif", transition:"all 0.2s" }}>
             <i className="fas fa-heart" /> Adopt {animal.name}
@@ -660,17 +722,27 @@ function FilterBar({ search, type, status, onSearch, onType, onStatus, onSubmit,
   return (
     <div style={{ display:"flex", gap:"0.75rem", alignItems:"center", flexWrap:"wrap", padding:"1rem 1.25rem", borderRadius:18, border:"1px solid rgba(180,140,60,0.28)", marginBottom:"0.5rem", background:"rgba(255,248,225,0.75)", backdropFilter:"blur(14px)", boxShadow:"0 4px 24px rgba(100,70,20,0.10)" }}>
       <i className="fas fa-search" style={{ color:"#6a7a50", fontSize:"0.85rem", flexShrink:0 }} />
-      <input type="text" value={search} onChange={(e) => onSearch(e.target.value)} placeholder="Search by name or breed…"
-        style={{ ...fInp, flex:1, minWidth:180 }} onKeyDown={(e) => { if (e.key==="Enter") onSubmit(); }} />
-      <select value={type} onChange={(e) => onType(e.target.value)} style={fInp}>
+      <input
+        type="text"
+        value={search}
+        onChange={(e) => {
+          onSearch(e.target.value);
+          // Live filter on every keystroke — instant results
+          onSubmit(e.target.value);
+        }}
+        placeholder="Search by name, breed, type…"
+        style={{ ...fInp, flex:1, minWidth:180 }}
+        onKeyDown={(e) => { if (e.key === "Enter") onSubmit(search); }}
+      />
+      <select value={type} onChange={(e) => { onType(e.target.value); onSubmit(search, e.target.value, status); }} style={fInp}>
         <option value="all">All Types</option>
         {["Dog","Cat","Bird","Rabbit","Other"].map((t) => <option key={t} value={t}>{t}s</option>)}
       </select>
-      <select value={status} onChange={(e) => onStatus(e.target.value)} style={fInp}>
+      <select value={status} onChange={(e) => { onStatus(e.target.value); onSubmit(search, type, e.target.value); }} style={fInp}>
         <option value="all">All Status</option>
         {["Available","Pending","Adopted"].map((s) => <option key={s} value={s}>{s}</option>)}
       </select>
-      <button onClick={onSubmit} style={{ display:"inline-flex", alignItems:"center", gap:"0.4rem", padding:"0.625rem 1.25rem", borderRadius:12, fontWeight:900, fontSize:"0.86rem", color:"#fff", background:"#1c4f09", border:"none", cursor:"pointer", whiteSpace:"nowrap", boxShadow:"0 4px 16px rgba(28,79,9,0.28)", fontFamily:"'Nunito',sans-serif" }}>
+      <button onClick={() => onSubmit(search, type, status)} style={{ display:"inline-flex", alignItems:"center", gap:"0.4rem", padding:"0.625rem 1.25rem", borderRadius:12, fontWeight:900, fontSize:"0.86rem", color:"#fff", background:"#1c4f09", border:"none", cursor:"pointer", whiteSpace:"nowrap", boxShadow:"0 4px 16px rgba(28,79,9,0.28)", fontFamily:"'Nunito',sans-serif" }}>
         <i className="fas fa-search" /> Search
       </button>
       {hasFilters && (
@@ -685,6 +757,10 @@ function FilterBar({ search, type, status, onSearch, onType, onStatus, onSubmit,
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function FindAPet() {
   const { user } = useAuth();
+
+  // allAnimalsRef holds the complete unfiltered list fetched once from the API
+  const allAnimalsRef = useRef([]);
+
   const [animals,     setAnimals]  = useState([]);
   const [loading,     setLoading]  = useState(true);
   const [error,       setError]    = useState(null);
@@ -697,34 +773,64 @@ export default function FindAPet() {
   const [toast,       setToast]    = useState(null);
   const [totalCount,  setTotal]    = useState(0);
 
-  const fetchAnimals = useCallback(async (q = search, t = type, s = status) => {
-    setLoading(true); setError(null);
+  // ── runFilter: pure client-side, no network call ──────────────────────────
+  const runFilter = useCallback((q = search, t = type, s = status) => {
+    const result = applyFilters(allAnimalsRef.current, q, t, s);
+    setAnimals(result);
+  }, [search, type, status]);
+
+  // ── fetchAnimals: loads everything once, then filters ─────────────────────
+  const fetchAnimals = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
-      const params = new URLSearchParams();
-      if (q && q.trim()) params.set("search", q.trim());
-      if (t !== "all") params.set("type", t);
-      if (s !== "all") params.set("status", s);
-      params.set("limit", "50");
       const token = getToken();
-      const res  = await fetch(`${API_BASE}/api/animals?${params}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      // Fetch a large page — all animals, no server-side filter
+      const res = await fetch(`${API_BASE}/api/animals?limit=200`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       const list = Array.isArray(data) ? data : (data.content ?? []);
-      setAnimals(list.map((a) => ({ ...a, _resolvedPhotoUrl: resolvePhotoUrl(a) })));
-      setTotal(Array.isArray(data) ? list.length : (data.totalElements ?? list.length));
+
+      const mapped = list
+        .map((a) => ({ ...a, _resolvedPhotoUrl: resolvePhotoUrl(a) }))
+        .sort((a, b) => a.name.localeCompare(b.name)); // A-Z by default
+
+      allAnimalsRef.current = mapped;
+      setTotal(mapped.length);
+
+      // Apply whatever filters are currently set
+      const result = applyFilters(mapped, search, type, status);
+      setAnimals(result);
     } catch {
       setError("Could not load animals. Make sure the Spring Boot server is running.");
       setAnimals([]);
     }
     setLoading(false);
-  }, []);
+  }, []); // ← intentionally empty: fetch is always "get all"
 
-  useEffect(() => { fetchAnimals("", "all", "all"); }, []);
+  // Initial load
+  useEffect(() => { fetchAnimals(); }, []);
 
   const showToast        = (msg, kind = "ok") => setToast({ message: msg, type: kind });
   const handleAdoptClick = (animal) => { setAdopt(animal); setReview(true); setShowForm(false); };
   const handleContinue   = () => { setReview(false); setShowForm(true); };
   const handleCloseAll   = () => { setAdopt(null); setReview(false); setShowForm(false); };
+
+  // ── onSubmit for FilterBar: accept override args for instant dropdown changes
+  const handleFilterSubmit = useCallback((q, t, s) => {
+    const resolvedQ = q  !== undefined ? q  : search;
+    const resolvedT = t  !== undefined ? t  : type;
+    const resolvedS = s  !== undefined ? s  : status;
+    const result = applyFilters(allAnimalsRef.current, resolvedQ, resolvedT, resolvedS);
+    setAnimals(result);
+  }, [search, type, status]);
+
+  const handleClear = () => {
+    setSearch(""); setType("all"); setStatus("all");
+    setAnimals(allAnimalsRef.current);
+  };
 
   return (
     <div style={{ minHeight:"100vh", background:"#EDDABB", fontFamily:"'Nunito',sans-serif", color:"#1a2e0a" }}>
@@ -742,18 +848,22 @@ export default function FindAPet() {
         ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:#eddabb}::-webkit-scrollbar-thumb{background:#b4903a;border-radius:3px}
       `}</style>
 
+      {/* Background blobs */}
       <div style={{ position:"fixed", inset:0, zIndex:0, overflow:"hidden", pointerEvents:"none" }}>
         <div style={{ position:"absolute", inset:0, background:"#EDDABB" }} />
         {[
           { width:"1000px", height:"1000px", top:"-25%", left:"-18%", background:"radial-gradient(circle,#588B41,transparent 70%)", animation:"fl1 9s ease-in-out infinite" },
           { width:"900px",  height:"900px",  top:"8%",   right:"-20%", background:"radial-gradient(circle,#B45A22,transparent 70%)", animation:"fl2 11s ease-in-out infinite" },
           { width:"800px",  height:"800px",  bottom:"-18%", left:"18%", background:"radial-gradient(circle,#e8dfc8,transparent 60%)", animation:"fl3 8s ease-in-out infinite" },
-        ].map((s, i) => <div key={i} style={{ position:"absolute", borderRadius:"50%", filter:"blur(120px)", mixBlendMode:"multiply", opacity:0.48, ...s }} />)}
+        ].map((s, i) => (
+          <div key={i} style={{ position:"absolute", borderRadius:"50%", filter:"blur(120px)", mixBlendMode:"multiply", opacity:0.48, ...s }} />
+        ))}
         <div style={{ position:"absolute", inset:0, backgroundImage:"linear-gradient(rgba(100,70,30,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(100,70,30,.03) 1px,transparent 1px)", backgroundSize:"60px 60px" }} />
       </div>
 
       <Navbar />
 
+      {/* Hero */}
       <div style={{ position:"relative", zIndex:10, paddingTop:"4rem", paddingBottom:"3rem", textAlign:"center", animation:"fadeUp .6s ease both" }}>
         <div style={{ display:"inline-flex", alignItems:"center", gap:"0.5rem", borderRadius:50, padding:"0.375rem 1rem", fontSize:"0.72rem", fontWeight:900, textTransform:"uppercase", letterSpacing:"0.1em", fontStyle:"italic", marginBottom:"1rem", background:"rgba(28,79,9,0.09)", border:"1px solid rgba(90,170,48,0.32)", color:"#1c4f09" }}>
           <span style={{ width:7, height:7, borderRadius:"50%", background:"#5aaa30", display:"inline-block", animation:"pulse-dot 2s ease infinite" }} />
@@ -767,26 +877,38 @@ export default function FindAPet() {
         </p>
       </div>
 
+      {/* Content */}
       <div style={{ position:"relative", zIndex:10, maxWidth:1320, margin:"0 auto", padding:"0 1.5rem 5rem" }}>
-        <FilterBar search={search} type={type} status={status} onSearch={setSearch} onType={setType} onStatus={setStatus}
-          onSubmit={() => fetchAnimals(search, type, status)}
-          onClear={() => { setSearch(""); setType("all"); setStatus("all"); fetchAnimals("", "all", "all"); }}
-          hasFilters={search!==""||type!=="all"||status!=="all"} />
+        <FilterBar
+          search={search}
+          type={type}
+          status={status}
+          onSearch={setSearch}
+          onType={setType}
+          onStatus={setStatus}
+          onSubmit={handleFilterSubmit}
+          onClear={handleClear}
+          hasFilters={search !== "" || type !== "all" || status !== "all"}
+        />
 
-        {!loading && !error && animals.length > 0 && (
+        {/* Result count */}
+        {!loading && !error && allAnimalsRef.current.length > 0 && (
           <p style={{ fontSize:"0.82rem", fontWeight:700, color:"#6a7a50", marginBottom:"0.75rem" }}>
-            Showing {animals.length}{totalCount > animals.length ? ` of ${totalCount}` : ""} animal{animals.length !== 1 ? "s" : ""}
-            {search ? ` for "${search}"` : ""}
+            {animals.length === allAnimalsRef.current.length
+              ? `Showing all ${animals.length} animal${animals.length !== 1 ? "s" : ""}`
+              : `Showing ${animals.length} of ${totalCount} animal${totalCount !== 1 ? "s" : ""}`}
+            {search ? ` matching "${search}"` : ""}
           </p>
         )}
 
+        {/* Loading skeletons */}
         {loading && (
           <div style={{ display:"grid", gap:"1.25rem", gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))" }}>
             {Array.from({ length: 8 }).map((_, i) => (
               <div key={i} style={{ borderRadius:18, overflow:"hidden", border:"1px solid rgba(180,140,60,0.28)", background:"rgba(255,248,225,0.75)" }}>
                 <div style={{ height:190, background:"linear-gradient(90deg,rgba(255,240,200,.4) 25%,rgba(255,250,230,.7) 50%,rgba(255,240,200,.4) 75%)", backgroundSize:"400px 100%", animation:"shimmer 1.4s ease infinite" }} />
                 <div style={{ padding:"1rem", display:"flex", flexDirection:"column", gap:"0.625rem" }}>
-                  {[["66%","1.25rem"],["100%","0.875rem"],["80%","0.75rem"]].map(([w,h], j) => (
+                  {[["66%","1.25rem"],["100%","0.875rem"],["80%","0.75rem"]].map(([w, h], j) => (
                     <div key={j} style={{ height:h, width:w, borderRadius:6, background:"rgba(180,140,60,.14)", animation:"shimmer 1.4s ease infinite" }} />
                   ))}
                   <div style={{ height:"2.25rem", borderRadius:9, background:"rgba(28,79,9,.08)", animation:"shimmer 1.4s ease infinite", marginTop:"0.25rem" }} />
@@ -796,35 +918,48 @@ export default function FindAPet() {
           </div>
         )}
 
+        {/* Error state */}
         {!loading && error && (
           <div style={{ textAlign:"center", padding:"5rem 2rem", borderRadius:18, border:"1px solid rgba(180,140,60,0.28)", background:"rgba(255,248,225,0.75)" }}>
             <i className="fas fa-exclamation-triangle" style={{ fontSize:"3rem", color:"#d4880a", opacity:0.6, display:"block", marginBottom:"1rem" }} />
             <p style={{ fontWeight:700, fontSize:"1rem", color:"#3a5020", marginBottom:"0.25rem" }}>{error}</p>
-            <button onClick={() => fetchAnimals(search, type, status)} style={{ display:"inline-flex", alignItems:"center", gap:"0.5rem", padding:"0.625rem 1.5rem", borderRadius:12, fontWeight:900, fontSize:"0.88rem", color:"#fff", background:"#1c4f09", border:"none", cursor:"pointer", fontFamily:"'Nunito',sans-serif" }}>
+            <button onClick={fetchAnimals} style={{ display:"inline-flex", alignItems:"center", gap:"0.5rem", padding:"0.625rem 1.5rem", borderRadius:12, fontWeight:900, fontSize:"0.88rem", color:"#fff", background:"#1c4f09", border:"none", cursor:"pointer", fontFamily:"'Nunito',sans-serif" }}>
               <i className="fas fa-redo" /> Retry
             </button>
           </div>
         )}
 
-        {!loading && !error && animals.length === 0 && (
+        {/* Empty filtered state */}
+        {!loading && !error && animals.length === 0 && allAnimalsRef.current.length > 0 && (
           <div style={{ textAlign:"center", padding:"5rem 2rem", borderRadius:18, border:"1px solid rgba(180,140,60,0.28)", background:"rgba(255,248,225,0.75)" }}>
             <i className="fas fa-paw" style={{ fontSize:"3rem", color:"#1c4f09", opacity:0.3, display:"block", marginBottom:"1rem" }} />
             <p style={{ fontWeight:700, fontSize:"1rem", color:"#3a5020" }}>No animals found matching your search.</p>
-            <button onClick={() => { setSearch(""); setType("all"); setStatus("all"); fetchAnimals("", "all", "all"); }}
-              style={{ display:"inline-flex", alignItems:"center", gap:"0.5rem", padding:"0.625rem 1.5rem", borderRadius:12, fontWeight:900, fontSize:"0.88rem", background:"rgba(255,248,220,0.75)", border:"1px solid rgba(180,140,60,0.28)", color:"#3a5020", cursor:"pointer", marginTop:"1.25rem", fontFamily:"'Nunito',sans-serif" }}>
+            <button onClick={handleClear} style={{ display:"inline-flex", alignItems:"center", gap:"0.5rem", padding:"0.625rem 1.5rem", borderRadius:12, fontWeight:900, fontSize:"0.88rem", background:"rgba(255,248,220,0.75)", border:"1px solid rgba(180,140,60,0.28)", color:"#3a5020", cursor:"pointer", marginTop:"1.25rem", fontFamily:"'Nunito',sans-serif" }}>
               <i className="fas fa-times" /> Clear filters
             </button>
           </div>
         )}
 
+        {/* Empty API state */}
+        {!loading && !error && allAnimalsRef.current.length === 0 && (
+          <div style={{ textAlign:"center", padding:"5rem 2rem", borderRadius:18, border:"1px solid rgba(180,140,60,0.28)", background:"rgba(255,248,225,0.75)" }}>
+            <i className="fas fa-paw" style={{ fontSize:"3rem", color:"#1c4f09", opacity:0.3, display:"block", marginBottom:"1rem" }} />
+            <p style={{ fontWeight:700, fontSize:"1rem", color:"#3a5020" }}>No animals are listed yet.</p>
+          </div>
+        )}
+
+        {/* Animal grid */}
         {!loading && !error && animals.length > 0 && (
           <div style={{ display:"grid", gap:"1.25rem", marginTop:"0.25rem", gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))" }}>
-            {animals.map((a, i) => <AnimalCard key={a.id} animal={a} index={i} onAdopt={handleAdoptClick} />)}
+            {animals.map((a, i) => (
+              <AnimalCard key={a.id} animal={a} index={i} onAdopt={handleAdoptClick} />
+            ))}
           </div>
         )}
       </div>
 
-            <footer className="relative z-10 border-t border-[rgba(90,170,48,0.45)] bg-[rgba(255,248,218,0.85)] backdrop-blur-md px-10 py-12">
+      {/* Footer */}
+      <footer className="relative z-10 border-t border-[rgba(90,170,48,0.45)] bg-[rgba(255,248,218,0.85)] backdrop-blur-md px-10 py-12">
         <div className="max-w-[1200px] mx-auto grid gap-12 mb-10 grid-cols-[repeat(auto-fit,minmax(160px,1fr))]">
           <div>
             <div className="mb-2">
@@ -853,7 +988,7 @@ export default function FindAPet() {
         <div className="max-w-[1200px] mx-auto pt-6 border-t border-[rgba(180,140,60,0.28)] flex flex-wrap items-center justify-between gap-4">
           <div className="text-[0.75rem] font-bold text-[#6a7a50]">© 2025 Pawster. All rights reserved. Made with 🐾 in the Ilocos Region.</div>
           <div className="flex gap-2">
-            {["fab fa-facebook-f", "fab fa-instagram", "fab fa-twitter"].map(icon => (
+            {["fab fa-facebook-f", "fab fa-instagram", "fab fa-twitter"].map((icon) => (
               <a key={icon} href="#" className="w-8 h-8 flex items-center justify-center rounded-md text-[0.8rem] text-[#6a7a50] bg-[rgba(255,250,232,0.7)] border border-[rgba(180,140,60,0.28)] hover:bg-black/5 transition">
                 <i className={icon} />
               </a>
@@ -862,14 +997,21 @@ export default function FindAPet() {
         </div>
       </footer>
 
-      {showReview && adoptTarget && <ReviewDetailsModal animal={adoptTarget} user={user} onContinue={handleContinue} onClose={handleCloseAll} />}
+      {/* Modals */}
+      {showReview && adoptTarget && (
+        <ReviewDetailsModal animal={adoptTarget} user={user} onContinue={handleContinue} onClose={handleCloseAll} />
+      )}
       {showForm && adoptTarget && (
-        <AdoptModal animal={adoptTarget} user={user} onClose={handleCloseAll}
+        <AdoptModal
+          animal={adoptTarget}
+          user={user}
+          onClose={handleCloseAll}
           onSuccess={(msg, kind) => {
             showToast(msg, kind);
             handleCloseAll();
-            if (!kind || kind === "ok") fetchAnimals(search, type, status);
-          }} />
+            if (!kind || kind === "ok") fetchAnimals();
+          }}
+        />
       )}
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>
