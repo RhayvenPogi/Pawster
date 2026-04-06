@@ -170,7 +170,6 @@ function TermsModal({ onAccept, onDecline, onClose }) {
   );
 }
 
-// ── Improved Field — label above, show/hide for passwords, accent error border ─
 function Field({ label, id, type="text", placeholder, value, onChange, error, style }) {
   return (
     <div style={{ marginBottom:"0.95rem", display:"flex", flexDirection:"column", ...style }}>
@@ -208,7 +207,6 @@ function Field({ label, id, type="text", placeholder, value, onChange, error, st
   );
 }
 
-// ── Slimmer Stepper ────────────────────────────────────────────────────────────
 function Stepper({ current }) {
   const steps = ["Personal Info","Location","Verification"];
   return (
@@ -270,15 +268,43 @@ export default function RegisterPage() {
 
   function validateStep1() {
     const e = {};
-    if (!form.firstName.trim())                      e.firstName       = "First name is required.";
-    if (!form.lastName.trim())                       e.lastName        = "Last name is required.";
-    if (!form.email.trim())                          e.email           = "Email is required.";
-    else if (!/\S+@\S+\.\S+/.test(form.email))      e.email           = "Enter a valid email address.";
-    if (!form.phone.trim())                          e.phone           = "Phone number is required.";
-    if (!form.password)                              e.password        = "Password is required.";
-    else if (form.password.length < 8)               e.password        = "Password must be at least 8 characters.";
-    if (!form.confirmPassword)                       e.confirmPassword = "Please confirm your password.";
-    else if (form.password !== form.confirmPassword) e.confirmPassword = "Passwords do not match.";
+
+    if (!form.firstName.trim()) e.firstName = "First name is required.";
+    if (!form.lastName.trim())  e.lastName  = "Last name is required.";
+
+    if (!form.email.trim())
+      e.email = "Email is required.";
+    else if (!/\S+@\S+\.\S+/.test(form.email))
+      e.email = "Enter a valid email address.";
+
+    // Philippine mobile number: 09XXXXXXXXX or +639XXXXXXXXX
+    if (!form.phone.trim())
+      e.phone = "Phone number is required.";
+    else if (!/^(09\d{9}|\+639\d{9})$/.test(form.phone.trim()))
+      e.phone = "Enter a valid PH number (e.g. 09171234567 or +639171234567).";
+
+    // Strict password validation
+    if (!form.password) {
+      e.password = "Password is required.";
+    } else {
+      const pw = form.password;
+      if (pw.length < 8)
+        e.password = "Password must be at least 8 characters.";
+      else if (!/[A-Z]/.test(pw))
+        e.password = "Password must include at least one uppercase letter (A–Z).";
+      else if (!/[a-z]/.test(pw))
+        e.password = "Password must include at least one lowercase letter (a–z).";
+      else if (!/[0-9]/.test(pw))
+        e.password = "Password must include at least one number (0–9).";
+      else if (!/[!@#$%^&*]/.test(pw))
+        e.password = "Password must include at least one special character (!@#$%^&*).";
+    }
+
+    if (!form.confirmPassword)
+      e.confirmPassword = "Please confirm your password.";
+    else if (form.password !== form.confirmPassword)
+      e.confirmPassword = "Passwords do not match.";
+
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -487,12 +513,32 @@ export default function RegisterPage() {
                 <Field label="First name" id="firstName" placeholder="First name…" value={form.firstName} onChange={set("firstName")} error={errors.firstName} style={{ flex:1 }}/>
                 <Field label="Last name"  id="lastName"  placeholder="Last name…"  value={form.lastName}  onChange={set("lastName")}  error={errors.lastName}  style={{ flex:1 }}/>
               </div>
-              <Field label="Email"        id="email"    type="email"    placeholder="your@email.com"    value={form.email}    onChange={set("email")}    error={errors.email}/>
-              <Field label="Phone Number" id="phone"    type="tel"      placeholder="+1 (555) 000-0000" value={form.phone}    onChange={set("phone")}    error={errors.phone}/>
+              <Field label="Email"        id="email"    type="email"    placeholder="your@email.com"               value={form.email}    onChange={set("email")}    error={errors.email}/>
+              <Field label="Phone Number" id="phone"    type="tel"      placeholder="09171234567 or +639171234567" value={form.phone}    onChange={set("phone")}    error={errors.phone}/>
               <div style={{ display:"flex",gap:"0.9rem" }}>
                 <Field label="Password"         id="password"        type="password" placeholder="Min. 8 characters"   value={form.password}        onChange={set("password")}        error={errors.password}        style={{ flex:1 }}/>
                 <Field label="Confirm password" id="confirmPassword" type="password" placeholder="Repeat password"     value={form.confirmPassword} onChange={set("confirmPassword")} error={errors.confirmPassword} style={{ flex:1 }}/>
               </div>
+
+              {/* Password requirements hint */}
+              <div style={{ background:"rgba(255,245,220,0.70)",border:"1.5px solid rgba(180,150,60,0.25)",borderRadius:10,padding:"0.7rem 0.9rem",marginBottom:"0.9rem",marginTop:"-0.2rem" }}>
+                <p style={{ fontSize:"0.72rem",fontWeight:800,color:"#5a6a30",marginBottom:"0.3rem",textTransform:"uppercase",letterSpacing:"0.04em" }}>Password must contain:</p>
+                <ul style={{ listStyle:"none",padding:0,margin:0,display:"flex",flexDirection:"column",gap:"0.18rem" }}>
+                  {[
+                    "At least 8 characters",
+                    "One uppercase letter (A–Z)",
+                    "One lowercase letter (a–z)",
+                    "One number (0–9)",
+                    "One special character (!@#$%^&*)",
+                  ].map(r => (
+                    <li key={r} style={{ fontSize:"0.74rem",fontWeight:700,color:"#6a7a48",display:"flex",alignItems:"center",gap:"0.35rem" }}>
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="#8aaa50"><circle cx="12" cy="12" r="10"/></svg>
+                      {r}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
               <button className="btn-primary" onClick={()=>goTo(2)}
                 style={{ ...btnBase,display:"block",width:"100%",background:"linear-gradient(135deg,#1c4f09,#2a6e10)",color:"#fff",boxShadow:"0 4px 16px rgba(28,79,9,0.25)",marginTop:"0.4rem" }}>
                 Continue →
