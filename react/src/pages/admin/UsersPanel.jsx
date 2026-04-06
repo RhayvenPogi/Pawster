@@ -21,18 +21,33 @@ function FieldErr({ msg }) {
   );
 }
 
-export default function UsersPanel({ show: isVisible }) {
-  const [users, setUsers]       = useState([]);
-  const [loading, setLoading]   = useState(false);
-  const [search, setSearch]     = useState("");
-  const [roleFilter, setRole]   = useState("all");
-  const [modal, setModal]       = useState(null);
-  const [form, setForm]         = useState({});
-  const [delModal, setDel]      = useState(null);
-  const [errs, setErrs]         = useState({});
-  const [idPreview, setIdPreview] = useState(null);
-  const { show: toast }         = useToast();
+// ─── Step indicator ───────────────────────────────────────────────────────────
+function StepIndicator({ step }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: "0.85rem" }}>
+      <div style={{ flex: 1, height: 4, borderRadius: 2, background: "#1c4f09" }} />
+      <div style={{ flex: 1, height: 4, borderRadius: 2, background: step === 2 ? "#1c4f09" : "#d8e8c0" }} />
+      <span style={{ fontSize: "0.72rem", fontWeight: 700, color: "#7a9060", whiteSpace: "nowrap" }}>
+        Step {step} of 2
+      </span>
+    </div>
+  );
+}
 
+export default function UsersPanel({ show: isVisible }) {
+  const [users, setUsers]         = useState([]);
+  const [loading, setLoading]     = useState(false);
+  const [search, setSearch]       = useState("");
+  const [roleFilter, setRole]     = useState("all");
+  const [modal, setModal]         = useState(null);
+  const [form, setForm]           = useState({});
+  const [delModal, setDel]        = useState(null);
+  const [errs, setErrs]           = useState({});
+  const [idPreview, setIdPreview] = useState(null);
+  const [step, setStep]           = useState(1);
+  const { show: toast }           = useToast();
+
+  // ── Load users ────────────────────────────────────────────────────────────
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -48,16 +63,17 @@ export default function UsersPanel({ show: isVisible }) {
 
   useEffect(() => { if (isVisible) load(); }, [isVisible, load]);
 
+  // ── View ID file ──────────────────────────────────────────────────────────
   const viewId = (u) => {
     setIdPreview({
-      url:  `/php/admin/dashboard?action=get_id_file&user_id=${u.id}`,
-      name: u.id_file_name || "ID File",
+      url:     `/php/admin/dashboard?action=get_id_file&user_id=${u.id}`,
+      name:    u.id_file_name || "ID File",
       isImage: /\.(jpg|jpeg|png|webp|gif)$/i.test(u.id_file_name || ""),
     });
   };
 
-  // ── Validate form fields ──────────────────────────────────────────────────
-  function validateForm(f) {
+  // ── Validate step-1 fields ────────────────────────────────────────────────
+  function validateStep1(f) {
     const e = {};
     if (!f.first_name?.trim()) e.first_name = "First name is required.";
     if (!f.last_name?.trim())  e.last_name  = "Last name is required.";
@@ -71,7 +87,7 @@ export default function UsersPanel({ show: isVisible }) {
     return e;
   }
 
-  // Live-clear individual field error as user types
+  // ── Live-clear field error on change ──────────────────────────────────────
   const setField = (key, value) => {
     setForm(f => ({ ...f, [key]: value }));
     setErrs(prev => {
@@ -82,69 +98,97 @@ export default function UsersPanel({ show: isVisible }) {
     });
   };
 
+  // ── Open add modal ────────────────────────────────────────────────────────
+  const openAdd = () => {
+    setForm({ role: "user", is_active: 1, phone: "" });
+    setErrs({});
+    setStep(1);
+    setModal("add");
+  };
+
+  // ── Open edit modal ───────────────────────────────────────────────────────
+  const openEdit = (u) => {
+    setForm({ ...u });
+    setErrs({});
+    setStep(1);
+    setModal("edit");
+  };
+
+  // ── Next: validate step 1 then advance ───────────────────────────────────
+  const handleNext = () => {
+    const e = validateStep1(form);
+    setErrs(e);
+    if (Object.keys(e).length) return;
+    setErrs({});
+    setStep(2);
+  };
+
+  // ── Save ──────────────────────────────────────────────────────────────────
   const save = async () => {
-  const e = validateForm(form);
-  setErrs(e);
-  if (Object.keys(e).length) return;
-
-  try {
-    if (form.id) {
-      // Edit still goes through PHP as before
-      const r = await phpApi("update_user", {
-        id:         form.id,
-        first_name: form.first_name,
-        last_name:  form.last_name,
-        email:      form.email,
-        phone:      form.phone,
-        role:       form.role,
-        is_active:  form.is_active,
-        address:    form.address   || "",
-        city:       form.city      || "",
-        province:   form.province  || "",
-        zip:        form.zip       || "",
-      });
-      if (r.success) {
-        toast("User updated", "success");
-        setModal(null);
-        load();
-      } else {
-        setErrs({ api: r.message || "Error updating user" });
-      }
-
-    } else {
-      // ✅ ADD: call Spring Boot directly — it handles password gen + email
-      const res = await fetch("/api/admin/users", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          firstName: form.first_name,
-          lastName:  form.last_name,
-          email:     form.email,
-          phone:     form.phone,
-          role:      form.role,
-          address:   form.address  || "",
-          city:      form.city     || "",
-          province:  form.province || "",
-          zip:       form.zip      || "",
-        }),
-      });
-
-      const r = await res.json();
-      if (r.success) {
-        toast("User added ✉️ credentials emailed!", "success");
-        setModal(null);
-        load();
-      } else {
-        setErrs({ api: r.message || "Error adding user" });
-      }
+    if (modal === "edit") {
+      const e = validateStep1(form);
+      setErrs(e);
+      if (Object.keys(e).length) return;
     }
 
-  } catch (err) {
-    console.error("save user error:", err);
-    setErrs({ api: "Server error — check console for details" });
-  }
-};
+    try {
+      if (form.id) {
+        // Edit — goes through PHP
+        const r = await phpApi("update_user", {
+          id:         form.id,
+          first_name: form.first_name,
+          last_name:  form.last_name,
+          email:      form.email,
+          phone:      form.phone,
+          role:       form.role,
+          is_active:  form.is_active,
+          address:    form.address  || "",
+          city:       form.city     || "",
+          province:   form.province || "",
+          zip:        form.zip      || "",
+        });
+        if (r.success) {
+          toast("User updated", "success");
+          setModal(null);
+          load();
+        } else {
+          setErrs({ api: r.message || "Error updating user" });
+        }
 
+      } else {
+        // Add — goes through Spring Boot (handles password gen + email)
+        const res = await fetch("/api/admin/users", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            firstName: form.first_name,
+            lastName:  form.last_name,
+            email:     form.email,
+            phone:     form.phone,
+            role:      form.role,
+            address:   form.address  || "",
+            city:      form.city     || "",
+            province:  form.province || "",
+            zip:       form.zip      || "",
+          }),
+        });
+        const r = await res.json();
+        if (r.success) {
+          toast("User added ✉️ credentials emailed!", "success");
+          setModal(null);
+          load();
+        } else {
+          setErrs({ api: r.message || "Error adding user" });
+        }
+      }
+
+    } catch (err) {
+      console.error("save user error:", err);
+      setErrs({ api: "Server error — check console for details" });
+    }
+  };
+
+  // ── Delete ────────────────────────────────────────────────────────────────
   const del = async () => {
     try {
       const r = await phpApi("delete", { type: "user", id: delModal.id });
@@ -161,6 +205,7 @@ export default function UsersPanel({ show: isVisible }) {
     }
   };
 
+  // ── Toggle active status ──────────────────────────────────────────────────
   const toggleStatus = async (u) => {
     try {
       await phpApi("update_user_status", { id: u.id, is_active: u.is_active == 1 ? 0 : 1 });
@@ -179,24 +224,22 @@ export default function UsersPanel({ show: isVisible }) {
   const isAdd  = modal === "add";
   const isEdit = modal === "edit";
 
-  // Shared input style — red border when field has an error
   const inp = (key) => ({
-    border: errs[key] ? "1.5px solid #c03030" : undefined,
+    border:    errs[key] ? "1.5px solid #c03030" : undefined,
     boxShadow: errs[key] ? "0 0 0 3px rgba(192,48,48,0.10)" : undefined,
   });
 
+  // ─────────────────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-5">
+
+      {/* ── Page header ───────────────────────────────────────────────────── */}
       <PageHeader
         title="User Management"
         subtitle="Manage all registered accounts"
         action={
           <button
-            onClick={() => {
-              setForm({ role: "user", is_active: 1, phone: "" });
-              setErrs({});
-              setModal("add");
-            }}
+            onClick={openAdd}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-black text-white transition-all hover:shadow-lg hover:opacity-90"
             style={{ background: "#1c4f09" }}>
             + Add User
@@ -204,6 +247,7 @@ export default function UsersPanel({ show: isVisible }) {
         }
       />
 
+      {/* ── Filters ───────────────────────────────────────────────────────── */}
       <div className="flex flex-wrap gap-3 items-end">
         <div className="w-[360px]">
           <SearchBar value={search} onChange={setSearch} placeholder="Search users…" />
@@ -218,6 +262,7 @@ export default function UsersPanel({ show: isVisible }) {
         </div>
       </div>
 
+      {/* ── Table ─────────────────────────────────────────────────────────── */}
       {loading ? (
         <div className="flex items-center justify-center py-20">
           <div className="w-8 h-8 rounded-full border-2 border-green-600 border-t-transparent animate-spin" />
@@ -228,6 +273,8 @@ export default function UsersPanel({ show: isVisible }) {
           empty="No users found.">
           {filtered.map(u => (
             <Tr key={u.id}>
+
+              {/* Avatar + name */}
               <Td>
                 <div className="flex items-center gap-2.5">
                   <div
@@ -252,10 +299,13 @@ export default function UsersPanel({ show: isVisible }) {
                   </div>
                 </div>
               </Td>
+
               <Td>{u.email}</Td>
               <Td className="text-xs">{u.phone || "—"}</Td>
               <Td><Badge color={roleBadge(u.role)}>{u.role}</Badge></Td>
               <Td><Badge color={u.is_active == 1 ? "green" : "red"}>{u.is_active == 1 ? "Active" : "Inactive"}</Badge></Td>
+
+              {/* ID file */}
               <Td>
                 {u.id_file_name ? (
                   <button
@@ -269,20 +319,26 @@ export default function UsersPanel({ show: isVisible }) {
                   <span className="text-xs font-semibold" style={{ color: "#c0b080" }}>None</span>
                 )}
               </Td>
+
+              {/* Joined */}
               <Td className="text-xs whitespace-nowrap">
                 {u.created_at
                   ? new Date(u.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
                   : "—"}
               </Td>
+
+              {/* Last login */}
               <Td className="text-xs">
                 {u.last_login
                   ? new Date(u.last_login).toLocaleDateString("en-US", { month: "short", day: "numeric" })
                   : <span style={{ color: "#c0b080" }}>Never</span>}
               </Td>
+
+              {/* Actions */}
               <Td>
                 <div className="flex gap-1.5">
                   <button
-                    onClick={() => { setForm({ ...u }); setErrs({}); setModal("edit"); }}
+                    onClick={() => openEdit(u)}
                     className="px-2.5 py-1.5 rounded-lg text-xs font-black border hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 transition-all"
                     style={{ borderColor: "#ddd0a8", color: "#7a9060" }}
                     title="Edit">✏</button>
@@ -300,6 +356,7 @@ export default function UsersPanel({ show: isVisible }) {
                     title="Delete">🗑</button>
                 </div>
               </Td>
+
             </Tr>
           ))}
         </Table>
@@ -309,12 +366,23 @@ export default function UsersPanel({ show: isVisible }) {
       <Modal
         open={!!modal}
         onClose={() => setModal(null)}
-        title={isEdit ? "Edit User" : "Add New User"}
+        title={isEdit ? "Edit User" : step === 1 ? "Add New User" : "Add New User — Address"}
         icon="👤"
         footer={
           <>
-            <BtnCancel onClick={() => setModal(null)} />
-            <BtnConfirm onClick={save}>💾 Save</BtnConfirm>
+            {/* Back (add step 2) or Cancel */}
+            {isAdd && step === 2 ? (
+              <BtnCancel onClick={() => { setStep(1); setErrs({}); }}>← Back</BtnCancel>
+            ) : (
+              <BtnCancel onClick={() => setModal(null)} />
+            )}
+
+            {/* Next (add step 1) or Save */}
+            {isAdd && step === 1 ? (
+              <BtnConfirm onClick={handleNext}>Next →</BtnConfirm>
+            ) : (
+              <BtnConfirm onClick={save}>💾 Save</BtnConfirm>
+            )}
           </>
         }>
 
@@ -325,113 +393,154 @@ export default function UsersPanel({ show: isVisible }) {
           </div>
         )}
 
-        {isAdd && (
-          <div className="bg-green-50 border border-green-200 rounded-xl px-3 py-2 text-green-700 text-xs font-bold flex items-center gap-2">
-            ✉️ A random password will be auto-generated and emailed to the user.
-          </div>
+        {/* Step indicator — add modal only */}
+        {isAdd && <StepIndicator step={step} />}
+
+        {/* ── STEP 1: Account info (and full edit modal) ───────────────────── */}
+        {(isAdd && step === 1) || isEdit ? (
+          <>
+            {isAdd && (
+              <div className="bg-green-50 border border-green-200 rounded-xl px-3 py-2 text-green-700 text-xs font-bold flex items-center gap-2">
+                ✉️ A random password will be auto-generated and emailed to the user.
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="First Name *">
+                <Input
+                  value={form.first_name || ""}
+                  onChange={e => setField("first_name", e.target.value)}
+                  placeholder="e.g. Juan"
+                  style={inp("first_name")}
+                />
+                <FieldErr msg={errs.first_name} />
+              </Field>
+
+              <Field label="Last Name *">
+                <Input
+                  value={form.last_name || ""}
+                  onChange={e => setField("last_name", e.target.value)}
+                  placeholder="e.g. Dela Cruz"
+                  style={inp("last_name")}
+                />
+                <FieldErr msg={errs.last_name} />
+              </Field>
+            </div>
+
+            <Field label="Email *">
+              <Input
+                type="email"
+                value={form.email || ""}
+                onChange={e => setField("email", e.target.value)}
+                placeholder="example@email.com"
+                style={inp("email")}
+              />
+              <FieldErr msg={errs.email} />
+            </Field>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Phone *">
+                <Input
+                  value={form.phone || ""}
+                  onChange={e => setField("phone", e.target.value)}
+                  placeholder="e.g. 09123456789"
+                  maxLength={11}
+                  style={inp("phone")}
+                />
+                <FieldErr msg={errs.phone} />
+              </Field>
+
+              <Field label="Role">
+                <Select
+                  value={form.role || "user"}
+                  onChange={e => setForm(f => ({ ...f, role: e.target.value }))}>
+                  <option value="user">User</option>
+                  <option value="admin">Admin</option>
+                </Select>
+              </Field>
+            </div>
+
+            {/* Address fields shown on same page for Edit */}
+            {isEdit && (
+              <>
+                <Field label="Address">
+                  <Input
+                    value={form.address || ""}
+                    onChange={e => setField("address", e.target.value)}
+                    placeholder="Street address"
+                  />
+                </Field>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="City">
+                    <Input
+                      value={form.city || ""}
+                      onChange={e => setField("city", e.target.value)}
+                      placeholder="City"
+                    />
+                  </Field>
+                  <Field label="Province">
+                    <Input
+                      value={form.province || ""}
+                      onChange={e => setField("province", e.target.value)}
+                      placeholder="Province"
+                    />
+                  </Field>
+                </div>
+
+                <Field label="Zip / Postal Code">
+                  <Input
+                    value={form.zip || ""}
+                    onChange={e => setField("zip", e.target.value)}
+                    placeholder="Zip / Postal Code"
+                  />
+                </Field>
+              </>
+            )}
+          </>
+        ) : null}
+
+        {/* ── STEP 2: Address (add modal only) ────────────────────────────── */}
+        {isAdd && step === 2 && (
+          <>
+            <p className="text-xs font-semibold" style={{ color: "#9aaa80" }}>
+              Address details are optional — you can update these later.
+            </p>
+
+            <Field label="Address">
+              <Input
+                value={form.address || ""}
+                onChange={e => setField("address", e.target.value)}
+                placeholder="Street address"
+              />
+            </Field>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="City">
+                <Input
+                  value={form.city || ""}
+                  onChange={e => setField("city", e.target.value)}
+                  placeholder="City"
+                />
+              </Field>
+              <Field label="Province">
+                <Input
+                  value={form.province || ""}
+                  onChange={e => setField("province", e.target.value)}
+                  placeholder="Province"
+                />
+              </Field>
+            </div>
+
+            <Field label="Zip / Postal Code">
+              <Input
+                value={form.zip || ""}
+                onChange={e => setField("zip", e.target.value)}
+                placeholder="Zip / Postal Code"
+              />
+            </Field>
+          </>
         )}
-
-        <div className="grid grid-cols-2 gap-3">
-          {/* First name */}
-          <Field label="First Name *">
-            <Input
-              value={form.first_name || ""}
-              onChange={e => setField("first_name", e.target.value)}
-              placeholder="e.g. Juan"
-              style={inp("first_name")}
-            />
-            <FieldErr msg={errs.first_name} />
-          </Field>
-
-          {/* Last name */}
-          <Field label="Last Name *">
-            <Input
-              value={form.last_name || ""}
-              onChange={e => setField("last_name", e.target.value)}
-              placeholder="e.g. Dela Cruz"
-              style={inp("last_name")}
-            />
-            <FieldErr msg={errs.last_name} />
-          </Field>
-        </div>
-
-        {/* Email */}
-        <Field label="Email *">
-          <Input
-            type="email"
-            value={form.email || ""}
-            onChange={e => setField("email", e.target.value)}
-            placeholder="example@email.com"
-            style={inp("email")}
-          />
-          <FieldErr msg={errs.email} />
-        </Field>
-
-        {/* Phone */}
-        <Field label="Phone *">
-          <Input
-            value={form.phone || ""}
-            onChange={e => setField("phone", e.target.value)}
-            placeholder="e.g. 09123456789"
-            maxLength={11}
-            style={inp("phone")}
-          />
-          <FieldErr msg={errs.phone} />
-        </Field>
-
-        {/* Role */}
-        <Field label="Role">
-          <Select
-            value={form.role || "user"}
-            onChange={e => setForm(f => ({ ...f, role: e.target.value }))}>
-            <option value="user">User</option>
-            <option value="admin">Admin</option>
-          </Select>
-        </Field>
-
-        {/* Address */}
-<Field label="Address">
-  <Input
-    value={form.address || ""}
-    onChange={e => setField("address", e.target.value)}
-    placeholder="Street address"
-    style={inp("address")}
-  />
-  <FieldErr msg={errs.address} />
-</Field>
-
-{/* City */}
-<Field label="City">
-  <Input
-    value={form.city || ""}
-    onChange={e => setField("city", e.target.value)}
-    placeholder="City"
-    style={inp("city")}
-  />
-  <FieldErr msg={errs.city} />
-</Field>
-
-{/* Province */}
-<Field label="Province">
-  <Input
-    value={form.province || ""}
-    onChange={e => setField("province", e.target.value)}
-    placeholder="Province"
-    style={inp("province")}
-  />
-  <FieldErr msg={errs.province} />
-</Field>
-
-{/* Zip */}
-<Field label="Zip / Postal Code">
-  <Input
-    value={form.zip || ""}
-    onChange={e => setField("zip", e.target.value)}
-    placeholder="Zip / Postal Code"
-    style={inp("zip")}
-  />
-  <FieldErr msg={errs.zip} />
-</Field>
 
       </Modal>
 
@@ -463,15 +572,15 @@ export default function UsersPanel({ show: isVisible }) {
         contentClassName="!p-0 !overflow-visible"
         footer={
           <div className="flex justify-between items-center w-full px-4 py-2">
-            {idPreview && (
-              <a
-                href={idPreview.url}
-                download={idPreview.name}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black border transition-all hover:bg-green-50 hover:border-green-400 hover:text-green-700"
-                style={{ borderColor: "#c5d8a0", color: "#4a7020" }}>
-                ⬇ Download
-              </a>
-            )}
+{idPreview && (
+  <a
+    href={idPreview.url}
+    download={idPreview.name}
+    className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black border transition-all hover:bg-green-50 hover:border-green-400 hover:text-green-700"
+    style={{ borderColor: "#c5d8a0", color: "#4a7020" }}>
+    ⬇ Download
+  </a>
+)}
             <BtnCancel onClick={() => setIdPreview(null)} />
           </div>
         }>
@@ -496,6 +605,7 @@ export default function UsersPanel({ show: isVisible }) {
           </div>
         )}
       </Modal>
+
     </div>
   );
 }
