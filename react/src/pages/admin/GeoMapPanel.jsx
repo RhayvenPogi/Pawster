@@ -1,150 +1,160 @@
-// ── GEO MAP PANEL — MapLibre GL JS + Nominatim OSM Geocoder (accurate) ──
+// ── GEO MAP PANEL — MapLibre GL JS + Nominatim OSM Geocoder (optimized) ──
 import { useState, useEffect, useRef, useCallback } from "react";
 import { phpApi, PageHeader } from "../../shared";
 
 const ORS_KEY = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImMxNDExZDdhZGUzOTQ5YmM5ZjNkMzc5ZGU0MTZlNjc2IiwiaCI6Im11cm11cjY0In0=";
 const ILOCOS_CENTER = [120.45, 17.0];
-const ILOCOS_ZOOM   = 7.8;
+const ILOCOS_ZOOM = 7.8;
 
 const PROVINCES = {
   "Ilocos Norte": { color: "#d4880a", center: [120.594, 18.197] },
-  "Ilocos Sur":   { color: "#c87820", center: [120.387, 17.575] },
-  "La Union":     { color: "#5aaa30", center: [120.317, 16.616] },
-  "Pangasinan":   { color: "#588B41", center: [120.333, 16.043] },
+  "Ilocos Sur": { color: "#c87820", center: [120.387, 17.575] },
+  "La Union": { color: "#5aaa30", center: [120.317, 16.616] },
+  "Pangasinan": { color: "#588B41", center: [120.333, 16.043] },
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GEOCODER — Nominatim OSM (full street + house number + barangay accuracy)
 // ─────────────────────────────────────────────────────────────────────────────
 
-const ILOCOS_BBOX = { minLat:15.50, maxLat:18.70, minLng:119.60, maxLng:121.00 };
+const ILOCOS_BBOX = { minLat: 15.50, maxLat: 18.70, minLng: 119.60, maxLng: 121.00 };
 
 const PROVINCE_CENTERS = {
-  "Ilocos Norte": { lat:18.1977, lng:120.5937 },
-  "Ilocos Sur":   { lat:17.5747, lng:120.3872 },
-  "La Union":     { lat:16.6159, lng:120.3166 },
-  "Pangasinan":   { lat:16.0430, lng:120.3330 },
+  "Ilocos Norte": { lat: 18.1977, lng: 120.5937 },
+  "Ilocos Sur": { lat: 17.5747, lng: 120.3872 },
+  "La Union": { lat: 16.6159, lng: 120.3166 },
+  "Pangasinan": { lat: 16.0430, lng: 120.3330 },
 };
 
-// Instant city-center fallback — no API call needed for city-level
 const CITY_CENTERS = {
   // Ilocos Norte
-  "laoag":{ lat:18.1977, lng:120.5937, province:"Ilocos Norte" },
-  "laoag city":{ lat:18.1977, lng:120.5937, province:"Ilocos Norte" },
-  "batac":{ lat:18.0554, lng:120.5648, province:"Ilocos Norte" },
-  "batac city":{ lat:18.0554, lng:120.5648, province:"Ilocos Norte" },
-  "pagudpud":{ lat:18.5629, lng:120.7940, province:"Ilocos Norte" },
-  "paoay":{ lat:18.0663, lng:120.5291, province:"Ilocos Norte" },
-  "bangui":{ lat:18.5333, lng:120.7667, province:"Ilocos Norte" },
-  "vintar":{ lat:18.2333, lng:120.6500, province:"Ilocos Norte" },
-  "pasuquin":{ lat:18.3333, lng:120.6167, province:"Ilocos Norte" },
-  "bacarra":{ lat:18.2500, lng:120.6167, province:"Ilocos Norte" },
-  "piddig":{ lat:18.1667, lng:120.7000, province:"Ilocos Norte" },
-  "sarrat":{ lat:18.1667, lng:120.6333, province:"Ilocos Norte" },
-  "dingras":{ lat:18.1000, lng:120.6833, province:"Ilocos Norte" },
-  "nueva era":{ lat:17.9333, lng:120.6667, province:"Ilocos Norte" },
-  "marcos":{ lat:18.0333, lng:120.7000, province:"Ilocos Norte" },
-  "espiritu":{ lat:18.2167, lng:120.5333, province:"Ilocos Norte" },
-  "badoc":{ lat:17.9167, lng:120.4667, province:"Ilocos Norte" },
-  "currimao":{ lat:17.9833, lng:120.4833, province:"Ilocos Norte" },
-  "pinili":{ lat:18.0167, lng:120.6167, province:"Ilocos Norte" },
-  "solsona":{ lat:18.0167, lng:120.7833, province:"Ilocos Norte" },
-  "adams":{ lat:18.4500, lng:120.9167, province:"Ilocos Norte" },
-  "carasi":{ lat:18.0167, lng:120.8333, province:"Ilocos Norte" },
-  "dumalneg":{ lat:18.3667, lng:120.8667, province:"Ilocos Norte" },
-  "banna":{ lat:18.1167, lng:120.6500, province:"Ilocos Norte" },
-  "san nicolas":{ lat:18.1733, lng:120.5933, province:"Ilocos Norte" },
-  "burgos":{ lat:18.5167, lng:120.6500, province:"Ilocos Norte" },
+  "laoag": { lat: 18.1977, lng: 120.5937, province: "Ilocos Norte" },
+  "laoag city": { lat: 18.1977, lng: 120.5937, province: "Ilocos Norte" },
+  "batac": { lat: 18.0554, lng: 120.5648, province: "Ilocos Norte" },
+  "batac city": { lat: 18.0554, lng: 120.5648, province: "Ilocos Norte" },
+  "pagudpud": { lat: 18.5629, lng: 120.7940, province: "Ilocos Norte" },
+  "paoay": { lat: 18.0663, lng: 120.5291, province: "Ilocos Norte" },
+  "bangui": { lat: 18.5333, lng: 120.7667, province: "Ilocos Norte" },
+  "vintar": { lat: 18.2333, lng: 120.6500, province: "Ilocos Norte" },
+  "pasuquin": { lat: 18.3333, lng: 120.6167, province: "Ilocos Norte" },
+  "bacarra": { lat: 18.2500, lng: 120.6167, province: "Ilocos Norte" },
+  "piddig": { lat: 18.1667, lng: 120.7000, province: "Ilocos Norte" },
+  "sarrat": { lat: 18.1667, lng: 120.6333, province: "Ilocos Norte" },
+  "dingras": { lat: 18.1000, lng: 120.6833, province: "Ilocos Norte" },
+  "nueva era": { lat: 17.9333, lng: 120.6667, province: "Ilocos Norte" },
+  "marcos": { lat: 18.0333, lng: 120.7000, province: "Ilocos Norte" },
+  "espiritu": { lat: 18.2167, lng: 120.5333, province: "Ilocos Norte" },
+  "badoc": { lat: 17.9167, lng: 120.4667, province: "Ilocos Norte" },
+  "currimao": { lat: 17.9833, lng: 120.4833, province: "Ilocos Norte" },
+  "pinili": { lat: 18.0167, lng: 120.6167, province: "Ilocos Norte" },
+  "solsona": { lat: 18.0167, lng: 120.7833, province: "Ilocos Norte" },
+  "adams": { lat: 18.4500, lng: 120.9167, province: "Ilocos Norte" },
+  "carasi": { lat: 18.0167, lng: 120.8333, province: "Ilocos Norte" },
+  "dumalneg": { lat: 18.3667, lng: 120.8667, province: "Ilocos Norte" },
+  "banna": { lat: 18.1167, lng: 120.6500, province: "Ilocos Norte" },
+  "san nicolas": { lat: 18.1733, lng: 120.5933, province: "Ilocos Norte" },
+  "burgos": { lat: 18.5167, lng: 120.6500, province: "Ilocos Norte" },
   // Ilocos Sur
-  "vigan":{ lat:17.5747, lng:120.3872, province:"Ilocos Sur" },
-  "vigan city":{ lat:17.5747, lng:120.3872, province:"Ilocos Sur" },
-  "candon":{ lat:17.1970, lng:120.4491, province:"Ilocos Sur" },
-  "candon city":{ lat:17.1970, lng:120.4491, province:"Ilocos Sur" },
-  "narvacan":{ lat:17.4213, lng:120.4388, province:"Ilocos Sur" },
-  "bantay":{ lat:17.6000, lng:120.3833, province:"Ilocos Sur" },
-  "sinait":{ lat:17.8500, lng:120.4333, province:"Ilocos Sur" },
-  "tagudin":{ lat:16.9333, lng:120.4500, province:"Ilocos Sur" },
-  "cabugao":{ lat:17.7833, lng:120.4000, province:"Ilocos Sur" },
-  "magsingal":{ lat:17.6833, lng:120.4167, province:"Ilocos Sur" },
-  "caoayan":{ lat:17.5333, lng:120.4000, province:"Ilocos Sur" },
-  "santa":{ lat:17.4667, lng:120.4333, province:"Ilocos Sur" },
-  "cervantes":{ lat:17.0167, lng:120.7667, province:"Ilocos Sur" },
-  "lidlidda":{ lat:17.0833, lng:120.5333, province:"Ilocos Sur" },
-  "nagbukel":{ lat:17.2167, lng:120.5000, province:"Ilocos Sur" },
-  "san emilio":{ lat:17.1500, lng:120.6000, province:"Ilocos Sur" },
-  "san esteban":{ lat:17.5833, lng:120.3667, province:"Ilocos Sur" },
-  "san ildefonso":{ lat:17.2000, lng:120.5833, province:"Ilocos Sur" },
-  "santa lucia":{ lat:17.1333, lng:120.4667, province:"Ilocos Sur" },
-  "santa maria":{ lat:17.3667, lng:120.4667, province:"Ilocos Sur" },
-  "santiago":{ lat:17.3167, lng:120.4500, province:"Ilocos Sur" },
-  "sigay":{ lat:17.0667, lng:120.5833, province:"Ilocos Sur" },
-  "sugpon":{ lat:16.9500, lng:120.5667, province:"Ilocos Sur" },
-  "suyo":{ lat:16.9000, lng:120.5167, province:"Ilocos Sur" },
-  "galimuyod":{ lat:17.1667, lng:120.5333, province:"Ilocos Sur" },
+  "vigan": { lat: 17.5747, lng: 120.3872, province: "Ilocos Sur" },
+  "vigan city": { lat: 17.5747, lng: 120.3872, province: "Ilocos Sur" },
+  "candon": { lat: 17.1970, lng: 120.4491, province: "Ilocos Sur" },
+  "candon city": { lat: 17.1970, lng: 120.4491, province: "Ilocos Sur" },
+  "narvacan": { lat: 17.4213, lng: 120.4388, province: "Ilocos Sur" },
+  "bantay": { lat: 17.6000, lng: 120.3833, province: "Ilocos Sur" },
+  "sinait": { lat: 17.8500, lng: 120.4333, province: "Ilocos Sur" },
+  "tagudin": { lat: 16.9333, lng: 120.4500, province: "Ilocos Sur" },
+  "cabugao": { lat: 17.7833, lng: 120.4000, province: "Ilocos Sur" },
+  "magsingal": { lat: 17.6833, lng: 120.4167, province: "Ilocos Sur" },
+  "caoayan": { lat: 17.5333, lng: 120.4000, province: "Ilocos Sur" },
+  "santa": { lat: 17.4667, lng: 120.4333, province: "Ilocos Sur" },
+  "cervantes": { lat: 17.0167, lng: 120.7667, province: "Ilocos Sur" },
+  "lidlidda": { lat: 17.0833, lng: 120.5333, province: "Ilocos Sur" },
+  "nagbukel": { lat: 17.2167, lng: 120.5000, province: "Ilocos Sur" },
+  "san emilio": { lat: 17.1500, lng: 120.6000, province: "Ilocos Sur" },
+  "san esteban": { lat: 17.5833, lng: 120.3667, province: "Ilocos Sur" },
+  "san ildefonso": { lat: 17.2000, lng: 120.5833, province: "Ilocos Sur" },
+  "santa lucia": { lat: 17.1333, lng: 120.4667, province: "Ilocos Sur" },
+  "santa maria": { lat: 17.3667, lng: 120.4667, province: "Ilocos Sur" },
+  "santiago": { lat: 17.3167, lng: 120.4500, province: "Ilocos Sur" },
+  "sigay": { lat: 17.0667, lng: 120.5833, province: "Ilocos Sur" },
+  "sugpon": { lat: 16.9500, lng: 120.5667, province: "Ilocos Sur" },
+  "suyo": { lat: 16.9000, lng: 120.5167, province: "Ilocos Sur" },
+  "galimuyod": { lat: 17.1667, lng: 120.5333, province: "Ilocos Sur" },
   // La Union
-  "san fernando":{ lat:16.6159, lng:120.3166, province:"La Union" },
-  "san fernando city":{ lat:16.6159, lng:120.3166, province:"La Union" },
-  "bauang":{ lat:16.5300, lng:120.3300, province:"La Union" },
-  "agoo":{ lat:16.3200, lng:120.3700, province:"La Union" },
-  "aringay":{ lat:16.3833, lng:120.3500, province:"La Union" },
-  "caba":{ lat:16.4833, lng:120.3500, province:"La Union" },
-  "naguilian":{ lat:16.5500, lng:120.3833, province:"La Union" },
-  "luna":{ lat:16.8667, lng:120.3667, province:"La Union" },
-  "balaoan":{ lat:16.8167, lng:120.3833, province:"La Union" },
-  "bacnotan":{ lat:16.7333, lng:120.3500, province:"La Union" },
-  "tubao":{ lat:16.4500, lng:120.4167, province:"La Union" },
-  "pugo":{ lat:16.4667, lng:120.4833, province:"La Union" },
-  "rosario":{ lat:16.2167, lng:120.4833, province:"La Union" },
-  "santo tomas":{ lat:16.3500, lng:120.3333, province:"La Union" },
-  "san gabriel":{ lat:16.7000, lng:120.4333, province:"La Union" },
-  "santol":{ lat:16.7667, lng:120.4333, province:"La Union" },
-  "sudipen":{ lat:16.7333, lng:120.5167, province:"La Union" },
-  "bagulin":{ lat:16.6167, lng:120.4500, province:"La Union" },
-  "bangar":{ lat:16.8833, lng:120.4167, province:"La Union" },
-  "san juan":{ lat:16.6500, lng:120.3200, province:"La Union" },
+  "san fernando": { lat: 16.6159, lng: 120.3166, province: "La Union" },
+  "san fernando city": { lat: 16.6159, lng: 120.3166, province: "La Union" },
+  "bauang": { lat: 16.5300, lng: 120.3300, province: "La Union" },
+  "agoo": { lat: 16.3200, lng: 120.3700, province: "La Union" },
+  "aringay": { lat: 16.3833, lng: 120.3500, province: "La Union" },
+  "caba": { lat: 16.4833, lng: 120.3500, province: "La Union" },
+  "naguilian": { lat: 16.5500, lng: 120.3833, province: "La Union" },
+  "luna": { lat: 16.8667, lng: 120.3667, province: "La Union" },
+  "balaoan": { lat: 16.8167, lng: 120.3833, province: "La Union" },
+  "bacnotan": { lat: 16.7333, lng: 120.3500, province: "La Union" },
+  "tubao": { lat: 16.4500, lng: 120.4167, province: "La Union" },
+  "pugo": { lat: 16.4667, lng: 120.4833, province: "La Union" },
+  "rosario": { lat: 16.2167, lng: 120.4833, province: "La Union" },
+  "santo tomas": { lat: 16.3500, lng: 120.3333, province: "La Union" },
+  "san gabriel": { lat: 16.7000, lng: 120.4333, province: "La Union" },
+  "santol": { lat: 16.7667, lng: 120.4333, province: "La Union" },
+  "sudipen": { lat: 16.7333, lng: 120.5167, province: "La Union" },
+  "bagulin": { lat: 16.6167, lng: 120.4500, province: "La Union" },
+  "bangar": { lat: 16.8833, lng: 120.4167, province: "La Union" },
+  "san juan": { lat: 16.6500, lng: 120.3200, province: "La Union" },
   // Pangasinan
-  "dagupan":{ lat:16.0430, lng:120.3330, province:"Pangasinan" },
-  "dagupan city":{ lat:16.0430, lng:120.3330, province:"Pangasinan" },
-  "alaminos":{ lat:16.1555, lng:119.9796, province:"Pangasinan" },
-  "alaminos city":{ lat:16.1555, lng:119.9796, province:"Pangasinan" },
-  "urdaneta":{ lat:15.9765, lng:120.5706, province:"Pangasinan" },
-  "urdaneta city":{ lat:15.9765, lng:120.5706, province:"Pangasinan" },
-  "lingayen":{ lat:16.0200, lng:120.2300, province:"Pangasinan" },
-  "san carlos":{ lat:15.9255, lng:120.3486, province:"Pangasinan" },
-  "san carlos city":{ lat:15.9255, lng:120.3486, province:"Pangasinan" },
-  "calasiao":{ lat:16.0100, lng:120.3600, province:"Pangasinan" },
-  "manaoag":{ lat:15.9700, lng:120.4900, province:"Pangasinan" },
-  "pozorrubio":{ lat:16.1167, lng:120.5500, province:"Pangasinan" },
-  "sison":{ lat:16.1833, lng:120.5333, province:"Pangasinan" },
-  "umingan":{ lat:15.9167, lng:120.8000, province:"Pangasinan" },
-  "tayug":{ lat:15.9500, lng:120.7333, province:"Pangasinan" },
-  "laoac":{ lat:15.8500, lng:120.5500, province:"Pangasinan" },
-  "malasiqui":{ lat:15.9167, lng:120.4167, province:"Pangasinan" },
-  "mangaldan":{ lat:16.0667, lng:120.4333, province:"Pangasinan" },
-  "mapandan":{ lat:16.0833, lng:120.4500, province:"Pangasinan" },
-  "rosales":{ lat:15.8833, lng:120.6333, province:"Pangasinan" },
-  "san fabian":{ lat:16.1167, lng:120.3833, province:"Pangasinan" },
-  "villasis":{ lat:15.9000, lng:120.5833, province:"Pangasinan" },
-  "sual":{ lat:16.0667, lng:120.1000, province:"Pangasinan" },
-  "bolinao":{ lat:16.3833, lng:119.8833, province:"Pangasinan" },
-  "dasol":{ lat:15.9833, lng:119.8833, province:"Pangasinan" },
-  "masinloc":{ lat:15.5333, lng:119.9500, province:"Pangasinan" },
+  "dagupan": { lat: 16.0430, lng: 120.3330, province: "Pangasinan" },
+  "dagupan city": { lat: 16.0430, lng: 120.3330, province: "Pangasinan" },
+  "alaminos": { lat: 16.1555, lng: 119.9796, province: "Pangasinan" },
+  "alaminos city": { lat: 16.1555, lng: 119.9796, province: "Pangasinan" },
+  "urdaneta": { lat: 15.9765, lng: 120.5706, province: "Pangasinan" },
+  "urdaneta city": { lat: 15.9765, lng: 120.5706, province: "Pangasinan" },
+  "lingayen": { lat: 16.0200, lng: 120.2300, province: "Pangasinan" },
+  "san carlos": { lat: 15.9255, lng: 120.3486, province: "Pangasinan" },
+  "san carlos city": { lat: 15.9255, lng: 120.3486, province: "Pangasinan" },
+  "calasiao": { lat: 16.0100, lng: 120.3600, province: "Pangasinan" },
+  "manaoag": { lat: 15.9700, lng: 120.4900, province: "Pangasinan" },
+  "pozorrubio": { lat: 16.1167, lng: 120.5500, province: "Pangasinan" },
+  "sison": { lat: 16.1833, lng: 120.5333, province: "Pangasinan" },
+  "umingan": { lat: 15.9167, lng: 120.8000, province: "Pangasinan" },
+  "tayug": { lat: 15.9500, lng: 120.7333, province: "Pangasinan" },
+  "laoac": { lat: 15.8500, lng: 120.5500, province: "Pangasinan" },
+  "malasiqui": { lat: 15.9167, lng: 120.4167, province: "Pangasinan" },
+  "mangaldan": { lat: 16.0667, lng: 120.4333, province: "Pangasinan" },
+  "mapandan": { lat: 16.0833, lng: 120.4500, province: "Pangasinan" },
+  "rosales": { lat: 15.8833, lng: 120.6333, province: "Pangasinan" },
+  "san fabian": { lat: 16.1167, lng: 120.3833, province: "Pangasinan" },
+  "villasis": { lat: 15.9000, lng: 120.5833, province: "Pangasinan" },
+  "sual": { lat: 16.0667, lng: 120.1000, province: "Pangasinan" },
+  "bolinao": { lat: 16.3833, lng: 119.8833, province: "Pangasinan" },
+  "dasol": { lat: 15.9833, lng: 119.8833, province: "Pangasinan" },
+  "masinloc": { lat: 15.5333, lng: 119.9500, province: "Pangasinan" },
 };
 
 const PROV_MAP = {
-  "ilocos norte":"Ilocos Norte","iln":"Ilocos Norte",
-  "ilocos sur":"Ilocos Sur","ils":"Ilocos Sur",
-  "la union":"La Union","lau":"La Union",
-  "pangasinan":"Pangasinan","pan":"Pangasinan",
+  "ilocos norte": "Ilocos Norte", "iln": "Ilocos Norte",
+  "ilocos sur": "Ilocos Sur", "ils": "Ilocos Sur",
+  "la union": "La Union", "lau": "La Union",
+  "pangasinan": "Pangasinan", "pan": "Pangasinan",
 };
 
-// In-memory cache — avoids duplicate Nominatim calls across renders
+// ─── Persistent geocode cache (sessionStorage survives page refresh) ───
 const _geoCache = new Map();
+try {
+  const saved = JSON.parse(sessionStorage.getItem("geo_cache") || "{}");
+  Object.entries(saved).forEach(([k, v]) => _geoCache.set(k, v));
+} catch { }
 
+function _persistCache() {
+  try {
+    const obj = {};
+    _geoCache.forEach((v, k) => { obj[k] = v; });
+    sessionStorage.setItem("geo_cache", JSON.stringify(obj));
+  } catch { }
+}
 
 function inRegion(lat, lng) {
   return lat >= ILOCOS_BBOX.minLat && lat <= ILOCOS_BBOX.maxLat &&
-         lng >= ILOCOS_BBOX.minLng && lng <= ILOCOS_BBOX.maxLng;
+    lng >= ILOCOS_BBOX.minLng && lng <= ILOCOS_BBOX.maxLng;
 }
 
 function guessProvFromCoords(lat, lng) {
@@ -167,40 +177,35 @@ function jitter(amt = 0.003) { return (Math.random() - 0.5) * amt; }
 
 function precisionFromType(type) {
   if (!type) return "city";
-  if (["house","building","residential"].includes(type)) return "street";
-  if (["suburb","quarter","neighbourhood","hamlet","village","amenity"].includes(type)) return "barangay";
-  if (["city","town","municipality","administrative"].includes(type)) return "city";
+  if (["house", "building", "residential"].includes(type)) return "street";
+  if (["suburb", "quarter", "neighbourhood", "hamlet", "village", "amenity"].includes(type)) return "barangay";
+  if (["city", "town", "municipality", "administrative"].includes(type)) return "city";
   return "city";
 }
 
+// ─── Nominatim with persistent cache ───
 async function nominatim(query) {
   const key = query.toLowerCase().trim();
   if (_geoCache.has(key)) return _geoCache.get(key);
 
   try {
     const token = localStorage.getItem("pawster_token") ||
-                  localStorage.getItem("token") || "";
+      localStorage.getItem("token") || "";
 
     const res = await fetch(
       `/php/admin/dashboard?action=nominatim_search&q=${encodeURIComponent(query)}`,
-      {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      }
+      { headers: token ? { Authorization: `Bearer ${token}` } : {} }
     );
 
-    if (!res.ok) { _geoCache.set(key, null); return null; }
+    if (!res.ok) { _geoCache.set(key, null); _persistCache(); return null; }
 
     const data = await res.json();
     if (!Array.isArray(data) || data.length === 0) {
-      _geoCache.set(key, null);
-      return null;
+      _geoCache.set(key, null); _persistCache(); return null;
     }
 
-    const hit = data.find(r =>
-      inRegion(parseFloat(r.lat), parseFloat(r.lon))
-    ) || data[0];
-
-    if (!hit) { _geoCache.set(key, null); return null; }
+    const hit = data.find(r => inRegion(parseFloat(r.lat), parseFloat(r.lon))) || data[0];
+    if (!hit) { _geoCache.set(key, null); _persistCache(); return null; }
 
     const result = {
       lat: parseFloat(hit.lat),
@@ -209,6 +214,7 @@ async function nominatim(query) {
       type: hit.type,
     };
     _geoCache.set(key, result);
+    _persistCache();
     return result;
   } catch {
     _geoCache.set(key, null);
@@ -216,61 +222,58 @@ async function nominatim(query) {
   }
 }
 
+// ─── OPTIMIZED geocodeAddress: city cache first, single Nominatim call ───
 async function geocodeAddress(address, city, province) {
-  const prov = detectProvince(`${province||""} ${city||""} ${address||""}`);
+  const prov = detectProvince(`${province || ""} ${city || ""} ${address || ""}`);
   const addr = (address || "").trim();
-  const cty  = (city || "").trim();
+  const cty = (city || "").trim();
+  const cLow = cty.toLowerCase();
+  const cityHit = CITY_CENTERS[cLow];
 
-  // Fast path: no address — use instant city center lookup
-  if (!addr && cty) {
-    const c = CITY_CENTERS[cty.toLowerCase()];
-    if (c) return { lat: c.lat + jitter(), lng: c.lng + jitter(), province: c.province || prov, inRegion: true, precision: "city" };
-  }
-
-  // Build progressive query list (most specific → least)
-  const queries = [];
-  if (addr && cty) {
-    queries.push(`${addr}, ${cty}, ${province || "Ilocos Region"}, Philippines`);
-    // Strip leading house number
-    const stripped = addr.replace(/^\d+[\s\-,]*/, "").trim();
-    if (stripped && stripped !== addr) {
-      queries.push(`${stripped}, ${cty}, ${province || "Ilocos Region"}, Philippines`);
+  // Fast path: no street address → instant city center (zero API calls)
+  if (!addr) {
+    if (cityHit) return { lat: cityHit.lat + jitter(), lng: cityHit.lng + jitter(), province: cityHit.province || prov, inRegion: true, precision: "city" };
+    if (prov && PROVINCE_CENTERS[prov]) {
+      const p = PROVINCE_CENTERS[prov];
+      return { lat: p.lat + jitter(0.05), lng: p.lng + jitter(0.05), province: prov, inRegion: true, precision: "province" };
     }
+    return { inRegion: false };
   }
-  if (addr && province) queries.push(`${addr}, ${province}, Philippines`);
-  if (cty) queries.push(`${cty}, ${province || "Ilocos Region"}, Philippines`);
 
-  for (const q of queries) {
+  // Has street address → ONE Nominatim call (most specific)
+  if (cty) {
+    const q = `${addr}, ${cty}, ${province || "Ilocos Region"}, Philippines`;
     const r = await nominatim(q);
     if (r && inRegion(r.lat, r.lng)) {
-      return {
-        lat: r.lat + jitter(0.001),
-        lng: r.lng + jitter(0.001),
-        province: prov || guessProvFromCoords(r.lat, r.lng),
-        inRegion: true,
-        precision: precisionFromType(r.type),
-        nominatimLabel: r.displayName,
-      };
+      return { lat: r.lat + jitter(0.001), lng: r.lng + jitter(0.001), province: prov || guessProvFromCoords(r.lat, r.lng), inRegion: true, precision: precisionFromType(r.type), nominatimLabel: r.displayName };
+    }
+    // Try stripped house number as fallback
+    const stripped = addr.replace(/^\d+[\s\-,]*/, "").trim();
+    if (stripped && stripped !== addr) {
+      const r2 = await nominatim(`${stripped}, ${cty}, ${province || "Ilocos Region"}, Philippines`);
+      if (r2 && inRegion(r2.lat, r2.lng)) {
+        return { lat: r2.lat + jitter(0.001), lng: r2.lng + jitter(0.001), province: prov || guessProvFromCoords(r2.lat, r2.lng), inRegion: true, precision: precisionFromType(r2.type), nominatimLabel: r2.displayName };
+      }
+    }
+  } else if (prov) {
+    const r = await nominatim(`${addr}, ${prov}, Philippines`);
+    if (r && inRegion(r.lat, r.lng)) {
+      return { lat: r.lat + jitter(0.001), lng: r.lng + jitter(0.001), province: prov || guessProvFromCoords(r.lat, r.lng), inRegion: true, precision: precisionFromType(r.type), nominatimLabel: r.displayName };
     }
   }
 
-  // Fallback: city center table
-  const cLow = cty.toLowerCase();
-  if (CITY_CENTERS[cLow]) {
-    const c = CITY_CENTERS[cLow];
-    return { lat: c.lat + jitter(0.008), lng: c.lng + jitter(0.008), province: c.province || prov, inRegion: true, precision: "city" };
-  }
-
-  // Fallback: province center
+  // Nominatim failed → fall back to city center instantly (no more API calls)
+  if (cityHit) return { lat: cityHit.lat + jitter(0.008), lng: cityHit.lng + jitter(0.008), province: cityHit.province || prov, inRegion: true, precision: "city" };
   if (prov && PROVINCE_CENTERS[prov]) {
     const p = PROVINCE_CENTERS[prov];
     return { lat: p.lat + jitter(0.05), lng: p.lng + jitter(0.05), province: prov, inRegion: true, precision: "province" };
   }
-
   return { inRegion: false };
 }
 
 async function geocodeUser(user) {
+  // Skip entirely if no location data at all
+  if (!user.address && !user.city && !user.province) return { inRegion: false };
   return geocodeAddress(user.address, user.city, user.province);
 }
 
@@ -297,6 +300,30 @@ async function geocodeText(text) {
   throw new Error(`"${text}" not found. Try: "Rizal St, Laoag City", "Brgy 2, Vigan City Ilocos Sur"`);
 }
 
+// ─── Concurrent batch geocoder ───
+// Runs up to `concurrency` geocode calls in parallel.
+// Cache-hits are synchronous so high concurrency is safe.
+async function geocodeBatch(items, geocodeFn, onProgress, startOffset = 0, concurrency = 15) {
+  const results = new Array(items.length).fill(null);
+  let completed = 0;
+
+  async function worker(i) {
+    results[i] = await geocodeFn(items[i]);
+    completed++;
+    onProgress(startOffset + completed);
+  }
+
+  for (let i = 0; i < items.length; i += concurrency) {
+    const chunk = [];
+    for (let j = i; j < Math.min(i + concurrency, items.length); j++) {
+      chunk.push(worker(j));
+    }
+    await Promise.all(chunk);
+  }
+
+  return results;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // ORS Routing
 // ─────────────────────────────────────────────────────────────────────────────
@@ -317,11 +344,11 @@ async function getRoute(sLat, sLng, eLat, eLng) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Math helpers
 // ─────────────────────────────────────────────────────────────────────────────
-function hM(a, b) { const R=6371000,r=d=>d*Math.PI/180;const dLat=r(b[1]-a[1]),dLng=r(b[0]-a[0]);const s=Math.sin(dLat/2)**2+Math.cos(r(a[1]))*Math.cos(r(b[1]))*Math.sin(dLng/2)**2;return R*2*Math.atan2(Math.sqrt(s),Math.sqrt(1-s)); }
-function snap(coords, lat, lng) { let b=0,bd=Infinity;coords.forEach(([cL,cA],i)=>{const d=hM([cL,cA],[lng,lat]);if(d<bd){bd=d;b=i;}});return b; }
-function remKm(coords, i) { let d=0;for(let j=i;j<coords.length-1;j++)d+=hM(coords[j],coords[j+1]);return d/1000; }
-function nxtTurn(steps, tm) { let c=0;for(const s of steps){c+=s.distance||0;if(tm<c){const d=c-tm;return{instruction:s.instruction||"Continue",distToTurn:d<1000?`${Math.round(d)} m`:`${(d/1000).toFixed(1)} km`};}}return{instruction:"You have arrived!",distToTurn:""}; }
-function tIcon(ins) { const i=(ins||"").toLowerCase();if(i.includes("left"))return"↰";if(i.includes("right"))return"↱";if(i.includes("u-turn"))return"↩";if(i.includes("roundabout"))return"⟳";if(i.includes("arrive")||i.includes("destination"))return"🏁";return"↑"; }
+function hM(a, b) { const R = 6371000, r = d => d * Math.PI / 180; const dLat = r(b[1] - a[1]), dLng = r(b[0] - a[0]); const s = Math.sin(dLat / 2) ** 2 + Math.cos(r(a[1])) * Math.cos(r(b[1])) * Math.sin(dLng / 2) ** 2; return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s)); }
+function snap(coords, lat, lng) { let b = 0, bd = Infinity; coords.forEach(([cL, cA], i) => { const d = hM([cL, cA], [lng, lat]); if (d < bd) { bd = d; b = i; } }); return b; }
+function remKm(coords, i) { let d = 0; for (let j = i; j < coords.length - 1; j++)d += hM(coords[j], coords[j + 1]); return d / 1000; }
+function nxtTurn(steps, tm) { let c = 0; for (const s of steps) { c += s.distance || 0; if (tm < c) { const d = c - tm; return { instruction: s.instruction || "Continue", distToTurn: d < 1000 ? `${Math.round(d)} m` : `${(d / 1000).toFixed(1)} km` }; } } return { instruction: "You have arrived!", distToTurn: "" }; }
+function tIcon(ins) { const i = (ins || "").toLowerCase(); if (i.includes("left")) return "↰"; if (i.includes("right")) return "↱"; if (i.includes("u-turn")) return "↩"; if (i.includes("roundabout")) return "⟳"; if (i.includes("arrive") || i.includes("destination")) return "🏁"; return "↑"; }
 function pColor(p) { return PROVINCES[p]?.color || "#2a7010"; }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -447,7 +474,6 @@ function BarChart({ data, color = "#2a7010" }) {
   );
 }
 
-// Geocoding progress bar shown while async geocoding runs
 function GeocodingProgress({ done, total }) {
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
   return (
@@ -459,7 +485,7 @@ function GeocodingProgress({ done, total }) {
       <div style={{ height: 6, borderRadius: 3, background: "rgba(42,112,16,.1)", overflow: "hidden" }}>
         <div style={{ height: "100%", width: `${pct}%`, background: "linear-gradient(90deg,#1c4f09,#5aaa30)", borderRadius: 3, transition: "width .3s ease" }} />
       </div>
-      <div style={{ fontSize: 10, color: "#9aaa80", marginTop: 4 }}>Street-level accuracy · Nominatim OSM · 1 req/sec</div>
+      <div style={{ fontSize: 10, color: "#9aaa80", marginTop: 4 }}>Street-level accuracy · Nominatim OSM · concurrent batch mode</div>
     </div>
   );
 }
@@ -681,27 +707,47 @@ export default function GeoMapPanel({ show }) {
       setLoading(false);
       setGeocodingProgress({ done: 0, total: totalItems, active: true });
 
-      // Geocode users one by one (Nominatim: 1 req/sec, but cached)
-      const geocodedU = [];
-      for (let i = 0; i < users.length; i++) {
-        const u = users[i];
-        const geo = await geocodeUser(u);
-        if (geo.inRegion) geocodedU.push({ ...u, _geo: geo });
-        setGeocodingProgress(p => ({ ...p, done: i + 1 }));
-        // Flush to map as they come in (batched every 5)
-        if ((i + 1) % 5 === 0 || i === users.length - 1) {
-          setGeocodedUsers([...geocodedU]);
-        }
-      }
+      // ── Geocode users: concurrent batches of 15 ──
+      // Cache-hits (city table) are synchronous → safe to run many at once.
+      // Only real Nominatim calls are rate-limited by the server proxy.
+      const userGeoResults = [];
+      await geocodeBatch(
+        users,
+        async (user) => {
+          const result = await geocodeUser(user);
+          userGeoResults.push(result);
+          return result;
+        },
+        (done) => {
+          setGeocodingProgress(p => ({ ...p, done }));
+          if (done % 15 === 0) {
+            setGeocodedUsers(
+              users.slice(0, done)
+                .map((u, i) => userGeoResults[i]?.inRegion ? { ...u, _geo: userGeoResults[i] } : null)
+                .filter(Boolean)
+            );
+          }
+        },
+        0,
+        15
+      );
+      const geocodedU = users
+        .map((u, i) => userGeoResults[i]?.inRegion ? { ...u, _geo: userGeoResults[i] } : null)
+        .filter(Boolean);
+      setGeocodedUsers(geocodedU);
 
-      // Geocode pets
-      const geocodedP = [];
-      for (let i = 0; i < approved.length; i++) {
-        const pet = approved[i];
-        const geo = await geocodePet(pet);
-        if (geo.inRegion) geocodedP.push({ ...pet, _geo: geo });
-        setGeocodingProgress(p => ({ ...p, done: users.length + i + 1 }));
-      }
+      // ── Geocode pets: concurrent batches of 10 ──
+      const petGeoResults = await geocodeBatch(
+        approved,
+        geocodePet,
+        (done) => setGeocodingProgress(p => ({ ...p, done: users.length + done })),
+        0,
+        10
+      );
+
+      const geocodedP = approved
+        .map((pet, i) => petGeoResults[i]?.inRegion ? { ...pet, _geo: petGeoResults[i] } : null)
+        .filter(Boolean);
       setMissingPets(geocodedP);
       setGeocodingProgress({ done: totalItems, total: totalItems, active: false });
 
@@ -773,7 +819,6 @@ export default function GeoMapPanel({ show }) {
         ))}
       </div>
 
-      {/* Geocoding progress bar */}
       {geocodingProgress.active && (
         <GeocodingProgress done={geocodingProgress.done} total={geocodingProgress.total} />
       )}
