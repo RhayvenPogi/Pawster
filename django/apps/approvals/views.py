@@ -1,6 +1,7 @@
 """
 apps/approvals/views.py
-8 endpoints — submit adoption/rehome, list all, approve, reject (each sends email).
+10 endpoints — submit adoption/rehome, list all, approve, reject,
+UPDATE, and DELETE (each action sends email where applicable).
 """
 import requests
 from django.conf import settings
@@ -91,6 +92,32 @@ def _rehome_rejection_email(rehome):
     )
 
 
+def _adoption_update_email(adoption):
+    _send(
+        subject=f"Your adoption request for {adoption.animal_name} has been updated",
+        body=(
+            f"Hi {adoption.name},\n\n"
+            f"An admin has updated your adoption request for {adoption.animal_name}.\n"
+            f"If you have any questions, please contact us.\n\n"
+            f"— The Pawster Team"
+        ),
+        to=adoption.email,
+    )
+
+
+def _rehome_update_email(rehome):
+    _send(
+        subject=f"Your rehoming request for {rehome.pet_name} has been updated",
+        body=(
+            f"Hello,\n\n"
+            f"An admin has updated your rehoming request for {rehome.pet_name}.\n"
+            f"If you have any questions, please reach out to us.\n\n"
+            f"— The Pawster Team"
+        ),
+        to=rehome.user.email if rehome.user else None,
+    )
+
+
 # ── Adoption endpoints ────────────────────────────────────────────────────────
 
 @api_view(["POST"])
@@ -141,7 +168,7 @@ def approve_adoption(request, pk):
     obj.adoption_date = timezone.now()
     obj.save()
 
-    # ✅ NEW: Tell Spring Boot to mark the animal as Adopted
+    # ✅ Tell Spring Boot to mark the animal as Adopted
     try:
         spring_url = f"{settings.SPRING_BOOT_API}/api/animals/mark-adopted"
         requests.post(
@@ -200,6 +227,43 @@ def reject_adoption(request, pk):
 
     _adoption_rejection_email(obj)
     return Response({"success": True, "message": f"Adoption #{pk} rejected."})
+
+
+@api_view(["PATCH"])
+@permission_classes([IsAdminUser])
+def update_adoption(request, pk):
+    """PATCH /api/approvals/adoptions/<pk>/update/  — admin edits adoption request fields"""
+    try:
+        obj = AdoptionRequest.objects.get(pk=pk)
+    except AdoptionRequest.DoesNotExist:
+        return Response({"success": False, "message": "Not found."}, status=404)
+
+    # Disallow changing status via this endpoint — use approve/reject for that
+    data = request.data.copy()
+    data.pop("status", None)
+    data.pop("decided_by", None)
+    data.pop("decided_at", None)
+
+    serializer = AdoptionRequestSerializer(obj, data=data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        _adoption_update_email(obj)
+        return Response({"success": True, "message": f"Adoption #{pk} updated.", "data": serializer.data})
+    return Response({"success": False, "errors": serializer.errors}, status=400)
+
+
+@api_view(["DELETE"])
+@permission_classes([IsAdminUser])
+def delete_adoption(request, pk):
+    """DELETE /api/approvals/adoptions/<pk>/delete/  — admin deletes adoption request"""
+    try:
+        obj = AdoptionRequest.objects.get(pk=pk)
+    except AdoptionRequest.DoesNotExist:
+        return Response({"success": False, "message": "Not found."}, status=404)
+
+    animal_name = obj.animal_name
+    obj.delete()
+    return Response({"success": True, "message": f"Adoption request for '{animal_name}' deleted."})
 
 
 # ── Rehoming endpoints ────────────────────────────────────────────────────────
@@ -287,6 +351,7 @@ def approve_rehoming(request, pk):
     _rehome_approval_email(obj)
     return Response({"success": True, "message": f"Rehoming #{pk} approved."})
 
+
 @api_view(["POST"])
 @permission_classes([IsAdminUser])
 def reject_rehoming(request, pk):
@@ -317,3 +382,40 @@ def reject_rehoming(request, pk):
 
     _rehome_rejection_email(obj)
     return Response({"success": True, "message": f"Rehoming #{pk} rejected."})
+
+
+@api_view(["PATCH"])
+@permission_classes([IsAdminUser])
+def update_rehoming(request, pk):
+    """PATCH /api/approvals/rehoming/<pk>/update/  — admin edits rehoming request fields"""
+    try:
+        obj = RehomingRequest.objects.get(pk=pk)
+    except RehomingRequest.DoesNotExist:
+        return Response({"success": False, "message": "Not found."}, status=404)
+
+    # Disallow changing status via this endpoint — use approve/reject for that
+    data = request.data.copy()
+    data.pop("status", None)
+    data.pop("decided_by", None)
+    data.pop("decided_at", None)
+
+    serializer = RehomingRequestSerializer(obj, data=data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        _rehome_update_email(obj)
+        return Response({"success": True, "message": f"Rehoming #{pk} updated.", "data": serializer.data})
+    return Response({"success": False, "errors": serializer.errors}, status=400)
+
+
+@api_view(["DELETE"])
+@permission_classes([IsAdminUser])
+def delete_rehoming(request, pk):
+    """DELETE /api/approvals/rehoming/<pk>/delete/  — admin deletes rehoming request"""
+    try:
+        obj = RehomingRequest.objects.get(pk=pk)
+    except RehomingRequest.DoesNotExist:
+        return Response({"success": False, "message": "Not found."}, status=404)
+
+    pet_name = obj.pet_name
+    obj.delete()
+    return Response({"success": True, "message": f"Rehoming request for '{pet_name}' deleted."})
