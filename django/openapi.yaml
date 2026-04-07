@@ -12,8 +12,8 @@ info:
     **Admin endpoints** require the token to carry a role of `ROLE_ADMIN`, `ADMIN`, or `admin`.
 
 servers:
-  - url: http://localhost:8000
-    description: Local development
+  - url: http://localhost:8082
+    description: Local development (Docker)
 
 security:
   - BearerAuth: []
@@ -24,8 +24,6 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-
-  # ── Reusable schemas ──────────────────────────────────────────────────────
 
   schemas:
 
@@ -256,8 +254,6 @@ components:
       properties:
         reason: { type: string, description: "Rejection reason (required)" }
 
-  # ── Reusable responses ────────────────────────────────────────────────────
-
   responses:
     Unauthorized:
       description: Missing or invalid JWT
@@ -388,6 +384,64 @@ paths:
         "403": { $ref: '#/components/responses/Forbidden' }
         "404": { $ref: '#/components/responses/NotFound' }
 
+  /api/approvals/adoptions/{id}/update/:
+    patch:
+      tags: [Adoptions]
+      summary: Update an adoption request (admin)
+      description: |
+        Admin can edit adoption request fields. Status, decided_by, and decided_at
+        cannot be changed via this endpoint — use approve/reject for that.
+        Sends an update notification email to the applicant.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdoptionRequest' }
+      responses:
+        "200":
+          description: Adoption request updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  data:    { $ref: '#/components/schemas/AdoptionRequest' }
+        "400":
+          description: Validation errors
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+        "404": { $ref: '#/components/responses/NotFound' }
+
+  /api/approvals/adoptions/{id}/delete/:
+    delete:
+      tags: [Adoptions]
+      summary: Delete an adoption request (admin)
+      description: Permanently deletes an adoption request record.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Adoption request deleted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuccessMessage' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+        "404": { $ref: '#/components/responses/NotFound' }
+
   # ════════════════════════════════════════════════════
   # REHOMING
   # ════════════════════════════════════════════════════
@@ -413,10 +467,10 @@ paths:
                   id:      { type: integer }
                   message: { type: string }
         "400":
+          description: Validation errors
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
-          description: Validation errors
         "401": { $ref: '#/components/responses/Unauthorized' }
 
   /api/approvals/rehoming/admin/:
@@ -491,6 +545,64 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+        "404": { $ref: '#/components/responses/NotFound' }
+
+  /api/approvals/rehoming/{id}/update/:
+    patch:
+      tags: [Rehoming]
+      summary: Update a rehoming request (admin)
+      description: |
+        Admin can edit rehoming request fields. Status, decided_by, and decided_at
+        cannot be changed via this endpoint — use approve/reject for that.
+        Sends an update notification email to the submitter.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RehomingRequest' }
+      responses:
+        "200":
+          description: Rehoming request updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  data:    { $ref: '#/components/schemas/RehomingRequest' }
+        "400":
+          description: Validation errors
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+        "404": { $ref: '#/components/responses/NotFound' }
+
+  /api/approvals/rehoming/{id}/delete/:
+    delete:
+      tags: [Rehoming]
+      summary: Delete a rehoming request (admin)
+      description: Permanently deletes a rehoming request record.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Rehoming request deleted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuccessMessage' }
         "401": { $ref: '#/components/responses/Unauthorized' }
         "403": { $ref: '#/components/responses/Forbidden' }
         "404": { $ref: '#/components/responses/NotFound' }
