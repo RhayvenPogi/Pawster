@@ -28,6 +28,7 @@ INSTALLED_APPS = [
     "apps.approvals",
     "apps.surveys",
     "apps.notifications",
+    'drf_spectacular',
 ]
 
 MIDDLEWARE = [
@@ -71,8 +72,10 @@ DATABASES = {
 
 # ── REST Framework — uses custom Spring Boot JWT authenticator ────────────────
 REST_FRAMEWORK = {
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "apps.approvals.authentication.SpringBootJWTAuthentication",
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",

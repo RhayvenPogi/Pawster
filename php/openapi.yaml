@@ -5,7 +5,7 @@ info:
   description: Action-based Admin Dashboard API using PHP (single endpoint with action parameter)
 
 servers:
-  - url: http://localhost
+  url: http://localhost:8081
 
 paths:
   /health:

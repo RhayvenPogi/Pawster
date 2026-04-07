@@ -8,6 +8,20 @@ use App\Middleware\JwtMiddleware;
 use PDO;
 use PDOException;
 
+/**
+ * @OA\Info(
+ *     title="Pawster Admin API",
+ *     version="1.0",
+ *     description="Admin Dashboard API for Pawster"
+ * )
+ *
+ * @OA\SecurityScheme(
+ *     securityScheme="bearerAuth",
+ *     type="http",
+ *     scheme="bearer",
+ *     bearerFormat="JWT"
+ * )
+ */
 class AdminDashboardController
 {
     private object $jwtPayload;
