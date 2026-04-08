@@ -65,6 +65,26 @@ const ICO_COLORS = {
   "ico-rose":   { bg: "rgba(176,48,96,0.14)",  color: "#b03060" },
 };
 
+// ── HELPERS ────────────────────────────────────────────────────────────────────
+/**
+ * Returns true if the record should be considered deleted.
+ * Covers: deleted_at (timestamp), is_deleted (bool/int), status === "deleted"
+ */
+function isDeleted(item) {
+  if (!item) return false;
+  if (item.deleted_at !== undefined && item.deleted_at !== null && item.deleted_at !== "") return true;
+  if (item.deletedAt  !== undefined && item.deletedAt  !== null && item.deletedAt  !== "") return true;
+  if (item.is_deleted !== undefined && (item.is_deleted === true || item.is_deleted === 1 || item.is_deleted === "1")) return true;
+  if (item.isDeleted  !== undefined && (item.isDeleted  === true || item.isDeleted  === 1 || item.isDeleted  === "1")) return true;
+  if (typeof item.status === "string" && item.status.toLowerCase() === "deleted") return true;
+  return false;
+}
+
+function filterActive(arr) {
+  if (!Array.isArray(arr)) return [];
+  return arr.filter(item => !isDeleted(item));
+}
+
 // ── MESH BACKGROUND ────────────────────────────────────────────────────────────
 function MeshBackground() {
   return (
@@ -197,29 +217,29 @@ function ProfileModal({ user, onClose, onUserUpdate, defaultTab = "profile" }) {
     reader.readAsDataURL(f);
   };
 
-const uploadPhoto = async () => {
-  if (!pendingFile) return;
-  const fd = new FormData();
-  fd.append("action", "upload_photo");
-  fd.append("photo", pendingFile);
-  try {
-    const res = await fetch("/php/admin/dashboard", {  // ← fix URL
-      method: "POST",
-      body: fd,
-      credentials: "include"
-    });
-    const r = await res.json();
-    if (r.success) {
-      setPendingFile(null);
-      const newAvatar = r.data?.url || r.url;
-      setPhotoSrc(newAvatar);
-      onUserUpdate({ avatar: newAvatar });
-      showMsg("success", "Photo updated!");
-    } else {
-      showMsg("error", r.message || "Upload failed.");
-    }
-  } catch { showMsg("error", "Upload error."); }
-};
+  const uploadPhoto = async () => {
+    if (!pendingFile) return;
+    const fd = new FormData();
+    fd.append("action", "upload_photo");
+    fd.append("photo", pendingFile);
+    try {
+      const res = await fetch("/php/admin/dashboard", {
+        method: "POST",
+        body: fd,
+        credentials: "include"
+      });
+      const r = await res.json();
+      if (r.success) {
+        setPendingFile(null);
+        const newAvatar = r.data?.url || r.url;
+        setPhotoSrc(newAvatar);
+        onUserUpdate({ avatar: newAvatar });
+        showMsg("success", "Photo updated!");
+      } else {
+        showMsg("error", r.message || "Upload failed.");
+      }
+    } catch { showMsg("error", "Upload error."); }
+  };
 
   const tabs = [
     { id: "profile",  label: "Personal Info", icon: "👤" },
@@ -394,7 +414,6 @@ function Sidebar({ active, onNav, stats, user, collapsed, onToggle, onLogout }) 
                       {count}
                     </div>
                   )}
-                  {/* Show dot on collapsed sidebar when there's a warn badge */}
                   {collapsed && item.badgeWarn && count > 0 && (
                     <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[#B45A22]" />
                   )}
@@ -422,7 +441,6 @@ function Topbar({ panel, user, onRefresh, onToggle, collapsed, onNav, onOpenProf
         <button onClick={onRefresh} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[#6a7a50] text-sm font-bold hover:text-[#1a4a08] hover:border-[#5aaa30] transition-all duration-150 cursor-pointer" style={{ background: "rgba(255,250,232,0.78)", border: "1.5px solid rgba(180,140,60,0.28)" }} title="Refresh">
           <FaIcon name="rotate-right" size={14} color="currentColor" />
         </button>
-
         <button onClick={() => window.open("/home", "_blank")} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold text-[#1c4f09] hover:bg-[#1c4f09] hover:text-white transition-all duration-150 cursor-pointer" style={{ background: "rgba(90,170,48,0.13)", border: "1.5px solid rgba(90,170,48,0.35)" }}>
           <FaIcon name="external-link-alt" size={13} color="currentColor" /> View Site
         </button>
@@ -499,12 +517,28 @@ export default function AdminDashboard() {
         phpApi("stats"),
         fetch("/api/missing-pets"),
       ]);
+
       const phpData = phpRes.success ? (phpRes.data || {}) : {};
-      const mpData  = mpRes.ok ? await mpRes.json() : [];
-      // missing_pets: prefer Spring Boot count, fall back to PHP
-      const missingCount = Array.isArray(mpData) ? mpData.length : (phpData.missing_pets ?? 0);
-      setStats({ ...phpData, missing_pets: missingCount });
-    } catch (err) { console.error("Failed to fetch stats:", err); }
+
+      // ── Missing Pets: filter out deleted records on the frontend ──────────
+      let missingCount = phpData.missing_pets ?? 0;
+      if (mpRes.ok) {
+        const mpData = await mpRes.json();
+        if (Array.isArray(mpData)) {
+          missingCount = filterActive(mpData).length;
+        }
+      }
+
+      // ── Merge and apply frontend-side deleted-record guard ────────────────
+      // NOTE: The PHP stats endpoint should ideally filter deleted rows in SQL.
+      // These overrides act as a safety net when the API returns raw counts.
+      setStats({
+        ...phpData,
+        missing_pets: missingCount,
+      });
+    } catch (err) {
+      console.error("Failed to fetch stats:", err);
+    }
   }, []);
 
   useEffect(() => { fetchStats(); }, [fetchStats, refreshKey]);
@@ -514,12 +548,12 @@ export default function AdminDashboard() {
 
   const refresh    = () => { setRefreshKey(k => k + 1); toast("Dashboard refreshed", "success"); };
   const updateUser = (updates) => {
-  setUser(u => {
-    const updated = { ...u, ...updates };
-    localStorage.setItem('pawster_user', JSON.stringify(updated)); // ← persist
-    return updated;
-  });
-};
+    setUser(u => {
+      const updated = { ...u, ...updates };
+      localStorage.setItem("pawster_user", JSON.stringify(updated));
+      return updated;
+    });
+  };
   const sidebarWidth = collapsed ? 64 : 252;
 
   return (
