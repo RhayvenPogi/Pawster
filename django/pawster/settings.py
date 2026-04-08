@@ -99,15 +99,10 @@ CORS_ALLOWED_ORIGINS = os.environ.get(
 ).split(",")
 CORS_ALLOW_CREDENTIALS = True
 
-# ── Email ─────────────────────────────────────────────────────────────────────
-EMAIL_BACKEND       = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST          = os.environ.get("SPRING_MAIL_HOST",     "smtp.gmail.com")
-EMAIL_PORT          = int(os.environ.get("SPRING_MAIL_PORT", "587"))
-EMAIL_USE_TLS       = True
-EMAIL_HOST_USER     = os.environ.get("SPRING_MAIL_USERNAME", "")
-EMAIL_HOST_PASSWORD = os.environ.get("SPRING_MAIL_PASSWORD", "")
-DEFAULT_FROM_EMAIL  = EMAIL_HOST_USER
-APP_BASE_URL        = os.environ.get("APP_BASE_URL", "http://localhost:3000")
+# ── Email (Brevo API) ─────────────────────────────────────────────────────────
+BREVO_API_KEY  = os.environ.get("BREVO_API_KEY", "")
+DEFAULT_FROM_EMAIL = "onboarding@resend.dev"
+APP_BASE_URL   = os.environ.get("APP_BASE_URL", "http://localhost:3000")
 
 # ── Celery ────────────────────────────────────────────────────────────────────
 CELERY_BROKER_URL        = os.environ.get("CELERY_BROKER_URL",     "redis://redis:6379/0")

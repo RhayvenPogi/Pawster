@@ -42,7 +42,7 @@ services:
       redis:
         condition: service_healthy
     ports:
-      - "8082:8000"               # http://localhost:8082  →  container :8000
+      - "8082:8000"
     environment:
       - DJANGO_SETTINGS_MODULE=pawster.settings
       - DJANGO_SECRET_KEY=django-super-secret-change-in-production
@@ -57,18 +57,12 @@ services:
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - ALLOWED_HOSTS=localhost,127.0.0.1,django
       - CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
-      # Must match Spring Boot's JWT secret exactly
       - JWT_SECRET=Zm9ydHktdHdvLWlzLXRoZS1hbnN3ZXItdG8tbGlmZS10aGUtdW5pdmVyc2UtYW5kLWV2ZXJ5dGhpbmc=
-      # Email — same SMTP as Spring Boot
-      - SPRING_MAIL_HOST=smtp.gmail.com
-      - SPRING_MAIL_PORT=587
-      - SPRING_MAIL_USERNAME=PawsterPawnagayat@gmail.com
-      - SPRING_MAIL_PASSWORD=uwumvzcufkytdceb
+      - BREVO_API_KEY=${BREVO_API_KEY}
       - APP_BASE_URL=http://localhost:3000
-      - SPRING_BOOT_API=http://sb:8080  
-      
+      - SPRING_BOOT_API=http://sb:8080
     volumes:
-      - ./django:/app             # live reload — edit files locally, reflects instantly
+      - ./django:/app
     working_dir: /app
     command: >
       sh -c "python manage.py migrate --noinput &&
@@ -97,17 +91,14 @@ services:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - JWT_SECRET=Zm9ydHktdHdvLWlzLXRoZS1hbnN3ZXItdG8tbGlmZS10aGUtdW5pdmVyc2UtYW5kLWV2ZXJ5dGhpbmc=
-      - SPRING_MAIL_HOST=smtp.gmail.com
-      - SPRING_MAIL_PORT=587
-      - SPRING_MAIL_USERNAME=PawsterPawnagayat@gmail.com
-      - SPRING_MAIL_PASSWORD=uwumvzcufkytdceb
+      - BREVO_API_KEY=${BREVO_API_KEY}
       - APP_BASE_URL=http://localhost:3000
     volumes:
       - ./django:/app
     working_dir: /app
     command: celery -A pawster worker --loglevel=info
 
-  # ── Celery Beat — triggers daily survey scheduler at midnight ───────────────
+  # ── Celery Beat — triggers survey scheduler every 10s ──────────────────────
   celery_beat:
     build:
       context: ./django
@@ -130,10 +121,7 @@ services:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - JWT_SECRET=Zm9ydHktdHdvLWlzLXRoZS1hbnN3ZXItdG8tbGlmZS10aGUtdW5pdmVyc2UtYW5kLWV2ZXJ5dGhpbmc=
-      - SPRING_MAIL_HOST=smtp.gmail.com
-      - SPRING_MAIL_PORT=587
-      - SPRING_MAIL_USERNAME=PawsterPawnagayat@gmail.com
-      - SPRING_MAIL_PASSWORD=uwumvzcufkytdceb
+      - BREVO_API_KEY=${BREVO_API_KEY}
       - APP_BASE_URL=http://localhost:3000
     volumes:
       - ./django:/app
@@ -157,12 +145,7 @@ services:
       - SPRING_DATASOURCE_PASSWORD=password
       - JWT_SECRET=Zm9ydHktdHdvLWlzLXRoZS1hbnN3ZXItdG8tbGlmZS10aGUtdW5pdmVyc2UtYW5kLWV2ZXJ5dGhpbmc=
       - SPRING_DEVTOOLS_RESTART_ENABLED=true
-      - SPRING_MAIL_HOST=smtp.gmail.com
-      - SPRING_MAIL_PORT=587
-      - SPRING_MAIL_USERNAME=PawsterPawnagayat@gmail.com
-      - SPRING_MAIL_PASSWORD=uwumvzcufkytdceb
-      - SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH=true
-      - SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE=true
+      - BREVO_API_KEY=${BREVO_API_KEY}
       - APP_BASE_URL=http://localhost:3000
     volumes:
       - ./sb:/app
@@ -203,8 +186,8 @@ services:
     ports:
       - "3000:5173"
     environment:
-      - VITE_API_BASE=http://localhost:8080        # Spring Boot  (auth, animals)
-      - VITE_DJANGO_API=http://localhost:8082      # Django       (adoptions, surveys, notifications)
+      - VITE_API_BASE=http://localhost:8080
+      - VITE_DJANGO_API=http://localhost:8082
       - CHOKIDAR_USEPOLLING=true
     volumes:
       - ./react:/app

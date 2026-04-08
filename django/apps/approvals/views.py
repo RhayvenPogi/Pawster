@@ -6,8 +6,6 @@ UPDATE, and DELETE (each action sends email where applicable).
 import requests
 from django.conf import settings
 from django.utils import timezone
-from django.core.mail import send_mail
-from django.conf import settings
 from rest_framework import status as drf_status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
@@ -15,8 +13,7 @@ from rest_framework.response import Response
 
 from .models import AdoptionRequest, RehomingRequest
 from .serializers import AdoptionRequestSerializer, RehomingRequestSerializer
-
-
+from utils.email_service import send_email
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -26,7 +23,16 @@ def _send(subject, body, to):
     if not to:
         return
     try:
-        send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [to], fail_silently=True)
+        html = (
+            f'<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;'
+            f'background:#fffdf5;border:1.5px solid #e8d8a0;border-radius:16px;overflow:hidden;">'
+            f'<div style="background:#1c4f09;padding:28px 32px;text-align:center;">'
+            f'<h1 style="margin:0;color:#fff;font-size:26px;font-weight:900;">🐾 Pawster</h1>'
+            f'</div><div style="padding:32px;">'
+            f'<p style="color:#3a5020;white-space:pre-line;">{body}</p>'
+            f'</div></div>'
+        )
+        send_email(to, subject, html)
     except Exception:
         pass
 
@@ -128,7 +134,6 @@ def submit_adoption(request):
     if serializer.is_valid():
         obj = serializer.save(user=request.user)
 
-        # ✅ Tell Spring Boot to mark the animal as Pending
         try:
             requests.post(
                 f"{settings.SPRING_BOOT_API}/api/animals/mark-pending",
@@ -136,7 +141,7 @@ def submit_adoption(request):
                 timeout=5
             )
         except Exception:
-            pass  # Don't fail the submission if Spring Boot is down
+            pass
 
         return Response({"success": True, "id": obj.id, "message": "Adoption request submitted."}, status=201)
     return Response({"success": False, "errors": serializer.errors}, status=400)
@@ -168,7 +173,6 @@ def approve_adoption(request, pk):
     obj.adoption_date = timezone.now()
     obj.save()
 
-    # ✅ Tell Spring Boot to mark the animal as Adopted
     try:
         spring_url = f"{settings.SPRING_BOOT_API}/api/animals/mark-adopted"
         requests.post(
@@ -177,13 +181,11 @@ def approve_adoption(request, pk):
             timeout=5
         )
     except Exception:
-        pass  # Do not break approval if Spring Boot is down
+        pass
 
-    # Create follow-up surveys via Celery
     from apps.surveys.tasks import create_followup_surveys_for_adoption
     create_followup_surveys_for_adoption.delay(obj.id)
 
-    # Create in-app notification for the adopter
     if obj.user:
         from apps.notifications.models import Notification
         Notification.objects.create(
@@ -238,7 +240,6 @@ def update_adoption(request, pk):
     except AdoptionRequest.DoesNotExist:
         return Response({"success": False, "message": "Not found."}, status=404)
 
-    # Disallow changing status via this endpoint — use approve/reject for that
     data = request.data.copy()
     data.pop("status", None)
     data.pop("decided_by", None)
@@ -303,7 +304,6 @@ def approve_rehoming(request, pk):
     obj.decided_at = timezone.now()
     obj.save()
 
-    # ── Build notes from behavioral flags ─────────────────────────────────
     desc_parts = [
         obj.ideal_home_desc or "",
         (f"Behavior: {obj.behavior}" + (f" ({obj.behavior_other})" if obj.behavior_other else "")) if obj.behavior else "",
@@ -316,7 +316,6 @@ def approve_rehoming(request, pk):
     ]
     notes = " ".join(p for p in desc_parts if p).strip() or "Available for adoption."
 
-    # ── Post to Spring Boot ────────────────────────────────────────────────
     try:
         spring_payload = {
             "name":   obj.pet_name or "Unknown",
@@ -338,7 +337,6 @@ def approve_rehoming(request, pk):
     except Exception as e:
         print(f"[approve_rehoming] Spring Boot unreachable: {e}")
 
-    # ── Notification ──────────────────────────────────────────────────────
     if obj.user:
         from apps.notifications.models import Notification
         Notification.objects.create(
@@ -393,7 +391,6 @@ def update_rehoming(request, pk):
     except RehomingRequest.DoesNotExist:
         return Response({"success": False, "message": "Not found."}, status=404)
 
-    # Disallow changing status via this endpoint — use approve/reject for that
     data = request.data.copy()
     data.pop("status", None)
     data.pop("decided_by", None)
