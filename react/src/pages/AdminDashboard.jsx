@@ -65,11 +65,6 @@ const ICO_COLORS = {
   "ico-rose":   { bg: "rgba(176,48,96,0.14)",  color: "#b03060" },
 };
 
-// ── HELPERS ────────────────────────────────────────────────────────────────────
-/**
- * Returns true if the record should be considered deleted.
- * Covers: deleted_at (timestamp), is_deleted (bool/int), status === "deleted"
- */
 function isDeleted(item) {
   if (!item) return false;
   if (item.deleted_at !== undefined && item.deleted_at !== null && item.deleted_at !== "") return true;
@@ -511,35 +506,70 @@ export default function AdminDashboard() {
 
   useEffect(() => { if (authUser) setUser(authUser); }, [authUser]);
 
-  const fetchStats = useCallback(async () => {
-    try {
-      const [phpRes, mpRes] = await Promise.all([
-        phpApi("stats"),
-        fetch("/api/missing-pets"),
-      ]);
+const fetchStats = useCallback(async () => {
+  try {
+    const DJANGO = import.meta.env.VITE_DJANGO_API ?? "http://localhost:8082";
 
-      const phpData = phpRes.success ? (phpRes.data || {}) : {};
+    const token = localStorage.getItem("pawster_token") ||
+                  localStorage.getItem("token") ||
+                  localStorage.getItem("authToken") ||
+                  sessionStorage.getItem("token") || "";
 
-      // ── Missing Pets: filter out deleted records on the frontend ──────────
-      let missingCount = phpData.missing_pets ?? 0;
-      if (mpRes.ok) {
-        const mpData = await mpRes.json();
-        if (Array.isArray(mpData)) {
-          missingCount = filterActive(mpData).length;
-        }
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+    const [phpRes, mpRes, adoptionRes, rehomeRes] = await Promise.all([
+      phpApi("stats"),
+      fetch("/api/missing-pets"),
+      fetch(`${DJANGO}/api/approvals/adoptions/admin/`, { headers }),
+      fetch(`${DJANGO}/api/approvals/rehoming/admin/`,  { headers }),
+    ]);
+
+    const phpData = phpRes.success ? (phpRes.data || {}) : {};
+
+    // Missing Pets
+    let missingCount = phpData.missing_pets ?? 0;
+    if (mpRes.ok) {
+      const mpData = await mpRes.json();
+      if (Array.isArray(mpData)) {
+        missingCount = filterActive(mpData).length;
       }
-
-      // ── Merge and apply frontend-side deleted-record guard ────────────────
-      // NOTE: The PHP stats endpoint should ideally filter deleted rows in SQL.
-      // These overrides act as a safety net when the API returns raw counts.
-      setStats({
-        ...phpData,
-        missing_pets: missingCount,
-      });
-    } catch (err) {
-      console.error("Failed to fetch stats:", err);
     }
-  }, []);
+
+    // Adoptions — pending only
+    let adoptionCount = phpData.pending_adoptions ?? 0;
+    if (adoptionRes.ok) {
+      const adoptionData = await adoptionRes.json();
+      const arr = adoptionData?.data || adoptionData || [];
+      if (Array.isArray(arr)) {
+        adoptionCount = filterActive(arr).filter(r => r.status === "Pending").length;
+      }
+    } else {
+      console.warn("adoptions fetch failed:", adoptionRes.status, adoptionRes.url);
+    }
+
+    // Rehoming — pending only
+    let rehomeCount = phpData.pending_rehome ?? 0;
+    if (rehomeRes.ok) {
+      const rehomeData = await rehomeRes.json();
+      const arr = rehomeData?.data || rehomeData || [];
+      if (Array.isArray(arr)) {
+        rehomeCount = filterActive(arr).filter(r => r.status === "Pending").length;
+      }
+    } else {
+      console.warn("rehoming fetch failed:", rehomeRes.status, rehomeRes.url);
+    }
+
+    setStats({
+      ...phpData,
+      missing_pets:      missingCount,
+      pending_adoptions: adoptionCount,
+      pending_rehome:    rehomeCount,
+    });
+
+  } catch (err) {
+    console.error("Failed to fetch stats:", err);
+  }
+}, []);
 
   useEffect(() => { fetchStats(); }, [fetchStats, refreshKey]);
   useEffect(() => { const interval = setInterval(fetchStats, 5_000); return () => clearInterval(interval); }, [fetchStats]);

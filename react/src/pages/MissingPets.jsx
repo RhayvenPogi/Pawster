@@ -4,6 +4,8 @@ import { useAuth } from '../hooks/useAuth';
 import Navbar from './Navbar';
 import logo from "../images/logo.png";
 
+const SB = import.meta.env.VITE_API_BASE ?? 'http://localhost:8080';
+
 function useReveal() {
   const ref = useRef(null);
   const [vis, setVis] = useState(false);
@@ -24,15 +26,23 @@ function Reveal({ children, delay = 0 }) {
   );
 }
 
+// ── Photo component — uses DB endpoint instead of photoUrl ───────────────────
 function PetPhoto({ pet }) {
   const [imgErr, setImgErr] = useState(false);
   const emoji = pet.species?.toLowerCase() === 'cat' ? '🐱' : '🐶';
-  useEffect(() => { setImgErr(false); }, [pet.photoUrl]);
-  const photoUrl = pet.photoUrl ? pet.photoUrl.replace(/^https?:\/\/localhost:\d+/, '') : null;
-  if (photoUrl && !imgErr) {
+  const photoSrc = `${SB}/api/missing-pets/${pet.id}/photo`;
+
+  useEffect(() => { setImgErr(false); }, [pet.id]);
+
+  if (!imgErr) {
     return (
       <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-        <img src={photoUrl} alt={pet.name || 'Pet'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={() => setImgErr(true)} />
+        <img
+          src={photoSrc}
+          alt={pet.name || 'Pet'}
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          onError={() => setImgErr(true)}
+        />
       </div>
     );
   }
@@ -98,7 +108,6 @@ function SpeciesCombobox({ value, onChange, hasErr }) {
   );
 }
 
-// ─── Field error — persistent, cannot be cleared by blur ─────────────────────
 function FieldErr({ msg }) {
   if (!msg) return null;
   return (
@@ -109,7 +118,6 @@ function FieldErr({ msg }) {
   );
 }
 
-// ─── Reusable label row ───────────────────────────────────────────────────────
 function FLabel({ children, required }) {
   return (
     <div style={{ fontSize: '0.67rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6a7a50', marginBottom: '0.4rem' }}>
@@ -118,7 +126,6 @@ function FLabel({ children, required }) {
   );
 }
 
-// ─── Validation ───────────────────────────────────────────────────────────────
 function validateReport(form) {
   const errs = {};
   if (!form.species || !form.species.trim()) errs.species = "Species is required.";
@@ -149,7 +156,7 @@ export default function MissingPets() {
 
   const fetchPets = async () => {
     try {
-      const res = await fetch('/api/missing-pets');
+      const res = await fetch(`${SB}/api/missing-pets`);
       if (res.ok) setPets(await res.json());
     } catch (err) { console.error('Failed to fetch missing pets:', err); }
     finally { setLoading(false); }
@@ -173,7 +180,7 @@ export default function MissingPets() {
 
   const fetchComments = async (petId) => {
     try {
-      const res = await fetch(`/api/missing-pets/${petId}/comments`);
+      const res = await fetch(`${SB}/api/missing-pets/${petId}/comments`);
       if (res.ok) {
         const data = await res.json();
         setComments(prev => ({ ...prev, [petId]: data }));
@@ -194,7 +201,7 @@ export default function MissingPets() {
     if (!content || !user) return;
     setCommentSubmitting(prev => ({ ...prev, [petId]: true }));
     try {
-      const res = await fetch(`/api/missing-pets/${petId}/comments`, {
+      const res = await fetch(`${SB}/api/missing-pets/${petId}/comments`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: user.id, authorName: `${user.firstName} ${user.lastName}`, content }),
       });
@@ -206,7 +213,7 @@ export default function MissingPets() {
   const resolveReport = async (petId) => {
     if (!user) return;
     try {
-      const res = await fetch(`/api/missing-pets/${petId}/resolve?userId=${user.id}`, { method: 'PUT' });
+      const res = await fetch(`${SB}/api/missing-pets/${petId}/resolve?userId=${user.id}`, { method: 'PUT' });
       if (res.ok) fetchPets();
     } catch (err) { console.error(err); }
   };
@@ -219,13 +226,10 @@ export default function MissingPets() {
     setPhotoPreview(URL.createObjectURL(f));
   };
 
-  // Update field + live-revalidate if user already tried submitting
   const updateField = (key, value) => {
     const next = { ...form, [key]: value };
     setForm(next);
-    if (touched) {
-      setFormErrs(validateReport(next));
-    }
+    if (touched) setFormErrs(validateReport(next));
   };
 
   const handleSubmit = async (e) => {
@@ -233,7 +237,7 @@ export default function MissingPets() {
     setTouched(true);
     const errs = validateReport(form);
     setFormErrs(errs);
-    if (Object.keys(errs).length > 0) return; // ← BLOCKED
+    if (Object.keys(errs).length > 0) return;
 
     setSubmitting(true);
     try {
@@ -245,7 +249,7 @@ export default function MissingPets() {
       }).forEach(([k, v]) => fd.append(k, v));
       if (user?.id) fd.append('reporterUserId', user.id);
       if (photoFile) fd.append('photo', photoFile);
-      const res = await fetch('/api/missing-pets', { method: 'POST', body: fd });
+      const res = await fetch(`${SB}/api/missing-pets`, { method: 'POST', body: fd });
       if (!res.ok) { console.error('Submit failed:', res.status); setSubmitting(false); return; }
     } catch (err) { console.error(err); setSubmitting(false); return; }
 
@@ -364,7 +368,7 @@ export default function MissingPets() {
             {filtered.map((pet, i) => (
               <Reveal key={pet.id} delay={i * 60}>
                 <div className="mp-card">
-                  <div style={{ position: 'relative', height: 200, overflow: 'hidden' }}>
+                  <div style={{ position: 'relative', height: 200, overflow: 'hidden', borderRadius: '20px 20px 0 0' }}>
                     <PetPhoto pet={pet} />
                     <span style={{ position: 'absolute', top: 10, left: 10, padding: '0.25rem 0.75rem', borderRadius: 50, fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', background: pet.type === 'lost' ? 'rgba(192,48,48,0.90)' : 'rgba(28,79,9,0.90)', color: '#fff', backdropFilter: 'blur(6px)' }}>
                       {pet.type === 'lost' ? '🔴 Lost' : '🟢 Found'}
@@ -456,7 +460,7 @@ export default function MissingPets() {
                   </button>
                 </div>
 
-                {/* Error banner — animated slide-in/out */}
+                {/* Error banner */}
                 <div style={{ flexShrink: 0, overflow: 'hidden', maxHeight: errCount > 0 ? '80px' : '0px', padding: errCount > 0 ? '0.75rem 1.5rem 0' : '0 1.5rem', transition: 'max-height 0.25s ease, padding 0.25s ease' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', padding: '0.6rem 0.875rem', borderRadius: 10, background: 'rgba(192,48,48,0.10)', border: '1px solid rgba(192,48,48,0.35)' }}>
                     <i className="fas fa-exclamation-triangle" style={{ color: '#c03030', fontSize: '0.85rem', flexShrink: 0 }} />

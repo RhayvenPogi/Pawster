@@ -2,6 +2,7 @@ package com.pawstar.pawster.controller;
 
 import com.pawstar.pawster.model.MissingPet;
 import com.pawstar.pawster.service.MissingPetService;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -19,19 +20,26 @@ public class MissingPetController {
         this.service = service;
     }
 
-    // ── Public — approved reports only ───────────────────────────────────────
     @GetMapping
     public ResponseEntity<List<MissingPet>> getApproved() {
         return ResponseEntity.ok(service.findByStatus("approved"));
     }
 
-    // ── Admin — all reports ───────────────────────────────────────────────────
     @GetMapping("/admin/all")
     public ResponseEntity<List<MissingPet>> getAll() {
         return ResponseEntity.ok(service.findAll());
     }
 
-    // ── Submit new report (multipart) ─────────────────────────────────────────
+    @GetMapping("/{id}/photo")
+    public ResponseEntity<byte[]> getPhoto(@PathVariable Long id) {
+        MissingPet pet = service.findById(id);
+        if (pet.getPhoto() == null) return ResponseEntity.notFound().build();
+        String contentType = pet.getPhotoType() != null ? pet.getPhotoType() : "image/jpeg";
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(contentType))
+                .body(pet.getPhoto());
+    }
+
     @PostMapping(consumes = "multipart/form-data")
     public ResponseEntity<MissingPet> report(
             @RequestParam String type,
@@ -52,28 +60,23 @@ public class MissingPetController {
                         color, details, latitude, longitude, reporterUserId, photo));
     }
 
-    // ── Admin — approve ───────────────────────────────────────────────────────
     @PutMapping("/admin/{id}/approve")
     public ResponseEntity<MissingPet> approve(@PathVariable Long id) {
         return ResponseEntity.ok(service.updateStatus(id, "approved"));
     }
 
-    // ── Admin — reject ────────────────────────────────────────────────────────
     @PutMapping("/admin/{id}/reject")
     public ResponseEntity<MissingPet> reject(@PathVariable Long id) {
         return ResponseEntity.ok(service.updateStatus(id, "rejected"));
     }
 
-    // ── Admin — update via JSON body (used by the React admin panel) ──────────
     @PutMapping("/admin/{id}")
     public ResponseEntity<MissingPet> adminUpdate(
             @PathVariable Long id,
             @RequestBody MissingPet updatedPet) {
-
         return ResponseEntity.ok(service.updateFromBody(id, updatedPet));
     }
 
-    // ── User-facing — update via multipart (with optional new photo) ──────────
     @PutMapping(value = "/{id}", consumes = "multipart/form-data")
     public ResponseEntity<MissingPet> update(
             @PathVariable Long id,
@@ -94,19 +97,16 @@ public class MissingPetController {
                         color, details, latitude, longitude, photo));
     }
 
-    // ── Admin — delete ────────────────────────────────────────────────────────
     @DeleteMapping("/admin/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         service.delete(id);
         return ResponseEntity.noContent().build();
     }
 
-    // ── User — mark as resolved ───────────────────────────────────────────────
     @PutMapping("/{id}/resolve")
     public ResponseEntity<MissingPet> resolveByUser(
             @PathVariable Long id,
             @RequestParam Integer userId) {
-
         return ResponseEntity.ok(service.resolveByUser(id, userId));
     }
 }

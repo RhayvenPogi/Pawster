@@ -19,30 +19,29 @@ function fileToBase64(file) {
   });
 }
 
-// ── Per-step validation ───────────────────────────────────────────────────────
 function validateStep(step, form) {
-  const errs = [];
+  const errs = {};
   if (step === 1) {
-    if (!form.petName.trim())    errs.push("Pet's name is required.");
-    if (!form.age.trim())        errs.push("Pet's age is required.");
-    if (!form.durationOwned)     errs.push("Please select how long you've had this pet.");
+    if (!form.petName.trim())    errs.petName = "Pet's name is required.";
+    if (!form.age.trim())        errs.age = "Pet's age is required.";
+    if (!form.durationOwned)     errs.durationOwned = "Please select how long you've had this pet.";
   }
   if (step === 2) {
-    if (!form.isVaccinated)      errs.push("Please indicate if the pet is vaccinated.");
-    if (!form.isNeutered)        errs.push("Please indicate if the pet is spayed/neutered.");
+    if (!form.isVaccinated)      errs.isVaccinated = "Please indicate if the pet is vaccinated.";
+    if (!form.isNeutered)        errs.isNeutered = "Please indicate if the pet is spayed/neutered.";
   }
   if (step === 3) {
-    if (!form.behavior)          errs.push("Please select a behavior that best describes your pet.");
-    if (!form.hasAggression)     errs.push("Please indicate if the pet has shown aggression.");
-    if (!form.isHouseTrained)    errs.push("Please indicate if the pet is house-trained.");
-    if (!form.isLeashTrained)    errs.push("Please indicate if the pet is leash-trained.");
-    if (!form.goodWithChildren)  errs.push("Please indicate if the pet is good with children.");
-    if (!form.goodWithPets)      errs.push("Please indicate if the pet is good with other pets.");
+    if (!form.behavior)          errs.behavior = "Please select a behavior that best describes your pet.";
+    if (!form.hasAggression)     errs.hasAggression = "Please indicate if the pet has shown aggression.";
+    if (!form.isHouseTrained)    errs.isHouseTrained = "Please indicate if the pet is house-trained.";
+    if (!form.isLeashTrained)    errs.isLeashTrained = "Please indicate if the pet is leash-trained.";
+    if (!form.goodWithChildren)  errs.goodWithChildren = "Please indicate if the pet is good with children.";
+    if (!form.goodWithPets)      errs.goodWithPets = "Please indicate if the pet is good with other pets.";
   }
   if (step === 4) {
-    if (!form.contact.trim())    errs.push("Contact number is required.");
-    if (!form.reason)            errs.push("Please select a primary reason for rehoming.");
-    if (!form.understandsPermanent) errs.push("Please confirm you understand rehoming is a permanent decision.");
+    if (!form.contact.trim())    errs.contact = "Contact number is required.";
+    if (!form.reason)            errs.reason = "Please select a primary reason for rehoming.";
+    if (!form.understandsPermanent) errs.understandsPermanent = "Please confirm you understand rehoming is a permanent decision.";
   }
   return errs;
 }
@@ -62,8 +61,10 @@ const RLabel=({children})=>(
 const RField=({label,children})=>(
   <div style={{display:"flex",flexDirection:"column"}}><RLabel>{label}</RLabel>{children}</div>
 );
-const RSel=({value,onChange,opts})=>(
-  <select value={value} onChange={onChange} style={inp} onFocus={focIn} onBlur={focOut}>
+const RSel=({value,onChange,opts,hasError})=>(
+  <select value={value} onChange={onChange}
+    style={{...inp, borderColor: hasError ? "rgba(192,48,48,0.5)" : undefined}}
+    onFocus={focIn} onBlur={focOut}>
     <option value="">Select…</option>
     {opts.map(([v,l])=><option key={v} value={v}>{l}</option>)}
   </select>
@@ -88,19 +89,11 @@ const RSecTitle=({icon,title})=>(
   </div>
 );
 
-// ── Error box ─────────────────────────────────────────────────────────────────
-const ErrBox=({errors})=>{
-  if(!errors||errors.length===0) return null;
-  return(
-    <div style={{padding:"0.75rem 1rem",borderRadius:10,background:"rgba(192,48,48,0.08)",border:"1px solid rgba(192,48,48,0.25)",marginTop:"0.75rem"}}>
-      {errors.map((e,i)=>(
-        <div key={i} style={{fontSize:"0.82rem",fontWeight:700,color:"#c03030",display:"flex",alignItems:"flex-start",gap:"0.4rem",marginBottom:i<errors.length-1?"0.3rem":0}}>
-          <i className="fas fa-times-circle" style={{marginTop:"0.15rem",flexShrink:0}}/>{e}
-        </div>
-      ))}
-    </div>
-  );
-};
+const InlineErr = ({ msg }) => msg ? (
+  <div style={{fontSize:"0.75rem",fontWeight:700,color:"#c03030",display:"flex",alignItems:"center",gap:"0.3rem",marginTop:"0.3rem"}}>
+    <i className="fas fa-times-circle"/> {msg}
+  </div>
+) : null;
 
 function PhotoUpload({ photoPreview, onPhotoChange, onPhotoClear }) {
   const fileRef = useRef(null);
@@ -176,8 +169,8 @@ function VaccinationPhotos({ photos, onAdd, onRemove }) {
   );
 }
 
-function RehomeStepContent({ step, form, set, setV, photoPreview, onPhotoChange, onPhotoClear, vaccPhotos, onVaccPhotoAdd, onVaccPhotoRemove, touched }) {
-  const inv = (field) => touched && !form[field]; // highlight unanswered required YN fields
+function RehomeStepContent({ step, form, set, setV, photoPreview, onPhotoChange, onPhotoClear, vaccPhotos, onVaccPhotoAdd, onVaccPhotoRemove, touched, fieldErrors }) {
+  const err = (field) => touched ? fieldErrors[field] : null;
 
   return (
     <>
@@ -185,7 +178,10 @@ function RehomeStepContent({ step, form, set, setV, photoPreview, onPhotoChange,
         <div style={col}>
           <RSecTitle icon="paw" title="Pet Basics"/>
           <RField label="Pet's Name *">
-            <input type="text" value={form.petName} onChange={set("petName")} style={{...inp, borderColor: touched && !form.petName.trim() ? "rgba(192,48,48,0.5)" : undefined}} onFocus={focIn} onBlur={focOut}/>
+            <input type="text" value={form.petName} onChange={set("petName")}
+              style={{...inp, borderColor: err("petName") ? "rgba(192,48,48,0.5)" : undefined}}
+              onFocus={focIn} onBlur={focOut}/>
+            <InlineErr msg={err("petName")}/>
           </RField>
           <div style={g2}>
             <RField label="Species *">
@@ -204,11 +200,20 @@ function RehomeStepContent({ step, form, set, setV, photoPreview, onPhotoChange,
               <input type="text" value={form.breed} onChange={set("breed")} placeholder="e.g. Aspin" style={inp} onFocus={focIn} onBlur={focOut}/>
             </RField>
             <RField label="Age *">
-              <input type="text" value={form.age} onChange={set("age")} placeholder="e.g. 2 years" style={{...inp, borderColor: touched && !form.age.trim() ? "rgba(192,48,48,0.5)" : undefined}} onFocus={focIn} onBlur={focOut}/>
+              <input type="text" value={form.age} onChange={set("age")} placeholder="e.g. 2 years"
+                style={{...inp, borderColor: err("age") ? "rgba(192,48,48,0.5)" : undefined}}
+                onFocus={focIn} onBlur={focOut}/>
+              <InlineErr msg={err("age")}/>
             </RField>
           </div>
           <RField label="How long have you had this pet? *">
-            <RSel value={form.durationOwned} onChange={set("durationOwned")} opts={[["Less than 6 months","Less than 6 months"],["6 months-2 years","6 months–2 years"],["2+ years","2+ years"]]}/>
+            <select value={form.durationOwned} onChange={set("durationOwned")}
+              style={{...inp, borderColor: err("durationOwned") ? "rgba(192,48,48,0.5)" : undefined}}
+              onFocus={focIn} onBlur={focOut}>
+              <option value="">Select…</option>
+              {[["Less than 6 months","Less than 6 months"],["6 months-2 years","6 months–2 years"],["2+ years","2+ years"]].map(([v,l])=><option key={v} value={v}>{l}</option>)}
+            </select>
+            <InlineErr msg={err("durationOwned")}/>
           </RField>
           <PhotoUpload photoPreview={photoPreview} onPhotoChange={onPhotoChange} onPhotoClear={onPhotoClear} />
         </div>
@@ -218,8 +223,14 @@ function RehomeStepContent({ step, form, set, setV, photoPreview, onPhotoChange,
         <div style={col}>
           <RSecTitle icon="syringe" title="Health Information"/>
           <div style={g2}>
-            <RField label="Vaccinated? *"><RYN value={form.isVaccinated} onChange={(v)=>setV("isVaccinated",v)} invalid={inv("isVaccinated")}/></RField>
-            <RField label="Spayed / Neutered? *"><RYN value={form.isNeutered} onChange={(v)=>setV("isNeutered",v)} invalid={inv("isNeutered")}/></RField>
+            <RField label="Vaccinated? *">
+              <RYN value={form.isVaccinated} onChange={(v)=>setV("isVaccinated",v)} invalid={!!err("isVaccinated")}/>
+              <InlineErr msg={err("isVaccinated")}/>
+            </RField>
+            <RField label="Spayed / Neutered? *">
+              <RYN value={form.isNeutered} onChange={(v)=>setV("isNeutered",v)} invalid={!!err("isNeutered")}/>
+              <InlineErr msg={err("isNeutered")}/>
+            </RField>
           </div>
 
           {form.isVaccinated==="yes"&&(
@@ -266,9 +277,18 @@ function RehomeStepContent({ step, form, set, setV, photoPreview, onPhotoChange,
           <RSecTitle icon="star" title="Behavior & Personality"/>
           <div style={g2}>
             <RField label="Best describes this pet *">
-              <RSel value={form.behavior} onChange={set("behavior")} opts={[["Friendly","Friendly"],["Shy","Shy"],["Playful","Playful"],["Aggressive","Aggressive"],["Other","Other"]]}/>
+              <select value={form.behavior} onChange={set("behavior")}
+                style={{...inp, borderColor: err("behavior") ? "rgba(192,48,48,0.5)" : undefined}}
+                onFocus={focIn} onBlur={focOut}>
+                <option value="">Select…</option>
+                {[["Friendly","Friendly"],["Shy","Shy"],["Playful","Playful"],["Aggressive","Aggressive"],["Other","Other"]].map(([v,l])=><option key={v} value={v}>{l}</option>)}
+              </select>
+              <InlineErr msg={err("behavior")}/>
             </RField>
-            <RField label="Shown aggression? *"><RYN value={form.hasAggression} onChange={(v)=>setV("hasAggression",v)} invalid={inv("hasAggression")}/></RField>
+            <RField label="Shown aggression? *">
+              <RYN value={form.hasAggression} onChange={(v)=>setV("hasAggression",v)} invalid={!!err("hasAggression")}/>
+              <InlineErr msg={err("hasAggression")}/>
+            </RField>
           </div>
           {form.behavior==="Other"&&(
             <RField label="Describe behavior">
@@ -276,13 +296,25 @@ function RehomeStepContent({ step, form, set, setV, photoPreview, onPhotoChange,
             </RField>
           )}
           <div style={g2}>
-            <RField label="House-trained? *"><RYN value={form.isHouseTrained} onChange={(v)=>setV("isHouseTrained",v)} invalid={inv("isHouseTrained")}/></RField>
-            <RField label="Leash-trained? *"><RYN value={form.isLeashTrained} onChange={(v)=>setV("isLeashTrained",v)} invalid={inv("isLeashTrained")}/></RField>
+            <RField label="House-trained? *">
+              <RYN value={form.isHouseTrained} onChange={(v)=>setV("isHouseTrained",v)} invalid={!!err("isHouseTrained")}/>
+              <InlineErr msg={err("isHouseTrained")}/>
+            </RField>
+            <RField label="Leash-trained? *">
+              <RYN value={form.isLeashTrained} onChange={(v)=>setV("isLeashTrained",v)} invalid={!!err("isLeashTrained")}/>
+              <InlineErr msg={err("isLeashTrained")}/>
+            </RField>
           </div>
           <RSecTitle icon="home" title="Ideal New Home"/>
           <div style={g2}>
-            <RField label="Good with children? *"><RYN value={form.goodWithChildren} onChange={(v)=>setV("goodWithChildren",v)} invalid={inv("goodWithChildren")}/></RField>
-            <RField label="Good with other pets? *"><RYN value={form.goodWithPets} onChange={(v)=>setV("goodWithPets",v)} invalid={inv("goodWithPets")}/></RField>
+            <RField label="Good with children? *">
+              <RYN value={form.goodWithChildren} onChange={(v)=>setV("goodWithChildren",v)} invalid={!!err("goodWithChildren")}/>
+              <InlineErr msg={err("goodWithChildren")}/>
+            </RField>
+            <RField label="Good with other pets? *">
+              <RYN value={form.goodWithPets} onChange={(v)=>setV("goodWithPets",v)} invalid={!!err("goodWithPets")}/>
+              <InlineErr msg={err("goodWithPets")}/>
+            </RField>
           </div>
           <RField label="What type of home is best for this pet?">
             <textarea value={form.idealHomeDesc} onChange={set("idealHomeDesc")} rows={2} placeholder="e.g. Quiet home, patient owner…" style={{...inp,resize:"vertical",minHeight:60}} onFocus={focIn} onBlur={focOut}/>
@@ -294,10 +326,19 @@ function RehomeStepContent({ step, form, set, setV, photoPreview, onPhotoChange,
         <div style={col}>
           <RSecTitle icon="phone" title="Contact & Reason"/>
           <RField label="Your Contact Number *">
-            <input type="tel" value={form.contact} onChange={set("contact")} placeholder="+63 9XX XXX XXXX" style={{...inp, borderColor: touched && !form.contact.trim() ? "rgba(192,48,48,0.5)" : undefined}} onFocus={focIn} onBlur={focOut}/>
+            <input type="tel" value={form.contact} onChange={set("contact")} placeholder="+63 9XX XXX XXXX"
+              style={{...inp, borderColor: err("contact") ? "rgba(192,48,48,0.5)" : undefined}}
+              onFocus={focIn} onBlur={focOut}/>
+            <InlineErr msg={err("contact")}/>
           </RField>
           <RField label="Primary Reason for Rehoming *">
-            <RSel value={form.reason} onChange={set("reason")} opts={[["Moving / Relocating","Moving / Relocating"],["Allergies","Allergies"],["New baby","New baby"],["Medical / Financial","Medical / Financial"],["Housing change","Housing change"],["Not enough time","Not enough time"],["Other","Other"]]}/>
+            <select value={form.reason} onChange={set("reason")}
+              style={{...inp, borderColor: err("reason") ? "rgba(192,48,48,0.5)" : undefined}}
+              onFocus={focIn} onBlur={focOut}>
+              <option value="">Select…</option>
+              {[["Moving / Relocating","Moving / Relocating"],["Allergies","Allergies"],["New baby","New baby"],["Medical / Financial","Medical / Financial"],["Housing change","Housing change"],["Not enough time","Not enough time"],["Other","Other"]].map(([v,l])=><option key={v} value={v}>{l}</option>)}
+            </select>
+            <InlineErr msg={err("reason")}/>
           </RField>
           <RField label="Additional Details">
             <textarea value={form.details} onChange={set("details")} rows={2} placeholder="Tell us more about your situation…" style={{...inp,resize:"vertical",minHeight:60}} onFocus={focIn} onBlur={focOut}/>
@@ -315,10 +356,11 @@ function RehomeStepContent({ step, form, set, setV, photoPreview, onPhotoChange,
               </label>
             ))}
           </div>
-          <label style={{display:"flex",alignItems:"flex-start",gap:"0.625rem",padding:"0.75rem 0.875rem",borderRadius:10,background:form.understandsPermanent?"rgba(180,90,34,0.08)":"rgba(255,248,220,0.6)",border:`1.5px solid ${touched&&!form.understandsPermanent?"rgba(192,48,48,0.5)":form.understandsPermanent?"rgba(180,90,34,0.4)":"rgba(180,140,60,0.28)"}`,cursor:"pointer",transition:"all 0.2s",marginTop:"0.25rem"}}>
+          <label style={{display:"flex",alignItems:"flex-start",gap:"0.625rem",padding:"0.75rem 0.875rem",borderRadius:10,background:form.understandsPermanent?"rgba(180,90,34,0.08)":"rgba(255,248,220,0.6)",border:`1.5px solid ${err("understandsPermanent")?"rgba(192,48,48,0.5)":form.understandsPermanent?"rgba(180,90,34,0.4)":"rgba(180,140,60,0.28)"}`,cursor:"pointer",transition:"all 0.2s",marginTop:"0.25rem"}}>
             <input type="checkbox" checked={form.understandsPermanent} onChange={set("understandsPermanent")} style={{width:16,height:16,accentColor:"#B45A22",marginTop:2,cursor:"pointer",flexShrink:0}}/>
             <span style={{fontSize:"0.82rem",fontWeight:700,color:"#6a3a10",lineHeight:1.6}}>I understand that rehoming is a <strong>serious and permanent decision</strong>, and I confirm all information is accurate.</span>
           </label>
+          <InlineErr msg={err("understandsPermanent")}/>
           <label style={{display:"flex",alignItems:"center",gap:"0.625rem",padding:"0.625rem 0.875rem",borderRadius:10,background:"rgba(255,248,220,0.6)",border:"1px solid rgba(180,140,60,0.22)",cursor:"pointer"}}>
             <input type="checkbox" checked={form.openToFollowup} onChange={set("openToFollowup")} style={{width:16,height:16,accentColor:"#1c4f09",cursor:"pointer"}}/>
             <span style={{fontSize:"0.82rem",fontWeight:700,color:"#3a5020"}}>I am open to being contacted for follow-up after placement.</span>
@@ -334,8 +376,9 @@ export default function Rehome(){
   const[step,setStep]=useState(1);
   const[submitted,setSubmitted]=useState(false);
   const[loading,setLoading]=useState(false);
-  const[errors,setErrors]=useState([]);      // array of error strings
-  const[touched,setTouched]=useState(false); // whether user tried to advance/submit
+  const[submitError,setSubmitError]=useState(null); // only for network/server errors
+  const[fieldErrors,setFieldErrors]=useState({});
+  const[touched,setTouched]=useState(false);
 
   const [photoPreview, setPhotoPreview] = useState(null);
   const [photoBase64,  setPhotoBase64]  = useState(null);
@@ -344,13 +387,13 @@ export default function Rehome(){
   const handlePhotoChange = useCallback(async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { setErrors(["Photo must be under 5 MB."]); return; }
+    if (file.size > 5 * 1024 * 1024) { setSubmitError("Photo must be under 5 MB."); return; }
     try {
       const dataUrl = await fileToBase64(file);
       setPhotoPreview(dataUrl);
       setPhotoBase64(dataUrl);
-      setErrors([]);
-    } catch { setErrors(["Could not read the image. Please try another file."]); }
+      setSubmitError(null);
+    } catch { setSubmitError("Could not read the image. Please try another file."); }
     e.target.value = "";
   }, []);
 
@@ -362,12 +405,12 @@ export default function Rehome(){
   const handleVaccPhotoAdd = useCallback(async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { setErrors(["Photo must be under 5 MB."]); return; }
+    if (file.size > 5 * 1024 * 1024) { setSubmitError("Photo must be under 5 MB."); return; }
     try {
       const dataUrl = await fileToBase64(file);
       setVaccPhotos(prev => [...prev.slice(0, 4), dataUrl]);
-      setErrors([]);
-    } catch { setErrors(["Could not read the image. Please try another file."]); }
+      setSubmitError(null);
+    } catch { setSubmitError("Could not read the image. Please try another file."); }
     e.target.value = "";
   }, []);
 
@@ -389,39 +432,41 @@ export default function Rehome(){
   const set=useCallback((k)=>(e)=>setForm(f=>({...f,[k]:e.target.type==="checkbox"?e.target.checked:e.target.value})),[]);
   const setV=useCallback((k,v)=>setForm(f=>({...f,[k]:v})),[]);
 
-  // ── Continue to next step with validation ────────────────────────────────
   const handleContinue = () => {
-    setTouched(true);
     const errs = validateStep(step, form);
-    if (errs.length > 0) { setErrors(errs); return; }
-    setErrors([]);
+    setFieldErrors(errs);
+    setTouched(true);
+    if (Object.keys(errs).length > 0) return;
     setTouched(false);
+    setFieldErrors({});
     setStep(s => s + 1);
   };
 
   const handleBack = () => {
-    setErrors([]);
     setTouched(false);
+    setFieldErrors({});
+    setSubmitError(null);
     setStep(s => s - 1);
   };
 
   const handleSubmit=async(e)=>{
     e.preventDefault();
-    setTouched(true);
     const errs = validateStep(4, form);
-    if (errs.length > 0) { setErrors(errs); return; }
-    setErrors([]);
+    setFieldErrors(errs);
+    setTouched(true);
+    if (Object.keys(errs).length > 0) return;
+    setSubmitError(null);
     setLoading(true);
     try{
       const res=await djFetch("/api/approvals/rehoming/",{method:"POST",body:JSON.stringify({
         pet_name:form.petName,species:form.species,breed:form.breed,age:form.age,gender:form.gender,
         duration_owned:form.durationOwned,is_vaccinated:form.isVaccinated==="yes",is_neutered:form.isNeutered==="yes",
         medical_notes:form.medicalNotes,
-       vaccine_type:   form.vaccineType   || "",
-last_vacc_date: form.lastVaccDate  || "",
-vacc_clinic:    form.vaccClinic    || "",
-vacc_notes:     form.vaccNotes     || "",
-        vacc_photos: vaccPhotos.length > 0 ? vaccPhotos : [],   // always array, never null
+        vaccine_type:   form.vaccineType   || "",
+        last_vacc_date: form.lastVaccDate  || "",
+        vacc_clinic:    form.vaccClinic    || "",
+        vacc_notes:     form.vaccNotes     || "",
+        vacc_photos: vaccPhotos.length > 0 ? vaccPhotos : [],
         behavior:form.behavior,behavior_other:form.behaviorOther,
         has_aggression:form.hasAggression==="yes",is_house_trained:form.isHouseTrained==="yes",
         is_leash_trained:form.isLeashTrained==="yes",good_with_children:form.goodWithChildren==="yes",
@@ -434,8 +479,8 @@ vacc_notes:     form.vaccNotes     || "",
       })});
       let data={};try{data=await res.json();}catch{}
       if(res.ok&&data.success!==false){setSubmitted(true);}
-      else{setErrors([data.message||`Error (${res.status}). Please try again.`]);}
-    }catch{setErrors(["Network error. Please try again."]);}
+      else{setSubmitError(data.message||`Error (${res.status}). Please try again.`);}
+    }catch{setSubmitError("Network error. Please try again.");}
     setLoading(false);
   };
 
@@ -531,9 +576,16 @@ vacc_notes:     form.vaccNotes     || "",
                       onVaccPhotoAdd={handleVaccPhotoAdd}
                       onVaccPhotoRemove={handleVaccPhotoRemove}
                       touched={touched}
+                      fieldErrors={fieldErrors}
                     />
-                    <ErrBox errors={errors}/>
                   </div>
+
+                  {/* Server/network error only */}
+                  {submitError && (
+                    <div style={{padding:"0.65rem 0.875rem",borderRadius:10,background:"rgba(192,48,48,0.08)",border:"1px solid rgba(192,48,48,0.25)",marginTop:"0.75rem",fontSize:"0.82rem",fontWeight:700,color:"#c03030",display:"flex",alignItems:"center",gap:"0.4rem"}}>
+                      <i className="fas fa-times-circle"/>{submitError}
+                    </div>
+                  )}
 
                   <div style={{display:"flex",gap:"0.5rem",marginTop:"1.25rem"}}>
                     {step>1&&(

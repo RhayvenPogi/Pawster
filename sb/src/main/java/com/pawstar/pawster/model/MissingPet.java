@@ -12,7 +12,7 @@ public class MissingPet {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String type; // "lost" or "found"
+    private String type;
     private String name;
     private String species;
     private String breed;
@@ -23,11 +23,9 @@ public class MissingPet {
     private String details;
 
     private LocalDate reportedDate;
-
-    private String address; // full address where lost/found
-    private Double latitude; // geocoded lat for map
-    private Double longitude; // geocoded lng for map
-    private String photoUrl; // uploaded photo path
+    private String address;
+    private Double latitude;
+    private Double longitude;
     private String status;
 
     @Column(name = "reporter_user_id")
@@ -39,51 +37,15 @@ public class MissingPet {
     @Column(name = "resolved_at")
     private LocalDateTime resolvedAt;
 
+    @Column(name = "photo", columnDefinition = "bytea")
+    private byte[] photo;
+
+    @Column(name = "photo_type")
+    private String photoType;
+
     @PrePersist
     public void prePersist() {
         this.reportedDate = LocalDate.now();
-    }
-
-    // Getters & Setters
-
-    public String getAddress() {
-        return address;
-    }
-
-    public void setAddress(String address) {
-        this.address = address;
-    }
-
-    public Double getLatitude() {
-        return latitude;
-    }
-
-    public void setLatitude(Double latitude) {
-        this.latitude = latitude;
-    }
-
-    public Double getLongitude() {
-        return longitude;
-    }
-
-    public void setLongitude(Double longitude) {
-        this.longitude = longitude;
-    }
-
-    public String getPhotoUrl() {
-        return photoUrl;
-    }
-
-    public void setPhotoUrl(String photoUrl) {
-        this.photoUrl = photoUrl;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
     }
 
     public Long getId() {
@@ -158,6 +120,38 @@ public class MissingPet {
         this.reportedDate = reportedDate;
     }
 
+    public String getAddress() {
+        return address;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
+    }
+
+    public Double getLatitude() {
+        return latitude;
+    }
+
+    public void setLatitude(Double latitude) {
+        this.latitude = latitude;
+    }
+
+    public Double getLongitude() {
+        return longitude;
+    }
+
+    public void setLongitude(Double longitude) {
+        this.longitude = longitude;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
     public Integer getReporterUserId() {
         return reporterUserId;
     }
@@ -180,5 +174,21 @@ public class MissingPet {
 
     public void setResolvedAt(LocalDateTime resolvedAt) {
         this.resolvedAt = resolvedAt;
+    }
+
+    public byte[] getPhoto() {
+        return photo;
+    }
+
+    public void setPhoto(byte[] photo) {
+        this.photo = photo;
+    }
+
+    public String getPhotoType() {
+        return photoType;
+    }
+
+    public void setPhotoType(String photoType) {
+        this.photoType = photoType;
     }
 }

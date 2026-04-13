@@ -6,14 +6,9 @@ const STATUS_STYLE = {
   rejected: { bg: "bg-red-100",    text: "text-red-700",    border: "border-red-300",    dot: "bg-red-400",    label: "Rejected" },
 };
 
-function normalizePhotoUrl(url) {
-  if (!url) return null;
-  try {
-    const u = new URL(url);
-    return u.pathname;
-  } catch {
-    return url.startsWith("/") ? url : "/" + url;
-  }
+function getPetPhotoUrl(pet) {
+  if (!pet?.id) return null;
+  return `/api/missing-pets/${pet.id}/photo`;
 }
 
 function StatusBadge({ status }) {
@@ -192,13 +187,14 @@ function EditModal({ pet, onClose, onSave, saving }) {
 /* ── Detail Modal ── */
 function DetailModal({ pet, onClose, onApprove, onReject, onDelete, onEdit }) {
   const [imgErr, setImgErr] = useState(false);
-  useEffect(() => { setImgErr(false); }, [pet?.id, pet?.photoUrl]);
+
+  useEffect(() => { setImgErr(false); }, [pet?.id]);
   useEffect(() => {
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = ""; };
   }, []);
 
-  const photoUrl = normalizePhotoUrl(pet.photoUrl);
+  const photoUrl = getPetPhotoUrl(pet);
   const isPending  = !pet.status || pet.status === "pending";
   const isApproved = pet.status === "approved";
 
@@ -236,11 +232,14 @@ function DetailModal({ pet, onClose, onApprove, onReject, onDelete, onEdit }) {
         <div className="overflow-y-auto flex-1 flex flex-col">
           {/* Cover photo */}
           <div className="relative h-48 bg-[#f0ece0] shrink-0 overflow-hidden">
-            {photoUrl && !imgErr ? (
-              <img src={photoUrl} alt={pet.name || "Pet"}
+            {!imgErr ? (
+              <img
+                src={photoUrl}
+                alt={pet.name || "Pet"}
                 className="w-full h-full object-cover"
-                onError={() => { setImgErr(true); }}
-                onLoad={() => setImgErr(false)} />
+                onError={() => setImgErr(true)}
+                onLoad={() => setImgErr(false)}
+              />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-6xl opacity-20">
                 {pet.species?.toLowerCase() === "cat" ? "🐱" : "🐶"}
@@ -304,7 +303,6 @@ function DetailModal({ pet, onClose, onApprove, onReject, onDelete, onEdit }) {
               ✓ Re-approve
             </button>
           )}
-          {/* Edit button */}
           <button onClick={() => onEdit(pet)}
             className="px-4 py-2.5 rounded-xl font-bold text-sm cursor-pointer bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 transition-colors">
             ✏️
@@ -390,7 +388,6 @@ export default function MissingPetsPanel({ show, onStatsChange }) {
     } catch { showToast("Network error.", "error"); }
   };
 
-  /* ── NEW: handle update ── */
   const handleUpdate = async (formData) => {
     setSaving(true);
     try {
@@ -402,7 +399,6 @@ export default function MissingPetsPanel({ show, onStatsChange }) {
       if (res.ok) {
         const updated = await res.json();
         setPets(p => p.map(x => x.id === editPet.id ? { ...x, ...updated } : x));
-        // Keep detail modal open but refresh the pet data shown
         if (selected?.id === editPet.id) setSelected(prev => ({ ...prev, ...updated }));
         setEditPet(null);
         showToast("Report updated successfully.");
@@ -579,12 +575,16 @@ export default function MissingPetsPanel({ show, onStatsChange }) {
 
               {/* Photo */}
               <div className="w-11 h-11 rounded-xl overflow-hidden bg-[rgba(180,140,60,0.12)] flex items-center justify-center shrink-0">
-                {pet.photoUrl ? (
-                  <img src={normalizePhotoUrl(pet.photoUrl)} alt=""
-                    className="w-full h-full object-cover"
-                    onError={e => { e.target.style.display = "none"; e.target.nextSibling.style.display = "flex"; }} />
-                ) : null}
-                <span className="text-2xl" style={{ display: pet.photoUrl ? "none" : "flex" }}>
+                <img
+                  src={getPetPhotoUrl(pet)}
+                  alt=""
+                  className="w-full h-full object-cover"
+                  onError={e => {
+                    e.target.style.display = "none";
+                    e.target.nextSibling.style.display = "flex";
+                  }}
+                />
+                <span className="text-2xl hidden items-center justify-center w-full h-full">
                   {pet.species?.toLowerCase() === "cat" ? "🐱" : "🐶"}
                 </span>
               </div>
@@ -607,7 +607,7 @@ export default function MissingPetsPanel({ show, onStatsChange }) {
 
               <div className="text-[11px] font-bold text-[#6a7a50]">{formatDate(pet.reportedDate)}</div>
 
-              {/* Actions — now includes Edit ✏️ */}
+              {/* Actions */}
               <div className="flex gap-1 flex-wrap" onClick={e => e.stopPropagation()}>
                 <button onClick={() => setSelected(pet)} title="View"
                   className="px-2 py-1 rounded-lg text-[11px] font-black border cursor-pointer transition-opacity hover:opacity-70 bg-blue-50 border-blue-200 text-blue-700">
