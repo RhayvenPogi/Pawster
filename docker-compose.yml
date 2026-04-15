@@ -2,14 +2,15 @@ services:
 
   # ── Service Registry ────────────────────────────────────────────────────────
   eureka-server:
-    image: eclipse-temurin:17-jdk-alpine
+    image: maven:3.9.9-eclipse-temurin-17
     container_name: pawster_eureka_server
     ports:
       - "8761:8761"
     volumes:
       - ./eureka-server:/app
+      - ~/.m2:/root/.m2
     working_dir: /app
-    command: ./mvnw spring-boot:run
+    command: mvn spring-boot:run
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8761/actuator/health | grep -q UP || exit 1"]
       interval: 15s
@@ -19,7 +20,7 @@ services:
 
   # ── API Gateway ─────────────────────────────────────────────────────────────
   api-gateway:
-    image: eclipse-temurin:17-jdk-alpine
+    image: maven:3.9.9-eclipse-temurin-17
     container_name: pawster_api_gateway
     depends_on:
       eureka-server:
@@ -31,8 +32,9 @@ services:
       - JWT_SECRET=${JWT_SECRET}
     volumes:
       - ./api-gateway:/app
+      - ~/.m2:/root/.m2
     working_dir: /app
-    command: ./mvnw spring-boot:run
+    command: mvn spring-boot:run
 
   # ── Database ─────────────────────────────────────────────────────────────────
   db:
