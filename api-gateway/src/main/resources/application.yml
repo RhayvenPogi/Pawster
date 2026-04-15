@@ -1,0 +1,35 @@
+server:
+  port: 8000
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      routes:
+        # Spring Boot — Auth, Animals, Adoptions, etc.
+        - id: springboot-service
+          uri: lb://pawster
+          predicates:
+            - Path=/api/auth/**, /api/animals/**, /api/adoptions/**, /api/users/**, /api/admin/**, /api/rehome/**, /api/surveys/**, /api/missing-pets/**, /api/activity-logs/**
+        # PHP service — Apache serves directly, no nginx sidecar needed
+        - id: php-service
+          uri: http://php:80
+          predicates:
+            - Path=/api/products/**
+          filters:
+            - RewritePath=/api/products(?<segment>/?.*), $\{segment}
+        # Django — approvals, notifications, etc.
+        - id: django-service
+          uri: http://django:8001
+          predicates:
+            - Path=/api/approvals/**, /api/notifications/**, /api/django/**
+eureka:
+  client:
+    service-url:
+      defaultZone: http://eureka-server:8761/eureka/
+jwt:
+  secret: ${JWT_SECRET}
