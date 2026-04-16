@@ -14,27 +14,26 @@ public class Animal {
     @Column(nullable = false, length = 120)
     private String name;
 
-    /** Dog | Cat | Bird | Rabbit | Other */
     @Column(nullable = false, length = 40)
     private String type = "Dog";
 
     @Column(length = 120)
     private String breed;
 
-    /** Stored as text, e.g. "2 years", "6 months" */
     @Column(length = 40)
     private String age;
 
-    /** Healthy | Needs Care | Under Treatment */
     @Column(nullable = false, length = 40)
     private String health = "Healthy";
 
-    /** Available | Pending | Adopted | Not Available */
     @Column(nullable = false, length = 40)
     private String status = "Available";
 
-    @Column(length = 255)
-    private String photo;
+    @Column(name = "photo_data", columnDefinition = "bytea")
+    private byte[] photoData;
+
+    @Column(name = "photo_type", length = 100)
+    private String photoType;
 
     @Column(columnDefinition = "text")
     private String notes;
@@ -47,8 +46,6 @@ public class Animal {
     protected void onCreate() {
         if (createdAt == null) createdAt = OffsetDateTime.now();
     }
-
-    // ── Getters & Setters ──────────────────────────────────────────────────────
 
     public Integer        getId()                        { return id; }
     public void           setId(Integer v)               { this.id = v; }
@@ -71,8 +68,11 @@ public class Animal {
     public String         getStatus()                    { return status; }
     public void           setStatus(String v)            { this.status = v; }
 
-    public String         getPhoto()                     { return photo; }
-    public void           setPhoto(String v)             { this.photo = v; }
+    public byte[]         getPhotoData()                 { return photoData; }
+    public void           setPhotoData(byte[] v)         { this.photoData = v; }
+
+    public String         getPhotoType()                 { return photoType; }
+    public void           setPhotoType(String v)         { this.photoType = v; }
 
     public String         getNotes()                     { return notes; }
     public void           setNotes(String v)             { this.notes = v; }

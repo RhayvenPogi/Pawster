@@ -7,24 +7,22 @@ export default defineConfig({
     host: true,
     proxy: {
       '/php': {
-        target: 'http://php:80',
+        target: 'http://localhost:8000',  // ✅ works locally
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/php/, ''),
+      },
+      '/api': {
+        target: 'http://localhost:8000',  // ✅ works locally
+        changeOrigin: true,
+      },
+      '/uploads': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
       },
       '/ors': {
         target: 'https://api.openrouteservice.org',
         changeOrigin: true,
         secure: true,
         rewrite: (path) => path.replace(/^\/ors/, ''),
-      },
-      // ✅ Use service name 'sb' NOT container name 'pawster_springboot_app'
-      '/api': {
-        target: 'http://sb:8080',
-        changeOrigin: true,
-      },
-      '/uploads': {
-        target: 'http://sb:8080',
-        changeOrigin: true,
       },
     }
   }

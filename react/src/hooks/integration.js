@@ -54,7 +54,7 @@ export default function App() {
 //
 //   const login = async (email, password) => {
 //     // Your Spring Boot / PHP login endpoint:
-//     const res = await axios.post("http://localhost:8081/api/auth/login", { email, password });
+//     const res = await axios.post("http://localhost:8000/api/auth/login", { email, password });
 //     const userData = res.data; // { firstName, lastName, email, role, token }
 //     localStorage.setItem("pawster_user", JSON.stringify(userData));
 //     setUser(userData);

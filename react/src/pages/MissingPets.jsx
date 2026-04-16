@@ -4,7 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import Navbar from './Navbar';
 import logo from "../images/logo.png";
 
-const SB = import.meta.env.VITE_API_BASE ?? 'http://localhost:8080';
+const SB = import.meta.env.VITE_API_BASE ?? 'http://localhost:8000';
 
 function useReveal() {
   const ref = useRef(null);

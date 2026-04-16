@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 
-const DJANGO = import.meta.env.VITE_DJANGO_API ?? "http://localhost:8082";
+const DJANGO = import.meta.env.VITE_DJANGO_API ?? "http://localhost:8000";
 const POLL_MS = 60_000;
 
 export default function NotificationBell({ token }) {

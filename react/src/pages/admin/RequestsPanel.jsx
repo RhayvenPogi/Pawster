@@ -15,8 +15,8 @@
  */
 import { useState, useEffect, useCallback } from "react";
 
-const DJANGO = import.meta.env.VITE_DJANGO_API ?? "http://localhost:8082";
-const SPRING = import.meta.env.VITE_API_BASE   ?? "http://localhost:8080";
+const DJANGO = import.meta.env.VITE_DJANGO_API ?? "http://localhost:8000";
+const SPRING = import.meta.env.VITE_API_BASE   ?? "http://localhost:8000";
 
 function getToken() {
   return (

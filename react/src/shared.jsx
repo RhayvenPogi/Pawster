@@ -1,7 +1,6 @@
 // ── SHARED UTILITIES, CONSTANTS & UI PRIMITIVES ───────────────────────────────
 import { useState, useCallback } from "react";
-
-export const PHP_BASE = "http://localhost:8081";
+export const PHP_BASE = import.meta.env.VITE_PHP_API_URL ?? "http://localhost:8000";
 
 /**
  * phpApi(action, data, file?)
@@ -16,16 +15,14 @@ export async function phpApi(action, data = {}, file = null) {
   const form = new FormData();
   form.append("action", action);
   for (const [k, v] of Object.entries(data)) {
-    // Skip null/undefined — don't send empty "null" strings
     if (v !== null && v !== undefined) form.append(k, v);
   }
-  if (file instanceof File) {
-    form.append("photo", file);
-  }
+  if (file instanceof File) form.append("photo", file);
+
   const res = await fetch(`/php/admin/dashboard`, {
     method: "POST",
     body: form,
-    credentials: "include",
+    credentials: "include",  // ✅ browser sends cookie automatically
   });
   return res.json();
 }

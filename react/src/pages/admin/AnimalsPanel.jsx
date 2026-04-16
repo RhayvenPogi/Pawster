@@ -5,58 +5,71 @@ import {
   Badge, Table, Tr, Td, BtnCancel, BtnConfirm,
   PageHeader, SearchBar, healthBadge, statusBadge
 } from "../../shared";
+import api from "../../config/axios";
 
 const TYPE_ICONS  = { Dog: "🐶", Cat: "🐱", Bird: "🐦", Rabbit: "🐰", Other: "🐾" };
 const TYPE_COLORS = { Dog: "#2a7010", Cat: "#7a3dc0", Bird: "#0a7ab4", Rabbit: "#c87820", Other: "#6a7a50" };
-const SPRING = import.meta.env.VITE_API_BASE ?? "http://localhost:8080";
+const SPRING = "/api";
 
-// ─── Inline field error ────────────────────────────────────────────────────────
+// ── Inline field error ─────────────────────────────────────────────────────────
 function FieldErr({ msg }) {
   if (!msg) return null;
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "0.3rem", marginTop: "0.35rem", padding: "0.25rem 0.55rem", borderRadius: 6, background: "rgba(192,48,48,0.08)", border: "1px solid rgba(192,48,48,0.22)" }}>
       <svg width="11" height="11" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0 }}>
-        <circle cx="6" cy="6" r="5.5" stroke="#c03030" strokeWidth="1"/>
-        <path d="M6 3.5V6.5" stroke="#c03030" strokeWidth="1.4" strokeLinecap="round"/>
-        <circle cx="6" cy="8.5" r="0.6" fill="#c03030"/>
+        <circle cx="6" cy="6" r="5.5" stroke="#c03030" strokeWidth="1" />
+        <path d="M6 3.5V6.5" stroke="#c03030" strokeWidth="1.4" strokeLinecap="round" />
+        <circle cx="6" cy="8.5" r="0.6" fill="#c03030" />
       </svg>
       <span style={{ fontSize: "0.72rem", fontWeight: 800, color: "#c03030" }}>{msg}</span>
     </div>
   );
 }
 
-function photoUrl(path) {
-  if (!path) return null;
-  if (path.startsWith("data:")) return path;
-  if (path.startsWith("http")) return path;
-  return `http://localhost:8081${path}`;
+function resolvePhoto(animal) {
+  if (animal.photoData && animal.photoType) {
+    return `data:${animal.photoType};base64,${animal.photoData}`;
+  }
+  if (animal.photo) {
+    if (animal.photo.startsWith("data:") || animal.photo.startsWith("http")) return animal.photo;
+    return `/uploads${animal.photo}`;
+  }
+  return null;
 }
 
-// ── Animal avatar (table) ─────────────────────────────────────────────────────
 function AnimalAvatar({ animal, size = 38 }) {
-  const src = photoUrl(animal.photo);
+  const src = resolvePhoto(animal);
   if (src) {
     return (
       <img src={src} alt={animal.name}
-        style={{ width: size, height: size, borderRadius: 10, flexShrink: 0, objectFit: "cover", border: "2px solid rgba(42,112,16,0.2)" }}
+        style={{ width: size, height: size, borderRadius: 10, flexShrink: 0,
+                 objectFit: "cover", border: "2px solid rgba(42,112,16,0.2)" }}
       />
     );
   }
   return (
-    <div style={{ width: size, height: size, borderRadius: 10, flexShrink: 0, background: `${TYPE_COLORS[animal.type] || "#6a7a50"}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.5 }}>
+    <div style={{ width: size, height: size, borderRadius: 10, flexShrink: 0,
+                  background: `${TYPE_COLORS[animal.type] || "#6a7a50"}18`,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: size * 0.5 }}>
       {TYPE_ICONS[animal.type] || "🐾"}
     </div>
   );
 }
 
-// ── Photo uploader widget (modal) ─────────────────────────────────────────────
 function PhotoUploader({ existingUrl, file, onChange }) {
   const inputRef = useRef();
-  const preview  = file ? URL.createObjectURL(file) : photoUrl(existingUrl);
+  const preview  = file ? URL.createObjectURL(file) : existingUrl;
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-      <div onClick={() => inputRef.current?.click()} style={{ width: 80, height: 80, borderRadius: 14, flexShrink: 0, cursor: "pointer", border: "2px dashed rgba(42,112,16,0.35)", overflow: "hidden", background: preview ? "transparent" : "rgba(42,112,16,0.04)", display: "flex", alignItems: "center", justifyContent: "center", transition: "border-color .15s" }}
+      <div
+        onClick={() => inputRef.current?.click()}
+        style={{ width: 80, height: 80, borderRadius: 14, flexShrink: 0, cursor: "pointer",
+                 border: "2px dashed rgba(42,112,16,0.35)", overflow: "hidden",
+                 background: preview ? "transparent" : "rgba(42,112,16,0.04)",
+                 display: "flex", alignItems: "center", justifyContent: "center",
+                 transition: "border-color .15s" }}
         onMouseEnter={e => e.currentTarget.style.borderColor = "rgba(42,112,16,0.7)"}
         onMouseLeave={e => e.currentTarget.style.borderColor = "rgba(42,112,16,0.35)"}>
         {preview
@@ -64,62 +77,103 @@ function PhotoUploader({ existingUrl, file, onChange }) {
           : <span style={{ fontSize: 28, opacity: 0.4 }}>📷</span>}
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <button type="button" onClick={() => inputRef.current?.click()} style={{ padding: "5px 14px", borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: "pointer", background: "rgba(42,112,16,0.1)", border: "1px solid rgba(42,112,16,0.25)", color: "#2a7010" }}>
+        <button type="button" onClick={() => inputRef.current?.click()}
+          style={{ padding: "5px 14px", borderRadius: 8, fontSize: 12, fontWeight: 800,
+                   cursor: "pointer", background: "rgba(42,112,16,0.1)",
+                   border: "1px solid rgba(42,112,16,0.25)", color: "#2a7010" }}>
           {preview ? "Change photo" : "Upload photo"}
         </button>
         {preview && (
-          <button type="button" onClick={() => onChange(null, true)} style={{ padding: "5px 14px", borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: "pointer", background: "rgba(192,48,48,0.07)", border: "1px solid rgba(192,48,48,0.2)", color: "#c03030" }}>
+          <button type="button" onClick={() => onChange(null, true)}
+            style={{ padding: "5px 14px", borderRadius: 8, fontSize: 12, fontWeight: 800,
+                     cursor: "pointer", background: "rgba(192,48,48,0.07)",
+                     border: "1px solid rgba(192,48,48,0.2)", color: "#c03030" }}>
             Remove
           </button>
         )}
         <span style={{ fontSize: 10, color: "#9aaa80", fontWeight: 600 }}>JPG, PNG, WEBP · max 2 MB</span>
       </div>
-      <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" style={{ display: "none" }}
+      <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif"
+        style={{ display: "none" }}
         onChange={e => onChange(e.target.files?.[0] || null, false)} />
     </div>
   );
 }
 
-// ── Main panel ────────────────────────────────────────────────────────────────
+// ── normaliseSb: maps Spring Boot animal to internal shape ──────────────────
+function normaliseSb(a) {
+  return {
+    _id:             a.id,          // real numeric SB id — used for PUT/DELETE
+    id:              `sb_${a.id}`,  // unique React key (avoids collisions with PHP ids)
+    name:            a.name,
+    type:            a.type,
+    breed:           a.breed,
+    age:             a.age,
+    health:          a.health,
+    status:          a.status,
+    notes:           a.notes,
+    photoData:       a.photoData  || null,
+    photoType:       a.photoType  || null,
+    _fromSpringBoot: true,
+  };
+}
+
 export default function AnimalsPanel({ show }) {
-  const [animals,     setAnimals]     = useState([]);
-  const [loading,     setLoading]     = useState(false);
-  const [search,      setSearch]      = useState("");
-  const [modal,       setModal]       = useState(null);
-  const [form,        setForm]        = useState({});
-  const [formErrs,    setFormErrs]    = useState({});
-  const [photoFile,   setPhotoFile]   = useState(null);
-  const [removePhoto, setRemovePhoto] = useState(false);
-  const [saving,      setSaving]      = useState(false);
-  const [delModal,    setDel]         = useState(null);
+  const [animals,      setAnimals]      = useState([]);
+  const [loading,      setLoading]      = useState(false);
+  const [search,       setSearch]       = useState("");
+  const [modal,        setModal]        = useState(null);   // "add" | "edit" | null
+  const [form,         setForm]         = useState({});
+  const [formErrs,     setFormErrs]     = useState({});
+  const [photoFile,    setPhotoFile]    = useState(null);
+  const [removePhoto,  setRemovePhoto]  = useState(false);
+  const [saving,       setSaving]       = useState(false);
+  const [delModal,     setDel]          = useState(null);
   const { show: toast } = useToast();
 
+  // ── Load ────────────────────────────────────────────────────────────────────
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await phpApi("get_animals");
-      const phpAnimals = r.success ? (r.data || []) : [];
+      // 1. PHP animals — guard against empty / broken response
+      let phpAnimals = [];
+      try {
+        const r = await phpApi("get_animals");
+        phpAnimals = r?.success ? (r.data || []) : [];
+      } catch {
+        phpAnimals = [];
+      }
 
-      const sbRes = await fetch(`${SPRING}/api/animals`);
-      const sbData = await sbRes.json();
-      const sbAnimals = Array.isArray(sbData) ? sbData
-        .filter(a => !phpAnimals.some(
-          p => p.name?.toLowerCase() === a.name?.toLowerCase() &&
-               p.type?.toLowerCase() === a.type?.toLowerCase()
-        ))
-        .map(a => ({
-          id: `sb_${a.id}`, name: a.name, type: a.type, breed: a.breed,
-          age: a.age, health: a.health, status: a.status, notes: a.notes,
-          photo: a.photoUrl || a.photo_url || a.photo || null, _fromSpringBoot: true,
-        })) : [];
+      // 2. Spring Boot animals — api instance sends JWT automatically
+      //    GET /api/animals is .permitAll() so no auth needed, but the
+      //    shared axios instance attaches the token anyway (harmless).
+      let sbAnimals = [];
+      try {
+        const sbRes  = await api.get(`${SPRING}/animals`);
+        const sbData = sbRes.data;
+        sbAnimals = Array.isArray(sbData)
+          ? sbData
+              // De-duplicate: skip SB animals already present in PHP list
+              .filter(a => !phpAnimals.some(
+                p => p.name?.toLowerCase() === a.name?.toLowerCase() &&
+                     p.type?.toLowerCase() === a.type?.toLowerCase()
+              ))
+              .map(normaliseSb)
+          : [];
+      } catch (sbErr) {
+        console.warn("Spring Boot animals unavailable:", sbErr?.response?.status ?? sbErr.message);
+      }
 
       setAnimals([...phpAnimals, ...sbAnimals]);
-    } catch {}
+    } catch (err) {
+      console.error("load animals:", err);
+    }
     setLoading(false);
   }, []);
 
   useEffect(() => { if (show) load(); }, [show, load]);
 
+  // ── Open modals ─────────────────────────────────────────────────────────────
   const openAdd = () => {
     setForm({ type: "Dog", health: "Healthy", status: "Available" });
     setFormErrs({});
@@ -136,11 +190,12 @@ export default function AnimalsPanel({ show }) {
     setModal("edit");
   };
 
+  // ── Photo change ────────────────────────────────────────────────────────────
   const handlePhotoChange = (file, remove) => {
     if (remove) {
       setPhotoFile(null);
       setRemovePhoto(true);
-      setForm(f => ({ ...f, photo: null }));
+      setForm(f => ({ ...f, photoData: null, photoType: null, photo: null }));
     } else {
       if (file && file.size > 2 * 1024 * 1024) {
         toast("Photo must be under 2 MB", "error");
@@ -151,7 +206,7 @@ export default function AnimalsPanel({ show }) {
     }
   };
 
-  // ── Validation ─────────────────────────────────────────────────────────────
+  // ── Validation ──────────────────────────────────────────────────────────────
   function validateAnimal(f) {
     const e = {};
     if (!f.name?.trim()) e.name = "Animal name is required.";
@@ -168,15 +223,45 @@ export default function AnimalsPanel({ show }) {
     });
   };
 
+  // ── Save ────────────────────────────────────────────────────────────────────
   const save = async () => {
     const e = validateAnimal(form);
     setFormErrs(e);
-    if (Object.keys(e).length) return; // ← BLOCKED
+    if (Object.keys(e).length) return;
 
     setSaving(true);
     try {
-      const data = {
-        ...(form.id && { id: form.id }),
+      // ── PHP animal: edit via phpApi, add is always SB ──────────────────────
+      if (form._fromSpringBoot === false || (modal === "edit" && !form._fromSpringBoot)) {
+        // Editing an existing PHP animal
+        const res = await phpApi("update_animal", {
+          id:     form.id,
+          name:   form.name,
+          type:   form.type   || "Dog",
+          breed:  form.breed  || "",
+          age:    form.age    || "",
+          health: form.health || "Healthy",
+          status: form.status || "Available",
+          notes:  form.notes  || "",
+        }, photoFile || undefined);
+
+        if (res?.success) {
+          toast("Animal updated", "success");
+          setModal(null);
+          load();
+        } else {
+          toast(res?.message || "Error saving", "error");
+        }
+        setSaving(false);
+        return;
+      }
+
+      // ── Spring Boot: add or edit ───────────────────────────────────────────
+      const isEdit   = modal === "edit" && form._fromSpringBoot && form._id;
+      const endpoint = isEdit ? `${SPRING}/animals/${form._id}` : `${SPRING}/animals`;
+      const method   = isEdit ? "put" : "post";
+
+      const payload = {
         name:   form.name,
         type:   form.type   || "Dog",
         breed:  form.breed  || "",
@@ -186,42 +271,51 @@ export default function AnimalsPanel({ show }) {
         notes:  form.notes  || "",
       };
 
-      if (!photoFile && !removePhoto && form.photo) {
-        data.existing_photo = form.photo;
-      }
-
-      const r = await phpApi(
-        form.id ? "update_animal" : "add_animal",
-        data,
-        photoFile
-      );
-
-      if (r.success) {
-        toast(form.id ? "Animal updated" : "Animal added", "success");
-        setModal(null);
-        load();
+      if (photoFile) {
+        // Multipart: Spring Boot must accept @RequestPart("data") + @RequestPart("photo")
+        const fd = new FormData();
+        fd.append("data", new Blob([JSON.stringify(payload)], { type: "application/json" }));
+        fd.append("photo", photoFile);
+        await api[method](endpoint, fd, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
       } else {
-        toast(r.message || "Error saving", "error");
+        // No photo — send plain JSON (avoids multipart parsing issues on the server)
+        await api[method](endpoint, payload);
       }
-    } catch {
-      toast("Server error", "error");
+
+      toast(isEdit ? "Animal updated" : "Animal added", "success");
+      setModal(null);
+      load();
+    } catch (err) {
+      toast(err?.response?.data?.message || "Error saving", "error");
     }
     setSaving(false);
   };
 
+  // ── Delete ──────────────────────────────────────────────────────────────────
   const del = async () => {
     try {
-      await phpApi("delete", { type: "animal", id: delModal.id });
+      if (delModal._fromSpringBoot) {
+        // Use the real numeric SB id stored in _id
+        await api.delete(`${SPRING}/animals/${delModal._id}`);
+      } else {
+        // PHP animals use their own id field (plain numeric, no "sb_" prefix)
+        await phpApi("delete", { type: "animal", id: delModal.id });
+      }
       toast("Animal deleted", "success");
       setDel(null);
       load();
-    } catch { toast("Error deleting", "error"); }
+    } catch {
+      toast("Error deleting", "error");
+    }
   };
 
   const filtered = animals.filter(a =>
     `${a.name} ${a.type} ${a.breed}`.toLowerCase().includes(search.toLowerCase())
   );
 
+  // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-5">
       <PageHeader
@@ -243,7 +337,9 @@ export default function AnimalsPanel({ show }) {
           <div className="w-8 h-8 rounded-full border-2 border-green-600 border-t-transparent animate-spin" />
         </div>
       ) : (
-        <Table headers={["Animal", "Type", "Breed", "Age", "Health", "Status", "Actions"]} empty="No animals yet — add one!">
+        <Table
+          headers={["Animal", "Type", "Breed", "Age", "Health", "Status", "Actions"]}
+          empty="No animals yet — add one!">
           {filtered.map(a => (
             <Tr key={a.id}>
               <Td>
@@ -259,18 +355,16 @@ export default function AnimalsPanel({ show }) {
               <Td><Badge color={statusBadge(a.status)}>{a.status}</Badge></Td>
               <Td>
                 <div className="flex gap-2">
-                  {!a._fromSpringBoot && (
-                    <button onClick={() => openEdit(a)}
-                      className="px-3 py-1.5 rounded-lg text-xs font-black border transition-all hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700"
-                      style={{ borderColor: "#ddd0a8", color: "#7a9060" }}>✏ Edit
-                    </button>
-                  )}
-                  {!a._fromSpringBoot && (
-                    <button onClick={() => setDel(a)}
-                      className="px-3 py-1.5 rounded-lg text-xs font-black border transition-all hover:bg-red-50 hover:border-red-300 hover:text-red-600"
-                      style={{ borderColor: "#ddd0a8", color: "#7a9060" }}>🗑
-                    </button>
-                  )}
+                  <button onClick={() => openEdit(a)}
+                    className="px-3 py-1.5 rounded-lg text-xs font-black border transition-all hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700"
+                    style={{ borderColor: "#ddd0a8", color: "#7a9060" }}>
+                    ✏ Edit
+                  </button>
+                  <button onClick={() => setDel(a)}
+                    className="px-3 py-1.5 rounded-lg text-xs font-black border transition-all hover:bg-red-50 hover:border-red-300 hover:text-red-600"
+                    style={{ borderColor: "#ddd0a8", color: "#7a9060" }}>
+                    🗑
+                  </button>
                 </div>
               </Td>
             </Tr>
@@ -293,51 +387,59 @@ export default function AnimalsPanel({ show }) {
           </>
         }>
 
-        <Field label="Photo">
-          <PhotoUploader existingUrl={form.photo || null} file={photoFile} onChange={handlePhotoChange} />
-        </Field>
+        {/* Only show photo uploader for Spring Boot animals (PHP handles photos separately) */}
+        {(modal === "add" || form._fromSpringBoot) && (
+          <Field label="Photo">
+            <PhotoUploader
+              existingUrl={resolvePhoto(form)}
+              file={photoFile}
+              onChange={handlePhotoChange}
+            />
+          </Field>
+        )}
 
         <div className="grid grid-cols-2 gap-3">
-          {/* Name — required */}
           <Field label="Name *">
             <Input
               value={form.name || ""}
               onChange={e => setField("name", e.target.value)}
               placeholder="Animal name"
-              style={formErrs.name ? { border: "1.5px solid #c03030", boxShadow: "0 0 0 3px rgba(192,48,48,0.10)" } : {}}
+              style={formErrs.name
+                ? { border: "1.5px solid #c03030", boxShadow: "0 0 0 3px rgba(192,48,48,0.10)" }
+                : {}}
             />
             <FieldErr msg={formErrs.name} />
           </Field>
 
           <Field label="Type">
-            <Select value={form.type || "Dog"} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}>
-              {["Dog","Cat","Bird","Rabbit","Other"].map(t => <option key={t}>{t}</option>)}
+            <Select value={form.type || "Dog"} onChange={e => setField("type", e.target.value)}>
+              {["Dog", "Cat", "Bird", "Rabbit", "Other"].map(t => <option key={t}>{t}</option>)}
             </Select>
           </Field>
 
           <Field label="Breed">
-            <Input value={form.breed || ""} onChange={e => setForm(f => ({ ...f, breed: e.target.value }))} placeholder="e.g. Labrador" />
+            <Input value={form.breed || ""} onChange={e => setField("breed", e.target.value)} placeholder="e.g. Labrador" />
           </Field>
 
           <Field label="Age">
-            <Input value={form.age || ""} onChange={e => setForm(f => ({ ...f, age: e.target.value }))} placeholder="e.g. 2 years" />
+            <Input value={form.age || ""} onChange={e => setField("age", e.target.value)} placeholder="e.g. 2 years" />
           </Field>
 
           <Field label="Health Status">
-            <Select value={form.health || "Healthy"} onChange={e => setForm(f => ({ ...f, health: e.target.value }))}>
-              {["Healthy","Needs Care","Under Treatment"].map(h => <option key={h}>{h}</option>)}
+            <Select value={form.health || "Healthy"} onChange={e => setField("health", e.target.value)}>
+              {["Healthy", "Needs Care", "Under Treatment"].map(h => <option key={h}>{h}</option>)}
             </Select>
           </Field>
 
           <Field label="Adoption Status">
-            <Select value={form.status || "Available"} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
-              {["Available","Pending","Adopted","Not Available"].map(s => <option key={s}>{s}</option>)}
+            <Select value={form.status || "Available"} onChange={e => setField("status", e.target.value)}>
+              {["Available", "Pending", "Adopted", "Not Available"].map(s => <option key={s}>{s}</option>)}
             </Select>
           </Field>
         </div>
 
         <Field label="Notes">
-          <Input value={form.notes || ""} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Any additional notes…" />
+          <Input value={form.notes || ""} onChange={e => setField("notes", e.target.value)} placeholder="Any additional notes…" />
         </Field>
       </Modal>
 
@@ -354,7 +456,8 @@ export default function AnimalsPanel({ show }) {
           </>
         }>
         <p className="text-sm font-semibold" style={{ color: "#3a5020" }}>
-          Are you sure you want to delete <strong className="font-black">"{delModal?.name}"</strong>?
+          Are you sure you want to delete{" "}
+          <strong className="font-black">"{delModal?.name}"</strong>?
           This action cannot be undone.
         </p>
       </Modal>

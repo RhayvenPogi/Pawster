@@ -57,8 +57,14 @@ public class AnimalService {
         animal.setAge(updated.getAge());
         animal.setHealth(updated.getHealth());
         animal.setStatus(updated.getStatus());
-        animal.setPhoto(updated.getPhoto());
         animal.setNotes(updated.getNotes());
+
+        // Only overwrite photo if a new one was provided
+        if (updated.getPhotoData() != null) {
+            animal.setPhotoData(updated.getPhotoData());
+            animal.setPhotoType(updated.getPhotoType());
+        }
+
         Animal saved = animalRepository.save(animal);
         activityLogService.log(
                 "UPDATE_ANIMAL",
@@ -76,7 +82,7 @@ public class AnimalService {
                 adminId, adminName);
     }
 
-    // ✅ Called by Django after approving an adoption
+    // Called by Django after approving an adoption
     public boolean markAsAdopted(String animalName) {
         return animalRepository.findByNameContainingIgnoreCase(animalName).stream()
                 .filter(a -> "Available".equals(a.getStatus()) || "Pending".equals(a.getStatus()))
@@ -93,7 +99,7 @@ public class AnimalService {
                 .orElse(false);
     }
 
-    // ✅ Called by Django when a user submits an adoption request
+    // Called by Django when a user submits an adoption request
     public boolean markAsPending(String animalName) {
         return animalRepository.findByNameContainingIgnoreCase(animalName).stream()
                 .filter(a -> "Available".equals(a.getStatus()))

@@ -1,8 +1,8 @@
 // ── DASHBOARD OVERVIEW PANEL — real density plots + date/year filters
 import { useState, useEffect, useRef, useCallback } from "react";
 
-const DJANGO = import.meta.env.VITE_DJANGO_API ?? "http://localhost:8082";
-const SPRING = import.meta.env.VITE_API_BASE   ?? "http://localhost:8080";
+const DJANGO = import.meta.env.VITE_DJANGO_API_URL ?? "http://localhost:8000";
+const SPRING = import.meta.env.VITE_API_BASE_URL    ?? "http://localhost:8000";
 const POLL_INTERVAL = 30_000;
 
 function getToken() {

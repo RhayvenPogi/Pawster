@@ -19,7 +19,7 @@ import api from '../config/axios'; // adjust path to match your project
 
 import logo from "../images/logo.png";
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8080';
+const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8000';
 
 /* ── tiny helpers ── */
 function inp(extra = {}) {

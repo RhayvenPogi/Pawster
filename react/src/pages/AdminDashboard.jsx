@@ -508,7 +508,7 @@ export default function AdminDashboard() {
 
 const fetchStats = useCallback(async () => {
   try {
-    const DJANGO = import.meta.env.VITE_DJANGO_API ?? "http://localhost:8082";
+    const DJANGO = import.meta.env.VITE_DJANGO_API ?? "http://localhost:8000";
 
     const token = localStorage.getItem("pawster_token") ||
                   localStorage.getItem("token") ||

@@ -7,7 +7,7 @@ import logo from "../images/logo.png";
 /* ─────────────────────────────────────────────
    API CONFIG  (mirrors FindAPet.jsx exactly)
 ───────────────────────────────────────────── */
-const API_BASE = import.meta.env.VITE_API_BASE  ?? "http://localhost:8080";
+const API_BASE = import.meta.env.VITE_API_BASE  ?? "http://localhost:8000";
 
 function getToken() {
   return (

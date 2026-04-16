@@ -13,12 +13,6 @@ import java.util.Optional;
 @Repository
 public interface AdoptionRepository extends JpaRepository<AdoptionRequest, Integer> {
 
-    // ── Base JOIN query ────────────────────────────────────────────────────────
-    // Joins adoption_requests → users → animals (LEFT JOIN so missing matches
-    // don't drop rows — animal may have been deleted, user may be null).
-    // Animal is matched by name (case-insensitive) since adoption_requests
-    // stores petName as varchar, not a FK.
-
     String JOIN_QUERY = """
             SELECT new com.pawstar.pawster.dto.AdoptionRequestDto(
                 ar.id,
@@ -39,7 +33,8 @@ public interface AdoptionRepository extends JpaRepository<AdoptionRequest, Integ
                 a.breed,
                 a.age,
                 a.health,
-                a.photo
+                a.photoData,
+                a.photoType
             )
             FROM AdoptionRequest ar
             LEFT JOIN User u        ON u.id    = ar.userId
@@ -58,7 +53,6 @@ public interface AdoptionRepository extends JpaRepository<AdoptionRequest, Integ
     @Query(JOIN_QUERY + " WHERE ar.id = :id")
     Optional<AdoptionRequestDto> findByIdWithDetails(@Param("id") Integer id);
 
-    // ── Plain queries (still needed for internal service logic) ───────────────
     List<AdoptionRequest> findByUserId(Integer userId);
 
     List<AdoptionRequest> findByStatus(String status);

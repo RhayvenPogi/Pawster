@@ -4,7 +4,7 @@ import Navbar from "./Navbar";
 import logo from "../images/logo.png";
 import { Link } from 'react-router-dom';
 
-const DJANGO      = import.meta.env.VITE_DJANGO_API ?? "http://localhost:8082";
+const DJANGO      = import.meta.env.VITE_DJANGO_API ?? "http://localhost:8000";
 const POLL_7DAY   = 30_000;  // 30s — 7-day surveys check frequently
 const POLL_30DAY  = 60_000;  // 60s — 30-day surveys check every minute
 

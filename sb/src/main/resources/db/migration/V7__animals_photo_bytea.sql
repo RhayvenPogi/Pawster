@@ -1,0 +1,5 @@
+ALTER TABLE animals
+    ADD COLUMN IF NOT EXISTS photo_data bytea,
+    ADD COLUMN IF NOT EXISTS photo_type VARCHAR(100);
+
+ALTER TABLE animals DROP COLUMN IF EXISTS photo;

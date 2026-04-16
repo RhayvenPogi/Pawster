@@ -4,7 +4,7 @@ import { useAuth } from "../hooks/useAuth";
 import Navbar from "./Navbar";
 import logo from "../images/logo.png";
 
-const DJANGO = import.meta.env.VITE_DJANGO_API ?? "http://localhost:8082";
+const DJANGO = import.meta.env.VITE_DJANGO_API ?? "http://localhost:8000";
 function getToken(){return localStorage.getItem("pawster_token")||localStorage.getItem("token")||localStorage.getItem("authToken")||sessionStorage.getItem("token")||"";}
 function djFetch(path,opts={}){const token=getToken();return fetch(`${DJANGO}${path}`,{...opts,headers:{"Content-Type":"application/json",...(token?{Authorization:`Bearer ${token}`}:{}), ...opts.headers}});}
 function useReveal(){const ref=useRef(null);const[vis,setVis]=useState(false);useEffect(()=>{const io=new IntersectionObserver(([e])=>{if(e.isIntersecting)setVis(true)},{threshold:0.1});if(ref.current)io.observe(ref.current);return()=>io.disconnect();},[]);return[ref,vis];}

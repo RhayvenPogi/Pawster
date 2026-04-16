@@ -1,5 +1,6 @@
 server:
   port: 8000
+
 spring:
   application:
     name: api-gateway
@@ -9,27 +10,57 @@ spring:
         locator:
           enabled: true
           lower-case-service-id: true
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_FIRST
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins:
+              - "http://localhost:3000"
+              - "http://localhost:5173"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - PATCH
+              - DELETE
+              - OPTIONS
+            allowedHeaders:
+              - Authorization
+              - Cache-Control
+              - Content-Type
+              - Accept
+            allowCredentials: true
+            maxAge: 3600
       routes:
-        # Spring Boot — Auth, Animals, Adoptions, etc.
         - id: springboot-service
           uri: lb://pawster
           predicates:
             - Path=/api/auth/**, /api/animals/**, /api/adoptions/**, /api/users/**, /api/admin/**, /api/rehome/**, /api/surveys/**, /api/missing-pets/**, /api/activity-logs/**
-        # PHP service — Apache serves directly, no nginx sidecar needed
+
+        - id: php-admin-service
+          uri: http://php:80
+          predicates:
+            - Path=/php/**
+          filters:
+            - RewritePath=/php(?<segment>/?.*), $\{segment}
+
         - id: php-service
           uri: http://php:80
           predicates:
             - Path=/api/products/**
           filters:
             - RewritePath=/api/products(?<segment>/?.*), $\{segment}
-        # Django — approvals, notifications, etc.
+
         - id: django-service
           uri: http://django:8001
           predicates:
             - Path=/api/approvals/**, /api/notifications/**, /api/django/**
+
 eureka:
   client:
     service-url:
       defaultZone: http://eureka-server:8761/eureka/
+
 jwt:
   secret: ${JWT_SECRET}

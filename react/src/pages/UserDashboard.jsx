@@ -5,8 +5,8 @@ import Navbar from './Navbar';
 
 import logo from "../images/logo.png";
 
-const API_BASE   = import.meta.env.VITE_API_BASE   ?? 'http://localhost:8080';
-const DJANGO     = import.meta.env.VITE_DJANGO_API ?? 'http://localhost:8082';
+const API_BASE   = import.meta.env.VITE_API_BASE   ?? 'http://localhost:8000';
+const DJANGO     = import.meta.env.VITE_DJANGO_API ?? 'http://localhost:8000';
 
 // ── Polling intervals ─────────────────────────────────────────────────────────
 const POLL_APPS      = 30_000;   // applications every 30s
