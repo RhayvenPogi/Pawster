@@ -53,7 +53,16 @@ async function fetchPhpAnimals() {
       body: form,
       credentials: "include",
     });
-    const json = await res.json();
+    if (!res.ok) {
+      console.warn("PHP animals unavailable: HTTP", res.status);
+      return [];
+    }
+    const text = await res.text();
+    if (!text.trim()) {
+      console.warn("PHP animals: empty response");
+      return [];
+    }
+    const json = JSON.parse(text);
     if (json?.success && Array.isArray(json.data)) {
       return json.data.map(a => ({
         ...a,

@@ -121,8 +121,6 @@ def schedule_followup_surveys():
                 created_count += 1
 
             if survey.status == "Pending" and now >= due_date and adoption.user.email:
-                _send_survey_ready_email(adoption.user, adoption.animal_name, survey_type)
-
                 label = "7-day" if survey_type == "7_day" else "30-day"
 
                 already_notified = Notification.objects.filter(
@@ -138,8 +136,8 @@ def schedule_followup_surveys():
                         title=f"Follow-up survey ready — {adoption.animal_name} 📋",
                         body=f"Your {label} check-in survey for {adoption.animal_name} is now available.",
                         notif_type="survey_due",
-                )
-                notified_count += 1
+                    )
+                    notified_count += 1
 
     logger.info(f"Survey scheduler: created={created_count}, notified={notified_count}.")
     return f"Created {created_count} surveys, notified {notified_count} adopters."

@@ -782,23 +782,40 @@ export default function GeoMapPanel({ show }) {
       const needsRegeocode = !hasCache || idsChanged || userCacheAge > CACHE_TTL_MS;
 
       if (!needsRegeocode) {
-        // ── FIX 3 continued: use String(u.id) as map key
-        const pinMap = new Map((cachedUserPins?.data || []).map(u => [String(u.id), u]));
-        const merged = users
-          .map(u => {
-            const p = pinMap.get(String(u.id));
-            return p ? { ...u, _geo: p._geo } : null;
-          })
-          .filter(Boolean);
+  const pinMap = new Map((cachedUserPins?.data || []).map(u => [String(u.id), u]));
 
-        if (merged.length === 0 && hasCache) {
-          setGeocodedUsers(cachedUserPins.data);
-        } else {
-          setGeocodedUsers(merged);
-        }
-        setSyncStatus("fresh");
-        return;
-      }
+  // Split: users already in cache vs users that need geocoding
+  const cachedUsers = [];
+  const uncachedUsers = [];
+  users.forEach(u => {
+    const pin = pinMap.get(String(u.id));
+    if (pin?._geo) {
+      cachedUsers.push({ ...u, _geo: pin._geo });
+    } else {
+      uncachedUsers.push(u);
+    }
+  });
+
+  // If everyone is cached, done
+  if (uncachedUsers.length === 0) {
+    setGeocodedUsers(cachedUsers);
+    setSyncStatus("fresh");
+    return;
+  }
+
+  // Geocode only the new/missing users in the background
+  setSyncStatus("syncing");
+  const newGeoResults = await geocodeBatch(uncachedUsers, geocodeUser, () => {}, 15);
+  const newlyGeocoded = uncachedUsers
+    .map((u, i) => newGeoResults[i]?.inRegion ? { ...u, _geo: newGeoResults[i] } : null)
+    .filter(Boolean);
+
+  const allGeocoded = [...cachedUsers, ...newlyGeocoded];
+  setGeocodedUsers(allGeocoded);
+  savePinCache(USER_PINS_KEY, allGeocoded); // update cache with new entries
+  setSyncStatus("fresh");
+  return;
+}
 
       setSyncStatus("syncing");
       if (!hasCache) {

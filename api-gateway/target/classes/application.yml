@@ -36,7 +36,7 @@ spring:
         - id: springboot-service
           uri: lb://pawster
           predicates:
-            - Path=/api/auth/**, /api/animals/**, /api/adoptions/**, /api/users/**, /api/admin/**, /api/rehome/**, /api/surveys/**, /api/missing-pets/**, /api/activity-logs/**, /uploads/**
+            - Path=/api/auth/**, /api/animals/**, /api/adoptions/**, /api/users/**, /api/admin/**, /api/rehome/**, /api/missing-pets/**, /api/activity-logs/**, /uploads/**
 
         - id: php-admin-service
           uri: http://php:80
@@ -55,7 +55,7 @@ spring:
         - id: django-service
           uri: http://django:8001
           predicates:
-            - Path=/api/approvals/**, /api/notifications/**, /api/django/**
+            - Path=/api/approvals/**, /api/notifications/**, /api/surveys/**, /api/django/**
 
 eureka:
   client:

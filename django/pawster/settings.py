@@ -101,7 +101,7 @@ CORS_ALLOW_CREDENTIALS = True
 
 # ── Email (Brevo API) ─────────────────────────────────────────────────────────
 BREVO_API_KEY  = os.environ.get("BREVO_API_KEY", "")
-DEFAULT_FROM_EMAIL = "onboarding@resend.dev"
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "")
 APP_BASE_URL   = os.environ.get("APP_BASE_URL", "http://localhost:3000")
 
 # ── Celery ────────────────────────────────────────────────────────────────────

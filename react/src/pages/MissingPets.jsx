@@ -4,7 +4,19 @@ import { useAuth } from '../hooks/useAuth';
 import Navbar from './Navbar';
 import logo from "../images/logo.png";
 
+
 const SB = import.meta.env.VITE_API_BASE ?? 'http://localhost:8000';
+
+function getToken() {
+  return (
+    localStorage.getItem("pawster_token") ||
+    localStorage.getItem("token") ||
+    localStorage.getItem("authToken") ||
+    localStorage.getItem("accessToken") ||
+    sessionStorage.getItem("token") ||
+    ""
+  );
+}
 
 function useReveal() {
   const ref = useRef(null);
@@ -155,12 +167,15 @@ export default function MissingPets() {
   const [commentSubmitting, setCommentSubmitting] = useState({});
 
   const fetchPets = async () => {
-    try {
-      const res = await fetch(`${SB}/api/missing-pets`);
-      if (res.ok) setPets(await res.json());
-    } catch (err) { console.error('Failed to fetch missing pets:', err); }
-    finally { setLoading(false); }
-  };
+  try {
+    const token = getToken();
+    const res = await fetch(`${SB}/api/missing-pets`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (res.ok) setPets(await res.json());
+  } catch (err) { console.error('Failed to fetch missing pets:', err); }
+  finally { setLoading(false); }
+};
 
   useEffect(() => { fetchPets(); }, []);
 
@@ -201,8 +216,13 @@ export default function MissingPets() {
     if (!content || !user) return;
     setCommentSubmitting(prev => ({ ...prev, [petId]: true }));
     try {
+      const token = getToken();
       const res = await fetch(`${SB}/api/missing-pets/${petId}/comments`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ userId: user.id, authorName: `${user.firstName} ${user.lastName}`, content }),
       });
       if (res.ok) { setCommentInputs(prev => ({ ...prev, [petId]: '' })); fetchComments(petId); }
@@ -213,7 +233,11 @@ export default function MissingPets() {
   const resolveReport = async (petId) => {
     if (!user) return;
     try {
-      const res = await fetch(`${SB}/api/missing-pets/${petId}/resolve?userId=${user.id}`, { method: 'PUT' });
+      const token = getToken();
+      const res = await fetch(`${SB}/api/missing-pets/${petId}/resolve?userId=${user.id}`, {
+      method: 'PUT',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       if (res.ok) fetchPets();
     } catch (err) { console.error(err); }
   };
@@ -249,7 +273,12 @@ export default function MissingPets() {
       }).forEach(([k, v]) => fd.append(k, v));
       if (user?.id) fd.append('reporterUserId', user.id);
       if (photoFile) fd.append('photo', photoFile);
-      const res = await fetch(`${SB}/api/missing-pets`, { method: 'POST', body: fd });
+      const token = getToken();
+      const res = await fetch(`${SB}/api/missing-pets`, {
+      method: 'POST',
+      body: fd,
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       if (!res.ok) { console.error('Submit failed:', res.status); setSubmitting(false); return; }
     } catch (err) { console.error(err); setSubmitting(false); return; }
 
