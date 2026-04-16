@@ -110,7 +110,6 @@ services:
     volumes:
       - ./php:/var/www/html
       - php_vendor:/var/www/html/vendor
-    # Apache serves HTTP on port 80 natively — no nginx sidecar needed
 
   # ── Django API ───────────────────────────────────────────────────────────────
   django:
@@ -147,6 +146,12 @@ services:
     command: >
       sh -c "python manage.py migrate --noinput &&
              python manage.py runserver 0.0.0.0:8001"
+    healthcheck:
+      test: ["CMD-SHELL", "python manage.py showmigrations django_celery_beat | grep -q '\\[X\\]'"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
 
   # ── Celery Worker ─────────────────────────────────────────────────────────────
   celery_worker:
@@ -158,6 +163,8 @@ services:
       db:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      django:
         condition: service_healthy
     environment:
       - DJANGO_SETTINGS_MODULE=pawster.settings
@@ -188,6 +195,8 @@ services:
       db:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      django:
         condition: service_healthy
     environment:
       - DJANGO_SETTINGS_MODULE=pawster.settings

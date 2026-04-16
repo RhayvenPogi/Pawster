@@ -7,15 +7,15 @@ export default defineConfig({
     host: true,
     proxy: {
       '/php': {
-        target: 'http://localhost:8000',  // ✅ works locally
+        target: 'http://api-gateway:8000',
         changeOrigin: true,
       },
       '/api': {
-        target: 'http://localhost:8000',  // ✅ works locally
+        target: 'http://api-gateway:8000',
         changeOrigin: true,
       },
       '/uploads': {
-        target: 'http://localhost:8000',
+        target: 'http://api-gateway:8000',
         changeOrigin: true,
       },
       '/ors': {

@@ -52,18 +52,13 @@ public class AuthController {
 
     // ── Cookie helpers ────────────────────────────────────────────────────────
 
-    /**
-     * Builds a ResponseCookie (not javax Cookie) so we can set SameSite=Lax.
-     * This is critical for the browser to send it back on cross-origin requests
-     * through the Vite proxy.
-     */
     private void addJwtCookie(HttpServletResponse response, String token) {
         ResponseCookie cookie = ResponseCookie.from("jwt", token)
                 .httpOnly(true)
-                .secure(false)          // set true in production with HTTPS
+                .secure(false)
                 .path("/")
                 .maxAge(Duration.ofMillis(jwtExpirationMs))
-                .sameSite("Lax")        // ✅ required for cross-origin proxy setup
+                .sameSite("Lax")
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
@@ -102,8 +97,8 @@ public class AuthController {
                     "success",  true,
                     "message",  "Admin login successful!",
                     "role",     "admin",
+                    "token",    jwt,
                     "redirect", "php/admin_dashboard.php"));
-            // ✅ token NOT returned in body — cookie only
         }
 
         User user = userRepository.findByEmail(email).orElse(null);
@@ -133,8 +128,7 @@ public class AuthController {
                 : "php/index.php";
 
         addJwtCookie(response, jwt);
-        // ✅ token NOT returned in body — cookie only
-        return ResponseEntity.ok(toDtoNoToken(user, redirect));
+        return ResponseEntity.ok(toDtoNoToken(user, redirect, jwt));
     }
 
     // =========================================================================
@@ -200,7 +194,7 @@ public class AuthController {
         Map<String, Object> dto = toDto(user);
         dto.put("success", true);
         dto.put("message", "Registration successful!");
-        // ✅ token NOT in body
+        dto.put("token",   jwt);
         return ResponseEntity.ok(dto);
     }
 
@@ -369,12 +363,12 @@ public class AuthController {
         return dto;
     }
 
-    // No token in body — cookie only
-    private Map<String, Object> toDtoNoToken(User u, String redirect) {
+    private Map<String, Object> toDtoNoToken(User u, String redirect, String jwt) {
         Map<String, Object> dto = toDto(u);
         dto.put("success",  true);
         dto.put("redirect", redirect);
         dto.put("message",  "Login successful!");
+        dto.put("token",    jwt);
         return dto;
     }
 }
