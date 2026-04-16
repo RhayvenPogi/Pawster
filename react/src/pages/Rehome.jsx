@@ -5,15 +5,15 @@ import Navbar from "./Navbar";
 import logo from "../images/logo.png";
 
 const DJANGO = import.meta.env.VITE_DJANGO_API ?? "http://localhost:8000";
-function getToken(){return localStorage.getItem("pawster_token")||localStorage.getItem("token")||localStorage.getItem("authToken")||sessionStorage.getItem("token")||"";}
-function djFetch(path,opts={}){const token=getToken();return fetch(`${DJANGO}${path}`,{...opts,headers:{"Content-Type":"application/json",...(token?{Authorization:`Bearer ${token}`}:{}), ...opts.headers}});}
-function useReveal(){const ref=useRef(null);const[vis,setVis]=useState(false);useEffect(()=>{const io=new IntersectionObserver(([e])=>{if(e.isIntersecting)setVis(true)},{threshold:0.1});if(ref.current)io.observe(ref.current);return()=>io.disconnect();},[]);return[ref,vis];}
-function Reveal({children,delay=0}){const[ref,vis]=useReveal();return(<div ref={ref} style={{transition:`opacity 0.7s ease ${delay}ms,transform 0.7s ease ${delay}ms`,opacity:vis?1:0,transform:vis?"translateY(0)":"translateY(20px)"}}>{children}</div>);}
+function getToken() { return localStorage.getItem("pawster_token") || localStorage.getItem("token") || localStorage.getItem("authToken") || sessionStorage.getItem("token") || ""; }
+function djFetch(path, opts = {}) { const token = getToken(); return fetch(`${DJANGO}${path}`, { ...opts, headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...opts.headers } }); }
+function useReveal() { const ref = useRef(null); const [vis, setVis] = useState(false); useEffect(() => { const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) setVis(true) }, { threshold: 0.1 }); if (ref.current) io.observe(ref.current); return () => io.disconnect(); }, []); return [ref, vis]; }
+function Reveal({ children, delay = 0 }) { const [ref, vis] = useReveal(); return (<div ref={ref} style={{ transition: `opacity 0.7s ease ${delay}ms,transform 0.7s ease ${delay}ms`, opacity: vis ? 1 : 0, transform: vis ? "translateY(0)" : "translateY(20px)" }}>{children}</div>); }
 
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload  = () => resolve(reader.result);
+    reader.onload = () => resolve(reader.result);
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
@@ -22,93 +22,123 @@ function fileToBase64(file) {
 function validateStep(step, form) {
   const errs = {};
   if (step === 1) {
-    if (!form.petName.trim())    errs.petName = "Pet's name is required.";
-    if (!form.age.trim())        errs.age = "Pet's age is required.";
-    if (!form.durationOwned)     errs.durationOwned = "Please select how long you've had this pet.";
+    if (!form.petName.trim()) errs.petName = "Pet's name is required.";
+    if (!form.age.trim()) errs.age = "Pet's age is required.";
+    if (!form.durationOwned) errs.durationOwned = "Please select how long you've had this pet.";
   }
   if (step === 2) {
-    if (!form.isVaccinated)      errs.isVaccinated = "Please indicate if the pet is vaccinated.";
-    if (!form.isNeutered)        errs.isNeutered = "Please indicate if the pet is spayed/neutered.";
+    if (!form.isVaccinated) errs.isVaccinated = "Please indicate if the pet is vaccinated.";
+    if (!form.isNeutered) errs.isNeutered = "Please indicate if the pet is spayed/neutered.";
   }
   if (step === 3) {
-    if (!form.behavior)          errs.behavior = "Please select a behavior that best describes your pet.";
-    if (!form.hasAggression)     errs.hasAggression = "Please indicate if the pet has shown aggression.";
-    if (!form.isHouseTrained)    errs.isHouseTrained = "Please indicate if the pet is house-trained.";
-    if (!form.isLeashTrained)    errs.isLeashTrained = "Please indicate if the pet is leash-trained.";
-    if (!form.goodWithChildren)  errs.goodWithChildren = "Please indicate if the pet is good with children.";
-    if (!form.goodWithPets)      errs.goodWithPets = "Please indicate if the pet is good with other pets.";
+    if (!form.behavior) errs.behavior = "Please select a behavior that best describes your pet.";
+    if (!form.hasAggression) errs.hasAggression = "Please indicate if the pet has shown aggression.";
+    if (!form.isHouseTrained) errs.isHouseTrained = "Please indicate if the pet is house-trained.";
+    if (!form.isLeashTrained) errs.isLeashTrained = "Please indicate if the pet is leash-trained.";
+    if (!form.goodWithChildren) errs.goodWithChildren = "Please indicate if the pet is good with children.";
+    if (!form.goodWithPets) errs.goodWithPets = "Please indicate if the pet is good with other pets.";
   }
   if (step === 4) {
-    if (!form.contact.trim())    errs.contact = "Contact number is required.";
-    if (!form.reason)            errs.reason = "Please select a primary reason for rehoming.";
+    if (!form.contact.trim()) errs.contact = "Contact number is required.";
+    if (!form.reason) errs.reason = "Please select a primary reason for rehoming.";
     if (!form.understandsPermanent) errs.understandsPermanent = "Please confirm you understand rehoming is a permanent decision.";
   }
   return errs;
 }
 
-const REASONS=[{icon:"fas fa-plane-departure",label:"Moving abroad or relocating"},{icon:"fas fa-allergies",label:"Allergies in the household"},{icon:"fas fa-baby",label:"New baby or family changes"},{icon:"fas fa-briefcase-medical",label:"Medical or financial hardship"},{icon:"fas fa-home",label:"No longer pet-friendly housing"},{icon:"fas fa-clock",label:"Not enough time to care properly"}];
-const STEPS=["Pet Info","Health","Behavior","Reason"];
+const REASONS = [
+  { icon: "fas fa-plane-departure", label: "Moving abroad or relocating" },
+  { icon: "fas fa-allergies", label: "Allergies in the household" },
+  { icon: "fas fa-baby", label: "New baby or family changes" },
+  { icon: "fas fa-briefcase-medical", label: "Medical or financial hardship" },
+  { icon: "fas fa-home", label: "No longer pet-friendly housing" },
+  { icon: "fas fa-clock", label: "Not enough time to care properly" },
+];
+const STEPS = ["Pet Info", "Health", "Behavior", "Reason"];
 
-const inp={padding:"0.7rem 1rem",borderRadius:10,border:"1px solid rgba(180,140,60,0.28)",background:"rgba(255,250,232,0.7)",fontFamily:"'Nunito',sans-serif",fontWeight:700,fontSize:"0.9rem",color:"#1a4a08",outline:"none",width:"100%"};
-const focIn=(e)=>{e.target.style.borderColor="#5aaa30";e.target.style.boxShadow="0 0 0 3px rgba(90,170,48,0.12)";};
-const focOut=(e)=>{e.target.style.borderColor="rgba(180,140,60,0.28)";e.target.style.boxShadow="none";};
-const g2={display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0.75rem"};
-const col={display:"flex",flexDirection:"column",gap:"0.75rem"};
+/* ─── Shared style tokens ─────────────────────────────────────────────── */
+const inp = {
+  padding: "0.65rem 0.875rem",
+  borderRadius: 10,
+  border: "1px solid rgba(180,140,60,0.25)",
+  background: "rgba(255,253,242,0.8)",
+  fontFamily: "'Nunito',sans-serif",
+  fontWeight: 700,
+  fontSize: "0.875rem",
+  color: "#1a4a08",
+  outline: "none",
+  width: "100%",
+  transition: "border-color 0.15s, box-shadow 0.15s",
+};
+const focIn = (e) => { e.target.style.borderColor = "#5aaa30"; e.target.style.boxShadow = "0 0 0 3px rgba(90,170,48,0.10)"; };
+const focOut = (e) => { e.target.style.borderColor = "rgba(180,140,60,0.25)"; e.target.style.boxShadow = "none"; };
+const g2 = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" };
+const col = { display: "flex", flexDirection: "column", gap: "0.875rem" };
 
-const RLabel=({children})=>(
-  <label style={{fontSize:"0.72rem",fontWeight:800,textTransform:"uppercase",letterSpacing:"0.07em",color:"#5a7a40",display:"block",marginBottom:"0.3rem"}}>{children}</label>
+const RLabel = ({ children }) => (
+  <label style={{ fontSize: "0.7rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.07em", color: "#5a7a40", display: "block", marginBottom: "0.3rem" }}>{children}</label>
 );
-const RField=({label,children})=>(
-  <div style={{display:"flex",flexDirection:"column"}}><RLabel>{label}</RLabel>{children}</div>
+const RField = ({ label, children }) => (
+  <div style={{ display: "flex", flexDirection: "column" }}><RLabel>{label}</RLabel>{children}</div>
 );
-const RSel=({value,onChange,opts,hasError})=>(
+const RSel = ({ value, onChange, opts, hasError }) => (
   <select value={value} onChange={onChange}
-    style={{...inp, borderColor: hasError ? "rgba(192,48,48,0.5)" : undefined}}
+    style={{ ...inp, borderColor: hasError ? "rgba(192,48,48,0.5)" : undefined }}
     onFocus={focIn} onBlur={focOut}>
     <option value="">Select…</option>
-    {opts.map(([v,l])=><option key={v} value={v}>{l}</option>)}
+    {opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
   </select>
 );
-const RYN=({value,onChange,invalid})=>(
-  <div style={{display:"flex",gap:"0.5rem"}}>
-    {[["yes","Yes"],["no","No"]].map(([v,l])=>(
-      <button key={v} type="button" onClick={()=>onChange(v)}
-        style={{flex:1,padding:"0.6rem",borderRadius:9,fontWeight:800,fontSize:"0.82rem",cursor:"pointer",fontFamily:"'Nunito',sans-serif",
-          border:`1px solid ${value===v?"#1c4f09":invalid?"rgba(192,48,48,0.5)":"rgba(180,140,60,0.28)"}`,
-          background:value===v?"#1c4f09":"rgba(255,250,232,0.7)",
-          color:value===v?"#fff":"#3a5020"}}>
+const RYN = ({ value, onChange, invalid }) => (
+  <div style={{ display: "flex", gap: "0.5rem" }}>
+    {[["yes", "Yes"], ["no", "No"]].map(([v, l]) => (
+      <button key={v} type="button" onClick={() => onChange(v)}
+        style={{
+          flex: 1, padding: "0.6rem", borderRadius: 9, fontWeight: 800, fontSize: "0.82rem",
+          cursor: "pointer", fontFamily: "'Nunito',sans-serif",
+          border: `1px solid ${value === v ? "#1c4f09" : invalid ? "rgba(192,48,48,0.5)" : "rgba(180,140,60,0.25)"}`,
+          background: value === v ? "#1c4f09" : "rgba(255,253,242,0.8)",
+          color: value === v ? "#fff" : "#3a5020",
+          transition: "all 0.15s",
+        }}>
         {l}
       </button>
     ))}
   </div>
 );
-const RSecTitle=({icon,title})=>(
-  <div style={{display:"flex",alignItems:"center",gap:"0.5rem",padding:"0.4rem 0",borderBottom:"1px solid rgba(180,140,60,0.18)",marginBottom:"0.75rem",marginTop:"0.25rem"}}>
-    <i className={`fas fa-${icon}`} style={{color:"#B45A22",fontSize:"0.8rem"}}/>
-    <span style={{fontSize:"0.72rem",fontWeight:900,textTransform:"uppercase",letterSpacing:"0.07em",color:"#6a3a10"}}>{title}</span>
+
+const RSecTitle = ({ icon, title }) => (
+  <div style={{
+    display: "flex", alignItems: "center", gap: "0.5rem",
+    padding: "0.5rem 0.75rem", borderRadius: 10,
+    background: "rgba(28,79,9,0.05)", border: "1px solid rgba(90,170,48,0.15)",
+    marginBottom: "0.25rem",
+  }}>
+    <i className={`fas fa-${icon}`} style={{ color: "#B45A22", fontSize: "0.78rem" }} />
+    <span style={{ fontSize: "0.7rem", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.07em", color: "#3a5020" }}>{title}</span>
   </div>
 );
 
 const InlineErr = ({ msg }) => msg ? (
-  <div style={{fontSize:"0.75rem",fontWeight:700,color:"#c03030",display:"flex",alignItems:"center",gap:"0.3rem",marginTop:"0.3rem"}}>
-    <i className="fas fa-times-circle"/> {msg}
+  <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "#c03030", display: "flex", alignItems: "center", gap: "0.3rem", marginTop: "0.3rem" }}>
+    <i className="fas fa-times-circle" style={{ fontSize: "0.7rem" }} /> {msg}
   </div>
 ) : null;
 
 function PhotoUpload({ photoPreview, onPhotoChange, onPhotoClear }) {
   const fileRef = useRef(null);
   return (
-    <RField label="Pet Photo (recommended)">
+    <RField label="Pet photo (recommended)">
       <div
         onClick={() => !photoPreview && fileRef.current?.click()}
         style={{
           borderRadius: 12,
-          border: `2px dashed ${photoPreview ? "rgba(90,170,48,0.5)" : "rgba(180,140,60,0.35)"}`,
-          background: photoPreview ? "transparent" : "rgba(255,250,232,0.5)",
+          border: `1.5px dashed ${photoPreview ? "rgba(90,170,48,0.45)" : "rgba(180,140,60,0.32)"}`,
+          background: photoPreview ? "transparent" : "rgba(255,253,242,0.6)",
           overflow: "hidden",
           cursor: photoPreview ? "default" : "pointer",
           position: "relative",
-          minHeight: 140,
+          minHeight: 120,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -117,24 +147,24 @@ function PhotoUpload({ photoPreview, onPhotoChange, onPhotoClear }) {
       >
         {photoPreview ? (
           <>
-            <img src={photoPreview} alt="Pet preview" style={{ width: "100%", maxHeight: 200, objectFit: "cover", display: "block" }} />
+            <img src={photoPreview} alt="Pet preview" style={{ width: "100%", maxHeight: 180, objectFit: "cover", display: "block" }} />
             <button type="button" onClick={(e) => { e.stopPropagation(); onPhotoClear(); }}
-              style={{ position:"absolute",top:8,right:8,width:28,height:28,borderRadius:"50%",background:"rgba(192,48,48,0.85)",border:"none",color:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"0.75rem",boxShadow:"0 2px 8px rgba(0,0,0,0.25)" }}>
+              style={{ position: "absolute", top: 8, right: 8, width: 26, height: 26, borderRadius: "50%", background: "rgba(192,48,48,0.88)", border: "none", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.7rem" }}>
               <i className="fas fa-times" />
             </button>
             <button type="button" onClick={(e) => { e.stopPropagation(); fileRef.current?.click(); }}
-              style={{ position:"absolute",bottom:8,right:8,padding:"0.35rem 0.75rem",borderRadius:8,background:"rgba(28,79,9,0.85)",border:"none",color:"#fff",cursor:"pointer",fontSize:"0.75rem",fontWeight:800,fontFamily:"'Nunito',sans-serif",display:"flex",alignItems:"center",gap:"0.3rem" }}>
+              style={{ position: "absolute", bottom: 8, right: 8, padding: "0.3rem 0.7rem", borderRadius: 8, background: "rgba(28,79,9,0.88)", border: "none", color: "#fff", cursor: "pointer", fontSize: "0.72rem", fontWeight: 800, fontFamily: "'Nunito',sans-serif", display: "flex", alignItems: "center", gap: "0.3rem" }}>
               <i className="fas fa-camera" /> Change
             </button>
           </>
         ) : (
-          <div style={{ textAlign:"center",padding:"1.5rem",color:"#9aaa80" }}>
-            <i className="fas fa-camera" style={{ fontSize:"2rem",display:"block",marginBottom:"0.5rem",color:"#B45A22",opacity:0.7 }} />
-            <div style={{ fontWeight:800,fontSize:"0.85rem",color:"#6a7a50" }}>Click to upload a photo</div>
-            <div style={{ fontSize:"0.72rem",fontWeight:700,marginTop:"0.25rem",color:"#9aaa80" }}>JPG, PNG, WebP · max 5 MB</div>
+          <div style={{ textAlign: "center", padding: "1.25rem", color: "#9aaa80" }}>
+            <i className="fas fa-camera" style={{ fontSize: "1.6rem", display: "block", marginBottom: "0.4rem", color: "#B45A22", opacity: 0.65 }} />
+            <div style={{ fontWeight: 800, fontSize: "0.82rem", color: "#6a7a50" }}>Click to upload a photo</div>
+            <div style={{ fontSize: "0.7rem", fontWeight: 700, marginTop: "0.2rem", color: "#9aaa80" }}>JPG, PNG, WebP · max 5 MB</div>
           </div>
         )}
-        <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" style={{ display:"none" }} onChange={onPhotoChange} />
+        <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" style={{ display: "none" }} onChange={onPhotoChange} />
       </div>
     </RField>
   );
@@ -144,76 +174,79 @@ function VaccinationPhotos({ photos, onAdd, onRemove }) {
   const fileRef = useRef(null);
   return (
     <div>
-      <RLabel>Vaccination Record Photos (optional but recommended)</RLabel>
-      <div style={{ display:"flex", flexWrap:"wrap", gap:"0.5rem", marginBottom:"0.5rem" }}>
+      <RLabel>Vaccination record photos (optional)</RLabel>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginBottom: "0.5rem" }}>
         {photos.map((src, i) => (
-          <div key={i} style={{ position:"relative", width:72, height:72, borderRadius:10, overflow:"hidden", border:"1px solid rgba(90,170,48,0.4)", flexShrink:0 }}>
-            <img src={src} alt={`Vacc record ${i+1}`} style={{ width:"100%",height:"100%",objectFit:"cover" }} />
+          <div key={i} style={{ position: "relative", width: 68, height: 68, borderRadius: 10, overflow: "hidden", border: "1px solid rgba(90,170,48,0.4)", flexShrink: 0 }}>
+            <img src={src} alt={`Vacc record ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             <button type="button" onClick={() => onRemove(i)}
-              style={{ position:"absolute",top:2,right:2,width:18,height:18,borderRadius:"50%",background:"rgba(192,48,48,0.9)",border:"none",color:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"0.6rem" }}>
+              style={{ position: "absolute", top: 2, right: 2, width: 17, height: 17, borderRadius: "50%", background: "rgba(192,48,48,0.9)", border: "none", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.58rem" }}>
               <i className="fas fa-times" />
             </button>
           </div>
         ))}
         {photos.length < 5 && (
           <button type="button" onClick={() => fileRef.current?.click()}
-            style={{ width:72,height:72,borderRadius:10,border:"2px dashed rgba(90,170,48,0.4)",background:"rgba(255,250,232,0.5)",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:"0.2rem",color:"#6a7a50",flexShrink:0 }}>
-            <i className="fas fa-plus" style={{ fontSize:"0.85rem",color:"#5aaa30" }} />
-            <span style={{ fontSize:"0.58rem",fontWeight:800 }}>Add</span>
+            style={{ width: 68, height: 68, borderRadius: 10, border: "1.5px dashed rgba(90,170,48,0.38)", background: "rgba(255,253,242,0.5)", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "0.2rem", color: "#6a7a50", flexShrink: 0 }}>
+            <i className="fas fa-plus" style={{ fontSize: "0.8rem", color: "#5aaa30" }} />
+            <span style={{ fontSize: "0.58rem", fontWeight: 800 }}>Add</span>
           </button>
         )}
       </div>
-      <div style={{ fontSize:"0.7rem",fontWeight:700,color:"#9aaa80" }}>Upload up to 5 photos of vaccination cards, vet records, or health certificates.</div>
-      <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" style={{ display:"none" }} onChange={onAdd} />
+      <div style={{ fontSize: "0.68rem", fontWeight: 700, color: "#9aaa80" }}>Upload up to 5 photos of vaccination cards or health records.</div>
+      <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" style={{ display: "none" }} onChange={onAdd} />
     </div>
   );
 }
 
 function RehomeStepContent({ step, form, set, setV, photoPreview, onPhotoChange, onPhotoClear, vaccPhotos, onVaccPhotoAdd, onVaccPhotoRemove, touched, fieldErrors }) {
-  const err = (field) => touched ? fieldErrors[field] : null;
+  const err = (field) => {
+    if (!touched || typeof touched !== "object") return null;
+    return touched[field] ? fieldErrors[field] : null;
+  };
 
   return (
     <>
       {step === 1 && (
         <div style={col}>
-          <RSecTitle icon="paw" title="Pet Basics"/>
-          <RField label="Pet's Name *">
+          <RSecTitle icon="paw" title="Pet basics" />
+          <RField label="Pet's name *">
             <input type="text" value={form.petName} onChange={set("petName")}
-              style={{...inp, borderColor: err("petName") ? "rgba(192,48,48,0.5)" : undefined}}
-              onFocus={focIn} onBlur={focOut}/>
-            <InlineErr msg={err("petName")}/>
+              style={{ ...inp, borderColor: err("petName") ? "rgba(192,48,48,0.5)" : undefined }}
+              onFocus={focIn} onBlur={focOut} placeholder="e.g. Coco" />
+            <InlineErr msg={err("petName")} />
           </RField>
           <div style={g2}>
             <RField label="Species *">
               <select value={form.species} onChange={set("species")} style={inp} onFocus={focIn} onBlur={focOut}>
-                {["Dog","Cat","Rabbit","Bird","Other"].map(s=><option key={s}>{s}</option>)}
+                {["Dog", "Cat", "Rabbit", "Bird", "Other"].map(s => <option key={s}>{s}</option>)}
               </select>
             </RField>
             <RField label="Gender *">
               <select value={form.gender} onChange={set("gender")} style={inp} onFocus={focIn} onBlur={focOut}>
-                {["Male","Female"].map(s=><option key={s}>{s}</option>)}
+                {["Male", "Female"].map(s => <option key={s}>{s}</option>)}
               </select>
             </RField>
           </div>
           <div style={g2}>
             <RField label="Breed (if known)">
-              <input type="text" value={form.breed} onChange={set("breed")} placeholder="e.g. Aspin" style={inp} onFocus={focIn} onBlur={focOut}/>
+              <input type="text" value={form.breed} onChange={set("breed")} placeholder="e.g. Aspin" style={inp} onFocus={focIn} onBlur={focOut} />
             </RField>
             <RField label="Age *">
               <input type="text" value={form.age} onChange={set("age")} placeholder="e.g. 2 years"
-                style={{...inp, borderColor: err("age") ? "rgba(192,48,48,0.5)" : undefined}}
-                onFocus={focIn} onBlur={focOut}/>
-              <InlineErr msg={err("age")}/>
+                style={{ ...inp, borderColor: err("age") ? "rgba(192,48,48,0.5)" : undefined }}
+                onFocus={focIn} onBlur={focOut} />
+              <InlineErr msg={err("age")} />
             </RField>
           </div>
           <RField label="How long have you had this pet? *">
             <select value={form.durationOwned} onChange={set("durationOwned")}
-              style={{...inp, borderColor: err("durationOwned") ? "rgba(192,48,48,0.5)" : undefined}}
+              style={{ ...inp, borderColor: err("durationOwned") ? "rgba(192,48,48,0.5)" : undefined }}
               onFocus={focIn} onBlur={focOut}>
               <option value="">Select…</option>
-              {[["Less than 6 months","Less than 6 months"],["6 months-2 years","6 months–2 years"],["2+ years","2+ years"]].map(([v,l])=><option key={v} value={v}>{l}</option>)}
+              {[["Less than 6 months", "Less than 6 months"], ["6 months-2 years", "6 months–2 years"], ["2+ years", "2+ years"]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
-            <InlineErr msg={err("durationOwned")}/>
+            <InlineErr msg={err("durationOwned")} />
           </RField>
           <PhotoUpload photoPreview={photoPreview} onPhotoChange={onPhotoChange} onPhotoClear={onPhotoClear} />
         </div>
@@ -221,149 +254,153 @@ function RehomeStepContent({ step, form, set, setV, photoPreview, onPhotoChange,
 
       {step === 2 && (
         <div style={col}>
-          <RSecTitle icon="syringe" title="Health Information"/>
+          <RSecTitle icon="syringe" title="Health information" />
           <div style={g2}>
             <RField label="Vaccinated? *">
-              <RYN value={form.isVaccinated} onChange={(v)=>setV("isVaccinated",v)} invalid={!!err("isVaccinated")}/>
-              <InlineErr msg={err("isVaccinated")}/>
+              <RYN value={form.isVaccinated} onChange={(v) => setV("isVaccinated", v)} invalid={!!err("isVaccinated")} />
+              <InlineErr msg={err("isVaccinated")} />
             </RField>
-            <RField label="Spayed / Neutered? *">
-              <RYN value={form.isNeutered} onChange={(v)=>setV("isNeutered",v)} invalid={!!err("isNeutered")}/>
-              <InlineErr msg={err("isNeutered")}/>
+            <RField label="Spayed / neutered? *">
+              <RYN value={form.isNeutered} onChange={(v) => setV("isNeutered", v)} invalid={!!err("isNeutered")} />
+              <InlineErr msg={err("isNeutered")} />
             </RField>
           </div>
 
-          {form.isVaccinated==="yes"&&(
-            <div style={{padding:"1rem",borderRadius:14,background:"rgba(28,79,9,0.05)",border:"1px solid rgba(90,170,48,0.28)",display:"flex",flexDirection:"column",gap:"0.75rem"}}>
-              <div style={{display:"flex",alignItems:"center",gap:"0.5rem",marginBottom:"0.1rem"}}>
-                <i className="fas fa-shield-virus" style={{color:"#1c7a09",fontSize:"0.85rem"}}/>
-                <span style={{fontSize:"0.75rem",fontWeight:900,textTransform:"uppercase",letterSpacing:"0.07em",color:"#1c4f09"}}>Vaccination Details</span>
+          {form.isVaccinated === "yes" && (
+            <div style={{ padding: "0.875rem 1rem", borderRadius: 12, background: "rgba(28,79,9,0.04)", border: "1px solid rgba(90,170,48,0.22)", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+              <div style={{ fontSize: "0.7rem", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.07em", color: "#1c4f09", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                <i className="fas fa-shield-virus" style={{ color: "#1c7a09", fontSize: "0.75rem" }} /> Vaccination details
               </div>
               <div style={g2}>
-                <RField label="Vaccine Type(s)">
-                  <input type="text" value={form.vaccineType} onChange={set("vaccineType")} placeholder="e.g. Anti-rabies, 5-in-1" style={inp} onFocus={focIn} onBlur={focOut}/>
+                <RField label="Vaccine type(s)">
+                  <input type="text" value={form.vaccineType} onChange={set("vaccineType")} placeholder="e.g. Anti-rabies, 5-in-1" style={inp} onFocus={focIn} onBlur={focOut} />
                 </RField>
-                <RField label="Last Vaccinated">
-                  <input type="date" value={form.lastVaccDate} onChange={set("lastVaccDate")} style={inp} onFocus={focIn} onBlur={focOut}/>
+                <RField label="Last vaccinated">
+                  <input type="date" value={form.lastVaccDate} onChange={set("lastVaccDate")} style={inp} onFocus={focIn} onBlur={focOut} />
                 </RField>
               </div>
-              <RField label="Vet / Clinic Name">
-                <input type="text" value={form.vaccClinic} onChange={set("vaccClinic")} placeholder="e.g. PetCare Clinic, Baguio" style={inp} onFocus={focIn} onBlur={focOut}/>
+              <RField label="Vet / clinic name">
+                <input type="text" value={form.vaccClinic} onChange={set("vaccClinic")} placeholder="e.g. PetCare Clinic" style={inp} onFocus={focIn} onBlur={focOut} />
               </RField>
-              <RField label="Vaccination Notes">
-                <textarea value={form.vaccNotes} onChange={set("vaccNotes")} rows={2} placeholder="Any additional vaccine info, boosters due, etc." style={{...inp,resize:"vertical",minHeight:60}} onFocus={focIn} onBlur={focOut}/>
+              <RField label="Vaccination notes">
+                <textarea value={form.vaccNotes} onChange={set("vaccNotes")} rows={2} placeholder="Boosters due, additional info…" style={{ ...inp, resize: "vertical", minHeight: 56 }} onFocus={focIn} onBlur={focOut} />
               </RField>
-              <VaccinationPhotos photos={vaccPhotos} onAdd={onVaccPhotoAdd} onRemove={onVaccPhotoRemove}/>
-              <div style={{padding:"0.5rem 0.75rem",borderRadius:9,background:"rgba(224,120,32,0.08)",border:"1px solid rgba(224,120,32,0.25)",fontSize:"0.78rem",fontWeight:700,color:"#b05010"}}>
-                <i className="fas fa-exclamation-triangle" style={{marginRight:"0.4rem"}}/>Please bring original vaccination records during the handover so the new owner can continue care.
+              <VaccinationPhotos photos={vaccPhotos} onAdd={onVaccPhotoAdd} onRemove={onVaccPhotoRemove} />
+              <div style={{ padding: "0.5rem 0.75rem", borderRadius: 9, background: "rgba(224,120,32,0.07)", border: "1px solid rgba(224,120,32,0.22)", fontSize: "0.75rem", fontWeight: 700, color: "#b05010", display: "flex", gap: "0.4rem", alignItems: "flex-start" }}>
+                <i className="fas fa-exclamation-triangle" style={{ marginTop: "0.1rem", flexShrink: 0 }} />
+                Please bring original vaccination records during handover so the new owner can continue care.
               </div>
             </div>
           )}
 
-          {form.isVaccinated==="no"&&(
-            <div style={{padding:"0.625rem 0.875rem",borderRadius:10,background:"rgba(224,120,32,0.06)",border:"1px solid rgba(224,120,32,0.22)",fontSize:"0.8rem",fontWeight:700,color:"#b05010"}}>
-              <i className="fas fa-info-circle" style={{marginRight:"0.4rem"}}/>The new owner will be informed that vaccination is pending and may be required before adoption finalizes.
+          {form.isVaccinated === "no" && (
+            <div style={{ padding: "0.6rem 0.875rem", borderRadius: 10, background: "rgba(224,120,32,0.06)", border: "1px solid rgba(224,120,32,0.2)", fontSize: "0.78rem", fontWeight: 700, color: "#b05010", display: "flex", gap: "0.4rem", alignItems: "flex-start" }}>
+              <i className="fas fa-info-circle" style={{ marginTop: "0.1rem", flexShrink: 0 }} />
+              The new owner will be informed vaccination is pending and may be required before adoption finalizes.
             </div>
           )}
 
-          <RField label="Any known medical conditions?">
-            <textarea value={form.medicalNotes} onChange={set("medicalNotes")} rows={3} placeholder="Allergies, ongoing treatments, illnesses…" style={{...inp,resize:"vertical",minHeight:80}} onFocus={focIn} onBlur={focOut}/>
+          <RField label="Known medical conditions">
+            <textarea value={form.medicalNotes} onChange={set("medicalNotes")} rows={3} placeholder="Allergies, ongoing treatments, illnesses…" style={{ ...inp, resize: "vertical", minHeight: 72 }} onFocus={focIn} onBlur={focOut} />
           </RField>
         </div>
       )}
 
       {step === 3 && (
         <div style={col}>
-          <RSecTitle icon="star" title="Behavior & Personality"/>
+          <RSecTitle icon="star" title="Behavior & personality" />
           <div style={g2}>
             <RField label="Best describes this pet *">
               <select value={form.behavior} onChange={set("behavior")}
-                style={{...inp, borderColor: err("behavior") ? "rgba(192,48,48,0.5)" : undefined}}
+                style={{ ...inp, borderColor: err("behavior") ? "rgba(192,48,48,0.5)" : undefined }}
                 onFocus={focIn} onBlur={focOut}>
                 <option value="">Select…</option>
-                {[["Friendly","Friendly"],["Shy","Shy"],["Playful","Playful"],["Aggressive","Aggressive"],["Other","Other"]].map(([v,l])=><option key={v} value={v}>{l}</option>)}
+                {["Friendly", "Shy", "Playful", "Aggressive", "Other"].map(v => <option key={v} value={v}>{v}</option>)}
               </select>
-              <InlineErr msg={err("behavior")}/>
+              <InlineErr msg={err("behavior")} />
             </RField>
             <RField label="Shown aggression? *">
-              <RYN value={form.hasAggression} onChange={(v)=>setV("hasAggression",v)} invalid={!!err("hasAggression")}/>
-              <InlineErr msg={err("hasAggression")}/>
+              <RYN value={form.hasAggression} onChange={(v) => setV("hasAggression", v)} invalid={!!err("hasAggression")} />
+              <InlineErr msg={err("hasAggression")} />
             </RField>
           </div>
-          {form.behavior==="Other"&&(
+          {form.behavior === "Other" && (
             <RField label="Describe behavior">
-              <input type="text" value={form.behaviorOther} onChange={set("behaviorOther")} style={inp} onFocus={focIn} onBlur={focOut}/>
+              <input type="text" value={form.behaviorOther} onChange={set("behaviorOther")} style={inp} onFocus={focIn} onBlur={focOut} />
             </RField>
           )}
           <div style={g2}>
             <RField label="House-trained? *">
-              <RYN value={form.isHouseTrained} onChange={(v)=>setV("isHouseTrained",v)} invalid={!!err("isHouseTrained")}/>
-              <InlineErr msg={err("isHouseTrained")}/>
+              <RYN value={form.isHouseTrained} onChange={(v) => setV("isHouseTrained", v)} invalid={!!err("isHouseTrained")} />
+              <InlineErr msg={err("isHouseTrained")} />
             </RField>
             <RField label="Leash-trained? *">
-              <RYN value={form.isLeashTrained} onChange={(v)=>setV("isLeashTrained",v)} invalid={!!err("isLeashTrained")}/>
-              <InlineErr msg={err("isLeashTrained")}/>
+              <RYN value={form.isLeashTrained} onChange={(v) => setV("isLeashTrained", v)} invalid={!!err("isLeashTrained")} />
+              <InlineErr msg={err("isLeashTrained")} />
             </RField>
           </div>
-          <RSecTitle icon="home" title="Ideal New Home"/>
+          <RSecTitle icon="home" title="Ideal new home" />
           <div style={g2}>
             <RField label="Good with children? *">
-              <RYN value={form.goodWithChildren} onChange={(v)=>setV("goodWithChildren",v)} invalid={!!err("goodWithChildren")}/>
-              <InlineErr msg={err("goodWithChildren")}/>
+              <RYN value={form.goodWithChildren} onChange={(v) => setV("goodWithChildren", v)} invalid={!!err("goodWithChildren")} />
+              <InlineErr msg={err("goodWithChildren")} />
             </RField>
             <RField label="Good with other pets? *">
-              <RYN value={form.goodWithPets} onChange={(v)=>setV("goodWithPets",v)} invalid={!!err("goodWithPets")}/>
-              <InlineErr msg={err("goodWithPets")}/>
+              <RYN value={form.goodWithPets} onChange={(v) => setV("goodWithPets", v)} invalid={!!err("goodWithPets")} />
+              <InlineErr msg={err("goodWithPets")} />
             </RField>
           </div>
-          <RField label="What type of home is best for this pet?">
-            <textarea value={form.idealHomeDesc} onChange={set("idealHomeDesc")} rows={2} placeholder="e.g. Quiet home, patient owner…" style={{...inp,resize:"vertical",minHeight:60}} onFocus={focIn} onBlur={focOut}/>
+          <RField label="What type of home is best?">
+            <textarea value={form.idealHomeDesc} onChange={set("idealHomeDesc")} rows={2} placeholder="e.g. Quiet home, patient owner…" style={{ ...inp, resize: "vertical", minHeight: 56 }} onFocus={focIn} onBlur={focOut} />
           </RField>
         </div>
       )}
 
       {step === 4 && (
         <div style={col}>
-          <RSecTitle icon="phone" title="Contact & Reason"/>
-          <RField label="Your Contact Number *">
+          <RSecTitle icon="phone" title="Contact & reason" />
+          <RField label="Your contact number *">
             <input type="tel" value={form.contact} onChange={set("contact")} placeholder="+63 9XX XXX XXXX"
-              style={{...inp, borderColor: err("contact") ? "rgba(192,48,48,0.5)" : undefined}}
-              onFocus={focIn} onBlur={focOut}/>
-            <InlineErr msg={err("contact")}/>
+              style={{ ...inp, borderColor: err("contact") ? "rgba(192,48,48,0.5)" : undefined }}
+              onFocus={focIn} onBlur={focOut} />
+            <InlineErr msg={err("contact")} />
           </RField>
-          <RField label="Primary Reason for Rehoming *">
+          <RField label="Primary reason for rehoming *">
             <select value={form.reason} onChange={set("reason")}
-              style={{...inp, borderColor: err("reason") ? "rgba(192,48,48,0.5)" : undefined}}
+              style={{ ...inp, borderColor: err("reason") ? "rgba(192,48,48,0.5)" : undefined }}
               onFocus={focIn} onBlur={focOut}>
               <option value="">Select…</option>
-              {[["Moving / Relocating","Moving / Relocating"],["Allergies","Allergies"],["New baby","New baby"],["Medical / Financial","Medical / Financial"],["Housing change","Housing change"],["Not enough time","Not enough time"],["Other","Other"]].map(([v,l])=><option key={v} value={v}>{l}</option>)}
+              {[["Moving / Relocating", "Moving / Relocating"], ["Allergies", "Allergies"], ["New baby", "New baby"], ["Medical / Financial", "Medical / Financial"], ["Housing change", "Housing change"], ["Not enough time", "Not enough time"], ["Other", "Other"]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
-            <InlineErr msg={err("reason")}/>
+            <InlineErr msg={err("reason")} />
           </RField>
-          <RField label="Additional Details">
-            <textarea value={form.details} onChange={set("details")} rows={2} placeholder="Tell us more about your situation…" style={{...inp,resize:"vertical",minHeight:60}} onFocus={focIn} onBlur={focOut}/>
+          <RField label="Additional details">
+            <textarea value={form.details} onChange={set("details")} rows={2} placeholder="Tell us more about your situation…" style={{ ...inp, resize: "vertical", minHeight: 56 }} onFocus={focIn} onBlur={focOut} />
           </RField>
           <RField label="Have you tried other solutions?">
-            <textarea value={form.triedAlternatives} onChange={set("triedAlternatives")} rows={2} placeholder="e.g. Asked family, tried training…" style={{...inp,resize:"vertical",minHeight:56}} onFocus={focIn} onBlur={focOut}/>
+            <textarea value={form.triedAlternatives} onChange={set("triedAlternatives")} rows={2} placeholder="e.g. Asked family, tried training…" style={{ ...inp, resize: "vertical", minHeight: 52 }} onFocus={focIn} onBlur={focOut} />
           </RField>
-          <RSecTitle icon="box-open" title="Transition Details"/>
+          <RSecTitle icon="box-open" title="Transition details" />
           <RLabel>Can you provide the following?</RLabel>
-          <div style={{display:"flex",flexDirection:"column",gap:"0.5rem"}}>
-            {[["canProvideFood","Food supply"],["canProvideCarrier","Cage / carrier"],["canProvideRecords","Medical records"]].map(([k,label])=>(
-              <label key={k} style={{display:"flex",alignItems:"center",gap:"0.625rem",padding:"0.625rem 0.875rem",borderRadius:10,background:form[k]?"rgba(28,79,9,0.07)":"rgba(255,248,220,0.6)",border:`1px solid ${form[k]?"rgba(90,170,48,0.3)":"rgba(180,140,60,0.22)"}`,cursor:"pointer",transition:"all 0.2s"}}>
-                <input type="checkbox" checked={form[k]} onChange={set(k)} style={{width:16,height:16,accentColor:"#1c4f09",cursor:"pointer"}}/>
-                <span style={{fontSize:"0.85rem",fontWeight:700,color:"#3a5020"}}>{label}</span>
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+            {[["canProvideFood", "Food supply"], ["canProvideCarrier", "Cage / carrier"], ["canProvideRecords", "Medical records"]].map(([k, label]) => (
+              <label key={k} style={{ display: "flex", alignItems: "center", gap: "0.625rem", padding: "0.6rem 0.875rem", borderRadius: 10, background: form[k] ? "rgba(28,79,9,0.06)" : "rgba(255,253,242,0.6)", border: `1px solid ${form[k] ? "rgba(90,170,48,0.28)" : "rgba(180,140,60,0.2)"}`, cursor: "pointer", transition: "all 0.15s" }}>
+                <input type="checkbox" checked={form[k]} onChange={set(k)} style={{ width: 15, height: 15, accentColor: "#1c4f09", cursor: "pointer" }} />
+                <span style={{ fontSize: "0.84rem", fontWeight: 700, color: "#3a5020" }}>{label}</span>
               </label>
             ))}
           </div>
-          <label style={{display:"flex",alignItems:"flex-start",gap:"0.625rem",padding:"0.75rem 0.875rem",borderRadius:10,background:form.understandsPermanent?"rgba(180,90,34,0.08)":"rgba(255,248,220,0.6)",border:`1.5px solid ${err("understandsPermanent")?"rgba(192,48,48,0.5)":form.understandsPermanent?"rgba(180,90,34,0.4)":"rgba(180,140,60,0.28)"}`,cursor:"pointer",transition:"all 0.2s",marginTop:"0.25rem"}}>
-            <input type="checkbox" checked={form.understandsPermanent} onChange={set("understandsPermanent")} style={{width:16,height:16,accentColor:"#B45A22",marginTop:2,cursor:"pointer",flexShrink:0}}/>
-            <span style={{fontSize:"0.82rem",fontWeight:700,color:"#6a3a10",lineHeight:1.6}}>I understand that rehoming is a <strong>serious and permanent decision</strong>, and I confirm all information is accurate.</span>
+
+          {/* Permanent decision confirmation */}
+          <label style={{ display: "flex", alignItems: "flex-start", gap: "0.625rem", padding: "0.75rem 0.875rem", borderRadius: 10, background: form.understandsPermanent ? "rgba(180,90,34,0.07)" : "rgba(255,253,242,0.6)", border: `1.5px solid ${err("understandsPermanent") ? "rgba(192,48,48,0.5)" : form.understandsPermanent ? "rgba(180,90,34,0.35)" : "rgba(180,140,60,0.25)"}`, cursor: "pointer", transition: "all 0.15s", marginTop: "0.25rem" }}>
+            <input type="checkbox" checked={form.understandsPermanent} onChange={set("understandsPermanent")} style={{ width: 15, height: 15, accentColor: "#B45A22", marginTop: 2, cursor: "pointer", flexShrink: 0 }} />
+            <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "#6a3a10", lineHeight: 1.6 }}>I understand that rehoming is a <strong>serious and permanent decision</strong>, and I confirm all information is accurate.</span>
           </label>
-          <InlineErr msg={err("understandsPermanent")}/>
-          <label style={{display:"flex",alignItems:"center",gap:"0.625rem",padding:"0.625rem 0.875rem",borderRadius:10,background:"rgba(255,248,220,0.6)",border:"1px solid rgba(180,140,60,0.22)",cursor:"pointer"}}>
-            <input type="checkbox" checked={form.openToFollowup} onChange={set("openToFollowup")} style={{width:16,height:16,accentColor:"#1c4f09",cursor:"pointer"}}/>
-            <span style={{fontSize:"0.82rem",fontWeight:700,color:"#3a5020"}}>I am open to being contacted for follow-up after placement.</span>
+          <InlineErr msg={err("understandsPermanent")} />
+
+          <label style={{ display: "flex", alignItems: "center", gap: "0.625rem", padding: "0.6rem 0.875rem", borderRadius: 10, background: "rgba(255,253,242,0.6)", border: "1px solid rgba(180,140,60,0.2)", cursor: "pointer" }}>
+            <input type="checkbox" checked={form.openToFollowup} onChange={set("openToFollowup")} style={{ width: 15, height: 15, accentColor: "#1c4f09", cursor: "pointer" }} />
+            <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "#3a5020" }}>I am open to being contacted for follow-up after placement.</span>
           </label>
         </div>
       )}
@@ -371,17 +408,145 @@ function RehomeStepContent({ step, form, set, setV, photoPreview, onPhotoChange,
   );
 }
 
-export default function Rehome(){
-  const{user}=useAuth();
-  const[step,setStep]=useState(1);
-  const[submitted,setSubmitted]=useState(false);
-  const[loading,setLoading]=useState(false);
-  const[submitError,setSubmitError]=useState(null); // only for network/server errors
-  const[fieldErrors,setFieldErrors]=useState({});
-  const[touched,setTouched]=useState(false);
+/* ─── Review Modal ───────────────────────────────────────────────────────── */
+function RehomeReviewModal({ user, onContinue, onClose }) {
+  const fields = [
+    ["user",           "Full name",  `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim(), !!(user?.firstName || user?.lastName)],
+    ["envelope",       "Email",      user?.email,   !!user?.email],
+    ["phone",          "Phone",      user?.phone,   !!user?.phone],
+    ["map-marker-alt", "Address",    user?.address, !!user?.address],
+  ];
+  return (
+    <div
+      style={{ position: "fixed", inset: 0, zIndex: 500, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem", background: "rgba(10,6,2,0.6)", backdropFilter: "blur(6px)" }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div style={{
+        width: "100%", maxWidth: 460, borderRadius: 20, overflow: "hidden",
+        border: "1px solid rgba(180,140,60,0.25)",
+        background: "rgba(255,252,235,0.98)",
+        boxShadow: "0 20px 56px rgba(40,20,5,0.38)",
+        animation: "modalIn .25s cubic-bezier(.22,.68,0,1.15) both",
+      }}>
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "1.125rem 1.5rem", borderBottom: "1px solid rgba(180,140,60,0.18)", background: "rgba(180,90,34,0.05)" }}>
+          <div style={{ width: 38, height: 38, borderRadius: 11, background: "#B45A22", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", flexShrink: 0 }}>
+            <i className="fas fa-clipboard-check" style={{ fontSize: "0.9rem" }} />
+          </div>
+          <div>
+            <div style={{ fontFamily: "'Playfair Display',serif", fontWeight: 900, fontSize: "0.95rem", color: "#1a4a08" }}>Review your details</div>
+            <div style={{ fontSize: "0.7rem", fontWeight: 700, color: "#6a7a50", marginTop: 1 }}>These will be pre-filled in your rehome request</div>
+          </div>
+          <button onClick={onClose} style={{ marginLeft: "auto", width: 30, height: 30, borderRadius: 8, border: "1px solid rgba(192,48,48,0.18)", background: "rgba(192,48,48,0.07)", color: "#c03030", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.75rem" }}>
+            <i className="fas fa-times" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div style={{ padding: "1.125rem 1.5rem" }}>
+          <div style={{ padding: "0.625rem 0.875rem", borderRadius: 10, background: "rgba(180,90,34,0.06)", border: "1px solid rgba(180,90,34,0.2)", marginBottom: "0.875rem", display: "flex", gap: "0.5rem", alignItems: "flex-start" }}>
+            <i className="fas fa-info-circle" style={{ color: "#B45A22", flexShrink: 0, marginTop: "0.1rem", fontSize: "0.85rem" }} />
+            <p style={{ fontSize: "0.8rem", fontWeight: 700, lineHeight: 1.6, color: "#6a3a10", margin: 0 }}>
+              Your registered details will be pre-filled in the rehome form. The shelter uses this to contact you about your pet.
+            </p>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", marginBottom: "1.125rem" }}>
+            {fields.map(([icon, label, value, ok]) => (
+              <div key={label} style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.55rem 0.875rem", borderRadius: 10, background: ok ? "rgba(28,79,9,0.05)" : "rgba(192,48,48,0.05)", border: `1px solid ${ok ? "rgba(90,170,48,0.22)" : "rgba(192,48,48,0.18)"}` }}>
+                <i className={`fas fa-${icon}`} style={{ color: ok ? "#5aaa30" : "#c03030", width: 14, textAlign: "center", fontSize: "0.8rem" }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: "0.65rem", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.07em", color: "#6a7a50" }}>{label}</div>
+                  <div style={{ fontSize: "0.82rem", fontWeight: 700, color: ok ? "#1a4a08" : "#c03030", marginTop: 1 }}>
+                    {ok ? value : "Not set — you can fill this in the form"}
+                  </div>
+                </div>
+                <i className={`fas fa-${ok ? "check-circle" : "exclamation-circle"}`} style={{ color: ok ? "#5aaa30" : "#c03030", fontSize: "0.85rem" }} />
+              </div>
+            ))}
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
+            <button onClick={onClose} style={{ padding: "0.7rem", borderRadius: 11, fontWeight: 900, fontSize: "0.84rem", background: "rgba(255,248,220,0.7)", border: "1px solid rgba(180,140,60,0.25)", color: "#3a5020", cursor: "pointer", fontFamily: "'Nunito',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.4rem" }}>
+              <i className="fas fa-arrow-left" style={{ fontSize: "0.75rem" }} /> Go back
+            </button>
+            <button onClick={onContinue} style={{ padding: "0.7rem", borderRadius: 11, fontWeight: 900, fontSize: "0.84rem", color: "#fff", background: "#B45A22", border: "none", cursor: "pointer", fontFamily: "'Nunito',sans-serif", boxShadow: "0 4px 16px rgba(180,90,34,0.28)", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.4rem" }}>
+              Continue <i className="fas fa-arrow-right" style={{ fontSize: "0.75rem" }} />
+            </button>
+          </div>
+        </div>
+      </div>
+      <style>{`@keyframes modalIn{from{opacity:0;transform:scale(0.95) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}`}</style>
+    </div>
+  );
+}
+
+/* ─── Pre-form gate card (shown before modal is confirmed) ─────────────── */
+function PreFormCard({ onStart }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", padding: "2.5rem 1.5rem", gap: "1.25rem" }}>
+
+      {/* Icon badge */}
+      <div style={{ width: 64, height: 64, borderRadius: 18, background: "rgba(180,90,34,0.10)", border: "1px solid rgba(180,90,34,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <i className="fas fa-home" style={{ fontSize: "1.5rem", color: "#B45A22" }} />
+      </div>
+
+      <div>
+        <div style={{ fontFamily: "'Playfair Display',serif", fontSize: "1.2rem", fontWeight: 900, color: "#1a4a08", marginBottom: "0.4rem" }}>
+          Rehome a pet
+        </div>
+        <p style={{ fontSize: "0.84rem", fontWeight: 700, color: "#6a7a50", lineHeight: 1.7, maxWidth: 280, margin: "0 auto" }}>
+          Fill out a short form and we'll find your pet a safe, verified new home — with full care and discretion.
+        </p>
+      </div>
+
+      {/* Steps preview */}
+      <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", justifyContent: "center" }}>
+        {STEPS.map((s, i) => (
+          <div key={s} style={{ display: "flex", alignItems: "center", gap: "0.35rem", padding: "0.3rem 0.7rem", borderRadius: 99, background: "rgba(28,79,9,0.06)", border: "1px solid rgba(90,170,48,0.2)", fontSize: "0.72rem", fontWeight: 800, color: "#3a5020" }}>
+            <span style={{ width: 16, height: 16, borderRadius: "50%", background: "rgba(180,90,34,0.15)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: "0.62rem", fontWeight: 900, color: "#B45A22" }}>{i + 1}</span>
+            {s}
+          </div>
+        ))}
+      </div>
+
+      <button
+        onClick={onStart}
+        style={{
+          padding: "0.8rem 2rem", borderRadius: 13, fontWeight: 900, fontSize: "0.9rem",
+          color: "#fff", background: "#B45A22", border: "none", cursor: "pointer",
+          fontFamily: "'Nunito',sans-serif",
+          boxShadow: "0 4px 18px rgba(180,90,34,0.28)",
+          display: "flex", alignItems: "center", gap: "0.5rem",
+          transition: "opacity 0.15s",
+        }}
+        onMouseOver={e => e.currentTarget.style.opacity = "0.9"}
+        onMouseOut={e => e.currentTarget.style.opacity = "1"}
+      >
+        <i className="fas fa-home" /> Start rehome request
+      </button>
+
+      <p style={{ fontSize: "0.72rem", fontWeight: 700, color: "#9aaa80", margin: 0 }}>
+        <i className="fas fa-lock" style={{ marginRight: "0.3rem" }} />Confidential · Takes about 5 minutes
+      </p>
+    </div>
+  );
+}
+
+/* ─── Main Page ──────────────────────────────────────────────────────────── */
+export default function Rehome() {
+  const { user } = useAuth();
+  const [step, setStep] = useState(1);
+  const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [touched, setTouched] = useState({});
+  const [showReview, setShowReview] = useState(false);
+  const [formStarted, setFormStarted] = useState(false);
 
   const [photoPreview, setPhotoPreview] = useState(null);
-  const [photoBase64,  setPhotoBase64]  = useState(null);
+  const [photoBase64, setPhotoBase64] = useState(null);
   const [vaccPhotos, setVaccPhotos] = useState([]);
 
   const handlePhotoChange = useCallback(async (e) => {
@@ -390,17 +555,12 @@ export default function Rehome(){
     if (file.size > 5 * 1024 * 1024) { setSubmitError("Photo must be under 5 MB."); return; }
     try {
       const dataUrl = await fileToBase64(file);
-      setPhotoPreview(dataUrl);
-      setPhotoBase64(dataUrl);
-      setSubmitError(null);
+      setPhotoPreview(dataUrl); setPhotoBase64(dataUrl); setSubmitError(null);
     } catch { setSubmitError("Could not read the image. Please try another file."); }
     e.target.value = "";
   }, []);
 
-  const handlePhotoClear = useCallback(() => {
-    setPhotoPreview(null);
-    setPhotoBase64(null);
-  }, []);
+  const handlePhotoClear = useCallback(() => { setPhotoPreview(null); setPhotoBase64(null); }, []);
 
   const handleVaccPhotoAdd = useCallback(async (e) => {
     const file = e.target.files?.[0];
@@ -408,8 +568,7 @@ export default function Rehome(){
     if (file.size > 5 * 1024 * 1024) { setSubmitError("Photo must be under 5 MB."); return; }
     try {
       const dataUrl = await fileToBase64(file);
-      setVaccPhotos(prev => [...prev.slice(0, 4), dataUrl]);
-      setSubmitError(null);
+      setVaccPhotos(prev => [...prev.slice(0, 4), dataUrl]); setSubmitError(null);
     } catch { setSubmitError("Could not read the image. Please try another file."); }
     e.target.value = "";
   }, []);
@@ -418,155 +577,198 @@ export default function Rehome(){
     setVaccPhotos(prev => prev.filter((_, i) => i !== idx));
   }, []);
 
-  const[form,setForm]=useState({
-    petName:"",species:"Dog",breed:"",age:"",gender:"Male",durationOwned:"",
-    isVaccinated:"",isNeutered:"",medicalNotes:"",
-    vaccineType:"",lastVaccDate:"",vaccClinic:"",vaccNotes:"",
-    behavior:"",behaviorOther:"",hasAggression:"",isHouseTrained:"",isLeashTrained:"",
-    goodWithChildren:"",goodWithPets:"",idealHomeDesc:"",
-    contact:"",reason:"",details:"",triedAlternatives:"",
-    canProvideFood:false,canProvideCarrier:false,canProvideRecords:false,
-    understandsPermanent:false,openToFollowup:true
+  const [form, setForm] = useState({
+    petName: "", species: "Dog", breed: "", age: "", gender: "Male", durationOwned: "",
+    isVaccinated: "", isNeutered: "", medicalNotes: "",
+    vaccineType: "", lastVaccDate: "", vaccClinic: "", vaccNotes: "",
+    behavior: "", behaviorOther: "", hasAggression: "", isHouseTrained: "", isLeashTrained: "",
+    goodWithChildren: "", goodWithPets: "", idealHomeDesc: "",
+    contact: "", reason: "", details: "", triedAlternatives: "",
+    canProvideFood: false, canProvideCarrier: false, canProvideRecords: false,
+    understandsPermanent: false, openToFollowup: true,
   });
 
-  const set=useCallback((k)=>(e)=>setForm(f=>({...f,[k]:e.target.type==="checkbox"?e.target.checked:e.target.value})),[]);
-  const setV=useCallback((k,v)=>setForm(f=>({...f,[k]:v})),[]);
+  const set = useCallback((k) => (e) => {
+    setForm(f => ({ ...f, [k]: e.target.type === "checkbox" ? e.target.checked : e.target.value }));
+    setTouched(t => ({ ...t, [k]: true }));
+  }, []);
+
+  const setV = useCallback((k, v) => {
+    setForm(f => ({ ...f, [k]: v }));
+    setTouched(t => ({ ...t, [k]: true }));
+  }, []);
 
   const handleContinue = () => {
     const errs = validateStep(step, form);
+    const stepTouched = {};
+    Object.keys(errs).forEach(k => stepTouched[k] = true);
+    setTouched(stepTouched);
     setFieldErrors(errs);
-    setTouched(true);
     if (Object.keys(errs).length > 0) return;
-    setTouched(false);
-    setFieldErrors({});
+    setTouched({}); setFieldErrors({});
     setStep(s => s + 1);
   };
 
   const handleBack = () => {
-    setTouched(false);
-    setFieldErrors({});
-    setSubmitError(null);
+    setTouched({}); setFieldErrors({}); setSubmitError(null);
     setStep(s => s - 1);
   };
 
-  const handleSubmit=async(e)=>{
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const errs = validateStep(4, form);
     setFieldErrors(errs);
-    setTouched(true);
+    const newTouched = {};
+    Object.keys(form).forEach(k => newTouched[k] = true);
+    setTouched(newTouched);
     if (Object.keys(errs).length > 0) return;
-    setSubmitError(null);
-    setLoading(true);
-    try{
-      const res=await djFetch("/api/approvals/rehoming/",{method:"POST",body:JSON.stringify({
-        pet_name:form.petName,species:form.species,breed:form.breed,age:form.age,gender:form.gender,
-        duration_owned:form.durationOwned,is_vaccinated:form.isVaccinated==="yes",is_neutered:form.isNeutered==="yes",
-        medical_notes:form.medicalNotes,
-        vaccine_type:   form.vaccineType   || "",
-        last_vacc_date: form.lastVaccDate  || "",
-        vacc_clinic:    form.vaccClinic    || "",
-        vacc_notes:     form.vaccNotes     || "",
-        vacc_photos: vaccPhotos.length > 0 ? vaccPhotos : [],
-        behavior:form.behavior,behavior_other:form.behaviorOther,
-        has_aggression:form.hasAggression==="yes",is_house_trained:form.isHouseTrained==="yes",
-        is_leash_trained:form.isLeashTrained==="yes",good_with_children:form.goodWithChildren==="yes",
-        good_with_pets:form.goodWithPets==="yes",ideal_home_desc:form.idealHomeDesc,contact:form.contact,
-        reason:form.reason,details:form.details,tried_alternatives:form.triedAlternatives,
-        can_provide_food:form.canProvideFood,can_provide_carrier:form.canProvideCarrier,
-        can_provide_records:form.canProvideRecords,understands_permanent:form.understandsPermanent,
-        open_to_followup:form.openToFollowup,
-        photo_base64: photoBase64 ?? null,
-      })});
-      let data={};try{data=await res.json();}catch{}
-      if(res.ok&&data.success!==false){setSubmitted(true);}
-      else{setSubmitError(data.message||`Error (${res.status}). Please try again.`);}
-    }catch{setSubmitError("Network error. Please try again.");}
+    setSubmitError(null); setLoading(true);
+    try {
+      const res = await djFetch("/api/approvals/rehoming/", {
+        method: "POST", body: JSON.stringify({
+          pet_name: form.petName, species: form.species, breed: form.breed, age: form.age, gender: form.gender,
+          duration_owned: form.durationOwned, is_vaccinated: form.isVaccinated === "yes", is_neutered: form.isNeutered === "yes",
+          medical_notes: form.medicalNotes,
+          vaccine_type: form.vaccineType || "", last_vacc_date: form.lastVaccDate || "",
+          vacc_clinic: form.vaccClinic || "", vacc_notes: form.vaccNotes || "",
+          vacc_photos: vaccPhotos.length > 0 ? vaccPhotos : [],
+          behavior: form.behavior, behavior_other: form.behaviorOther,
+          has_aggression: form.hasAggression === "yes", is_house_trained: form.isHouseTrained === "yes",
+          is_leash_trained: form.isLeashTrained === "yes", good_with_children: form.goodWithChildren === "yes",
+          good_with_pets: form.goodWithPets === "yes", ideal_home_desc: form.idealHomeDesc,
+          contact: form.contact, reason: form.reason, details: form.details,
+          tried_alternatives: form.triedAlternatives,
+          can_provide_food: form.canProvideFood, can_provide_carrier: form.canProvideCarrier,
+          can_provide_records: form.canProvideRecords, understands_permanent: form.understandsPermanent,
+          open_to_followup: form.openToFollowup, photo_base64: photoBase64 ?? null,
+        })
+      });
+      let data = {}; try { data = await res.json(); } catch { }
+      if (res.ok && data.success !== false) { setSubmitted(true); }
+      else { setSubmitError(data.message || `Error (${res.status}). Please try again.`); }
+    } catch { setSubmitError("Network error. Please try again."); }
     setLoading(false);
   };
 
-  return(
-    <div style={{minHeight:"100vh",background:"#EDDABB",fontFamily:"'Nunito',sans-serif"}}>
+  return (
+    <div style={{ minHeight: "100vh", background: "#EDDABB", fontFamily: "'Nunito',sans-serif" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,800;0,900;1,700;1,800;1,900&family=Nunito:wght@400;600;700;800;900&display=swap');
         @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
         @keyframes fl1{0%,100%{transform:translate(0,0)}50%{transform:translate(5%,8%)}}
         @keyframes fl2{0%,100%{transform:translate(0,0)}50%{transform:translate(-8%,5%)}}
         @keyframes spin{to{transform:rotate(360deg)}}
+        @keyframes modalIn{from{opacity:0;transform:scale(0.95) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}
         *,*::before,*::after{box-sizing:border-box}
         ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:#eddabb}::-webkit-scrollbar-thumb{background:#b4903a;border-radius:3px}
         @media(max-width:768px){.rehome-grid{grid-template-columns:1fr!important}}
       `}</style>
 
-      <div style={{position:"fixed",inset:0,zIndex:0,overflow:"hidden",pointerEvents:"none"}}>
-        <div style={{position:"absolute",inset:0,background:"#EDDABB"}}/>
-        <div style={{position:"absolute",width:900,height:900,top:"-20%",left:"-15%",borderRadius:"50%",background:"radial-gradient(circle,#B45A22,transparent 70%)",filter:"blur(120px)",opacity:0.38,animation:"fl1 9s ease-in-out infinite"}}/>
-        <div style={{position:"absolute",width:800,height:800,bottom:"-15%",right:"-15%",borderRadius:"50%",background:"radial-gradient(circle,#588B41,transparent 70%)",filter:"blur(120px)",opacity:0.38,animation:"fl2 11s ease-in-out infinite"}}/>
+      {/* Background blobs */}
+      <div style={{ position: "fixed", inset: 0, zIndex: 0, overflow: "hidden", pointerEvents: "none" }}>
+        <div style={{ position: "absolute", inset: 0, background: "#EDDABB" }} />
+        <div style={{ position: "absolute", width: 900, height: 900, top: "-20%", left: "-15%", borderRadius: "50%", background: "radial-gradient(circle,#B45A22,transparent 70%)", filter: "blur(120px)", opacity: 0.35, animation: "fl1 9s ease-in-out infinite" }} />
+        <div style={{ position: "absolute", width: 800, height: 800, bottom: "-15%", right: "-15%", borderRadius: "50%", background: "radial-gradient(circle,#588B41,transparent 70%)", filter: "blur(120px)", opacity: 0.35, animation: "fl2 11s ease-in-out infinite" }} />
       </div>
 
-      <Navbar/>
+      <Navbar />
 
-      <div className="rehome-grid" style={{position:"relative",zIndex:10,maxWidth:1100,margin:"0 auto",padding:"4rem 2.5rem 6rem",display:"grid",gridTemplateColumns:"1fr 1fr",gap:"3rem",alignItems:"start"}}>
+      <div className="rehome-grid" style={{ position: "relative", zIndex: 10, maxWidth: 1100, margin: "0 auto", padding: "4rem 2.5rem 6rem", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "3rem", alignItems: "start" }}>
+
         {/* Left column */}
         <div>
           <Reveal>
-            <div style={{display:"inline-flex",alignItems:"center",gap:"0.4rem",borderRadius:50,padding:"0.3rem 1rem",fontSize:"0.67rem",fontWeight:800,textTransform:"uppercase",letterSpacing:"0.1em",fontStyle:"italic",marginBottom:"1rem",background:"rgba(180,90,34,0.10)",border:"1px solid rgba(180,90,34,0.28)",color:"#B45A22"}}>
-              <i className="fas fa-home" style={{fontSize:"0.65rem"}}/> Rehoming Service
+            <div style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", borderRadius: 50, padding: "0.3rem 1rem", fontSize: "0.67rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", fontStyle: "italic", marginBottom: "1rem", background: "rgba(180,90,34,0.10)", border: "1px solid rgba(180,90,34,0.25)", color: "#B45A22" }}>
+              <i className="fas fa-home" style={{ fontSize: "0.65rem" }} /> Rehoming service
             </div>
-            <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:"clamp(2rem,3.5vw,3rem)",fontWeight:900,color:"#1a4a08",lineHeight:1.1,marginBottom:"1rem"}}>Need to <em style={{fontStyle:"italic",color:"#B45A22"}}>Rehome</em> Your Pet?</h1>
-            <p style={{fontSize:"0.95rem",fontWeight:700,color:"#3a5020",lineHeight:1.7,marginBottom:"2rem"}}>Life circumstances change. If you're unable to care for your pet, Pawster will help find them a safe, loving new home — with full discretion and care.</p>
+            <h1 style={{ fontFamily: "'Playfair Display',serif", fontSize: "clamp(2rem,3.5vw,3rem)", fontWeight: 900, color: "#1a4a08", lineHeight: 1.1, marginBottom: "1rem" }}>
+              Need to <em style={{ fontStyle: "italic", color: "#B45A22" }}>Rehome</em> Your Pet?
+            </h1>
+            <p style={{ fontSize: "0.95rem", fontWeight: 700, color: "#3a5020", lineHeight: 1.7, marginBottom: "2rem" }}>
+              Life circumstances change. If you're unable to care for your pet, Pawster will help find them a safe, loving new home — with full discretion and care.
+            </p>
           </Reveal>
 
           <Reveal delay={100}>
-            <h3 style={{fontWeight:900,fontSize:"1rem",color:"#1a4a08",marginBottom:"1rem"}}>Common reasons families reach out:</h3>
-            <div style={{display:"flex",flexDirection:"column",gap:"0.6rem",marginBottom:"2.5rem"}}>
-              {REASONS.map(({icon,label})=>(
-                <div key={label} style={{display:"flex",alignItems:"center",gap:"0.75rem",background:"rgba(255,248,225,0.75)",borderRadius:12,padding:"0.75rem 1rem",border:"1px solid rgba(180,140,60,0.28)"}}>
-                  <div style={{width:34,height:34,borderRadius:9,background:"rgba(180,90,34,0.10)",color:"#B45A22",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                    <i className={icon}/>
+            <h3 style={{ fontWeight: 900, fontSize: "1rem", color: "#1a4a08", marginBottom: "1rem" }}>Common reasons families reach out:</h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem", marginBottom: "2.5rem" }}>
+              {REASONS.map(({ icon, label }) => (
+                <div key={label} style={{ display: "flex", alignItems: "center", gap: "0.75rem", background: "rgba(255,248,225,0.75)", borderRadius: 12, padding: "0.75rem 1rem", border: "1px solid rgba(180,140,60,0.25)" }}>
+                  <div style={{ width: 34, height: 34, borderRadius: 9, background: "rgba(180,90,34,0.10)", color: "#B45A22", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <i className={icon} />
                   </div>
-                  <span style={{fontWeight:700,fontSize:"0.88rem",color:"#3a5020"}}>{label}</span>
+                  <span style={{ fontWeight: 700, fontSize: "0.88rem", color: "#3a5020" }}>{label}</span>
                 </div>
               ))}
             </div>
           </Reveal>
 
           <Reveal delay={150}>
-            <div style={{background:"linear-gradient(135deg,rgba(28,79,9,0.10),rgba(90,170,48,0.07))",border:"1px solid rgba(90,170,48,0.30)",borderRadius:18,padding:"1.5rem"}}>
-              <div style={{fontWeight:900,fontSize:"0.95rem",color:"#1a4a08",marginBottom:"0.5rem"}}>🐾 Our Promise</div>
-              <p style={{fontSize:"0.85rem",fontWeight:700,color:"#3a5020",lineHeight:1.7,margin:0}}>We never abandon animals. Every pet submitted through Pawster is screened, cared for, and matched only with verified, loving adopters.</p>
+            <div style={{ background: "rgba(28,79,9,0.07)", border: "1px solid rgba(90,170,48,0.28)", borderRadius: 18, padding: "1.5rem" }}>
+              <div style={{ fontWeight: 900, fontSize: "0.95rem", color: "#1a4a08", marginBottom: "0.5rem" }}>🐾 Our promise</div>
+              <p style={{ fontSize: "0.85rem", fontWeight: 700, color: "#3a5020", lineHeight: 1.7, margin: 0 }}>We never abandon animals. Every pet submitted through Pawster is screened, cared for, and matched only with verified, loving adopters.</p>
             </div>
           </Reveal>
         </div>
 
-        {/* Right column — Form */}
+        {/* Right column — form panel */}
         <Reveal delay={80}>
-          <div style={{background:"rgba(255,248,225,0.85)",border:"1.5px solid rgba(255,238,190,0.6)",borderRadius:24,padding:"2rem",boxShadow:"0 8px 40px rgba(160,105,30,0.12)",position:"sticky",top:90}}>
+          <div style={{ background: "rgba(255,250,228,0.88)", border: "1px solid rgba(255,238,185,0.55)", borderRadius: 22, boxShadow: "0 6px 32px rgba(160,105,30,0.10)", position: "sticky", top: 90, overflow: "hidden" }}>
+
             {submitted ? (
-              <div style={{textAlign:"center",padding:"3rem 0"}}>
-                <div style={{fontSize:"3.5rem",marginBottom:"1rem"}}>🏡</div>
-                <div style={{fontFamily:"'Playfair Display',serif",fontSize:"1.6rem",fontWeight:900,color:"#1a4a08",marginBottom:"0.5rem"}}>Thank You!</div>
-                <p style={{fontSize:"0.9rem",fontWeight:700,color:"#3a5020",lineHeight:1.7}}>Your rehoming request has been received. Our team will contact you at your email within 24–48 hours.</p>
-                <Link to="/home" style={{display:"inline-flex",alignItems:"center",gap:"0.5rem",marginTop:"1.5rem",padding:"0.75rem 1.75rem",borderRadius:12,fontWeight:900,fontSize:"0.9rem",color:"#fff",background:"#1c4f09",textDecoration:"none"}}>Back to Home</Link>
+              /* ── Success ── */
+              <div style={{ textAlign: "center", padding: "3.5rem 2rem" }}>
+                <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>🏡</div>
+                <div style={{ fontFamily: "'Playfair Display',serif", fontSize: "1.6rem", fontWeight: 900, color: "#1a4a08", marginBottom: "0.5rem" }}>Thank you!</div>
+                <p style={{ fontSize: "0.9rem", fontWeight: 700, color: "#3a5020", lineHeight: 1.7, marginBottom: "1.5rem" }}>
+                  Your rehoming request has been received. Our team will contact you at your email within 24–48 hours.
+                </p>
+                <Link to="/home" style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", padding: "0.75rem 1.75rem", borderRadius: 12, fontWeight: 900, fontSize: "0.9rem", color: "#fff", background: "#1c4f09", textDecoration: "none" }}>
+                  Back to home
+                </Link>
               </div>
+
+            ) : !formStarted ? (
+              /* ── Pre-form gate — clean, no repeated info ── */
+              <PreFormCard onStart={() => setShowReview(true)} />
+
             ) : (
-              <>
-                <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:"1.4rem",fontWeight:900,color:"#1a4a08",marginBottom:"0.3rem"}}>Rehome Request</h2>
-                <p style={{fontSize:"0.8rem",fontWeight:700,color:"#6a7a50",marginBottom:"1.25rem"}}>Confidential · Step {step} of {STEPS.length} — {STEPS[step-1]}</p>
+              /* ── Multi-step form ── */
+              <div style={{ padding: "1.75rem" }}>
+                {/* Form header */}
+                <div style={{ marginBottom: "1.25rem" }}>
+                  <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: "1.3rem", fontWeight: 900, color: "#1a4a08", margin: 0 }}>Rehome request</h2>
+                  <p style={{ fontSize: "0.75rem", fontWeight: 700, color: "#7a8a60", marginTop: "0.2rem" }}>
+                    Confidential · Step {step} of {STEPS.length} — {STEPS[step - 1]}
+                  </p>
+                </div>
 
                 {/* Step indicators */}
-                <div style={{display:"flex",alignItems:"center",marginBottom:"1.5rem"}}>
-                  {STEPS.map((label,i)=>(
-                    <div key={i} style={{display:"flex",alignItems:"center",flex:i<STEPS.length-1?1:"none"}}>
-                      <div style={{width:28,height:28,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"0.75rem",fontWeight:900,flexShrink:0,transition:"all 0.2s",background:step>=i+1?"#B45A22":"rgba(180,140,60,0.20)",color:step>=i+1?"#fff":"#6a7a50"}}>
-                        {step>i+1?<i className="fas fa-check" style={{fontSize:"0.65rem"}}/>:i+1}
+                <div style={{ display: "flex", alignItems: "flex-start", marginBottom: "1.5rem", gap: 0 }}>
+                  {STEPS.map((label, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "center", flex: i < STEPS.length - 1 ? 1 : "none" }}>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.3rem" }}>
+                        <div style={{
+                          width: 26, height: 26, borderRadius: "50%",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          fontSize: "0.72rem", fontWeight: 900, flexShrink: 0, transition: "all 0.2s",
+                          background: step > i + 1 ? "#1c4f09" : step === i + 1 ? "#B45A22" : "rgba(180,140,60,0.15)",
+                          color: step >= i + 1 ? "#fff" : "#8a9a70",
+                          border: step === i + 1 ? "2px solid rgba(180,90,34,0.3)" : "none",
+                        }}>
+                          {step > i + 1 ? <i className="fas fa-check" style={{ fontSize: "0.6rem" }} /> : i + 1}
+                        </div>
+                        <span style={{ fontSize: "0.62rem", fontWeight: 800, color: step === i + 1 ? "#B45A22" : "#9aaa70", whiteSpace: "nowrap" }}>{label}</span>
                       </div>
-                      {i<STEPS.length-1&&<div style={{flex:1,height:2,background:step>i+1?"#B45A22":"rgba(180,140,60,0.20)",borderRadius:1,transition:"all 0.3s",margin:"0 4px"}}/>}
+                      {i < STEPS.length - 1 && (
+                        <div style={{ flex: 1, height: "1.5px", background: step > i + 1 ? "#1c4f09" : "rgba(180,140,60,0.2)", margin: "0 4px", marginBottom: "1rem", borderRadius: 1, transition: "background 0.3s" }} />
+                      )}
                     </div>
                   ))}
                 </div>
 
                 <form onSubmit={handleSubmit}>
-                  <div style={{maxHeight:"52vh",overflowY:"auto",paddingRight:"0.25rem"}}>
+                  <div style={{ maxHeight: "50vh", overflowY: "auto", paddingRight: "0.25rem" }}>
                     <RehomeStepContent
                       step={step} form={form} set={set} setV={setV}
                       photoPreview={photoPreview}
@@ -580,34 +782,35 @@ export default function Rehome(){
                     />
                   </div>
 
-                  {/* Server/network error only */}
                   {submitError && (
-                    <div style={{padding:"0.65rem 0.875rem",borderRadius:10,background:"rgba(192,48,48,0.08)",border:"1px solid rgba(192,48,48,0.25)",marginTop:"0.75rem",fontSize:"0.82rem",fontWeight:700,color:"#c03030",display:"flex",alignItems:"center",gap:"0.4rem"}}>
-                      <i className="fas fa-times-circle"/>{submitError}
+                    <div style={{ padding: "0.6rem 0.875rem", borderRadius: 10, background: "rgba(192,48,48,0.07)", border: "1px solid rgba(192,48,48,0.22)", marginTop: "0.75rem", fontSize: "0.8rem", fontWeight: 700, color: "#c03030", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                      <i className="fas fa-times-circle" style={{ flexShrink: 0 }} /> {submitError}
                     </div>
                   )}
 
-                  <div style={{display:"flex",gap:"0.5rem",marginTop:"1.25rem"}}>
-                    {step>1&&(
+                  <div style={{ display: "flex", gap: "0.5rem", marginTop: "1.25rem", paddingTop: "1rem", borderTop: "1px solid rgba(180,140,60,0.18)" }}>
+                    {step > 1 && (
                       <button type="button" onClick={handleBack}
-                        style={{flex:1,padding:"0.8rem",borderRadius:12,fontWeight:800,fontSize:"0.88rem",color:"#3a5020",background:"transparent",border:"1px solid rgba(180,140,60,0.28)",cursor:"pointer",fontFamily:"'Nunito',sans-serif",display:"flex",alignItems:"center",justifyContent:"center",gap:"0.4rem"}}>
-                        <i className="fas fa-arrow-left"/> Back
+                        style={{ flex: 1, padding: "0.75rem", borderRadius: 11, fontWeight: 800, fontSize: "0.86rem", color: "#3a5020", background: "transparent", border: "1px solid rgba(180,140,60,0.25)", cursor: "pointer", fontFamily: "'Nunito',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.4rem" }}>
+                        <i className="fas fa-arrow-left" style={{ fontSize: "0.75rem" }} /> Back
                       </button>
                     )}
-                    {step<STEPS.length ? (
+                    {step < STEPS.length ? (
                       <button type="button" onClick={handleContinue}
-                        style={{flex:2,padding:"0.8rem",borderRadius:12,fontWeight:900,fontSize:"0.9rem",color:"#fff",background:"#B45A22",border:"none",cursor:"pointer",fontFamily:"'Nunito',sans-serif",boxShadow:"0 4px 14px rgba(180,90,34,0.28)",display:"flex",alignItems:"center",justifyContent:"center",gap:"0.4rem"}}>
-                        Continue <i className="fas fa-arrow-right"/>
+                        style={{ flex: 2, padding: "0.75rem", borderRadius: 11, fontWeight: 900, fontSize: "0.88rem", color: "#fff", background: "#B45A22", border: "none", cursor: "pointer", fontFamily: "'Nunito',sans-serif", boxShadow: "0 3px 12px rgba(180,90,34,0.24)", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.4rem" }}>
+                        Continue <i className="fas fa-arrow-right" style={{ fontSize: "0.75rem" }} />
                       </button>
                     ) : (
                       <button type="submit" disabled={loading}
-                        style={{flex:2,padding:"0.8rem",borderRadius:12,fontWeight:900,fontSize:"0.9rem",color:"#fff",background:loading?"#c08040":"#B45A22",border:"none",cursor:loading?"not-allowed":"pointer",fontFamily:"'Nunito',sans-serif",boxShadow:"0 4px 14px rgba(180,90,34,0.28)",display:"flex",alignItems:"center",justifyContent:"center",gap:"0.4rem"}}>
-                        {loading?<><i className="fas fa-spinner" style={{animation:"spin .8s linear infinite"}}/> Submitting…</>:<><i className="fas fa-paper-plane"/> Submit Request</>}
+                        style={{ flex: 2, padding: "0.75rem", borderRadius: 11, fontWeight: 900, fontSize: "0.88rem", color: "#fff", background: loading ? "#c08040" : "#B45A22", border: "none", cursor: loading ? "not-allowed" : "pointer", fontFamily: "'Nunito',sans-serif", boxShadow: "0 3px 12px rgba(180,90,34,0.24)", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.4rem" }}>
+                        {loading
+                          ? <><i className="fas fa-spinner" style={{ animation: "spin .8s linear infinite" }} /> Submitting…</>
+                          : <><i className="fas fa-paper-plane" /> Submit request</>}
                       </button>
                     )}
                   </div>
                 </form>
-              </>
+              </div>
             )}
           </div>
         </Reveal>
@@ -620,17 +823,15 @@ export default function Rehome(){
             <div className="mb-2">
               <img src={logo} alt="Pawster" className="w-8 h-8 object-contain" onError={(e) => (e.target.style.display = "none")} />
             </div>
-            <div className="font-black text-[1.2rem] text-[#1a4a08]">
-              Paw<em className="italic text-[#e07820]">ster</em>
-            </div>
+            <div className="font-black text-[1.2rem] text-[#1a4a08]">Paw<em className="italic text-[#e07820]">ster</em></div>
             <p className="text-[0.82rem] font-bold leading-7 text-[#6a7a50] max-w-[260px] mt-2">
               Screening, placing, and supporting animal adoptions across the Ilocos Region with care and accountability.
             </p>
           </div>
           {[
-            { title: "Adopt",    links: [["Browse Animals", "/pets"], ["My Profile", "/profile"], ["Log In", "/login"], ["Register", "/register"]] },
-            { title: "Services", links: [["How It Works", "/how-it-works"], ["Rehome a Pet", "/rehome"], ["Missing Pets", "/missing-pets"], ["About Us", "/about"]] },
-            { title: "Regions",  links: [["Ilocos Norte", "/pets"], ["Ilocos Sur", "/pets"], ["La Union", "/pets"], ["Pangasinan", "/pets"]] },
+            { title: "Adopt", links: [["Browse animals", "/pets"], ["My profile", "/profile"], ["Log in", "/login"], ["Register", "/register"]] },
+            { title: "Services", links: [["How it works", "/how-it-works"], ["Rehome a pet", "/rehome"], ["Missing pets", "/missing-pets"], ["About us", "/about"]] },
+            { title: "Regions", links: [["Ilocos Norte", "/pets"], ["Ilocos Sur", "/pets"], ["La Union", "/pets"], ["Pangasinan", "/pets"]] },
           ].map(({ title, links }) => (
             <div key={title}>
               <div className="text-[0.72rem] font-black uppercase tracking-wider text-[#1c4f09] mb-4">{title}</div>
@@ -651,6 +852,15 @@ export default function Rehome(){
           </div>
         </div>
       </footer>
+
+      {/* Review modal */}
+      {showReview && (
+        <RehomeReviewModal
+          user={user}
+          onContinue={() => { setShowReview(false); setFormStarted(true); }}
+          onClose={() => setShowReview(false)}
+        />
+      )}
     </div>
   );
 }

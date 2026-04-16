@@ -134,8 +134,7 @@ const PROV_MAP = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PERSISTENT GEOCODE CACHE — localStorage survives logout + browser restart
-// Key: query string → geocode result
+// PERSISTENT GEOCODE CACHE
 // ─────────────────────────────────────────────────────────────────────────────
 const _geoCache = new Map();
 try {
@@ -152,8 +151,7 @@ function _persistGeoCache() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PERSISTENT PIN CACHE — stores fully geocoded user/pet arrays by ID hash
-// Restores pins instantly on next visit without any API calls
+// PERSISTENT PIN CACHE
 // ─────────────────────────────────────────────────────────────────────────────
 function loadPinCache(key) {
   try { return JSON.parse(localStorage.getItem(key) || "null"); } catch { return null; }
@@ -252,9 +250,27 @@ async function geocodeAddress(address, city, province) {
   return { inRegion: false };
 }
 
+// ── FIX 1: Use "get_users" (same as UsersPanel) instead of "get_users_geo"
+//    which may not exist. Also fall back to province-level pin for users
+//    who only have a province but no city/address, so fewer users are silently
+//    dropped. Any user with at least one location field will now get a pin.
 async function geocodeUser(user) {
+  // If the user has absolutely no location data, skip them
   if (!user.address && !user.city && !user.province) return { inRegion: false };
-  return geocodeAddress(user.address, user.city, user.province);
+
+  const result = await geocodeAddress(user.address, user.city, user.province);
+
+  // If Nominatim + city lookup failed but we have a province, fall back to
+  // province center so the user still appears on the map
+  if (!result.inRegion && user.province) {
+    const prov = detectProvince(user.province);
+    if (prov && PROVINCE_CENTERS[prov]) {
+      const p = PROVINCE_CENTERS[prov];
+      return { lat: p.lat + jitter(0.05), lng: p.lng + jitter(0.05), province: prov, inRegion: true, precision: "province" };
+    }
+  }
+
+  return result;
 }
 
 async function geocodePet(pet) {
@@ -279,12 +295,19 @@ async function geocodeText(text) {
 async function geocodeBatch(items, geocodeFn, onProgress, concurrency = 15) {
   const results = new Array(items.length).fill(null);
   let completed = 0;
-  async function worker(i) { results[i] = await geocodeFn(items[i]); completed++; onProgress(completed); }
+
+  async function worker(i) {
+    results[i] = await geocodeFn(items[i]);
+    completed++;
+    onProgress(completed, results);
+  }
+
   for (let i = 0; i < items.length; i += concurrency) {
     const chunk = [];
     for (let j = i; j < Math.min(i + concurrency, items.length); j++) chunk.push(worker(j));
     await Promise.all(chunk);
   }
+
   return results;
 }
 
@@ -305,7 +328,6 @@ async function getRoute(sLat, sLng, eLat, eLng) {
   return { coords: f.geometry.coordinates, distance: (s.distance / 1000).toFixed(1), duration: Math.round(s.duration / 60), steps, totalMetres: s.distance };
 }
 
-// ─── Math helpers ───
 function hM(a, b) { const R = 6371000, r = d => d * Math.PI / 180; const dLat = r(b[1] - a[1]), dLng = r(b[0] - a[0]); const s = Math.sin(dLat / 2) ** 2 + Math.cos(r(a[1])) * Math.cos(r(b[1])) * Math.sin(dLng / 2) ** 2; return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s)); }
 function snap(coords, lat, lng) { let b = 0, bd = Infinity; coords.forEach(([cL, cA], i) => { const d = hM([cL, cA], [lng, lat]); if (d < bd) { bd = d; b = i; } }); return b; }
 function remKm(coords, i) { let d = 0; for (let j = i; j < coords.length - 1; j++) d += hM(coords[j], coords[j + 1]); return d / 1000; }
@@ -319,6 +341,11 @@ function pColor(p) { return PROVINCES[p]?.color || "#2a7010"; }
 function MapView({ users, missingPets, showMissingLayer, route, navActive, vehiclePos, onSelectUser, onSelectMp, flyTarget, mapRef }) {
   const cRef = useRef(null);
   const mRef = useRef(null);
+  // ── FIX 2: Track whether the map style has fully loaded so marker effects
+  //    can wait for it. Without this, markers added before style.load are lost.
+  const styleLoadedRef = useRef(false);
+  const pendingUsersRef = useRef(null);
+  const pendingPetsRef = useRef(null);
   const uM = useRef([]), pM = useRef([]), vM = useRef(null), sM = useRef(null), eM = useRef(null);
 
   useEffect(() => {
@@ -344,6 +371,18 @@ function MapView({ users, missingPets, showMissingLayer, route, navActive, vehic
         m.addSource("rt", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
         m.addLayer({ id: "rt-bg", type: "line", source: "rt", layout: { "line-join": "round", "line-cap": "round" }, paint: { "line-color": "#000", "line-width": 10, "line-opacity": 0.09 } });
         m.addLayer({ id: "rt-line", type: "line", source: "rt", layout: { "line-join": "round", "line-cap": "round" }, paint: { "line-color": "#5aaa30", "line-width": 5, "line-opacity": 0.88 } });
+
+        // ── FIX 2 continued: mark style as loaded then flush any markers
+        //    that arrived before the map was ready.
+        styleLoadedRef.current = true;
+        if (pendingUsersRef.current !== null) {
+          renderUserMarkers(m, pendingUsersRef.current);
+          pendingUsersRef.current = null;
+        }
+        if (pendingPetsRef.current !== null) {
+          renderPetMarkers(m, pendingPetsRef.current);
+          pendingPetsRef.current = null;
+        }
       });
     };
     if (window.maplibregl) { init(); return; }
@@ -369,10 +408,10 @@ function MapView({ users, missingPets, showMissingLayer, route, navActive, vehic
     if (m.isStyleLoaded()) apply(); else m.once("load", apply);
   }, [route, navActive]);
 
-  useEffect(() => {
-    const m = mRef.current; if (!m || !window.maplibregl) return;
+  // ── Extracted so we can call from both the effect and the style.load flush
+  function renderUserMarkers(m, userList) {
     uM.current.forEach(x => x.remove()); uM.current = [];
-    users.forEach(u => {
+    userList.forEach(u => {
       const c = pColor(u._geo?.province);
       const pr = u._geo?.precision;
       const ring = pr === "street" ? "#00e5ff" : pr === "barangay" ? "#fff" : pr === "city" ? "#ffe082" : "#ffcc80";
@@ -387,13 +426,23 @@ function MapView({ users, missingPets, showMissingLayer, route, navActive, vehic
       const mk = new window.maplibregl.Marker({ element: el, anchor: "center" }).setLngLat([u._geo.lng, u._geo.lat]).addTo(m);
       uM.current.push(mk);
     });
+  }
+
+  // ── FIX 2: Guard — if style not loaded yet, stash users and render later
+  useEffect(() => {
+    const m = mRef.current;
+    if (!m || !window.maplibregl) return;
+    if (!styleLoadedRef.current) {
+      pendingUsersRef.current = users;
+      return;
+    }
+    renderUserMarkers(m, users);
   }, [users]);
 
-  useEffect(() => {
-    const m = mRef.current; if (!m) return;
+  function renderPetMarkers(m, petList) {
     pM.current.forEach(x => x.remove()); pM.current = [];
-    if (!showMissingLayer || !window.maplibregl) return;
-    missingPets.forEach(pet => {
+    if (!showMissingLayer) return;
+    petList.forEach(pet => {
       const isL = pet.type === "lost";
       const el = document.createElement("div");
       el.innerHTML = `<div style="width:20px;height:20px;border-radius:50%;background:${isL ? "#c03030" : "#1c4f09"};border:2.5px solid #fff;box-shadow:0 2px 10px rgba(0,0,0,0.4);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;font-weight:900;transition:transform 0.15s;">${isL ? "!" : "✓"}</div>`;
@@ -405,6 +454,17 @@ function MapView({ users, missingPets, showMissingLayer, route, navActive, vehic
       const mk = new window.maplibregl.Marker({ element: el, anchor: "center" }).setLngLat([pet._geo.lng, pet._geo.lat]).addTo(m);
       pM.current.push(mk);
     });
+  }
+
+  // ── FIX 2: Same guard for pet markers
+  useEffect(() => {
+    const m = mRef.current;
+    if (!m) return;
+    if (!styleLoadedRef.current) {
+      pendingPetsRef.current = missingPets;
+      return;
+    }
+    renderPetMarkers(m, missingPets);
   }, [missingPets, showMissingLayer]);
 
   useEffect(() => {
@@ -423,7 +483,7 @@ function MapView({ users, missingPets, showMissingLayer, route, navActive, vehic
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// UI Components
+// UI Components (unchanged)
 // ─────────────────────────────────────────────────────────────────────────────
 function BarChart({ data, color = "#2a7010" }) {
   const max = Math.max(...data.map(d => d.value), 1);
@@ -441,10 +501,10 @@ function BarChart({ data, color = "#2a7010" }) {
 
 function SyncBadge({ status }) {
   const cfg = {
-    cached:     { icon: "⚡", label: "Instant (cached)",   color: "#5aaa30", bg: "rgba(90,170,48,.12)" },
-    syncing:    { icon: "🔄", label: "Syncing in background…", color: "#c87820", bg: "rgba(200,120,32,.1)" },
-    fresh:      { icon: "✅", label: "Map up to date",     color: "#2a7010", bg: "rgba(42,112,16,.1)" },
-    loading:    { icon: "📍", label: "Loading…",           color: "#9aaa80", bg: "rgba(150,150,150,.1)" },
+    cached:  { icon: "⚡", label: "Instant (cached)",      color: "#5aaa30", bg: "rgba(90,170,48,.12)" },
+    syncing: { icon: "🔄", label: "Syncing in background…", color: "#c87820", bg: "rgba(200,120,32,.1)" },
+    fresh:   { icon: "✅", label: "Map up to date",         color: "#2a7010", bg: "rgba(42,112,16,.1)" },
+    loading: { icon: "📍", label: "Loading…",               color: "#9aaa80", bg: "rgba(150,150,150,.1)" },
   };
   const c = cfg[status] || cfg.loading;
   return (
@@ -659,7 +719,7 @@ export default function GeoMapPanel({ show }) {
   const [adoptions, setAdoptions] = useState([]);
   const [rehome, setRehome] = useState([]);
   const [missingPets, setMissingPets] = useState([]);
-  const [syncStatus, setSyncStatus] = useState("loading"); // loading | cached | syncing | fresh
+  const [syncStatus, setSyncStatus] = useState("loading");
   const [geocodingProgress, setGeocodingProgress] = useState({ done: 0, total: 0, active: false });
   const [filter, setFilter] = useState("all");
   const [provFilter, setProvFilter] = useState("all");
@@ -677,14 +737,13 @@ export default function GeoMapPanel({ show }) {
   const [vPos, setVPos] = useState(null);
   const [gpsSpd, setGpsSpd] = useState(null);
   const [trav, setTrav] = useState(0);
-  const [sidebarOpen, setSidebarOpen] = useState(false); // mobile sidebar toggle
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const wRef = useRef(null), rRef = useRef(null), mapRef = useRef(null);
   useEffect(() => { rRef.current = route; }, [route]);
 
   useEffect(() => {
     if (!show) return;
 
-    // ── STEP 1: Restore cached pins INSTANTLY (zero network) ──
     const cachedUserPins = loadPinCache(USER_PINS_KEY);
     const cachedPetPins  = loadPinCache(PET_PINS_KEY);
     const hasCache = cachedUserPins?.data?.length > 0;
@@ -697,12 +756,13 @@ export default function GeoMapPanel({ show }) {
       setSyncStatus("loading");
     }
 
-    // ── STEP 2: Fetch fresh data from server (background if cached) ──
-    const CACHE_TTL_MS = 10 * 60 * 1000; // re-geocode only if >10 min old
+    const CACHE_TTL_MS = 10 * 60 * 1000;
     const userCacheAge = pinCacheAge(USER_PINS_KEY);
 
     Promise.all([
-      phpApi("get_users_geo"),
+      // ── FIX 1: Use "get_users" — same action as UsersPanel — which is
+      //    confirmed to work and returns all address fields.
+      phpApi("get_users", { role: "" }),
       phpApi("get_requests", { type: "adoptions", limit: 1000 }),
       phpApi("get_requests", { type: "rehome", limit: 1000 }),
       fetch("/api/missing-pets/admin/all").then(r => r.ok ? r.json() : []).catch(() => []),
@@ -714,68 +774,78 @@ export default function GeoMapPanel({ show }) {
 
       const approved = (mp || []).filter(p => p.status === "approved");
 
-      // Skip re-geocoding if cache is fresh enough and IDs haven't changed
-      const cachedIds = new Set((cachedUserPins?.data || []).map(u => u.id));
-      const freshIds  = new Set(users.map(u => u.id));
-      const idsChanged = users.some(u => !cachedIds.has(u.id)) || [...cachedIds].some(id => !freshIds.has(id));
+      // ── FIX 3: Normalise IDs to strings for comparison so a PHP string "5"
+      //    and a JS number 5 always match in the cache lookup.
+      const cachedIds = new Set((cachedUserPins?.data || []).map(u => String(u.id)));
+      const freshIds  = new Set(users.map(u => String(u.id)));
+      const idsChanged = users.some(u => !cachedIds.has(String(u.id))) || [...cachedIds].some(id => !freshIds.has(id));
       const needsRegeocode = !hasCache || idsChanged || userCacheAge > CACHE_TTL_MS;
 
       if (!needsRegeocode) {
-        // Merge any new user data (name changes etc) into existing cached pins
-        const pinMap = new Map((cachedUserPins?.data || []).map(u => [u.id, u]));
-        const merged = users.map(u => {
-          const p = pinMap.get(u.id);
-          return p ? { ...u, _geo: p._geo } : null;
-        }).filter(Boolean);
-        setGeocodedUsers(merged);
+        // ── FIX 3 continued: use String(u.id) as map key
+        const pinMap = new Map((cachedUserPins?.data || []).map(u => [String(u.id), u]));
+        const merged = users
+          .map(u => {
+            const p = pinMap.get(String(u.id));
+            return p ? { ...u, _geo: p._geo } : null;
+          })
+          .filter(Boolean);
+
+        if (merged.length === 0 && hasCache) {
+          setGeocodedUsers(cachedUserPins.data);
+        } else {
+          setGeocodedUsers(merged);
+        }
         setSyncStatus("fresh");
         return;
       }
 
-      // ── Geocode users in background (show progress only if no cache) ──
       setSyncStatus("syncing");
-      if (!hasCache) setGeocodingProgress({ done: 0, total: users.length + approved.length, active: true });
+      if (!hasCache) {
+        setGeocodingProgress({ done: 0, total: users.length + approved.length, active: true });
+      }
 
-      const userGeoResults = [];
-      let lastBatchUpdate = [];
-
-      await geocodeBatch(
+      const userGeoResults = await geocodeBatch(
         users,
-        async (user) => {
-          const result = await geocodeUser(user);
-          userGeoResults.push(result);
-          return result;
-        },
+        geocodeUser,
         (done) => {
-          if (!hasCache) setGeocodingProgress(p => ({ ...p, done }));
-          // Update map every 15 geocodes for live feel
-          if (done % 15 === 0 || done === users.length) {
-            const partial = users.slice(0, done).map((u, i) => userGeoResults[i]?.inRegion ? { ...u, _geo: userGeoResults[i] } : null).filter(Boolean);
-            lastBatchUpdate = partial;
-            setGeocodedUsers(partial);
+          if (!hasCache) {
+            setGeocodingProgress(p => ({ ...p, done }));
           }
         },
         15
       );
 
-      const geocodedU = users.map((u, i) => userGeoResults[i]?.inRegion ? { ...u, _geo: userGeoResults[i] } : null).filter(Boolean);
+      const geocodedU = users
+        .map((u, i) => userGeoResults[i]?.inRegion ? { ...u, _geo: userGeoResults[i] } : null)
+        .filter(Boolean);
       setGeocodedUsers(geocodedU);
-      savePinCache(USER_PINS_KEY, geocodedU); // persist for next session
+      savePinCache(USER_PINS_KEY, geocodedU);
 
       const petGeoResults = await geocodeBatch(
         approved,
         geocodePet,
-        (done) => { if (!hasCache) setGeocodingProgress(p => ({ ...p, done: users.length + done })); },
+        (done) => {
+          if (!hasCache) {
+            setGeocodingProgress(p => ({ ...p, done: users.length + done }));
+          }
+        },
         10
       );
 
-      const geocodedP = approved.map((pet, i) => petGeoResults[i]?.inRegion ? { ...pet, _geo: petGeoResults[i] } : null).filter(Boolean);
+      const geocodedP = approved
+        .map((pet, i) => petGeoResults[i]?.inRegion ? { ...pet, _geo: petGeoResults[i] } : null)
+        .filter(Boolean);
       setMissingPets(geocodedP);
-      savePinCache(PET_PINS_KEY, geocodedP); // persist for next session
+      savePinCache(PET_PINS_KEY, geocodedP);
+
       setGeocodingProgress({ done: 0, total: 0, active: false });
       setSyncStatus("fresh");
 
-    }).catch(() => { setSyncStatus(hasCache ? "cached" : "loading"); });
+    }).catch((err) => {
+      console.error("GeoMapPanel fetch error:", err);
+      setSyncStatus(hasCache ? "cached" : "loading");
+    });
   }, [show]);
 
   const stopNav = useCallback(() => {
@@ -816,7 +886,6 @@ export default function GeoMapPanel({ show }) {
 
   return (
     <div className="flex flex-col gap-4 pb-6">
-      {/* Header */}
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <PageHeader title="🗺 Ilocos Region — User Map" subtitle="Street-level OSM geocoding · MapLibre · ORS Navigation" />
@@ -833,7 +902,6 @@ export default function GeoMapPanel({ show }) {
         </div>
       </div>
 
-      {/* Province cards — 2-col on mobile, 4-col on desktop */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
         {pStats.map(p => (
           <div key={p.name} onClick={() => setProvFilter(provFilter === p.name ? "all" : p.name)}
@@ -846,7 +914,6 @@ export default function GeoMapPanel({ show }) {
         ))}
       </div>
 
-      {/* Stats row — 2-col on mobile, 4-col on desktop */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
         {[
           { val: rawUsers.length, label: "Total Users", icon: "👥", color: "#1c4f09" },
@@ -861,14 +928,11 @@ export default function GeoMapPanel({ show }) {
         ))}
       </div>
 
-      {/* Background sync progress */}
       {geocodingProgress.active && <GeocodingProgress done={geocodingProgress.done} total={geocodingProgress.total} />}
 
-      {/* Nav / Route bars */}
       {navActive && route && <NavHUD route={route} progress={navProg} gpsSpeed={gpsSpd} nextTurn={nt} onStop={stopNav} />}
       {!navActive && route && <RouteInfoBar route={route} onStartNav={startNav} onClear={clrRoute} />}
 
-      {/* Missing pets controls */}
       <div className="rounded-2xl p-3 md:p-4" style={{ background: "rgba(255,248,220,0.88)", border: "1.5px solid rgba(180,90,34,0.28)" }}>
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3">
@@ -916,11 +980,8 @@ export default function GeoMapPanel({ show }) {
         )}
       </div>
 
-      {/* Map + Sidebar — stacked on mobile, side-by-side on lg */}
       <div className="flex flex-col lg:grid lg:grid-cols-[1fr_300px] gap-3">
-        {/* Map Card */}
         <div className="rounded-2xl overflow-hidden" style={{ border: `1.5px solid ${navActive ? "rgba(28,79,9,.6)" : "rgba(90,160,48,.35)"}`, boxShadow: "0 4px 20px rgba(30,60,10,.08)" }}>
-          {/* Map toolbar */}
           <div className="px-3 md:px-4 py-2.5" style={{ background: navActive ? "rgba(28,79,9,.97)" : "rgba(255,248,220,.97)", borderBottom: "1px solid #e8dfc0" }}>
             {dirUser && !route
               ? <DirectionsPanel destination={{ lat: dirUser._geo.lat, lng: dirUser._geo.lng, label: `${dirUser.first_name} ${dirUser.last_name}, ${dirUser.city || ""}` }} onRouteReady={handleRR} onClose={() => setDirUser(null)} />
@@ -936,7 +997,6 @@ export default function GeoMapPanel({ show }) {
                       {search && <button onClick={() => setSearch("")} className="border-none bg-transparent cursor-pointer text-xs" style={{ color: "#9aaa80" }}>✕</button>}
                       <span className="text-xs font-bold flex-shrink-0" style={{ color: "#9aaa80" }}>{fUsers.length} users</span>
                       {showML && <span className="text-xs font-bold flex-shrink-0" style={{ color: "#B45A22" }}>· {fPets.length} pets</span>}
-                      {/* Mobile sidebar toggle */}
                       <button onClick={() => setSidebarOpen(v => !v)}
                         className="lg:hidden ml-1 px-2 py-1 rounded-lg text-xs font-bold border cursor-pointer"
                         style={{ borderColor: "#ddd0a8", color: "#5a7040", background: "rgba(255,250,232,.8)" }}>☰</button>
@@ -946,13 +1006,11 @@ export default function GeoMapPanel({ show }) {
               )}
           </div>
 
-          {/* Map */}
           <div className="relative" style={{ height: "clamp(300px, 50vw, 520px)" }}>
             {show && <MapView users={fUsers} missingPets={fPets} showMissingLayer={showML} route={route} navActive={navActive} vehiclePos={vPos} onSelectUser={setSelected} onSelectMp={setSelMp} flyTarget={flyTgt} mapRef={mapRef} />}
             {selMp && <PetPanel pet={selMp} onClose={() => setSelMp(null)} />}
           </div>
 
-          {/* Map footer legend */}
           <div className="px-3 md:px-4 py-2.5 flex items-center gap-3 flex-wrap" style={{ background: "rgba(255,252,235,.97)", borderTop: "1px solid #e8dfc0" }}>
             {Object.entries(PROVINCES).map(([p, cfg]) => (
               <div key={p} className="flex items-center gap-1.5">
@@ -964,7 +1022,6 @@ export default function GeoMapPanel({ show }) {
           </div>
         </div>
 
-        {/* Sidebar — slide-down on mobile, always visible on lg */}
         <div className={`rounded-2xl overflow-hidden flex flex-col ${sidebarOpen ? "block" : "hidden"} lg:flex`}
           style={{ border: "1.5px solid #ddd0a8", background: "#fffce8" }}>
           <div className="px-4 py-3 flex-shrink-0 flex items-center justify-between" style={{ borderBottom: "1px solid #e8dfc0", background: "rgba(255,248,220,.97)" }}>
@@ -1017,7 +1074,6 @@ export default function GeoMapPanel({ show }) {
         </div>
       </div>
 
-      {/* Modals */}
       {selected && <UserModal user={selected} onClose={() => setSelected(null)} onFlyTo={geo => setFlyTgt({ lat: geo.lat, lng: geo.lng })} onDirections={handleDir} adoptions={adoptions} rehome={rehome} />}
 
       <style>{`

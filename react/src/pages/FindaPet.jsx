@@ -5,7 +5,7 @@ import Navbar from "./Navbar";
 import logo from "../images/logo.png";
 const API_BASE = import.meta.env.VITE_API_BASE   ?? "http://localhost:8000";
 const DJANGO   = import.meta.env.VITE_DJANGO_API ?? "http://localhost:8000";
-const PHP_BASE = import.meta.env.VITE_PHP_API    ?? "http://localhost:8000";
+const PHP_BASE = import.meta.env.VITE_PHP_API_URL ?? "http://localhost:8000";
 const STATUS_STYLE = {
   Available: { bg: "rgba(88,139,65,0.88)",  text: "#fff" },
   Pending:   { bg: "rgba(180,90,34,0.88)",  text: "#fff" },

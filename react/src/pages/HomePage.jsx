@@ -5,9 +5,10 @@ import Navbar from "./Navbar";
 import logo from "../images/logo.png";
 
 /* ─────────────────────────────────────────────
-   API CONFIG  (mirrors FindAPet.jsx exactly)
+   API CONFIG
 ───────────────────────────────────────────── */
-const API_BASE = import.meta.env.VITE_API_BASE  ?? "http://localhost:8000";
+const API_BASE = import.meta.env.VITE_API_BASE   ?? "http://localhost:8000";
+const PHP_BASE = import.meta.env.VITE_PHP_API_URL ?? "http://localhost:8000";
 
 function getToken() {
   return (
@@ -21,17 +22,71 @@ function getToken() {
 }
 
 function resolvePhotoUrl(a) {
-  const raw = a.photoUrl || a.photo_url || a.photo || a.imageUrl || a.image_url || a.imgUrl || null;
+  // Spring Boot: inline base64
+  if (a.photoData && a.photoType) {
+    return `data:${a.photoType};base64,${a.photoData}`;
+  }
+  const raw =
+    a.photoUrl || a.photo_url || a.photo ||
+    a.imageUrl || a.image_url || a.imgUrl || null;
   if (!raw) return null;
   if (raw.startsWith("data:") || raw.startsWith("http://") || raw.startsWith("https://")) return raw;
-  return `${API_BASE}${raw.startsWith("/") ? "" : "/"}${raw}`;
+  // Relative paths: PHP animals use PHP_BASE, SB animals use API_BASE
+  const base = a._source === "php" ? PHP_BASE : API_BASE;
+  return `${base}${raw.startsWith("/") ? "" : "/"}${raw}`;
 }
 
 function resolveVideoUrl(a) {
   const raw = a.videoUrl || a.video_url || a.video || null;
   if (!raw) return null;
   if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
-  return `${API_BASE}${raw.startsWith("/") ? "" : "/"}${raw}`;
+  const base = a._source === "php" ? PHP_BASE : API_BASE;
+  return `${base}${raw.startsWith("/") ? "" : "/"}${raw}`;
+}
+
+async function fetchPhpAnimals() {
+  try {
+    const form = new FormData();
+    form.append("action", "get_animals");
+    const res = await fetch(`/php/admin/dashboard`, {
+      method: "POST",
+      body: form,
+      credentials: "include",
+    });
+    const json = await res.json();
+    if (json?.success && Array.isArray(json.data)) {
+      return json.data.map(a => ({
+        ...a,
+        _source: "php",
+        _resolvedPhotoUrl: resolvePhotoUrl({ ...a, _source: "php" }),
+        _resolvedVideoUrl: resolveVideoUrl({ ...a, _source: "php" }),
+      }));
+    }
+  } catch (err) {
+    console.warn("PHP animals unavailable:", err);
+  }
+  return [];
+}
+
+async function fetchSbAnimals() {
+  try {
+    const token = getToken();
+    const res = await fetch(`${API_BASE}/api/animals?status=Available&limit=8`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const list = Array.isArray(data) ? data : (data.content ?? []);
+    return list.map(a => ({
+      ...a,
+      _source: "springboot",
+      _resolvedPhotoUrl: resolvePhotoUrl({ ...a, _source: "springboot" }),
+      _resolvedVideoUrl: resolveVideoUrl({ ...a, _source: "springboot" }),
+    }));
+  } catch (err) {
+    console.warn("Spring Boot animals unavailable:", err);
+  }
+  return [];
 }
 
 const TYPE_EMOJI  = { Dog: "🐕", Cat: "🐈", Bird: "🐦", Rabbit: "🐇" };
@@ -96,7 +151,7 @@ function Pill({ icon, children }) {
 }
 
 /* ─────────────────────────────────────────────
-   HERO PET CARD  (real API data + video)
+   HERO PET CARD
 ───────────────────────────────────────────── */
 function HeroPetCard({ pets, loading }) {
   const [idx, setIdx]         = useState(0);
@@ -112,14 +167,12 @@ function HeroPetCard({ pets, loading }) {
     setTimeout(() => { setIdx(next); setFading(false); }, 240);
   }, [idx]);
 
-  /* auto-rotate when not hovering */
   useEffect(() => {
     if (hovering || pets.length < 2) return;
     const id = setInterval(() => go((idx + 1) % pets.length), 4500);
     return () => clearInterval(id);
   }, [hovering, idx, pets.length, go]);
 
-  /* play video on hover */
   useEffect(() => {
     const v = videoRef.current;
     if (!v) return;
@@ -133,7 +186,6 @@ function HeroPetCard({ pets, loading }) {
     }
   }, [hovering, idx, pets]);
 
-  /* loading skeleton */
   if (loading) {
     return (
       <div className="w-full max-w-[400px] mx-auto">
@@ -161,7 +213,6 @@ function HeroPetCard({ pets, loading }) {
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => { setHover(false); setVRdy(false); }}
     >
-      {/* glowing ring wrapper */}
       <div
         className="relative transition-all duration-700"
         style={{
@@ -179,11 +230,9 @@ function HeroPetCard({ pets, loading }) {
       >
         <div className="relative w-full rounded-[29px] overflow-hidden" style={{ height: 560, background: "#0f0d08" }}>
 
-          {/* emoji fallback */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[1]"
             style={{ fontSize: "8rem", opacity: 0.12 }}>{emoji}</div>
 
-          {/* photo */}
           {photo && (
             <img
               src={photo}
@@ -197,7 +246,6 @@ function HeroPetCard({ pets, loading }) {
             />
           )}
 
-          {/* video */}
           {video && (
             <video
               ref={videoRef}
@@ -208,11 +256,9 @@ function HeroPetCard({ pets, loading }) {
             />
           )}
 
-          {/* cinematic gradient */}
           <div className="absolute inset-0 z-[4] pointer-events-none"
             style={{ background: "linear-gradient(to top,rgba(6,4,1,.95) 0%,rgba(6,4,1,.5) 38%,rgba(6,4,1,.08) 62%,transparent 100%)" }} />
 
-          {/* LIVE badge (only if animal has a video url) */}
           {video && (
             <div
               className="absolute top-[16px] left-[16px] z-[8] flex items-center gap-1.5 rounded-[20px] px-[10px] py-[4px] text-[0.58rem] font-extrabold uppercase tracking-[.08em] transition-all duration-400"
@@ -230,7 +276,6 @@ function HeroPetCard({ pets, loading }) {
             </div>
           )}
 
-          {/* dot indicators */}
           {pets.length > 1 && (
             <div className="absolute top-[18px] right-[18px] z-[8] flex gap-[5px] items-center">
               {pets.map((_, i) => (
@@ -249,9 +294,7 @@ function HeroPetCard({ pets, loading }) {
             </div>
           )}
 
-          {/* bottom info panel */}
           <div className="absolute bottom-0 left-0 right-0 z-[6] px-[24px] pb-[24px]">
-
             <div
               className="inline-flex items-center gap-[5px] rounded-[20px] px-[10px] py-[4px] mb-[10px] text-[0.60rem] font-extrabold uppercase tracking-[.07em] transition-all duration-500"
               style={{
@@ -326,8 +369,8 @@ function HeroPetCard({ pets, loading }) {
    FEATURED CARD
 ───────────────────────────────────────────── */
 function FeaturedCard({ animal, delay = 0 }) {
-  const [ref, vis]         = useReveal();
-  const [hov, setHov]      = useState(false);
+  const [ref, vis]          = useReveal();
+  const [hov, setHov]       = useState(false);
   const [imgErr, setImgErr] = useState(false);
   const photo = animal._resolvedPhotoUrl;
   const emoji = TYPE_EMOJI[animal.type] ?? "🐾";
@@ -348,7 +391,6 @@ function FeaturedCard({ animal, delay = 0 }) {
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
     >
-      {/* image area */}
       <div className="relative overflow-hidden" style={{ height: 196, borderBottom: "1px solid rgba(180,140,60,0.22)", background: "linear-gradient(135deg,rgba(255,244,210,.7),rgba(255,236,190,.5))" }}>
         <div className="absolute inset-0 flex items-center justify-center" style={{ fontSize: "4.5rem", opacity: 0.2 }}>{emoji}</div>
 
@@ -380,7 +422,6 @@ function FeaturedCard({ animal, delay = 0 }) {
           style={{ background: "linear-gradient(to top,rgba(255,245,215,.85),transparent)" }} />
       </div>
 
-      {/* body */}
       <div className="flex flex-col flex-1 p-[18px]">
         <div className="font-black text-[1.05rem] leading-tight" style={{ color: "#192e08", fontFamily: "'Playfair Display',serif" }}>{animal.name}</div>
         <div className="text-[0.70rem] font-bold mt-[4px]" style={{ color: "#7a8a5a", fontFamily: "'DM Mono',monospace" }}>
@@ -469,19 +510,25 @@ export default function HomePage() {
     const token   = getToken();
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
-    fetch(`${API_BASE}/api/animals?status=Available&limit=8`, { headers })
-      .then(r => r.ok ? r.json() : Promise.reject())
-      .then(data => {
-        const list = Array.isArray(data) ? data : (data.content ?? []);
-        setAnimals(list.map(a => ({
-          ...a,
-          _resolvedPhotoUrl: resolvePhotoUrl(a),
-          _resolvedVideoUrl: resolveVideoUrl(a),
-        })));
-      })
-      .catch(() => setAnimals([]))
-      .finally(() => setLoading(false));
+    // Fetch both sources in parallel — same pattern as FindAPet
+    Promise.all([
+      fetchSbAnimals(),
+      fetchPhpAnimals(),
+    ]).then(([sbAnimals, phpAnimals]) => {
+      // De-duplicate: skip SB animals already in PHP by name+type
+      const dedupedSb = sbAnimals.filter(sb =>
+        !phpAnimals.some(
+          p => p.name?.toLowerCase() === sb.name?.toLowerCase() &&
+               p.type?.toLowerCase() === sb.type?.toLowerCase()
+        )
+      );
+      const merged = [...phpAnimals, ...dedupedSb];
+      // Keep only Available, up to 8 for the homepage
+      setAnimals(merged.filter(a => a.status === "Available").slice(0, 8));
+      setLoading(false);
+    });
 
+    // Adopted count (Spring Boot only — for the stat badge)
     fetch(`${API_BASE}/api/animals?status=Adopted&limit=1`, { headers })
       .then(r => r.ok ? r.json() : Promise.reject())
       .then(data => {
@@ -495,8 +542,8 @@ export default function HomePage() {
   const featuredPets = animals.slice(0, 4);
 
   const stats = [
-    adopted !== null  && { val: adopted,       suffix: "+", label: "Animals Adopted"  },
-    animals.length > 0 && { val: animals.length, suffix: "",  label: "Available Now"    },
+    adopted !== null   && { val: adopted,        suffix: "+", label: "Animals Adopted"   },
+    animals.length > 0 && { val: animals.length,  suffix: "",  label: "Available Now"     },
     { val: "4",    suffix: "",  label: "Ilocos Provinces" },
     { val: "Free", suffix: "",  label: "To Apply"          },
   ].filter(Boolean);
@@ -504,7 +551,6 @@ export default function HomePage() {
   return (
     <div className="relative overflow-x-hidden" style={{ fontFamily: "'Nunito', sans-serif", color: "#1a2e0a" }}>
 
-      {/* ══ GLOBAL STYLES ══ */}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,800;0,900;1,700;1,800;1,900&family=Nunito:ital,wght@0,400;0,600;0,700;0,800;0,900;1,700&family=DM+Mono:wght@400;500&display=swap');
         @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
@@ -531,36 +577,24 @@ export default function HomePage() {
         ::-webkit-scrollbar-thumb { background:#b4903a; border-radius:3px; }
       `}</style>
 
-      {/* ══ MESH BACKGROUND ══ */}
-     {/* ══ MESH BACKGROUND ══ */}
-<div style={{ position: "fixed", inset: 0, zIndex: 0, overflow: "hidden", pointerEvents: "none" }}>
-  <div style={{ position: "absolute", inset: 0, background: "#EDDABB" }} />
-  {[
-    { width: "1000px", height: "1000px", top: "-25%",   left: "-18%",  background: "radial-gradient(circle,#588B41,transparent 70%)", animation: "fl1 9s ease-in-out infinite" },
-    { width: "900px",  height: "900px",  top: "8%",     right: "-20%", background: "radial-gradient(circle,#B45A22,transparent 70%)", animation: "fl2 11s ease-in-out infinite" },
-    { width: "800px",  height: "800px",  bottom: "-18%", left: "18%",  background: "radial-gradient(circle,#e8dfc8,transparent 60%)", animation: "fl3 8s ease-in-out infinite" },
-  ].map((s, i) => (
-    <div
-      key={i}
-      style={{
-        position: "absolute",
-        borderRadius: "50%",
-        filter: "blur(120px)",
-        mixBlendMode: "multiply",
-        opacity: 0.48,
-        ...s,
-      }}
-    />
-  ))}
-  <div style={{ position: "absolute", inset: 0, backgroundImage: "linear-gradient(rgba(100,70,30,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(100,70,30,.03) 1px,transparent 1px)", backgroundSize: "60px 60px" }} />
-</div>
+      {/* MESH BACKGROUND */}
+      <div style={{ position: "fixed", inset: 0, zIndex: 0, overflow: "hidden", pointerEvents: "none" }}>
+        <div style={{ position: "absolute", inset: 0, background: "#EDDABB" }} />
+        {[
+          { width: "1000px", height: "1000px", top: "-25%",    left: "-18%",  background: "radial-gradient(circle,#588B41,transparent 70%)", animation: "fl1 9s ease-in-out infinite" },
+          { width: "900px",  height: "900px",  top: "8%",      right: "-20%", background: "radial-gradient(circle,#B45A22,transparent 70%)", animation: "fl2 11s ease-in-out infinite" },
+          { width: "800px",  height: "800px",  bottom: "-18%", left: "18%",   background: "radial-gradient(circle,#e8dfc8,transparent 60%)", animation: "fl3 8s ease-in-out infinite" },
+        ].map((s, i) => (
+          <div key={i} style={{ position: "absolute", borderRadius: "50%", filter: "blur(120px)", mixBlendMode: "multiply", opacity: 0.48, ...s }} />
+        ))}
+        <div style={{ position: "absolute", inset: 0, backgroundImage: "linear-gradient(rgba(100,70,30,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(100,70,30,.03) 1px,transparent 1px)", backgroundSize: "60px 60px" }} />
+      </div>
+
       <Navbar />
 
-      {/* ══ HERO ══ */}
+      {/* HERO */}
       <section className="relative z-10 flex items-center flex-wrap gap-14 px-10 py-[5rem] max-w-[1440px] mx-auto min-h-[calc(100vh-70px)]">
-
         <div className="flex-1 min-w-[300px]">
-          {/* eyebrow pill */}
           <div
             className="inline-flex items-center gap-2 rounded-[50px] px-[16px] py-[7px] text-[0.70rem] font-extrabold uppercase tracking-[.12em] italic mb-[20px] border"
             style={{ background:"rgba(28,79,9,0.09)", borderColor:"rgba(90,170,48,0.32)", color:"#1c4f09", animation:"fadeUp .65s ease both" }}
@@ -569,7 +603,6 @@ export default function HomePage() {
             Ilocos Region's Pet Adoption Platform
           </div>
 
-          {/* headline */}
           <h1
             className="font-black leading-[.92] tracking-[-1.5px] mb-0"
             style={{ fontFamily:"'Playfair Display',serif", fontSize:"clamp(3.2rem,6.5vw,6rem)", color:"#192e08", animation:"fadeUp .65s ease .1s both", textShadow:"0 4px 32px rgba(255,255,255,0.35)" }}
@@ -586,7 +619,6 @@ export default function HomePage() {
             Browse adoptable pets, submit applications, and give a life a second chance.
           </p>
 
-          {/* CTAs */}
           <div className="flex flex-wrap items-center gap-3 mt-[32px]" style={{ animation:"fadeUp .65s ease .3s both" }}>
             <Link
               to="/pets"
@@ -610,7 +642,6 @@ export default function HomePage() {
             )}
           </div>
 
-          {/* live stats */}
           {!loading && stats.length > 0 && (
             <div className="flex items-stretch gap-0 mt-[44px]" style={{ animation:"fadeUp .65s ease .45s both" }}>
               {stats.map(({ val, suffix, label }, i) => (
@@ -635,13 +666,12 @@ export default function HomePage() {
           )}
         </div>
 
-        {/* hero card */}
         <div className="flex-shrink-0 w-full sm:w-[400px]" style={{ animation:"fadeIn .9s ease .2s both" }}>
           <HeroPetCard pets={heroPets} loading={loading} />
         </div>
       </section>
 
-      {/* ══ ANIMAL TICKER ══ */}
+      {/* ANIMAL TICKER */}
       {!loading && animals.length > 0 && (
         <div className="relative z-10 py-[10px] overflow-hidden border-t border-b"
           style={{ background:"rgba(255,248,215,0.55)", backdropFilter:"blur(10px)", borderColor:"rgba(180,140,60,0.30)" }}>
@@ -658,7 +688,7 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* ══ HOW IT WORKS ══ */}
+      {/* HOW IT WORKS */}
       <section id="how" className="relative z-10 max-w-[1240px] mx-auto px-10 py-[6rem]">
         <Reveal><Pill icon="fas fa-list-ol">Simple Process</Pill></Reveal>
         <Reveal delay={80}>
@@ -686,7 +716,7 @@ export default function HomePage() {
         </Reveal>
       </section>
 
-      {/* ══ STATS BAND ══ */}
+      {/* STATS BAND */}
       {!loading && stats.length > 0 && (
         <div className="relative z-10 border-t border-b py-[52px] px-10"
           style={{ background:"rgba(255,248,216,0.62)", backdropFilter:"blur(16px)", borderColor:"rgba(90,170,48,0.38)" }}>
@@ -710,7 +740,7 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* ══ MISSING PETS BAND ══ */}
+      {/* MISSING PETS BAND */}
       <div className="relative z-10 px-10 py-[18px] border-t border-b"
         style={{ background:"linear-gradient(135deg,rgba(180,90,34,0.10),rgba(212,136,10,0.07))", borderColor:"rgba(180,90,34,0.22)" }}>
         <div className="max-w-[1100px] mx-auto flex items-center gap-5 flex-wrap">
@@ -727,7 +757,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* ══ FEATURED PETS ══ */}
+      {/* FEATURED PETS */}
       <section id="pets" className="relative z-10 max-w-[1240px] mx-auto px-10 py-[6rem]">
         <Reveal><Pill icon="fas fa-paw">Looking for Homes</Pill></Reveal>
         <Reveal delay={80}>
@@ -745,7 +775,7 @@ export default function HomePage() {
           {loading
             ? Array.from({ length: 4 }).map((_, i) => <FeaturedSkel key={i} />)
             : featuredPets.length > 0
-              ? featuredPets.map((a, i) => <FeaturedCard key={a.id ?? i} animal={a} delay={i * 70} />)
+              ? featuredPets.map((a, i) => <FeaturedCard key={`${a._source}-${a.id}`} animal={a} delay={i * 70} />)
               : (
                 <div className="col-span-full py-[5rem] text-center rounded-[20px] border"
                   style={{ borderColor:"rgba(180,140,60,0.22)", background:"rgba(255,249,228,0.70)" }}>
@@ -764,7 +794,7 @@ export default function HomePage() {
         </Reveal>
       </section>
 
-      {/* ══ REHOME BANNER ══ */}
+      {/* REHOME BANNER */}
       <div className="relative z-10 max-w-[1240px] mx-auto px-10 pb-[5rem]">
         <Reveal>
           <div className="relative overflow-hidden rounded-[28px] border flex items-center gap-14 flex-wrap"
@@ -797,7 +827,7 @@ export default function HomePage() {
         </Reveal>
       </div>
 
-      {/* ══ CTA ══ */}
+      {/* CTA */}
       <section className="relative z-10 px-10 py-[6rem]">
         <Reveal>
           <div className="max-w-[820px] mx-auto relative overflow-hidden rounded-[32px] border text-center"
@@ -849,8 +879,8 @@ export default function HomePage() {
         </Reveal>
       </section>
 
-      {/* ══ FOOTER ══ */}
-           <footer className="relative z-10 border-t border-[rgba(90,170,48,0.45)] bg-[rgba(255,248,218,0.85)] backdrop-blur-md px-10 py-12">
+      {/* FOOTER */}
+      <footer className="relative z-10 border-t border-[rgba(90,170,48,0.45)] bg-[rgba(255,248,218,0.85)] backdrop-blur-md px-10 py-12">
         <div className="max-w-[1200px] mx-auto grid gap-12 mb-10 grid-cols-[repeat(auto-fit,minmax(160px,1fr))]">
           <div>
             <div className="mb-2">

@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import ScrollToTop from './components/ScrollToTop'; 
 
 import ProtectedRoute from './components/ProtectedRoute';
 import GuestRoute     from './components/GuestRoute';
@@ -21,6 +22,8 @@ import FollowUpSurveys  from './pages/FollowUpSurveys';
 function App() {
     return (
         <BrowserRouter>
+         <ScrollToTop />
+         
             <Routes>
                 {/* Landing is public — no GuestRoute or ProtectedRoute */}
                 <Route path="/"             element={<Navigate to="/landing" replace />} />

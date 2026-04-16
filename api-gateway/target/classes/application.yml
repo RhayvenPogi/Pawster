@@ -36,7 +36,7 @@ spring:
         - id: springboot-service
           uri: lb://pawster
           predicates:
-            - Path=/api/auth/**, /api/animals/**, /api/adoptions/**, /api/users/**, /api/admin/**, /api/rehome/**, /api/surveys/**, /api/missing-pets/**, /api/activity-logs/**
+            - Path=/api/auth/**, /api/animals/**, /api/adoptions/**, /api/users/**, /api/admin/**, /api/rehome/**, /api/surveys/**, /api/missing-pets/**, /api/activity-logs/**, /uploads/**
 
         - id: php-admin-service
           uri: http://php:80
