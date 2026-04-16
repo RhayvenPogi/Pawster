@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 
@@ -51,7 +52,7 @@ public class AnimalController {
         }
     }
 
-    // POST /api/animals — ADMIN only
+    // POST /api/animals — multipart/form-data (used by admin panel)
     @PostMapping(consumes = { "multipart/form-data" })
     public ResponseEntity<?> create(
             @RequestPart("data") AnimalRequest dto,
@@ -61,6 +62,8 @@ public class AnimalController {
             String adminName = auth != null ? auth.getName() : "admin";
             Animal entity = toEntity(dto);
             applyPhoto(entity, photo);
+            // Also handle base64 photo from AnimalRequest (fallback)
+            applyBase64Photo(entity, dto);
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(AnimalDto.from(animalService.create(entity, null, adminName)));
         } catch (RuntimeException | IOException e) {
@@ -68,7 +71,50 @@ public class AnimalController {
         }
     }
 
-    // PUT /api/animals/{id} — ADMIN only
+    /**
+     * POST /api/animals/from-rehoming — JSON only, called by Django approve_rehoming.
+     *
+     * Accepts AnimalRequest with photoData (raw base64, no "data:..." prefix)
+     * and photoType (MIME type). No multipart needed.
+     *
+     * This endpoint is PERMIT ALL in security config (internal call from Django).
+     */
+    @PostMapping(value = "/from-rehoming", consumes = { "application/json" })
+    public ResponseEntity<?> createFromRehoming(
+            @RequestBody AnimalRequest dto) {
+        try {
+            Animal entity = toEntity(dto);
+            applyBase64Photo(entity, dto);
+            // Always create as Available
+            entity.setStatus("Available");
+            if (entity.getHealth() == null || entity.getHealth().isBlank()) {
+                entity.setHealth("Healthy");
+            }
+            Animal saved = animalService.create(entity, null, "rehoming-approval");
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(AnimalDto.from(saved));
+        } catch (RuntimeException e) {
+            return bad(e.getMessage());
+        }
+    }
+
+    // POST /api/animals (JSON) — fallback for plain JSON requests without photo
+    @PostMapping(consumes = { "application/json" })
+    public ResponseEntity<?> createJson(
+            @RequestBody AnimalRequest dto,
+            Authentication auth) {
+        try {
+            String adminName = auth != null ? auth.getName() : "admin";
+            Animal entity = toEntity(dto);
+            applyBase64Photo(entity, dto);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(AnimalDto.from(animalService.create(entity, null, adminName)));
+        } catch (RuntimeException e) {
+            return bad(e.getMessage());
+        }
+    }
+
+    // PUT /api/animals/{id} — multipart/form-data
     @PutMapping(value = "/{id}", consumes = { "multipart/form-data" })
     public ResponseEntity<?> update(
             @PathVariable Integer id,
@@ -79,8 +125,25 @@ public class AnimalController {
             String adminName = auth != null ? auth.getName() : "admin";
             Animal entity = toEntity(dto);
             applyPhoto(entity, photo);
+            applyBase64Photo(entity, dto);
             return ResponseEntity.ok(AnimalDto.from(animalService.update(id, entity, null, adminName)));
         } catch (RuntimeException | IOException e) {
+            return notFound(e.getMessage());
+        }
+    }
+
+    // PUT /api/animals/{id} — JSON (no new photo)
+    @PutMapping(value = "/{id}", consumes = { "application/json" })
+    public ResponseEntity<?> updateJson(
+            @PathVariable Integer id,
+            @RequestBody AnimalRequest dto,
+            Authentication auth) {
+        try {
+            String adminName = auth != null ? auth.getName() : "admin";
+            Animal entity = toEntity(dto);
+            applyBase64Photo(entity, dto);
+            return ResponseEntity.ok(AnimalDto.from(animalService.update(id, entity, null, adminName)));
+        } catch (RuntimeException e) {
             return notFound(e.getMessage());
         }
     }
@@ -98,7 +161,6 @@ public class AnimalController {
     }
 
     // POST /api/animals/mark-adopted — called by Django after approval
-    // Body: { "animalName": "Buddy" }
     @PostMapping("/mark-adopted")
     public ResponseEntity<?> markAdopted(@RequestBody Map<String, String> body) {
         String animalName = body.get("animalName");
@@ -140,14 +202,42 @@ public class AnimalController {
         a.setHealth(dto.getHealth() != null ? dto.getHealth() : "Healthy");
         a.setStatus(dto.getStatus() != null ? dto.getStatus() : "Available");
         a.setNotes(dto.getNotes());
-        // photo handled separately via MultipartFile
         return a;
     }
 
+    /** Apply MultipartFile photo (from form upload). */
     private void applyPhoto(Animal animal, MultipartFile photo) throws IOException {
         if (photo != null && !photo.isEmpty()) {
             animal.setPhotoData(photo.getBytes());
             animal.setPhotoType(photo.getContentType());
+        }
+    }
+
+    /**
+     * Apply base64 photo from AnimalRequest.photoData / photoType.
+     * Used for JSON requests (Django rehoming approval, plain JSON admin edits).
+     * Only overwrites photo if photoData is present and no multipart photo already set.
+     */
+    private void applyBase64Photo(Animal animal, AnimalRequest dto) {
+        // Skip if multipart already populated the photo
+        if (animal.getPhotoData() != null) return;
+
+        String b64 = dto.getPhotoData();
+        if (b64 == null || b64.isBlank()) return;
+
+        // Strip data URI prefix if present (e.g. "data:image/jpeg;base64,...")
+        if (b64.contains("base64,")) {
+            b64 = b64.substring(b64.indexOf("base64,") + 7);
+        }
+
+        try {
+            byte[] decoded = Base64.getDecoder().decode(b64);
+            animal.setPhotoData(decoded);
+            String mime = dto.getPhotoType();
+            animal.setPhotoType(mime != null && !mime.isBlank() ? mime : "image/jpeg");
+        } catch (IllegalArgumentException e) {
+            // Malformed base64 — skip photo rather than crashing
+            System.err.println("[AnimalController] Invalid base64 photo data, skipping: " + e.getMessage());
         }
     }
 

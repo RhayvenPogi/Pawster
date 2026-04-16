@@ -4,19 +4,15 @@
  * Handles both adoption and rehoming requests.
  * Props: type = "adoptions" | "rehoming"  |  show = boolean
  *
- * CRUD:
- *  ✅ Create  — submit_adoption / submit_rehoming (user-facing, unchanged)
- *  ✅ Read    — list_adoptions / list_rehoming
- *  ✅ Update  — PATCH /<pk>/update/  (admin Edit modal)
- *  ✅ Delete  — DELETE /<pk>/delete/ (admin, with confirm dialog)
- *
- * DetailModal — tabbed: Pet info / Health / Behavior / Contact  (or Applicant / Housing / Time & Budget / Commitment for adoptions)
- * EditModal   — tabbed with Back/Next navigation, Save only on last tab (Flags)
+ * FIXES applied:
+ *  ✅ Rehoming cards now show real owner name via r.owner_name field
+ *  ✅ Rehoming cards now show pet photo (photo_base64 or photo_url)
+ *  ✅ Detail modal also uses owner_name for rehoming
  */
 import { useState, useEffect, useCallback } from "react";
 
 const DJANGO = import.meta.env.VITE_DJANGO_API ?? "http://localhost:8000";
-const SPRING = import.meta.env.VITE_API_BASE   ?? "http://localhost:8000";
+const SPRING = import.meta.env.VITE_API_BASE ?? "http://localhost:8000";
 
 function getToken() {
   return (
@@ -75,23 +71,23 @@ async function createAnimalFromRehoming(record) {
     record.ideal_home_desc,
     record.behavior ? `Behavior: ${record.behavior}${record.behavior_other ? ` (${record.behavior_other})` : ""}` : "",
     record.medical_notes ? `Medical notes: ${record.medical_notes}` : "",
-    record.good_with_children === true  ? "Good with children."   : "",
-    record.good_with_pets     === true  ? "Good with other pets." : "",
-    record.is_house_trained   === true  ? "House-trained."        : "",
-    record.is_leash_trained   === true  ? "Leash-trained."        : "",
-    record.is_vaccinated      === true && record.vaccine_type
+    record.good_with_children === true ? "Good with children." : "",
+    record.good_with_pets === true ? "Good with other pets." : "",
+    record.is_house_trained === true ? "House-trained." : "",
+    record.is_leash_trained === true ? "Leash-trained." : "",
+    record.is_vaccinated === true && record.vaccine_type
       ? `Vaccinated (${record.vaccine_type}).` : "",
   ].filter(Boolean).join(" ").trim();
 
   const payload = {
-    name:    record.pet_name || "Unknown",
-    type:    record.species  || "Other",
-    breed:   record.breed    || "",
-    age:     record.age      || "",
-    health:  "Healthy",
-    status:  "Available",
-    notes:   descParts || "Available for adoption.",
-    photo:   record.photo_base64 || null,
+    name: record.pet_name || "Unknown",
+    type: record.species || "Other",
+    breed: record.breed || "",
+    age: record.age || "",
+    health: "Healthy",
+    status: "Available",
+    notes: descParts || "Available for adoption.",
+    photo: record.photo_base64 || null,
   };
 
   const res = await fetch(`${SPRING}/api/animals`, {
@@ -110,9 +106,9 @@ async function createAnimalFromRehoming(record) {
 
 // ── Status config ─────────────────────────────────────────────────────────────
 const STATUS_CFG = {
-  Pending:  { bg: "bg-amber-50",  border: "border-amber-200",  dot: "#f59e0b", pill: "bg-amber-100 text-amber-700"  },
-  Approved: { bg: "bg-green-50",  border: "border-green-200",  dot: "#22c55e", pill: "bg-green-100 text-green-700"  },
-  Rejected: { bg: "bg-red-50",    border: "border-red-200",    dot: "#ef4444", pill: "bg-red-100 text-red-700"      },
+  Pending: { bg: "bg-amber-50", border: "border-amber-200", dot: "#f59e0b", pill: "bg-amber-100 text-amber-700" },
+  Approved: { bg: "bg-green-50", border: "border-green-200", dot: "#22c55e", pill: "bg-green-100 text-green-700" },
+  Rejected: { bg: "bg-red-50", border: "border-red-200", dot: "#ef4444", pill: "bg-red-100 text-red-700" },
 };
 
 // ── Shared style helpers ──────────────────────────────────────────────────────
@@ -164,31 +160,31 @@ function RejectModal({ open, onClose, onConfirm }) {
   if (!open) return null;
   return (
     <div
-      style={{ position:"fixed",inset:0,zIndex:800,display:"flex",alignItems:"center",justifyContent:"center",padding:"1rem",background:"rgba(10,6,2,0.6)",backdropFilter:"blur(6px)" }}
+      style={{ position: "fixed", inset: 0, zIndex: 800, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem", background: "rgba(10,6,2,0.6)", backdropFilter: "blur(6px)" }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div style={{ width:"100%",maxWidth:440,borderRadius:18,background:"#fffce8",border:"1px solid rgba(180,140,60,0.28)",boxShadow:"0 16px 48px rgba(40,20,5,0.35)",overflow:"hidden" }}>
-        <div style={{ padding:"1.1rem 1.25rem",borderBottom:"1px solid rgba(180,140,60,0.18)",fontWeight:900,fontSize:"0.95rem",color:"#1a4a08",fontFamily:"'Nunito',sans-serif" }}>
+      <div style={{ width: "100%", maxWidth: 440, borderRadius: 18, background: "#fffce8", border: "1px solid rgba(180,140,60,0.28)", boxShadow: "0 16px 48px rgba(40,20,5,0.35)", overflow: "hidden" }}>
+        <div style={{ padding: "1.1rem 1.25rem", borderBottom: "1px solid rgba(180,140,60,0.18)", fontWeight: 900, fontSize: "0.95rem", color: "#1a4a08", fontFamily: "'Nunito',sans-serif" }}>
           Rejection Reason
         </div>
-        <div style={{ padding:"1rem 1.25rem",display:"flex",flexDirection:"column",gap:"0.75rem" }}>
-          <p style={{ fontSize:"0.82rem",fontWeight:700,color:"#6a7a50",margin:0 }}>
+        <div style={{ padding: "1rem 1.25rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+          <p style={{ fontSize: "0.82rem", fontWeight: 700, color: "#6a7a50", margin: 0 }}>
             Please provide a reason. This will be sent to the applicant via email and notification.
           </p>
           <textarea
             value={reason} onChange={e => setReason(e.target.value)} rows={3}
             placeholder="Enter rejection reason…"
-            style={{ ...inputStyle, resize:"vertical" }}
+            style={{ ...inputStyle, resize: "vertical" }}
           />
-          <div style={{ display:"flex",gap:"0.5rem",justifyContent:"flex-end" }}>
-            <button onClick={onClose} style={{ padding:"0.6rem 1.1rem",borderRadius:10,fontWeight:800,fontSize:"0.84rem",background:"transparent",border:"1px solid rgba(180,140,60,0.28)",color:"#3a5020",cursor:"pointer",fontFamily:"'Nunito',sans-serif",display:"flex",alignItems:"center",gap:"0.4rem" }}>
-              <span style={{ fontSize:"1rem",lineHeight:1 }}>✕</span> Cancel
+          <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
+            <button onClick={onClose} style={{ padding: "0.6rem 1.1rem", borderRadius: 10, fontWeight: 800, fontSize: "0.84rem", background: "transparent", border: "1px solid rgba(180,140,60,0.28)", color: "#3a5020", cursor: "pointer", fontFamily: "'Nunito',sans-serif", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+              <span style={{ fontSize: "1rem", lineHeight: 1 }}>✕</span> Cancel
             </button>
             <button
               onClick={() => { if (reason.trim()) { onConfirm(reason.trim()); setReason(""); } }}
               disabled={!reason.trim()}
-              style={{ padding:"0.6rem 1.25rem",borderRadius:10,fontWeight:900,fontSize:"0.84rem",background:reason.trim()?"#c03030":"#e08080",border:"none",color:"#fff",cursor:reason.trim()?"pointer":"not-allowed",fontFamily:"'Nunito',sans-serif",display:"flex",alignItems:"center",gap:"0.4rem" }}>
-              <span style={{ fontSize:"1rem",lineHeight:1 }}>✕</span> Confirm Rejection
+              style={{ padding: "0.6rem 1.25rem", borderRadius: 10, fontWeight: 900, fontSize: "0.84rem", background: reason.trim() ? "#c03030" : "#e08080", border: "none", color: "#fff", cursor: reason.trim() ? "pointer" : "not-allowed", fontFamily: "'Nunito',sans-serif", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+              <span style={{ fontSize: "1rem", lineHeight: 1 }}>✕</span> Confirm Rejection
             </button>
           </div>
         </div>
@@ -206,28 +202,28 @@ function DeleteModal({ open, record, type, onClose, onConfirm }) {
 
   return (
     <div
-      style={{ position:"fixed",inset:0,zIndex:820,display:"flex",alignItems:"center",justifyContent:"center",padding:"1rem",background:"rgba(10,6,2,0.65)",backdropFilter:"blur(6px)" }}
+      style={{ position: "fixed", inset: 0, zIndex: 820, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem", background: "rgba(10,6,2,0.65)", backdropFilter: "blur(6px)" }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div style={{ width:"100%",maxWidth:420,borderRadius:18,background:"#fffce8",border:"1px solid rgba(192,48,48,0.3)",boxShadow:"0 16px 48px rgba(40,20,5,0.35)",overflow:"hidden" }}>
-        <div style={{ padding:"1.1rem 1.25rem",borderBottom:"1px solid rgba(192,48,48,0.15)",display:"flex",alignItems:"center",gap:"0.6rem" }}>
-          <div style={{ width:32,height:32,borderRadius:8,background:"rgba(192,48,48,0.1)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
-            <span style={{ color:"#c03030",fontSize:"0.9rem" }}>🗑</span>
+      <div style={{ width: "100%", maxWidth: 420, borderRadius: 18, background: "#fffce8", border: "1px solid rgba(192,48,48,0.3)", boxShadow: "0 16px 48px rgba(40,20,5,0.35)", overflow: "hidden" }}>
+        <div style={{ padding: "1.1rem 1.25rem", borderBottom: "1px solid rgba(192,48,48,0.15)", display: "flex", alignItems: "center", gap: "0.6rem" }}>
+          <div style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(192,48,48,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <span style={{ color: "#c03030", fontSize: "0.9rem" }}>🗑</span>
           </div>
-          <span style={{ fontWeight:900,fontSize:"0.95rem",color:"#c03030",fontFamily:"'Nunito',sans-serif" }}>Delete Request</span>
+          <span style={{ fontWeight: 900, fontSize: "0.95rem", color: "#c03030", fontFamily: "'Nunito',sans-serif" }}>Delete Request</span>
         </div>
-        <div style={{ padding:"1rem 1.25rem",display:"flex",flexDirection:"column",gap:"1rem" }}>
-          <p style={{ fontSize:"0.84rem",fontWeight:700,color:"#3a2010",margin:0,lineHeight:1.5 }}>
+        <div style={{ padding: "1rem 1.25rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
+          <p style={{ fontSize: "0.84rem", fontWeight: 700, color: "#3a2010", margin: 0, lineHeight: 1.5 }}>
             Are you sure you want to permanently delete the <strong>{label}</strong>? This action cannot be undone.
           </p>
-          <div style={{ display:"flex",gap:"0.5rem",justifyContent:"flex-end" }}>
+          <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
             <button onClick={onClose}
-              style={{ padding:"0.6rem 1.1rem",borderRadius:10,fontWeight:800,fontSize:"0.84rem",background:"transparent",border:"1px solid rgba(180,140,60,0.28)",color:"#3a5020",cursor:"pointer",fontFamily:"'Nunito',sans-serif",display:"flex",alignItems:"center",gap:"0.4rem" }}>
-              <span style={{ fontSize:"1rem",lineHeight:1 }}>✕</span> Cancel
+              style={{ padding: "0.6rem 1.1rem", borderRadius: 10, fontWeight: 800, fontSize: "0.84rem", background: "transparent", border: "1px solid rgba(180,140,60,0.28)", color: "#3a5020", cursor: "pointer", fontFamily: "'Nunito',sans-serif", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+              <span style={{ fontSize: "1rem", lineHeight: 1 }}>✕</span> Cancel
             </button>
             <button onClick={onConfirm}
-              style={{ padding:"0.6rem 1.25rem",borderRadius:10,fontWeight:900,fontSize:"0.84rem",background:"#c03030",border:"none",color:"#fff",cursor:"pointer",fontFamily:"'Nunito',sans-serif",display:"flex",alignItems:"center",gap:"0.4rem" }}>
-              <span style={{ fontSize:"1rem",lineHeight:1 }}>🗑</span> Delete Permanently
+              style={{ padding: "0.6rem 1.25rem", borderRadius: 10, fontWeight: 900, fontSize: "0.84rem", background: "#c03030", border: "none", color: "#fff", cursor: "pointer", fontFamily: "'Nunito',sans-serif", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+              <span style={{ fontSize: "1rem", lineHeight: 1 }}>🗑</span> Delete Permanently
             </button>
           </div>
         </div>
@@ -238,9 +234,9 @@ function DeleteModal({ open, record, type, onClose, onConfirm }) {
 
 // ── Edit modal (tabbed) ───────────────────────────────────────────────────────
 function EditModal({ open, record, type, onClose, onSave }) {
-  const [form,      setForm]      = useState({});
+  const [form, setForm] = useState({});
   const [activeTab, setActiveTab] = useState("tab0");
-  const [saving,    setSaving]    = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (record) { setForm({ ...record }); setActiveTab("tab0"); }
@@ -250,96 +246,96 @@ function EditModal({ open, record, type, onClose, onSave }) {
 
   const set = (key, val) => setForm(prev => ({ ...prev, [key]: val }));
 
-  // ── Field definitions ─────────────────────────────────────────────────────
   const allAdoptionFields = [
-    { key: "name",                 label: "Full Name",           type: "text"     },
-    { key: "email",                label: "Email",               type: "email"    },
-    { key: "phone",                label: "Phone",               type: "text"     },
-    { key: "address",              label: "Address",             type: "text"     },
-    { key: "animal_name",          label: "Animal Name",         type: "text"     },
-    { key: "primary_caregiver",    label: "Primary Caregiver",   type: "text"     },
-    { key: "housing",              label: "Housing Type",        type: "text"     },
-    { key: "household_size",       label: "Household Size",      type: "text"     },
-    { key: "children_ages",        label: "Children Ages",       type: "text"     },
-    { key: "other_pets_detail",    label: "Other Pets Detail",   type: "text"     },
-    { key: "exp",                  label: "Experience",          type: "text"     },
-    { key: "alone_hours",          label: "Hours Alone",         type: "text"     },
-    { key: "backup_care",          label: "Backup Care",         type: "text"     },
-    { key: "budget",               label: "Monthly Budget",      type: "text"     },
-    { key: "vet_plan",             label: "Vet Plan",            type: "text"     },
-    { key: "reason",               label: "Reason to Adopt",     type: "textarea" },
-    { key: "behavior_response",    label: "Behavior Response",   type: "textarea" },
-    { key: "previous_pet_details", label: "Previous Pet Info",   type: "textarea" },
+    { key: "name", label: "Full Name", type: "text" },
+    { key: "email", label: "Email", type: "email" },
+    { key: "phone", label: "Phone", type: "text" },
+    { key: "address", label: "Address", type: "text" },
+    { key: "animal_name", label: "Animal Name", type: "text" },
+    { key: "primary_caregiver", label: "Primary Caregiver", type: "text" },
+    { key: "housing", label: "Housing Type", type: "text" },
+    { key: "household_size", label: "Household Size", type: "text" },
+    { key: "children_ages", label: "Children Ages", type: "text" },
+    { key: "other_pets_detail", label: "Other Pets Detail", type: "text" },
+    { key: "exp", label: "Experience", type: "text" },
+    { key: "alone_hours", label: "Hours Alone", type: "text" },
+    { key: "backup_care", label: "Backup Care", type: "text" },
+    { key: "budget", label: "Monthly Budget", type: "text" },
+    { key: "vet_plan", label: "Vet Plan", type: "text" },
+    { key: "reason", label: "Reason to Adopt", type: "textarea" },
+    { key: "behavior_response", label: "Behavior Response", type: "textarea" },
+    { key: "previous_pet_details", label: "Previous Pet Info", type: "textarea" },
   ];
 
   const allRehomingFields = [
-    { key: "pet_name",           label: "Pet Name",             type: "text"     },
-    { key: "species",            label: "Species",              type: "text"     },
-    { key: "breed",              label: "Breed",                type: "text"     },
-    { key: "age",                label: "Age",                  type: "text"     },
-    { key: "gender",             label: "Gender",               type: "text"     },
-    { key: "duration_owned",     label: "Duration Owned",       type: "text"     },
-    { key: "ideal_home_desc",    label: "Ideal Home",           type: "textarea" },
-    { key: "vaccine_type",       label: "Vaccine Type",         type: "text"     },
-    { key: "last_vacc_date",     label: "Last Vaccinated",      type: "text"     },
-    { key: "vacc_clinic",        label: "Vet / Clinic",         type: "text"     },
-    { key: "vacc_notes",         label: "Vaccination Notes",    type: "textarea" },
-    { key: "medical_notes",      label: "Medical Notes",        type: "textarea" },
-    { key: "behavior",           label: "Behavior",             type: "text"     },
-    { key: "behavior_other",     label: "Behavior Detail",      type: "text"     },
-    { key: "details",            label: "Details",              type: "textarea" },
-    { key: "contact",            label: "Contact",              type: "text"     },
-    { key: "reason",             label: "Reason for Rehoming",  type: "textarea" },
-    { key: "tried_alternatives", label: "Tried Alternatives",   type: "textarea" },
+    { key: "owner_name", label: "Owner Name", type: "text" }, // FIX: editable owner name
+    { key: "pet_name", label: "Pet Name", type: "text" },
+    { key: "species", label: "Species", type: "text" },
+    { key: "breed", label: "Breed", type: "text" },
+    { key: "age", label: "Age", type: "text" },
+    { key: "gender", label: "Gender", type: "text" },
+    { key: "duration_owned", label: "Duration Owned", type: "text" },
+    { key: "ideal_home_desc", label: "Ideal Home", type: "textarea" },
+    { key: "vaccine_type", label: "Vaccine Type", type: "text" },
+    { key: "last_vacc_date", label: "Last Vaccinated", type: "text" },
+    { key: "vacc_clinic", label: "Vet / Clinic", type: "text" },
+    { key: "vacc_notes", label: "Vaccination Notes", type: "textarea" },
+    { key: "medical_notes", label: "Medical Notes", type: "textarea" },
+    { key: "behavior", label: "Behavior", type: "text" },
+    { key: "behavior_other", label: "Behavior Detail", type: "text" },
+    { key: "details", label: "Details", type: "textarea" },
+    { key: "contact", label: "Contact", type: "text" },
+    { key: "reason", label: "Reason for Rehoming", type: "textarea" },
+    { key: "tried_alternatives", label: "Tried Alternatives", type: "textarea" },
   ];
 
   const boolFieldsAdoption = [
-    { key: "owns_home",             label: "Owns Home"          },
-    { key: "pet_permission",        label: "Pet Permission"     },
-    { key: "has_children",          label: "Has Children"       },
-    { key: "has_other_pets",        label: "Has Other Pets"     },
-    { key: "other_pets_vaccinated", label: "Pets Vaccinated"    },
-    { key: "open_to_guidance",      label: "Open to Guidance"   },
-    { key: "previous_pet",          label: "Had Previous Pet"   },
+    { key: "owns_home", label: "Owns Home" },
+    { key: "pet_permission", label: "Pet Permission" },
+    { key: "has_children", label: "Has Children" },
+    { key: "has_other_pets", label: "Has Other Pets" },
+    { key: "other_pets_vaccinated", label: "Pets Vaccinated" },
+    { key: "open_to_guidance", label: "Open to Guidance" },
+    { key: "previous_pet", label: "Had Previous Pet" },
   ];
 
   const boolFieldsRehoming = [
-    { key: "is_vaccinated",       label: "Vaccinated"           },
-    { key: "is_neutered",         label: "Neutered"             },
-    { key: "is_house_trained",    label: "House Trained"        },
-    { key: "is_leash_trained",    label: "Leash Trained"        },
-    { key: "good_with_children",  label: "Good with Children"   },
-    { key: "good_with_pets",      label: "Good with Pets"       },
-    { key: "has_aggression",      label: "Has Aggression"       },
-    { key: "can_provide_food",    label: "Can Provide Food"     },
-    { key: "can_provide_carrier", label: "Can Provide Carrier"  },
-    { key: "can_provide_records", label: "Can Provide Records"  },
+    { key: "is_vaccinated", label: "Vaccinated" },
+    { key: "is_neutered", label: "Neutered" },
+    { key: "is_house_trained", label: "House Trained" },
+    { key: "is_leash_trained", label: "Leash Trained" },
+    { key: "good_with_children", label: "Good with Children" },
+    { key: "good_with_pets", label: "Good with Pets" },
+    { key: "has_aggression", label: "Has Aggression" },
+    { key: "can_provide_food", label: "Can Provide Food" },
+    { key: "can_provide_carrier", label: "Can Provide Carrier" },
+    { key: "can_provide_records", label: "Can Provide Records" },
   ];
 
-  // ── Tab definitions ───────────────────────────────────────────────────────
+  // FIX: owner_name moved to tab0 for rehoming so it's visible up front
   const editTabsRehoming = [
-    { key: "tab0", label: "Pet info",        fieldKeys: ["pet_name","species","breed","age","gender","duration_owned","ideal_home_desc"] },
-    { key: "tab1", label: "Health",          fieldKeys: ["vaccine_type","last_vacc_date","vacc_clinic","vacc_notes","medical_notes"] },
-    { key: "tab2", label: "Behavior",        fieldKeys: ["behavior","behavior_other","details"] },
-    { key: "tab3", label: "Contact & reason",fieldKeys: ["contact","reason","tried_alternatives"] },
-    { key: "tab4", label: "Flags",           boolOnly: true },
+    { key: "tab0", label: "Pet info", fieldKeys: ["owner_name", "pet_name", "species", "breed", "age", "gender", "duration_owned", "ideal_home_desc"] },
+    { key: "tab1", label: "Health", fieldKeys: ["vaccine_type", "last_vacc_date", "vacc_clinic", "vacc_notes", "medical_notes"] },
+    { key: "tab2", label: "Behavior", fieldKeys: ["behavior", "behavior_other", "details"] },
+    { key: "tab3", label: "Contact & reason", fieldKeys: ["contact", "reason", "tried_alternatives"] },
+    { key: "tab4", label: "Flags", boolOnly: true },
   ];
 
   const editTabsAdoption = [
-    { key: "tab0", label: "Applicant",       fieldKeys: ["name","email","phone","address","animal_name","primary_caregiver"] },
-    { key: "tab1", label: "Housing",         fieldKeys: ["housing","household_size","children_ages","other_pets_detail"] },
-    { key: "tab2", label: "Time & budget",   fieldKeys: ["exp","alone_hours","backup_care","budget","vet_plan"] },
-    { key: "tab3", label: "Commitment",      fieldKeys: ["reason","behavior_response","previous_pet_details"] },
-    { key: "tab4", label: "Flags",           boolOnly: true },
+    { key: "tab0", label: "Applicant", fieldKeys: ["name", "email", "phone", "address", "animal_name", "primary_caregiver"] },
+    { key: "tab1", label: "Housing", fieldKeys: ["housing", "household_size", "children_ages", "other_pets_detail"] },
+    { key: "tab2", label: "Time & budget", fieldKeys: ["exp", "alone_hours", "backup_care", "budget", "vet_plan"] },
+    { key: "tab3", label: "Commitment", fieldKeys: ["reason", "behavior_response", "previous_pet_details"] },
+    { key: "tab4", label: "Flags", boolOnly: true },
   ];
 
-  const editTabs  = type === "adoptions" ? editTabsAdoption  : editTabsRehoming;
+  const editTabs = type === "adoptions" ? editTabsAdoption : editTabsRehoming;
   const allFields = type === "adoptions" ? allAdoptionFields : allRehomingFields;
-  const boolFields= type === "adoptions" ? boolFieldsAdoption: boolFieldsRehoming;
+  const boolFields = type === "adoptions" ? boolFieldsAdoption : boolFieldsRehoming;
 
-  const curIdx    = editTabs.findIndex(t => t.key === activeTab);
-  const curTab    = editTabs[curIdx];
-  const isLast    = curIdx === editTabs.length - 1;
+  const curIdx = editTabs.findIndex(t => t.key === activeTab);
+  const curTab = editTabs[curIdx];
+  const isLast = curIdx === editTabs.length - 1;
 
   const visibleFields = curTab.boolOnly
     ? []
@@ -347,30 +343,30 @@ function EditModal({ open, record, type, onClose, onSave }) {
 
   return (
     <div
-      style={{ position:"fixed",inset:0,zIndex:810,display:"flex",alignItems:"center",justifyContent:"center",padding:"1rem",background:"rgba(10,6,2,0.65)",backdropFilter:"blur(8px)" }}
+      style={{ position: "fixed", inset: 0, zIndex: 810, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem", background: "rgba(10,6,2,0.65)", backdropFilter: "blur(8px)" }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div style={{ width:"100%",maxWidth:700,borderRadius:20,background:"#fffce8",border:"1px solid rgba(180,140,60,0.3)",boxShadow:"0 24px 64px rgba(40,20,5,0.45)",display:"flex",flexDirection:"column",maxHeight:"92vh",overflow:"hidden" }}>
+      <div style={{ width: "100%", maxWidth: 700, borderRadius: 20, background: "#fffce8", border: "1px solid rgba(180,140,60,0.3)", boxShadow: "0 24px 64px rgba(40,20,5,0.45)", display: "flex", flexDirection: "column", maxHeight: "92vh", overflow: "hidden" }}>
 
         {/* Header */}
-        <div style={{ padding:"1rem 1.25rem",borderBottom:"1px solid rgba(180,140,60,0.2)",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0 }}>
+        <div style={{ padding: "1rem 1.25rem", borderBottom: "1px solid rgba(180,140,60,0.2)", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
           <div>
-            <div style={{ fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:"1rem",color:"#1a4a08",display:"flex",alignItems:"center",gap:"0.5rem" }}>
-              <span style={{ fontSize:"0.85rem",color:"#5aaa30" }}>✏️</span>
+            <div style={{ fontFamily: "'Playfair Display',serif", fontWeight: 900, fontSize: "1rem", color: "#1a4a08", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <span style={{ fontSize: "0.85rem", color: "#5aaa30" }}>✏️</span>
               Edit {type === "adoptions" ? "Adoption" : "Rehoming"} Request
             </div>
-            <div style={{ fontSize:"0.72rem",fontWeight:700,color:"#6a7a50",marginTop:2 }}>
+            <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "#6a7a50", marginTop: 2 }}>
               #{record.id} · Status changes require Approve / Reject actions
             </div>
           </div>
           <button onClick={onClose}
-            style={{ width:30,height:30,borderRadius:8,border:"1px solid rgba(192,48,48,0.2)",background:"rgba(192,48,48,0.08)",color:"#c03030",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"1rem" }}>
+            style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid rgba(192,48,48,0.2)", background: "rgba(192,48,48,0.08)", color: "#c03030", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1rem" }}>
             ✕
           </button>
         </div>
 
         {/* Tab bar */}
-        <div style={{ display:"flex",borderBottom:"1px solid rgba(180,140,60,0.2)",padding:"0 1.25rem",flexShrink:0,overflowX:"auto" }}>
+        <div style={{ display: "flex", borderBottom: "1px solid rgba(180,140,60,0.2)", padding: "0 1.25rem", flexShrink: 0, overflowX: "auto" }}>
           {editTabs.map(t => (
             <button key={t.key} onClick={() => setActiveTab(t.key)} style={tabStyle(activeTab === t.key)}>
               {t.label}
@@ -379,13 +375,13 @@ function EditModal({ open, record, type, onClose, onSave }) {
         </div>
 
         {/* Tab body */}
-        <div style={{ overflowY:"auto",padding:"1rem 1.25rem",flex:1 }}>
+        <div style={{ overflowY: "auto", padding: "1rem 1.25rem", flex: 1 }}>
           {curTab.boolOnly ? (
             <div>
-              <div style={{ fontSize:"0.7rem",fontWeight:900,textTransform:"uppercase",letterSpacing:"0.07em",color:"#1c4f09",marginBottom:"0.625rem" }}>
+              <div style={{ fontSize: "0.7rem", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.07em", color: "#1c4f09", marginBottom: "0.625rem" }}>
                 🔘 Flags
               </div>
-              <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:"0.5rem" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(180px,1fr))", gap: "0.5rem" }}>
                 {boolFields.map(({ key, label }) => {
                   const val = form[key];
                   return (
@@ -394,31 +390,31 @@ function EditModal({ open, record, type, onClose, onSave }) {
                       type="button"
                       onClick={() => set(key, !val)}
                       style={{
-                        padding:"0.5rem 0.75rem",
-                        borderRadius:10,
+                        padding: "0.5rem 0.75rem",
+                        borderRadius: 10,
                         border: val ? "1px solid rgba(90,170,48,0.45)" : "1px solid rgba(180,140,60,0.25)",
                         background: val ? "rgba(28,79,9,0.07)" : "rgba(255,248,218,0.5)",
-                        display:"flex",alignItems:"center",gap:"0.5rem",
-                        cursor:"pointer",transition:"all 0.15s",textAlign:"left",
+                        display: "flex", alignItems: "center", gap: "0.5rem",
+                        cursor: "pointer", transition: "all 0.15s", textAlign: "left",
                       }}
                     >
                       <span style={{
-                        width:16,height:16,borderRadius:4,
+                        width: 16, height: 16, borderRadius: 4,
                         border: val ? "2px solid #5aaa30" : "2px solid rgba(180,140,60,0.35)",
                         background: val ? "#5aaa30" : "transparent",
-                        display:"flex",alignItems:"center",justifyContent:"center",
-                        flexShrink:0,transition:"all 0.15s",fontSize:"0.55rem",color:"#fff",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        flexShrink: 0, transition: "all 0.15s", fontSize: "0.55rem", color: "#fff",
                       }}>
                         {val && "✓"}
                       </span>
-                      <span style={{ fontSize:"0.78rem",fontWeight:800,color: val ? "#1c4f09" : "#7a8060" }}>{label}</span>
+                      <span style={{ fontSize: "0.78rem", fontWeight: 800, color: val ? "#1c4f09" : "#7a8060" }}>{label}</span>
                     </button>
                   );
                 })}
               </div>
             </div>
           ) : (
-            <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0.625rem" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.625rem" }}>
               {visibleFields.map(({ key, label, type: ftype }) => (
                 <div key={key} style={{ gridColumn: ftype === "textarea" ? "span 2" : "span 1" }}>
                   <label style={labelStyle}>{label}</label>
@@ -427,7 +423,7 @@ function EditModal({ open, record, type, onClose, onSave }) {
                       rows={3}
                       value={form[key] ?? ""}
                       onChange={e => set(key, e.target.value)}
-                      style={{ ...inputStyle, resize:"vertical" }}
+                      style={{ ...inputStyle, resize: "vertical" }}
                     />
                   ) : (
                     <input
@@ -444,20 +440,20 @@ function EditModal({ open, record, type, onClose, onSave }) {
         </div>
 
         {/* Footer */}
-        <div style={{ padding:"0.875rem 1.25rem",borderTop:"1px solid rgba(180,140,60,0.18)",display:"flex",gap:"0.625rem",flexShrink:0,background:"rgba(255,252,235,0.97)",alignItems:"center" }}>
+        <div style={{ padding: "0.875rem 1.25rem", borderTop: "1px solid rgba(180,140,60,0.18)", display: "flex", gap: "0.625rem", flexShrink: 0, background: "rgba(255,252,235,0.97)", alignItems: "center" }}>
           <button onClick={onClose}
-            style={{ padding:"0.7rem 1.1rem",borderRadius:11,fontWeight:800,fontSize:"0.84rem",background:"transparent",border:"1px solid rgba(180,140,60,0.3)",color:"#3a5020",cursor:"pointer",fontFamily:"'Nunito',sans-serif" }}>
+            style={{ padding: "0.7rem 1.1rem", borderRadius: 11, fontWeight: 800, fontSize: "0.84rem", background: "transparent", border: "1px solid rgba(180,140,60,0.3)", color: "#3a5020", cursor: "pointer", fontFamily: "'Nunito',sans-serif" }}>
             ✕ Cancel
           </button>
 
-          <span style={{ flex:1,fontSize:"0.75rem",fontWeight:700,color:"#9aaa80",textAlign:"center" }}>
+          <span style={{ flex: 1, fontSize: "0.75rem", fontWeight: 700, color: "#9aaa80", textAlign: "center" }}>
             {curIdx + 1} of {editTabs.length} — {curTab.label}
           </span>
 
           {curIdx > 0 && (
             <button
               onClick={() => setActiveTab(editTabs[curIdx - 1].key)}
-              style={{ padding:"0.7rem 1.1rem",borderRadius:11,fontWeight:800,fontSize:"0.84rem",background:"transparent",border:"1px solid rgba(180,140,60,0.3)",color:"#3a5020",cursor:"pointer",fontFamily:"'Nunito',sans-serif" }}>
+              style={{ padding: "0.7rem 1.1rem", borderRadius: 11, fontWeight: 800, fontSize: "0.84rem", background: "transparent", border: "1px solid rgba(180,140,60,0.3)", color: "#3a5020", cursor: "pointer", fontFamily: "'Nunito',sans-serif" }}>
               ← Back
             </button>
           )}
@@ -465,16 +461,16 @@ function EditModal({ open, record, type, onClose, onSave }) {
           {!isLast ? (
             <button
               onClick={() => setActiveTab(editTabs[curIdx + 1].key)}
-              style={{ padding:"0.7rem 1.25rem",borderRadius:11,fontWeight:900,fontSize:"0.88rem",color:"#fff",background:"#1c7a09",border:"none",cursor:"pointer",fontFamily:"'Nunito',sans-serif" }}>
+              style={{ padding: "0.7rem 1.25rem", borderRadius: 11, fontWeight: 900, fontSize: "0.88rem", color: "#fff", background: "#1c7a09", border: "none", cursor: "pointer", fontFamily: "'Nunito',sans-serif" }}>
               Next →
             </button>
           ) : (
             <button
               disabled={saving}
               onClick={async () => { setSaving(true); await onSave(form); setSaving(false); }}
-              style={{ padding:"0.7rem 1.25rem",borderRadius:11,fontWeight:900,fontSize:"0.88rem",color:"#fff",background:saving?"#5aaa30aa":"#1c7a09",border:"none",cursor:saving?"not-allowed":"pointer",fontFamily:"'Nunito',sans-serif",display:"flex",alignItems:"center",gap:"0.4rem",transition:"background 0.15s" }}>
+              style={{ padding: "0.7rem 1.25rem", borderRadius: 11, fontWeight: 900, fontSize: "0.88rem", color: "#fff", background: saving ? "#5aaa30aa" : "#1c7a09", border: "none", cursor: saving ? "not-allowed" : "pointer", fontFamily: "'Nunito',sans-serif", display: "flex", alignItems: "center", gap: "0.4rem", transition: "background 0.15s" }}>
               {saving
-                ? <><div style={{ width:14,height:14,borderRadius:"50%",border:"2px solid rgba(255,255,255,0.4)",borderTopColor:"#fff",animation:"spin 0.7s linear infinite" }}/> Saving…</>
+                ? <><div style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", animation: "spin 0.7s linear infinite" }} /> Saving…</>
                 : <>💾 Save Changes</>
               }
             </button>
@@ -494,29 +490,29 @@ function VaccPhotosGallery({ photos }) {
   return (
     <>
       <div>
-        <div style={{ fontSize:"0.67rem",fontWeight:900,textTransform:"uppercase",letterSpacing:"0.07em",color:"#1c4f09",marginBottom:"0.5rem",display:"flex",alignItems:"center",gap:"0.4rem" }}>
+        <div style={{ fontSize: "0.67rem", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.07em", color: "#1c4f09", marginBottom: "0.5rem", display: "flex", alignItems: "center", gap: "0.4rem" }}>
           🖼 Vaccination Record Photos ({photos.length})
         </div>
-        <div style={{ display:"flex",flexWrap:"wrap",gap:"0.5rem" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
           {photos.map((src, i) => (
             <button key={i} type="button" onClick={() => setLightbox(src)}
-              style={{ width:72,height:72,borderRadius:10,overflow:"hidden",border:"2px solid rgba(90,170,48,0.4)",padding:0,cursor:"pointer",position:"relative",flexShrink:0,background:"rgba(255,248,220,0.5)" }}>
-              <img src={src} alt={`Vacc ${i+1}`} style={{ width:"100%",height:"100%",objectFit:"cover" }}/>
-              <div style={{ position:"absolute",bottom:2,right:2,background:"rgba(28,79,9,0.8)",borderRadius:4,padding:"1px 4px",fontSize:"0.55rem",fontWeight:900,color:"#fff" }}>{i+1}</div>
+              style={{ width: 72, height: 72, borderRadius: 10, overflow: "hidden", border: "2px solid rgba(90,170,48,0.4)", padding: 0, cursor: "pointer", position: "relative", flexShrink: 0, background: "rgba(255,248,220,0.5)" }}>
+              <img src={src} alt={`Vacc ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              <div style={{ position: "absolute", bottom: 2, right: 2, background: "rgba(28,79,9,0.8)", borderRadius: 4, padding: "1px 4px", fontSize: "0.55rem", fontWeight: 900, color: "#fff" }}>{i + 1}</div>
             </button>
           ))}
         </div>
       </div>
 
       {lightbox && (
-        <div style={{ position:"fixed",inset:0,zIndex:9000,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,0.88)",backdropFilter:"blur(8px)" }}
+        <div style={{ position: "fixed", inset: 0, zIndex: 9000, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.88)", backdropFilter: "blur(8px)" }}
           onClick={() => setLightbox(null)}>
-          <img src={lightbox} alt="Vaccination record" style={{ maxWidth:"90vw",maxHeight:"88vh",borderRadius:14,objectFit:"contain" }} onClick={e=>e.stopPropagation()}/>
+          <img src={lightbox} alt="Vaccination record" style={{ maxWidth: "90vw", maxHeight: "88vh", borderRadius: 14, objectFit: "contain" }} onClick={e => e.stopPropagation()} />
           <button onClick={() => setLightbox(null)}
-            style={{ position:"absolute",top:20,right:20,width:38,height:38,borderRadius:"50%",background:"rgba(255,255,255,0.18)",border:"2px solid rgba(255,255,255,0.3)",color:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"1rem" }}>
+            style={{ position: "absolute", top: 20, right: 20, width: 38, height: 38, borderRadius: "50%", background: "rgba(255,255,255,0.18)", border: "2px solid rgba(255,255,255,0.3)", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1rem" }}>
             ✕
           </button>
-          <div style={{ position:"absolute",bottom:20,left:"50%",transform:"translateX(-50%)",background:"rgba(0,0,0,0.5)",borderRadius:8,padding:"0.3rem 0.75rem",fontSize:"0.75rem",fontWeight:700,color:"#fff" }}>
+          <div style={{ position: "absolute", bottom: 20, left: "50%", transform: "translateX(-50%)", background: "rgba(0,0,0,0.5)", borderRadius: 8, padding: "0.3rem 0.75rem", fontSize: "0.75rem", fontWeight: 700, color: "#fff" }}>
             Click outside or × to close
           </div>
         </div>
@@ -529,13 +525,13 @@ function VaccPhotosGallery({ photos }) {
 function FieldPill({ label, value, accent }) {
   return (
     <div style={{
-      padding:"0.5rem 0.75rem",
-      borderRadius:10,
+      padding: "0.5rem 0.75rem",
+      borderRadius: 10,
       background: accent ? "rgba(28,79,9,0.07)" : "rgba(255,248,218,0.6)",
       border: `1px solid ${accent ? "rgba(90,170,48,0.28)" : "rgba(180,140,60,0.18)"}`,
     }}>
-      <div style={{ fontSize:"0.62rem",fontWeight:900,textTransform:"uppercase",letterSpacing:"0.07em",color:"#9aaa80",marginBottom:2 }}>{label}</div>
-      <div style={{ fontSize:"0.83rem",fontWeight:700,color: accent ? "#1c4f09" : "#1a2e0a",wordBreak:"break-word",whiteSpace:"pre-wrap" }}>{String(value)}</div>
+      <div style={{ fontSize: "0.62rem", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.07em", color: "#9aaa80", marginBottom: 2 }}>{label}</div>
+      <div style={{ fontSize: "0.83rem", fontWeight: 700, color: accent ? "#1c4f09" : "#1a2e0a", wordBreak: "break-word", whiteSpace: "pre-wrap" }}>{String(value)}</div>
     </div>
   );
 }
@@ -551,7 +547,7 @@ function DetailModal({ r, type, open, onClose, onApprove, onReject, onEdit, onDe
   if (!open || !r) return null;
 
   const status = r.status || "Pending";
-  const cfg    = STATUS_CFG[status] || STATUS_CFG.Pending;
+  const cfg = STATUS_CFG[status] || STATUS_CFG.Pending;
 
   const photoSrc = type === "rehoming" ? (r.photo_base64 || r.photo_url || null) : null;
 
@@ -578,13 +574,15 @@ function DetailModal({ r, type, open, onClose, onApprove, onReject, onEdit, onDe
       sections: [{
         title: "Pet Details", icon: "🐾",
         fields: [
-          ["Pet Name",       fmt(r.pet_name)],
-          ["Species",        fmt(r.species)],
-          ["Breed",          fmt(r.breed)],
-          ["Age",            fmt(r.age)],
-          ["Gender",         fmt(r.gender)],
+          // FIX: show owner_name prominently in Pet info tab
+          ["Owner Name", fmt(r.owner_name)],
+          ["Pet Name", fmt(r.pet_name)],
+          ["Species", fmt(r.species)],
+          ["Breed", fmt(r.breed)],
+          ["Age", fmt(r.age)],
+          ["Gender", fmt(r.gender)],
           ["Duration Owned", fmt(r.duration_owned)],
-          ["Ideal Home",     fmt(r.ideal_home_desc)],
+          ["Ideal Home", fmt(r.ideal_home_desc)],
         ],
       }],
       showPhoto: true,
@@ -594,13 +592,13 @@ function DetailModal({ r, type, open, onClose, onApprove, onReject, onEdit, onDe
       sections: [{
         title: "Health", icon: "💉",
         fields: [
-          ["Vaccinated",        r.is_vaccinated !== undefined ? fmt(r.is_vaccinated) : null],
-          ["Vaccine Type",      fmt(r.vaccine_type)],
-          ["Last Vaccinated",   fmt(r.last_vacc_date)],
-          ["Vet / Clinic",      fmt(r.vacc_clinic)],
+          ["Vaccinated", r.is_vaccinated !== undefined ? fmt(r.is_vaccinated) : null],
+          ["Vaccine Type", fmt(r.vaccine_type)],
+          ["Last Vaccinated", fmt(r.last_vacc_date)],
+          ["Vet / Clinic", fmt(r.vacc_clinic)],
           ["Vaccination Notes", fmt(r.vacc_notes)],
-          ["Neutered",          r.is_neutered !== undefined ? fmt(r.is_neutered) : null],
-          ["Medical Notes",     fmt(r.medical_notes)],
+          ["Neutered", r.is_neutered !== undefined ? fmt(r.is_neutered) : null],
+          ["Medical Notes", fmt(r.medical_notes)],
         ],
       }],
       showVacc: true,
@@ -610,13 +608,13 @@ function DetailModal({ r, type, open, onClose, onApprove, onReject, onEdit, onDe
       sections: [{
         title: "Behavior", icon: "⭐",
         fields: [
-          ["Behavior",         fmt(r.behavior)],
-          ["Behavior Detail",  fmt(r.behavior_other)],
-          ["Has Aggression",   r.has_aggression !== undefined ? fmt(r.has_aggression) : null],
-          ["House Trained",    r.is_house_trained !== undefined ? fmt(r.is_house_trained) : null],
-          ["Leash Trained",    r.is_leash_trained !== undefined ? fmt(r.is_leash_trained) : null],
+          ["Behavior", fmt(r.behavior)],
+          ["Behavior Detail", fmt(r.behavior_other)],
+          ["Has Aggression", r.has_aggression !== undefined ? fmt(r.has_aggression) : null],
+          ["House Trained", r.is_house_trained !== undefined ? fmt(r.is_house_trained) : null],
+          ["Leash Trained", r.is_leash_trained !== undefined ? fmt(r.is_leash_trained) : null],
           ["Good w/ Children", r.good_with_children !== undefined ? fmt(r.good_with_children) : null],
-          ["Good w/ Pets",     r.good_with_pets !== undefined ? fmt(r.good_with_pets) : null],
+          ["Good w/ Pets", r.good_with_pets !== undefined ? fmt(r.good_with_pets) : null],
         ],
       }],
     },
@@ -625,11 +623,11 @@ function DetailModal({ r, type, open, onClose, onApprove, onReject, onEdit, onDe
       sections: [{
         title: "Contact & Reason", icon: "📞",
         fields: [
-          ["Contact",             fmt(r.contact)],
-          ["Reason",              fmt(r.reason)],
-          ["Details",             fmt(r.details)],
-          ["Tried Alternatives",  fmt(r.tried_alternatives)],
-          ["Can Provide Food",    r.can_provide_food !== undefined ? fmt(r.can_provide_food) : null],
+          ["Contact", fmt(r.contact)],
+          ["Reason", fmt(r.reason)],
+          ["Details", fmt(r.details)],
+          ["Tried Alternatives", fmt(r.tried_alternatives)],
+          ["Can Provide Food", r.can_provide_food !== undefined ? fmt(r.can_provide_food) : null],
           ["Can Provide Carrier", r.can_provide_carrier !== undefined ? fmt(r.can_provide_carrier) : null],
           ["Can Provide Records", r.can_provide_records !== undefined ? fmt(r.can_provide_records) : null],
         ],
@@ -644,11 +642,11 @@ function DetailModal({ r, type, open, onClose, onApprove, onReject, onEdit, onDe
       sections: [{
         title: "Applicant", icon: "👤",
         fields: [
-          ["Full Name",         fmt(r.name)],
-          ["Email",             fmt(r.email)],
-          ["Phone",             fmt(r.phone)],
-          ["Address",           fmt(r.address)],
-          ["Animal",            fmt(r.animal_name)],
+          ["Full Name", fmt(r.name)],
+          ["Email", fmt(r.email)],
+          ["Phone", fmt(r.phone)],
+          ["Address", fmt(r.address)],
+          ["Animal", fmt(r.animal_name)],
           ["Primary Caregiver", fmt(r.primary_caregiver)],
         ],
       }],
@@ -659,21 +657,21 @@ function DetailModal({ r, type, open, onClose, onApprove, onReject, onEdit, onDe
         {
           title: "Housing", icon: "🏠",
           fields: [
-            ["Housing Type",   fmt(r.housing)],
-            ["Owns / Rents",   r.owns_home !== undefined ? (r.owns_home ? "Owns" : "Rents") : null],
+            ["Housing Type", fmt(r.housing)],
+            ["Owns / Rents", r.owns_home !== undefined ? (r.owns_home ? "Owns" : "Rents") : null],
             ["Pet Permission", r.pet_permission !== undefined ? fmt(r.pet_permission) : null],
-            ["Pet Space",      fmt(r.pet_space)],
+            ["Pet Space", fmt(r.pet_space)],
             ["Household Size", fmt(r.household_size)],
-            ["Has Children",   r.has_children !== undefined ? fmt(r.has_children) : null],
-            ["Children Ages",  fmt(r.children_ages)],
+            ["Has Children", r.has_children !== undefined ? fmt(r.has_children) : null],
+            ["Children Ages", fmt(r.children_ages)],
           ],
         },
         {
           title: "Other Pets", icon: "🐶",
           fields: [
-            ["Has Other Pets",    r.has_other_pets !== undefined ? fmt(r.has_other_pets) : null],
+            ["Has Other Pets", r.has_other_pets !== undefined ? fmt(r.has_other_pets) : null],
             ["Other Pets Detail", fmt(r.other_pets_detail)],
-            ["Pets Vaccinated",   r.other_pets_vaccinated !== undefined ? fmt(r.other_pets_vaccinated) : null],
+            ["Pets Vaccinated", r.other_pets_vaccinated !== undefined ? fmt(r.other_pets_vaccinated) : null],
           ],
         },
       ],
@@ -683,11 +681,11 @@ function DetailModal({ r, type, open, onClose, onApprove, onReject, onEdit, onDe
       sections: [{
         title: "Time & Budget", icon: "🕐",
         fields: [
-          ["Experience",     fmt(r.exp)],
-          ["Hours Alone",    fmt(r.alone_hours)],
-          ["Backup Care",    fmt(r.backup_care)],
+          ["Experience", fmt(r.exp)],
+          ["Hours Alone", fmt(r.alone_hours)],
+          ["Backup Care", fmt(r.backup_care)],
           ["Monthly Budget", fmt(r.budget)],
-          ["Vet Plan",       fmt(r.vet_plan)],
+          ["Vet Plan", fmt(r.vet_plan)],
         ],
       }],
     },
@@ -697,10 +695,10 @@ function DetailModal({ r, type, open, onClose, onApprove, onReject, onEdit, onDe
         title: "Commitment", icon: "📋",
         fields: [
           ["Behavior Response", fmt(r.behavior_response)],
-          ["Open to Guidance",  r.open_to_guidance !== undefined ? fmt(r.open_to_guidance) : null],
-          ["Previous Pet",      r.previous_pet !== undefined ? fmt(r.previous_pet) : null],
+          ["Open to Guidance", r.open_to_guidance !== undefined ? fmt(r.open_to_guidance) : null],
+          ["Previous Pet", r.previous_pet !== undefined ? fmt(r.previous_pet) : null],
           ["Previous Pet Info", fmt(r.previous_pet_details)],
-          ["Reason to Adopt",   fmt(r.reason)],
+          ["Reason to Adopt", fmt(r.reason)],
         ],
       }],
     },
@@ -709,36 +707,42 @@ function DetailModal({ r, type, open, onClose, onApprove, onReject, onEdit, onDe
   const detailTabs = type === "adoptions" ? adoptionTabs : rehomingTabs;
   const curTabData = detailTabs.find(t => t.key === activeTab) || detailTabs[0];
 
-  const accentLabels = new Set(["Vaccinated","Neutered","House Trained","Leash Trained"]);
+  const accentLabels = new Set(["Vaccinated", "Neutered", "House Trained", "Leash Trained"]);
 
   return (
     <div
-      style={{ position:"fixed",inset:0,zIndex:700,display:"flex",alignItems:"center",justifyContent:"center",padding:"1rem",background:"rgba(10,6,2,0.65)",backdropFilter:"blur(8px)" }}
+      style={{ position: "fixed", inset: 0, zIndex: 700, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem", background: "rgba(10,6,2,0.65)", backdropFilter: "blur(8px)" }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div style={{ width:"100%",maxWidth:680,borderRadius:20,background:"#fffce8",border:"1px solid rgba(180,140,60,0.28)",boxShadow:"0 24px 64px rgba(40,20,5,0.45)",display:"flex",flexDirection:"column",maxHeight:"92vh",overflow:"hidden" }}>
+      <div style={{ width: "100%", maxWidth: 680, borderRadius: 20, background: "#fffce8", border: "1px solid rgba(180,140,60,0.28)", boxShadow: "0 24px 64px rgba(40,20,5,0.45)", display: "flex", flexDirection: "column", maxHeight: "92vh", overflow: "hidden" }}>
 
         {/* Header */}
-        <div style={{ padding:"1rem 1.25rem",borderBottom:"1px solid rgba(180,140,60,0.2)",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0 }}>
+        <div style={{ padding: "1rem 1.25rem", borderBottom: "1px solid rgba(180,140,60,0.2)", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
           <div>
-            <div style={{ fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:"1rem",color:"#1a4a08" }}>
+            <div style={{ fontFamily: "'Playfair Display',serif", fontWeight: 900, fontSize: "1rem", color: "#1a4a08" }}>
               {type === "adoptions" ? "Adoption" : "Rehoming"} Request — Full Details
             </div>
-            <div style={{ fontSize:"0.72rem",fontWeight:700,color:"#6a7a50",marginTop:2 }}>
-              Submitted {r.created_at ? new Date(r.created_at).toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"}) : "—"}
+            <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "#6a7a50", marginTop: 2 }}>
+              {/* FIX: show owner name in modal subtitle for rehoming */}
+              {type === "rehoming" && (
+                <span style={{ color: "#b45a22", marginRight: "0.5rem" }}>
+                  👤 {r.owner_name || "Unknown Owner"} ·
+                </span>
+              )}
+              Submitted {r.created_at ? new Date(r.created_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : "—"}
             </div>
           </div>
-          <div style={{ display:"flex",alignItems:"center",gap:"0.5rem" }}>
-            <span style={{ fontSize:"0.72rem",fontWeight:900,padding:"0.25rem 0.75rem",borderRadius:50,background:cfg.dot+"22",color:cfg.dot,border:`1px solid ${cfg.dot}44` }}>{status}</span>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <span style={{ fontSize: "0.72rem", fontWeight: 900, padding: "0.25rem 0.75rem", borderRadius: 50, background: cfg.dot + "22", color: cfg.dot, border: `1px solid ${cfg.dot}44` }}>{status}</span>
             <button onClick={onClose}
-              style={{ width:30,height:30,borderRadius:8,border:"1px solid rgba(192,48,48,0.2)",background:"rgba(192,48,48,0.08)",color:"#c03030",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"1rem" }}>
+              style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid rgba(192,48,48,0.2)", background: "rgba(192,48,48,0.08)", color: "#c03030", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1rem" }}>
               ✕
             </button>
           </div>
         </div>
 
         {/* Tab bar */}
-        <div style={{ display:"flex",borderBottom:"1px solid rgba(180,140,60,0.2)",padding:"0 1.25rem",flexShrink:0,overflowX:"auto" }}>
+        <div style={{ display: "flex", borderBottom: "1px solid rgba(180,140,60,0.2)", padding: "0 1.25rem", flexShrink: 0, overflowX: "auto" }}>
           {detailTabs.map(t => (
             <button key={t.key} onClick={() => setActiveTab(t.key)} style={tabStyle(activeTab === t.key)}>
               {t.label}
@@ -747,22 +751,22 @@ function DetailModal({ r, type, open, onClose, onApprove, onReject, onEdit, onDe
         </div>
 
         {/* Tab body */}
-        <div style={{ overflowY:"auto",padding:"1rem 1.25rem",flex:1,display:"flex",flexDirection:"column",gap:"1rem" }}>
+        <div style={{ overflowY: "auto", padding: "1rem 1.25rem", flex: 1, display: "flex", flexDirection: "column", gap: "1rem" }}>
 
           {curTabData.showPhoto && photoSrc && (
-            <div style={{ borderRadius:14,overflow:"hidden",border:"1px solid rgba(180,140,60,0.22)",flexShrink:0 }}>
-              <img src={photoSrc} alt={r.pet_name||"Pet photo"} style={{ width:"100%",maxHeight:220,objectFit:"cover",display:"block" }}/>
+            <div style={{ borderRadius: 14, overflow: "hidden", border: "1px solid rgba(180,140,60,0.22)", flexShrink: 0 }}>
+              <img src={photoSrc} alt={r.pet_name || "Pet photo"} style={{ width: "100%", maxHeight: 220, objectFit: "cover", display: "block" }} />
             </div>
           )}
 
           {curTabData.showVacc && vaccPhotos.length > 0 && (
-            <div style={{ padding:"0.875rem",borderRadius:12,background:"rgba(28,79,9,0.05)",border:"1px solid rgba(90,170,48,0.22)",flexShrink:0 }}>
-              <VaccPhotosGallery photos={vaccPhotos}/>
+            <div style={{ padding: "0.875rem", borderRadius: 12, background: "rgba(28,79,9,0.05)", border: "1px solid rgba(90,170,48,0.22)", flexShrink: 0 }}>
+              <VaccPhotosGallery photos={vaccPhotos} />
             </div>
           )}
 
           {activeTab === "tab0" && r.reject_note && (
-            <div style={{ padding:"0.75rem 1rem",borderRadius:12,background:"rgba(192,48,48,0.06)",border:"1px solid rgba(192,48,48,0.2)",fontSize:"0.82rem",fontWeight:700,color:"#c03030",flexShrink:0 }}>
+            <div style={{ padding: "0.75rem 1rem", borderRadius: 12, background: "rgba(192,48,48,0.06)", border: "1px solid rgba(192,48,48,0.2)", fontSize: "0.82rem", fontWeight: 700, color: "#c03030", flexShrink: 0 }}>
               <strong>Rejection note:</strong> {r.reject_note}
             </div>
           )}
@@ -772,11 +776,11 @@ function DetailModal({ r, type, open, onClose, onApprove, onReject, onEdit, onDe
             if (visibleFields.length === 0) return null;
             return (
               <div key={title}>
-                <div style={{ display:"flex",alignItems:"center",gap:"0.5rem",marginBottom:"0.5rem",paddingBottom:"0.3rem",borderBottom:"1px solid rgba(180,140,60,0.20)" }}>
-                  <span style={{ fontSize:"0.78rem" }}>{icon}</span>
-                  <span style={{ fontSize:"0.7rem",fontWeight:900,textTransform:"uppercase",letterSpacing:"0.07em",color:"#1c4f09" }}>{title}</span>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem", paddingBottom: "0.3rem", borderBottom: "1px solid rgba(180,140,60,0.20)" }}>
+                  <span style={{ fontSize: "0.78rem" }}>{icon}</span>
+                  <span style={{ fontSize: "0.7rem", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.07em", color: "#1c4f09" }}>{title}</span>
                 </div>
-                <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0.5rem" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
                   {visibleFields.map(([label, value]) => (
                     <FieldPill
                       key={label}
@@ -792,24 +796,24 @@ function DetailModal({ r, type, open, onClose, onApprove, onReject, onEdit, onDe
         </div>
 
         {/* Footer */}
-        <div style={{ padding:"0.875rem 1.25rem",borderTop:"1px solid rgba(180,140,60,0.18)",display:"flex",gap:"0.5rem",flexShrink:0,background:"rgba(255,252,235,0.97)",flexWrap:"wrap" }}>
+        <div style={{ padding: "0.875rem 1.25rem", borderTop: "1px solid rgba(180,140,60,0.18)", display: "flex", gap: "0.5rem", flexShrink: 0, background: "rgba(255,252,235,0.97)", flexWrap: "wrap" }}>
           <button onClick={() => { onEdit(r); onClose(); }}
-            style={{ padding:"0.65rem 1.1rem",borderRadius:11,fontWeight:900,fontSize:"0.84rem",color:"#1a4a08",background:"rgba(255,248,218,0.9)",border:"1px solid rgba(180,140,60,0.35)",cursor:"pointer",fontFamily:"'Nunito',sans-serif",display:"flex",alignItems:"center",gap:"0.4rem" }}>
+            style={{ padding: "0.65rem 1.1rem", borderRadius: 11, fontWeight: 900, fontSize: "0.84rem", color: "#1a4a08", background: "rgba(255,248,218,0.9)", border: "1px solid rgba(180,140,60,0.35)", cursor: "pointer", fontFamily: "'Nunito',sans-serif", display: "flex", alignItems: "center", gap: "0.4rem" }}>
             ✏️ Edit
           </button>
           <button onClick={() => { onDelete(r); onClose(); }}
-            style={{ padding:"0.65rem 1.1rem",borderRadius:11,fontWeight:900,fontSize:"0.84rem",color:"#c03030",background:"rgba(192,48,48,0.06)",border:"1px solid rgba(192,48,48,0.25)",cursor:"pointer",fontFamily:"'Nunito',sans-serif",display:"flex",alignItems:"center",gap:"0.4rem" }}>
+            style={{ padding: "0.65rem 1.1rem", borderRadius: 11, fontWeight: 900, fontSize: "0.84rem", color: "#c03030", background: "rgba(192,48,48,0.06)", border: "1px solid rgba(192,48,48,0.25)", cursor: "pointer", fontFamily: "'Nunito',sans-serif", display: "flex", alignItems: "center", gap: "0.4rem" }}>
             🗑 Delete
           </button>
 
           {status === "Pending" && (
             <>
               <button onClick={() => { onApprove(r.id); onClose(); }}
-                style={{ flex:1,minWidth:100,padding:"0.7rem",borderRadius:11,fontWeight:900,fontSize:"0.88rem",color:"#fff",background:"#1c7a09",border:"none",cursor:"pointer",fontFamily:"'Nunito',sans-serif",display:"flex",alignItems:"center",justifyContent:"center",gap:"0.4rem" }}>
+                style={{ flex: 1, minWidth: 100, padding: "0.7rem", borderRadius: 11, fontWeight: 900, fontSize: "0.88rem", color: "#fff", background: "#1c7a09", border: "none", cursor: "pointer", fontFamily: "'Nunito',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.4rem" }}>
                 ✓ Approve
               </button>
               <button onClick={() => { onReject(r.id); onClose(); }}
-                style={{ flex:1,minWidth:100,padding:"0.7rem",borderRadius:11,fontWeight:900,fontSize:"0.88rem",color:"#fff",background:"#c03030",border:"none",cursor:"pointer",fontFamily:"'Nunito',sans-serif",display:"flex",alignItems:"center",justifyContent:"center",gap:"0.4rem" }}>
+                style={{ flex: 1, minWidth: 100, padding: "0.7rem", borderRadius: 11, fontWeight: 900, fontSize: "0.88rem", color: "#fff", background: "#c03030", border: "none", cursor: "pointer", fontFamily: "'Nunito',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.4rem" }}>
                 ✕ Reject
               </button>
             </>
@@ -822,118 +826,160 @@ function DetailModal({ r, type, open, onClose, onApprove, onReject, onEdit, onDe
 
 // ── Request card ──────────────────────────────────────────────────────────────
 function RequestCard({ r, type, onApprove, onReject, onView, onEdit, onDelete }) {
-  const status   = r.status || "Pending";
-  const name     = r.name || r.animal_name || "Applicant";
-  const initials = name.split(" ").map(w => w[0] || "").slice(0,2).join("").toUpperCase() || "?";
-  const cfg      = STATUS_CFG[status] || STATUS_CFG.Pending;
+  const status = r.status || "Pending";
+  const cfg = STATUS_CFG[status] || STATUS_CFG.Pending;
   const avatarBg = type === "adoptions" ? "#1c4f09" : "#b45a22";
+
+  // FIX: for rehoming, prefer owner_name which is now stored from the form submission
+  const ownerName = type === "rehoming"
+    ? (r.owner_name ?? "Unknown Owner")
+    : (r.name || "Applicant");
+
   const photoSrc = type === "rehoming" ? (r.photo_base64 || r.photo_url || null) : null;
+
+  const initials = ownerName.split(" ").map(w => w[0] || "").slice(0, 2).join("").toUpperCase() || "?";
+
 
   const details = type === "adoptions"
     ? [
-        ["Animal",  r.animal_name || "—"],
-        ["Email",   r.email       || "—"],
-        ["Phone",   r.phone       || "—"],
-        ["Address", r.address     || "—"],
-        ["Housing", r.housing     || "—"],
-        ["Budget",  r.budget      || "—"],
-      ]
+      ["Animal", r.animal_name || "—"],
+      ["Email", r.email || "—"],
+      ["Phone", r.phone || "—"],
+      ["Address", r.address || "—"],
+      ["Housing", r.housing || "—"],
+      ["Budget", r.budget || "—"],
+    ]
     : [
-        ["Pet",        r.pet_name            || "—"],
-        ["Species",    r.species             || "—"],
-        ["Reason",     r.reason              || "—"],
-        ["Contact",    r.contact             || "—"],
-        ["Vaccinated", r.is_vaccinated ? "Yes ✓" : "No"],
-        ["Neutered",   r.is_neutered   ? "Yes ✓" : "No"],
-      ];
+      ["Pet", r.pet_name || "—"],
+      ["Species", r.species || "—"],
+      ["Reason", r.reason || "—"],
+      ["Contact", r.contact || "—"],
+      ["Vaccinated", r.is_vaccinated ? "Yes ✓" : "No"],
+      ["Neutered", r.is_neutered ? "Yes ✓" : "No"],
+    ];
 
   return (
     <div className={`rounded-2xl border overflow-hidden shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all flex flex-col ${cfg.bg} ${cfg.border}`}>
       <div className="h-1 w-full" style={{ background: cfg.dot }} />
 
-      {photoSrc ? (
-        <div style={{ width:"100%",height:150,overflow:"hidden",flexShrink:0,position:"relative" }}>
-          <img src={photoSrc} alt={r.pet_name||"Pet"} style={{ width:"100%",height:"100%",objectFit:"cover",display:"block" }}/>
+      {/* FIX: rehoming photo section — shows pet photo with owner name overlay */}
+      {type === "rehoming" && (
+        <div style={{
+          position: "relative", width: "100%", height: 190,
+          background: "rgba(255,248,220,0.5)", flexShrink: 0, overflow: "hidden",
+          borderBottom: "1px solid rgba(180,140,60,0.15)"
+        }}>
+          {photoSrc
+            ? <img src={photoSrc} alt={r.pet_name || "Pet"}
+              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+            : <div style={{
+              width: "100%", height: "100%", display: "flex",
+              alignItems: "center", justifyContent: "center", fontSize: "3.5rem"
+            }}>
+              {r.species === "Cat" ? "🐈" : r.species === "Bird" ? "🐦" : r.species === "Rabbit" ? "🐇" : "🐕"}
+            </div>
+          }
           {r.is_vaccinated && (
-            <span style={{ position:"absolute",top:8,left:8,padding:"0.2rem 0.5rem",borderRadius:50,background:"rgba(28,79,9,0.85)",color:"#fff",fontSize:"0.65rem",fontWeight:900,display:"flex",alignItems:"center",gap:"0.3rem" }}>
+            <span style={{
+              position: "absolute", top: 8, left: 8, padding: "0.2rem 0.5rem",
+              borderRadius: 50, background: "rgba(28,79,9,0.85)", color: "#fff",
+              fontSize: "0.65rem", fontWeight: 900, display: "flex", alignItems: "center", gap: "0.3rem"
+            }}>
               💉 Vaccinated
             </span>
           )}
-        </div>
-      ) : (
-        type === "rehoming" && (
-          <div style={{ width:"100%",height:80,background:"rgba(255,248,220,0.5)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"2.5rem",flexShrink:0,borderBottom:"1px solid rgba(180,140,60,0.15)" }}>
-            {r.species==="Cat"?"🐈":r.species==="Bird"?"🐦":r.species==="Rabbit"?"🐇":"🐕"}
+          {/* FIX: owner name overlay now uses r.owner_name */}
+          <div style={{
+            position: "absolute", bottom: 0, left: 0, right: 0,
+            background: "linear-gradient(transparent,rgba(10,6,2,0.65))",
+            padding: "1.5rem 0.75rem 0.6rem", display: "flex", alignItems: "center", gap: "0.5rem"
+          }}>
+            <div style={{
+              width: 28, height: 28, borderRadius: "50%", background: "#b45a22",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: "0.65rem", fontWeight: 900, color: "#fff", flexShrink: 0
+            }}>
+              {initials}
+            </div>
+            <div>
+              <div style={{ fontSize: "0.78rem", fontWeight: 900, color: "#fff", lineHeight: 1.2 }}>{ownerName}</div>
+              <div style={{ fontSize: "0.65rem", fontWeight: 700, color: "rgba(255,255,255,0.7)" }}>Owner</div>
+            </div>
           </div>
-        )
+        </div>
       )}
 
       <div className="p-4 flex flex-col gap-3 flex-1">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-3">
-            {!photoSrc && (
-              <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-black text-sm flex-shrink-0" style={{ background: avatarBg }}>
+            {type !== "rehoming" && (
+              <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-black text-sm flex-shrink-0"
+                style={{ background: avatarBg }}>
                 {initials}
               </div>
             )}
             <div>
-              <div className="font-black text-sm" style={{ color:"#1a4a08" }}>
-                {type === "rehoming" ? (r.pet_name || name) : name}
+              <div className="font-black text-sm" style={{ color: "#1a4a08" }}>
+                {type === "rehoming"
+                  ? `${r.pet_name || "—"} • ${ownerName}`
+                  : ownerName}
               </div>
-              {type === "rehoming" && r.pet_name && (
-                <div className="text-xs font-semibold" style={{ color:"#6a7a50" }}>by {name}</div>
+              {type === "rehoming" && (
+                <div className="text-xs font-semibold" style={{ color: "#6a7a50" }}>
+                  {[r.species, r.age].filter(Boolean).join(" · ") || "Pet"}
+                </div>
               )}
-              <div className="text-xs font-semibold mt-0.5" style={{ color:"#9aaa80" }}>
-                {r.created_at ? new Date(r.created_at).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}) : "—"}
+              <div className="text-xs font-semibold mt-0.5" style={{ color: "#9aaa80" }}>
+                {r.created_at ? new Date(r.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"}
               </div>
             </div>
           </div>
           <span className={`text-[11px] font-black px-3 py-1 rounded-full flex-shrink-0 ${cfg.pill}`}>{status}</span>
         </div>
 
-        <div className="h-px" style={{ background:"rgba(180,140,60,0.15)" }} />
+        <div className="h-px" style={{ background: "rgba(180,140,60,0.15)" }} />
 
         <div className="grid grid-cols-2 gap-2">
-          {details.map(([lbl,val]) => (
+          {details.map(([lbl, val]) => (
             <div key={lbl}>
-              <div className="text-[10px] font-black uppercase tracking-widest mb-0.5" style={{ color:"#9aaa80" }}>{lbl}</div>
-              <div className="text-xs font-semibold truncate" style={{ color:"#1a2e0a" }}>{val}</div>
+              <div className="text-[10px] font-black uppercase tracking-widest mb-0.5" style={{ color: "#9aaa80" }}>{lbl}</div>
+              <div className="text-xs font-semibold truncate" style={{ color: "#1a2e0a" }}>{val}</div>
             </div>
           ))}
         </div>
 
         {type === "rehoming" && r.is_vaccinated && r.vaccine_type && (
-          <div style={{ padding:"0.5rem 0.75rem",borderRadius:10,background:"rgba(28,79,9,0.06)",border:"1px solid rgba(90,170,48,0.25)",display:"flex",alignItems:"center",gap:"0.5rem" }}>
-            <span style={{ fontSize:"0.85rem",flexShrink:0 }}>💉</span>
+          <div style={{ padding: "0.5rem 0.75rem", borderRadius: 10, background: "rgba(28,79,9,0.06)", border: "1px solid rgba(90,170,48,0.25)", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <span style={{ fontSize: "0.85rem", flexShrink: 0 }}>💉</span>
             <div>
-              <div style={{ fontSize:"0.68rem",fontWeight:900,color:"#1c4f09",textTransform:"uppercase",letterSpacing:"0.05em" }}>Vaccine</div>
-              <div style={{ fontSize:"0.78rem",fontWeight:700,color:"#1a4a08" }}>{r.vaccine_type}{r.last_vacc_date ? ` · ${r.last_vacc_date}` : ""}</div>
+              <div style={{ fontSize: "0.68rem", fontWeight: 900, color: "#1c4f09", textTransform: "uppercase", letterSpacing: "0.05em" }}>Vaccine</div>
+              <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "#1a4a08" }}>{r.vaccine_type}{r.last_vacc_date ? ` · ${r.last_vacc_date}` : ""}</div>
             </div>
           </div>
         )}
 
         {(r.reason || r.details) && (
-          <div className="rounded-xl p-3" style={{ background:"rgba(255,248,218,0.7)",border:"1px solid rgba(180,140,60,0.2)" }}>
-            <div className="text-[10px] font-black uppercase tracking-widest mb-1" style={{ color:"#9aaa80" }}>
+          <div className="rounded-xl p-3" style={{ background: "rgba(255,248,218,0.7)", border: "1px solid rgba(180,140,60,0.2)" }}>
+            <div className="text-[10px] font-black uppercase tracking-widest mb-1" style={{ color: "#9aaa80" }}>
               {type === "adoptions" ? "Reason for adoption" : "Reason for rehoming"}
             </div>
-            <div className="text-xs font-semibold line-clamp-2" style={{ color:"#3a5020" }}>
+            <div className="text-xs font-semibold line-clamp-2" style={{ color: "#3a5020" }}>
               {r.reason || r.details}
             </div>
           </div>
         )}
 
         {type === "rehoming" && status === "Approved" && (
-          <div className="rounded-xl p-3 flex items-center gap-2" style={{ background:"rgba(28,79,9,0.07)",border:"1px solid rgba(90,170,48,0.28)" }}>
-            <span style={{ fontSize:"0.85rem" }}>🐾</span>
-            <span className="text-xs font-bold" style={{ color:"#1c4f09" }}>
+          <div className="rounded-xl p-3 flex items-center gap-2" style={{ background: "rgba(28,79,9,0.07)", border: "1px solid rgba(90,170,48,0.28)" }}>
+            <span style={{ fontSize: "0.85rem" }}>🐾</span>
+            <span className="text-xs font-bold" style={{ color: "#1c4f09" }}>
               {r.pet_name || "Pet"} has been listed for adoption
             </span>
           </div>
         )}
 
         {r.reject_note && status === "Rejected" && (
-          <div className="rounded-xl p-3 text-xs font-semibold" style={{ background:"rgba(192,48,48,0.06)",border:"1px solid rgba(192,48,48,0.2)",color:"#c03030" }}>
+          <div className="rounded-xl p-3 text-xs font-semibold" style={{ background: "rgba(192,48,48,0.06)", border: "1px solid rgba(192,48,48,0.2)", color: "#c03030" }}>
             <strong>Rejected:</strong> {r.reject_note}
           </div>
         )}
@@ -941,17 +987,17 @@ function RequestCard({ r, type, onApprove, onReject, onView, onEdit, onDelete })
         <div className="flex gap-2 mt-auto pt-1 flex-wrap">
           <button onClick={() => onView(r)}
             className="px-3 py-2 rounded-xl text-xs font-black border transition-all hover:bg-amber-50"
-            style={{ background:"rgba(255,248,218,0.7)",borderColor:"rgba(180,140,60,0.28)",color:"#7a6030",display:"flex",alignItems:"center",gap:"0.3rem" }}>
+            style={{ background: "rgba(255,248,218,0.7)", borderColor: "rgba(180,140,60,0.28)", color: "#7a6030", display: "flex", alignItems: "center", gap: "0.3rem" }}>
             👁 View
           </button>
           <button onClick={() => onEdit(r)}
             className="px-3 py-2 rounded-xl text-xs font-black border transition-all"
-            style={{ background:"rgba(90,170,48,0.08)",borderColor:"rgba(90,170,48,0.3)",color:"#1c6a09",display:"flex",alignItems:"center",gap:"0.3rem" }}>
+            style={{ background: "rgba(90,170,48,0.08)", borderColor: "rgba(90,170,48,0.3)", color: "#1c6a09", display: "flex", alignItems: "center", gap: "0.3rem" }}>
             ✏️ Edit
           </button>
           <button onClick={() => onDelete(r)}
             className="px-3 py-2 rounded-xl text-xs font-black border transition-all"
-            style={{ background:"rgba(192,48,48,0.05)",borderColor:"rgba(192,48,48,0.22)",color:"#c03030",display:"flex",alignItems:"center",gap:"0.3rem" }}>
+            style={{ background: "rgba(192,48,48,0.05)", borderColor: "rgba(192,48,48,0.22)", color: "#c03030", display: "flex", alignItems: "center", gap: "0.3rem" }}>
             🗑
           </button>
 
@@ -959,17 +1005,17 @@ function RequestCard({ r, type, onApprove, onReject, onView, onEdit, onDelete })
             <>
               <button onClick={() => onApprove(r.id)}
                 className="flex-1 py-2 rounded-xl text-xs font-black border transition-all hover:bg-green-600 hover:text-white hover:border-green-600"
-                style={{ background:"rgba(34,197,94,0.08)",borderColor:"rgba(34,197,94,0.3)",color:"#15803d" }}>
+                style={{ background: "rgba(34,197,94,0.08)", borderColor: "rgba(34,197,94,0.3)", color: "#15803d" }}>
                 ✓ Approve
               </button>
               <button onClick={() => onReject(r.id)}
                 className="flex-1 py-2 rounded-xl text-xs font-black border transition-all hover:bg-red-600 hover:text-white hover:border-red-600"
-                style={{ background:"rgba(239,68,68,0.06)",borderColor:"rgba(239,68,68,0.28)",color:"#dc2626" }}>
+                style={{ background: "rgba(239,68,68,0.06)", borderColor: "rgba(239,68,68,0.28)", color: "#dc2626" }}>
                 ✕ Reject
               </button>
             </>
           ) : (
-            <div className="flex-1 py-2 rounded-xl text-xs font-black border text-center" style={{ borderColor:"#ddd0a8",color:"#9aaa80" }}>
+            <div className="flex-1 py-2 rounded-xl text-xs font-black border text-center" style={{ borderColor: "#ddd0a8", color: "#9aaa80" }}>
               {status === "Approved" ? "✓ Approved" : "✕ Rejected"}
             </div>
           )}
@@ -980,15 +1026,15 @@ function RequestCard({ r, type, onApprove, onReject, onView, onEdit, onDelete })
 }
 
 // ── Main panel ────────────────────────────────────────────────────────────────
-export default function RequestsPanel({ type, show, onStatsChange }) {  // ← onStatsChange added
-  const [records,      setRecords]      = useState([]);
-  const [loading,      setLoading]      = useState(false);
-  const [filter,       setFilter]       = useState("all");
-  const [rejectId,     setRejectId]     = useState(null);
-  const [viewTarget,   setViewTarget]   = useState(null);
-  const [editTarget,   setEditTarget]   = useState(null);
+export default function RequestsPanel({ type, show, onStatsChange }) {
+  const [records, setRecords] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [filter, setFilter] = useState("all");
+  const [rejectId, setRejectId] = useState(null);
+  const [viewTarget, setViewTarget] = useState(null);
+  const [editTarget, setEditTarget] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
-  const [toast,        setToast]        = useState(null);
+  const [toast, setToast] = useState(null);
 
   const apiBase = type === "adoptions"
     ? "/api/approvals/adoptions"
@@ -1002,13 +1048,13 @@ export default function RequestsPanel({ type, show, onStatsChange }) {  // ← o
   const load = useCallback(async (status = "all") => {
     setLoading(true);
     try {
-      const url  = `${apiBase}/admin/${status !== "all" ? `?status=${status}` : ""}`;
-      const res  = await djFetch(url);
-      if (res.status === 401) { showToast("Unauthorized — please log in as admin","err"); setLoading(false); return; }
+      const url = `${apiBase}/admin/${status !== "all" ? `?status=${status}` : ""}`;
+      const res = await djFetch(url);
+      if (res.status === 401) { showToast("Unauthorized — please log in as admin", "err"); setLoading(false); return; }
       const data = await res.json();
       if (data.success) setRecords(data.data || []);
-      else showToast(data.message || "Failed to load","err");
-    } catch { showToast("Failed to load requests","err"); }
+      else showToast(data.message || "Failed to load", "err");
+    } catch { showToast("Failed to load requests", "err"); }
     setLoading(false);
   }, [type]);
 
@@ -1017,7 +1063,7 @@ export default function RequestsPanel({ type, show, onStatsChange }) {  // ← o
   // ── Approve ────────────────────────────────────────────────────────────────
   const approve = async (id) => {
     try {
-      const res  = await djFetch(`${apiBase}/${id}/approve/`, { method: "POST" });
+      const res = await djFetch(`${apiBase}/${id}/approve/`, { method: "POST" });
       const data = await res.json();
       if (!data.success) { showToast(data.message || "Error approving", "err"); return; }
       showToast(
@@ -1026,7 +1072,7 @@ export default function RequestsPanel({ type, show, onStatsChange }) {  // ← o
           : "Request approved ✓"
       );
       load(filter);
-      onStatsChange?.(); // ← keeps sidebar badge in sync
+      onStatsChange?.();
     } catch (e) {
       console.error("Approve error:", e);
       showToast("Network error", "err");
@@ -1036,47 +1082,47 @@ export default function RequestsPanel({ type, show, onStatsChange }) {  // ← o
   // ── Reject ─────────────────────────────────────────────────────────────────
   const doReject = async (reason) => {
     try {
-      const res  = await djFetch(`${apiBase}/${rejectId}/reject/`, { method:"POST", body:JSON.stringify({ reason }) });
+      const res = await djFetch(`${apiBase}/${rejectId}/reject/`, { method: "POST", body: JSON.stringify({ reason }) });
       const data = await res.json();
       if (data.success) {
         showToast("Request rejected");
         load(filter);
-        onStatsChange?.(); // ← keeps sidebar badge in sync
+        onStatsChange?.();
       } else {
-        showToast(data.message || "Error rejecting","err");
+        showToast(data.message || "Error rejecting", "err");
       }
-    } catch { showToast("Network error","err"); }
+    } catch { showToast("Network error", "err"); }
     setRejectId(null);
   };
 
   // ── Edit/save ──────────────────────────────────────────────────────────────
   const doUpdate = async (form) => {
     try {
-      const res  = await djFetch(`${apiBase}/${form.id}/update/`, { method:"PATCH", body:JSON.stringify(form) });
+      const res = await djFetch(`${apiBase}/${form.id}/update/`, { method: "PATCH", body: JSON.stringify(form) });
       const data = await res.json();
       if (data.success) { showToast("Changes saved ✓"); setEditTarget(null); load(filter); }
-      else showToast(data.message || "Error saving","err");
-    } catch { showToast("Network error","err"); }
+      else showToast(data.message || "Error saving", "err");
+    } catch { showToast("Network error", "err"); }
   };
 
   // ── Delete ─────────────────────────────────────────────────────────────────
   const doDelete = async () => {
     if (!deleteTarget) return;
     try {
-      const res  = await djFetch(`${apiBase}/${deleteTarget.id}/delete/`, { method:"DELETE" });
+      const res = await djFetch(`${apiBase}/${deleteTarget.id}/delete/`, { method: "DELETE" });
       const data = await res.json();
       if (data.success) {
         showToast(type === "adoptions" ? "Adoption request deleted" : `Rehoming request for ${deleteTarget.pet_name || "pet"} deleted`);
         setDeleteTarget(null);
         load(filter);
-        onStatsChange?.(); // ← keeps sidebar badge in sync after delete
-      } else showToast(data.message || "Error deleting","err");
-    } catch { showToast("Network error","err"); }
+        onStatsChange?.();
+      } else showToast(data.message || "Error deleting", "err");
+    } catch { showToast("Network error", "err"); }
   };
 
-  const label  = type === "adoptions" ? "Adoption Requests" : "Rehome Requests";
-  const tabs   = ["all","Pending","Approved","Rejected"];
-  const counts = tabs.reduce((acc,t) => ({
+  const label = type === "adoptions" ? "Adoption Requests" : "Rehome Requests";
+  const tabs = ["all", "Pending", "Approved", "Rejected"];
+  const counts = tabs.reduce((acc, t) => ({
     ...acc,
     [t]: t === "all" ? records.length : records.filter(r => r.status === t).length,
   }), {});
@@ -1086,13 +1132,13 @@ export default function RequestsPanel({ type, show, onStatsChange }) {  // ← o
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <div className="font-black text-lg" style={{ color:"#1a4a08",fontFamily:"'Playfair Display',serif" }}>
+          <div className="font-black text-lg" style={{ color: "#1a4a08", fontFamily: "'Playfair Display',serif" }}>
             {label}
           </div>
-          <div className="text-xs font-semibold mt-0.5" style={{ color:"#9aaa80" }}>
+          <div className="text-xs font-semibold mt-0.5" style={{ color: "#9aaa80" }}>
             Review and process applications — {records.filter(r => r.status === "Pending").length} pending
             {type === "rehoming" && (
-              <span style={{ marginLeft:"0.5rem",color:"#5aaa30" }}>
+              <span style={{ marginLeft: "0.5rem", color: "#5aaa30" }}>
                 · Approved rehomes auto-post to pet listings (with photo &amp; vaccination info)
               </span>
             )}
@@ -1101,14 +1147,12 @@ export default function RequestsPanel({ type, show, onStatsChange }) {  // ← o
         <div className="flex gap-2 flex-wrap">
           {tabs.map(t => (
             <button key={t} onClick={() => setFilter(t)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-black border transition-all flex items-center gap-1.5 ${
-                filter === t ? "bg-green-600 border-green-600 text-white" : "border-[#ddd0a8] text-[#7a9060] hover:bg-green-50"
-              }`}>
+              className={`px-3 py-1.5 rounded-xl text-xs font-black border transition-all flex items-center gap-1.5 ${filter === t ? "bg-green-600 border-green-600 text-white" : "border-[#ddd0a8] text-[#7a9060] hover:bg-green-50"
+                }`}>
               {t === "all" ? "All" : t}
               {counts[t] > 0 && (
-                <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
-                  filter === t ? "bg-white/20 text-white" : "bg-amber-100 text-amber-700"
-                }`}>{counts[t]}</span>
+                <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${filter === t ? "bg-white/20 text-white" : "bg-amber-100 text-amber-700"
+                  }`}>{counts[t]}</span>
               )}
             </button>
           ))}
@@ -1122,7 +1166,7 @@ export default function RequestsPanel({ type, show, onStatsChange }) {  // ← o
       ) : records.length === 0 ? (
         <div className="text-center py-20">
           <div className="text-5xl mb-3">📭</div>
-          <div className="text-sm font-bold" style={{ color:"#9aaa80" }}>
+          <div className="text-sm font-bold" style={{ color: "#9aaa80" }}>
             No {filter === "all" ? "" : filter.toLowerCase() + " "}requests found
           </div>
         </div>
@@ -1175,14 +1219,14 @@ export default function RequestsPanel({ type, show, onStatsChange }) {  // ← o
 
       {toast && (
         <div style={{
-          position:"fixed",bottom:"1.5rem",left:"50%",transform:"translateX(-50%)",
-          zIndex:9999,padding:"0.7rem 1.25rem",borderRadius:12,fontWeight:800,
-          fontSize:"0.84rem",background:toast.kind==="err"?"#c03030":"#1c4f09",
-          color:"#fff",boxShadow:"0 8px 32px rgba(0,0,0,0.22)",
-          fontFamily:"'Nunito',sans-serif",display:"flex",alignItems:"center",gap:"0.5rem",
-          whiteSpace:"nowrap",
+          position: "fixed", bottom: "1.5rem", left: "50%", transform: "translateX(-50%)",
+          zIndex: 9999, padding: "0.7rem 1.25rem", borderRadius: 12, fontWeight: 800,
+          fontSize: "0.84rem", background: toast.kind === "err" ? "#c03030" : "#1c4f09",
+          color: "#fff", boxShadow: "0 8px 32px rgba(0,0,0,0.22)",
+          fontFamily: "'Nunito',sans-serif", display: "flex", alignItems: "center", gap: "0.5rem",
+          whiteSpace: "nowrap",
         }}>
-          <span>{toast.kind==="err" ? "✕" : "✓"}</span>
+          <span>{toast.kind === "err" ? "✕" : "✓"}</span>
           {toast.msg}
         </div>
       )}

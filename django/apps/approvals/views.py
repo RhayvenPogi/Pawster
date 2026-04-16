@@ -273,7 +273,7 @@ def delete_adoption(request, pk):
 @permission_classes([IsAuthenticated])
 def submit_rehoming(request):
     """POST /api/approvals/rehoming/  — user submits rehoming request"""
-    serializer = RehomingRequestSerializer(data=request.data)
+    serializer = RehomingRequestSerializer(data=request.data, context={"request": request})
     if serializer.is_valid():
         obj = serializer.save(user=request.user)
         return Response({"success": True, "id": obj.id, "message": "Rehoming request submitted."}, status=201)
@@ -294,6 +294,7 @@ def list_rehoming(request):
 @api_view(["POST"])
 @permission_classes([IsAdminUser])
 def approve_rehoming(request, pk):
+    """POST /api/approvals/rehoming/<pk>/approve/  — admin approves and pushes to animal listing"""
     try:
         obj = RehomingRequest.objects.get(pk=pk)
     except RehomingRequest.DoesNotExist:
@@ -304,6 +305,7 @@ def approve_rehoming(request, pk):
     obj.decided_at = timezone.now()
     obj.save()
 
+    # ── Build notes from pet details ──────────────────────────────────────────
     desc_parts = [
         obj.ideal_home_desc or "",
         (f"Behavior: {obj.behavior}" + (f" ({obj.behavior_other})" if obj.behavior_other else "")) if obj.behavior else "",
@@ -312,31 +314,40 @@ def approve_rehoming(request, pk):
         "Good with other pets." if obj.good_with_pets else "",
         "House-trained." if obj.is_house_trained else "",
         "Leash-trained." if obj.is_leash_trained else "",
-        f"Vaccinated ({obj.vaccine_type})." if obj.is_vaccinated and obj.vaccine_type else "",
     ]
     notes = " ".join(p for p in desc_parts if p).strip() or "Available for adoption."
 
+    # ── Resolve photo ─────────────────────────────────────────────────────────
+    # photo_base64 is a full data URL like "data:image/jpeg;base64,..."
+    # We send it as-is in the JSON payload; Spring Boot will decode it.
+    photo_value = obj.photo_url or obj.photo_base64 or None
+
+    # ── POST to Spring Boot /api/animals (JSON endpoint) ─────────────────────
     try:
         spring_payload = {
-            "name":   obj.pet_name or "Unknown",
-            "type":   obj.species  or "Other",
-            "breed":  obj.breed    or "",
-            "age":    obj.age      or "",
-            "health": "Healthy",
-            "status": "Available",
-            "notes":  notes,
-            "photo":  obj.photo_base64 or None,
+            "name":      obj.pet_name or "Unknown",
+            "type":      obj.species  or "Other",
+            "breed":     obj.breed    or "",
+            "age":       obj.age      or "",
+            "health":    "Healthy",
+            "status":    "Available",
+            "notes":     notes,
+            # Send base64 photo fields so Spring Boot can decode and store as BYTEA
+            "photoData": _strip_data_uri_prefix(photo_value) if photo_value else None,
+            "photoType": _extract_mime_type(photo_value)     if photo_value else None,
+            "removePhoto": False,
         }
         resp = requests.post(
-            f"{settings.SPRING_BOOT_API}/api/animals",
+            f"{settings.SPRING_BOOT_API}/api/animals/from-rehoming",
             json=spring_payload,
             timeout=10,
         )
         if not resp.ok:
-            print(f"[approve_rehoming] Spring Boot {resp.status_code}: {resp.text[:200]}")
+            print(f"[approve_rehoming] Spring Boot {resp.status_code}: {resp.text[:300]}")
     except Exception as e:
         print(f"[approve_rehoming] Spring Boot unreachable: {e}")
 
+    # ── In-app notification ───────────────────────────────────────────────────
     if obj.user:
         from apps.notifications.models import Notification
         Notification.objects.create(
@@ -347,7 +358,28 @@ def approve_rehoming(request, pk):
         )
 
     _rehome_approval_email(obj)
-    return Response({"success": True, "message": f"Rehoming #{pk} approved."})
+    return Response({"success": True, "message": f"Rehoming #{pk} approved and pet added to listings."})
+
+
+def _strip_data_uri_prefix(data_url: str) -> str:
+    """Remove 'data:image/jpeg;base64,' prefix, returning only the raw base64 string."""
+    if not data_url:
+        return ""
+    if "base64," in data_url:
+        return data_url.split("base64,", 1)[1]
+    return data_url
+
+
+def _extract_mime_type(data_url: str) -> str:
+    """Extract MIME type from a data URI, e.g. 'image/jpeg'."""
+    if not data_url:
+        return "image/jpeg"
+    if data_url.startswith("data:"):
+        try:
+            return data_url.split(";")[0].split(":")[1]
+        except (IndexError, AttributeError):
+            pass
+    return "image/jpeg"
 
 
 @api_view(["POST"])

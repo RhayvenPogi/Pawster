@@ -21,7 +21,7 @@ public class RehomeService {
         RehomeRequest saved = rehomeRepository.save(req);
         activityLogService.log(
             "REHOME_REQUEST",
-            "New rehome request for: " + req.getAnimalName() + " by " + req.getOwnerName(),
+            "New rehome request for: " + req.getPetName() + " by " + req.getOwnerName(),
             req.getUserId(), req.getOwnerName()
         );
         return saved;
@@ -52,7 +52,7 @@ public class RehomeService {
         RehomeRequest saved = rehomeRepository.save(req);
         activityLogService.log(
             "REHOME_" + status.toUpperCase(),
-            "Rehome request #" + id + " for " + req.getAnimalName() + " → " + status,
+            "Rehome request #" + id + " for " + req.getPetName() + " → " + status,
             adminId, adminName
         );
         return saved;

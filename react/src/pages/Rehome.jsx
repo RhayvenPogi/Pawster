@@ -5,10 +5,52 @@ import Navbar from "./Navbar";
 import logo from "../images/logo.png";
 
 const DJANGO = import.meta.env.VITE_DJANGO_API ?? "http://localhost:8000";
-function getToken() { return localStorage.getItem("pawster_token") || localStorage.getItem("token") || localStorage.getItem("authToken") || sessionStorage.getItem("token") || ""; }
-function djFetch(path, opts = {}) { const token = getToken(); return fetch(`${DJANGO}${path}`, { ...opts, headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...opts.headers } }); }
-function useReveal() { const ref = useRef(null); const [vis, setVis] = useState(false); useEffect(() => { const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) setVis(true) }, { threshold: 0.1 }); if (ref.current) io.observe(ref.current); return () => io.disconnect(); }, []); return [ref, vis]; }
-function Reveal({ children, delay = 0 }) { const [ref, vis] = useReveal(); return (<div ref={ref} style={{ transition: `opacity 0.7s ease ${delay}ms,transform 0.7s ease ${delay}ms`, opacity: vis ? 1 : 0, transform: vis ? "translateY(0)" : "translateY(20px)" }}>{children}</div>); }
+function getToken() {
+  return (
+    localStorage.getItem("pawster_token") ||
+    localStorage.getItem("token") ||
+    localStorage.getItem("authToken") ||
+    sessionStorage.getItem("token") ||
+    ""
+  );
+}
+function djFetch(path, opts = {}) {
+  const token = getToken();
+  return fetch(`${DJANGO}${path}`, {
+    ...opts,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...opts.headers,
+    },
+  });
+}
+
+function useReveal() {
+  const ref = useRef(null);
+  const [vis, setVis] = useState(false);
+  useEffect(() => {
+    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) setVis(true); }, { threshold: 0.1 });
+    if (ref.current) io.observe(ref.current);
+    return () => io.disconnect();
+  }, []);
+  return [ref, vis];
+}
+function Reveal({ children, delay = 0 }) {
+  const [ref, vis] = useReveal();
+  return (
+    <div
+      ref={ref}
+      style={{
+        transition: `opacity 0.7s ease ${delay}ms, transform 0.7s ease ${delay}ms`,
+        opacity: vis ? 1 : 0,
+        transform: vis ? "translateY(0)" : "translateY(20px)",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
 
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
@@ -39,7 +81,6 @@ function validateStep(step, form) {
     if (!form.goodWithPets) errs.goodWithPets = "Please indicate if the pet is good with other pets.";
   }
   if (step === 4) {
-    if (!form.contact.trim()) errs.contact = "Contact number is required.";
     if (!form.reason) errs.reason = "Please select a primary reason for rehoming.";
     if (!form.understandsPermanent) errs.understandsPermanent = "Please confirm you understand rehoming is a permanent decision.";
   }
@@ -56,7 +97,7 @@ const REASONS = [
 ];
 const STEPS = ["Pet Info", "Health", "Behavior", "Reason"];
 
-/* ─── Shared style tokens ─────────────────────────────────────────────── */
+/* ─── Shared style tokens ─────────────────────────────────────────────────── */
 const inp = {
   padding: "0.65rem 0.875rem",
   borderRadius: 10,
@@ -80,14 +121,6 @@ const RLabel = ({ children }) => (
 );
 const RField = ({ label, children }) => (
   <div style={{ display: "flex", flexDirection: "column" }}><RLabel>{label}</RLabel>{children}</div>
-);
-const RSel = ({ value, onChange, opts, hasError }) => (
-  <select value={value} onChange={onChange}
-    style={{ ...inp, borderColor: hasError ? "rgba(192,48,48,0.5)" : undefined }}
-    onFocus={focIn} onBlur={focOut}>
-    <option value="">Select…</option>
-    {opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-  </select>
 );
 const RYN = ({ value, onChange, invalid }) => (
   <div style={{ display: "flex", gap: "0.5rem" }}>
@@ -200,10 +233,7 @@ function VaccinationPhotos({ photos, onAdd, onRemove }) {
 }
 
 function RehomeStepContent({ step, form, set, setV, photoPreview, onPhotoChange, onPhotoClear, vaccPhotos, onVaccPhotoAdd, onVaccPhotoRemove, touched, fieldErrors }) {
-  const err = (field) => {
-    if (!touched || typeof touched !== "object") return null;
-    return touched[field] ? fieldErrors[field] : null;
-  };
+  const err = (field) => (touched?.[field] ? fieldErrors[field] : null);
 
   return (
     <>
@@ -358,19 +388,22 @@ function RehomeStepContent({ step, form, set, setV, photoPreview, onPhotoChange,
 
       {step === 4 && (
         <div style={col}>
-          <RSecTitle icon="phone" title="Contact & reason" />
-          <RField label="Your contact number *">
-            <input type="tel" value={form.contact} onChange={set("contact")} placeholder="+63 9XX XXX XXXX"
-              style={{ ...inp, borderColor: err("contact") ? "rgba(192,48,48,0.5)" : undefined }}
-              onFocus={focIn} onBlur={focOut} />
-            <InlineErr msg={err("contact")} />
-          </RField>
+          <RSecTitle icon="phone" title="Reason & transition" />
+
           <RField label="Primary reason for rehoming *">
             <select value={form.reason} onChange={set("reason")}
               style={{ ...inp, borderColor: err("reason") ? "rgba(192,48,48,0.5)" : undefined }}
               onFocus={focIn} onBlur={focOut}>
               <option value="">Select…</option>
-              {[["Moving / Relocating", "Moving / Relocating"], ["Allergies", "Allergies"], ["New baby", "New baby"], ["Medical / Financial", "Medical / Financial"], ["Housing change", "Housing change"], ["Not enough time", "Not enough time"], ["Other", "Other"]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              {[
+                ["Moving / Relocating", "Moving / Relocating"],
+                ["Allergies", "Allergies"],
+                ["New baby", "New baby"],
+                ["Medical / Financial", "Medical / Financial"],
+                ["Housing change", "Housing change"],
+                ["Not enough time", "Not enough time"],
+                ["Other", "Other"],
+              ].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
             <InlineErr msg={err("reason")} />
           </RField>
@@ -391,7 +424,6 @@ function RehomeStepContent({ step, form, set, setV, photoPreview, onPhotoChange,
             ))}
           </div>
 
-          {/* Permanent decision confirmation */}
           <label style={{ display: "flex", alignItems: "flex-start", gap: "0.625rem", padding: "0.75rem 0.875rem", borderRadius: 10, background: form.understandsPermanent ? "rgba(180,90,34,0.07)" : "rgba(255,253,242,0.6)", border: `1.5px solid ${err("understandsPermanent") ? "rgba(192,48,48,0.5)" : form.understandsPermanent ? "rgba(180,90,34,0.35)" : "rgba(180,140,60,0.25)"}`, cursor: "pointer", transition: "all 0.15s", marginTop: "0.25rem" }}>
             <input type="checkbox" checked={form.understandsPermanent} onChange={set("understandsPermanent")} style={{ width: 15, height: 15, accentColor: "#B45A22", marginTop: 2, cursor: "pointer", flexShrink: 0 }} />
             <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "#6a3a10", lineHeight: 1.6 }}>I understand that rehoming is a <strong>serious and permanent decision</strong>, and I confirm all information is accurate.</span>
@@ -410,32 +442,56 @@ function RehomeStepContent({ step, form, set, setV, photoPreview, onPhotoChange,
 
 /* ─── Review Modal ───────────────────────────────────────────────────────── */
 function RehomeReviewModal({ user, onContinue, onClose }) {
+  const [editableUser, setEditableUser] = useState({
+    firstName: user?.firstName || "",
+    lastName:  user?.lastName  || "",
+    email:     user?.email     || "",
+    phone:     user?.phone     || "",
+    address:   user?.address   || "",
+  });
+  const [editingField, setEditingField] = useState(null);
+
+  const setField = (key) => (e) =>
+    setEditableUser(u => ({ ...u, [key]: e.target.value }));
+
+  const fullName = `${editableUser.firstName} ${editableUser.lastName}`.trim();
+
   const fields = [
-    ["user",           "Full name",  `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim(), !!(user?.firstName || user?.lastName)],
-    ["envelope",       "Email",      user?.email,   !!user?.email],
-    ["phone",          "Phone",      user?.phone,   !!user?.phone],
-    ["map-marker-alt", "Address",    user?.address, !!user?.address],
+    { key: "name",    icon: "user",           label: "Full name",    value: fullName,              ok: !!(editableUser.firstName || editableUser.lastName) },
+    { key: "email",   icon: "envelope",        label: "Email",        value: editableUser.email,    ok: !!editableUser.email },
+    { key: "phone",   icon: "phone",           label: "Phone",        value: editableUser.phone,    ok: !!editableUser.phone },
+    { key: "address", icon: "map-marker-alt",  label: "Address",      value: editableUser.address,  ok: !!editableUser.address },
   ];
+
+  const editInp = {
+    width: "100%",
+    fontSize: "0.82rem",
+    fontWeight: 700,
+    color: "#1a4a08",
+    border: "1px solid rgba(90,170,48,0.45)",
+    borderRadius: 8,
+    padding: "0.35rem 0.6rem",
+    fontFamily: "'Nunito',sans-serif",
+    background: "rgba(255,253,242,0.9)",
+    outline: "none",
+    boxShadow: "0 0 0 3px rgba(90,170,48,0.10)",
+  };
+
   return (
     <div
       style={{ position: "fixed", inset: 0, zIndex: 500, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem", background: "rgba(10,6,2,0.6)", backdropFilter: "blur(6px)" }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div style={{
-        width: "100%", maxWidth: 460, borderRadius: 20, overflow: "hidden",
-        border: "1px solid rgba(180,140,60,0.25)",
-        background: "rgba(255,252,235,0.98)",
-        boxShadow: "0 20px 56px rgba(40,20,5,0.38)",
-        animation: "modalIn .25s cubic-bezier(.22,.68,0,1.15) both",
-      }}>
+      <div style={{ width: "100%", maxWidth: 460, borderRadius: 20, overflow: "hidden", border: "1px solid rgba(180,140,60,0.25)", background: "rgba(255,252,235,0.98)", boxShadow: "0 20px 56px rgba(40,20,5,0.38)", animation: "modalIn .25s cubic-bezier(.22,.68,0,1.15) both" }}>
+
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "1.125rem 1.5rem", borderBottom: "1px solid rgba(180,140,60,0.18)", background: "rgba(180,90,34,0.05)" }}>
           <div style={{ width: 38, height: 38, borderRadius: 11, background: "#B45A22", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", flexShrink: 0 }}>
             <i className="fas fa-clipboard-check" style={{ fontSize: "0.9rem" }} />
           </div>
           <div>
-            <div style={{ fontFamily: "'Playfair Display',serif", fontWeight: 900, fontSize: "0.95rem", color: "#1a4a08" }}>Review your details</div>
-            <div style={{ fontSize: "0.7rem", fontWeight: 700, color: "#6a7a50", marginTop: 1 }}>These will be pre-filled in your rehome request</div>
+            <div style={{ fontFamily: "'Playfair Display',serif", fontWeight: 900, fontSize: "0.95rem", color: "#1a4a08" }}>Review your contact details</div>
+            <div style={{ fontSize: "0.7rem", fontWeight: 700, color: "#6a7a50", marginTop: 1 }}>Used to reach you about your rehome request · Click any field to edit</div>
           </div>
           <button onClick={onClose} style={{ marginLeft: "auto", width: 30, height: 30, borderRadius: 8, border: "1px solid rgba(192,48,48,0.18)", background: "rgba(192,48,48,0.07)", color: "#c03030", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.75rem" }}>
             <i className="fas fa-times" />
@@ -447,33 +503,126 @@ function RehomeReviewModal({ user, onContinue, onClose }) {
           <div style={{ padding: "0.625rem 0.875rem", borderRadius: 10, background: "rgba(180,90,34,0.06)", border: "1px solid rgba(180,90,34,0.2)", marginBottom: "0.875rem", display: "flex", gap: "0.5rem", alignItems: "flex-start" }}>
             <i className="fas fa-info-circle" style={{ color: "#B45A22", flexShrink: 0, marginTop: "0.1rem", fontSize: "0.85rem" }} />
             <p style={{ fontSize: "0.8rem", fontWeight: 700, lineHeight: 1.6, color: "#6a3a10", margin: 0 }}>
-              Your registered details will be pre-filled in the rehome form. The shelter uses this to contact you about your pet.
+              The shelter uses this information to contact you. Your phone number will be used as your contact — no need to re-enter it in the form.
             </p>
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", marginBottom: "1.125rem" }}>
-            {fields.map(([icon, label, value, ok]) => (
-              <div key={label} style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.55rem 0.875rem", borderRadius: 10, background: ok ? "rgba(28,79,9,0.05)" : "rgba(192,48,48,0.05)", border: `1px solid ${ok ? "rgba(90,170,48,0.22)" : "rgba(192,48,48,0.18)"}` }}>
-                <i className={`fas fa-${icon}`} style={{ color: ok ? "#5aaa30" : "#c03030", width: 14, textAlign: "center", fontSize: "0.8rem" }} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: "0.65rem", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.07em", color: "#6a7a50" }}>{label}</div>
-                  <div style={{ fontSize: "0.82rem", fontWeight: 700, color: ok ? "#1a4a08" : "#c03030", marginTop: 1 }}>
-                    {ok ? value : "Not set — you can fill this in the form"}
+            {fields.map(({ key, icon, label, value, ok }) => {
+              const isEditing = editingField === key;
+
+              const renderEditContent = () => {
+                if (key === "name") {
+                  return (
+                    <div style={{ display: "flex", gap: "0.4rem", flex: 1 }}>
+                      <input
+                        autoFocus
+                        type="text"
+                        value={editableUser.firstName}
+                        onChange={setField("firstName")}
+                        placeholder="First name"
+                        style={{ ...editInp, flex: 1 }}
+                        onKeyDown={(e) => e.key === "Enter" && setEditingField(null)}
+                      />
+                      <input
+                        type="text"
+                        value={editableUser.lastName}
+                        onChange={setField("lastName")}
+                        placeholder="Last name"
+                        style={{ ...editInp, flex: 1 }}
+                        onKeyDown={(e) => e.key === "Enter" && setEditingField(null)}
+                      />
+                    </div>
+                  );
+                }
+                return (
+                  <input
+                    autoFocus
+                    type={key === "email" ? "email" : key === "phone" ? "tel" : "text"}
+                    value={editableUser[key]}
+                    onChange={setField(key)}
+                    placeholder={label}
+                    style={{ ...editInp, flex: 1 }}
+                    onKeyDown={(e) => e.key === "Enter" && setEditingField(null)}
+                  />
+                );
+              };
+
+              return (
+                <div
+                  key={key}
+                  onClick={() => !isEditing && setEditingField(key)}
+                  style={{
+                    display: "flex", alignItems: "center", gap: "0.75rem",
+                    padding: "0.55rem 0.875rem", borderRadius: 10,
+                    background: isEditing ? "rgba(255,253,242,0.95)" : ok ? "rgba(28,79,9,0.05)" : "rgba(192,48,48,0.05)",
+                    border: `1px solid ${isEditing ? "rgba(90,170,48,0.45)" : ok ? "rgba(90,170,48,0.22)" : "rgba(192,48,48,0.18)"}`,
+                    cursor: isEditing ? "default" : "pointer",
+                    transition: "all 0.15s",
+                    boxShadow: isEditing ? "0 0 0 3px rgba(90,170,48,0.08)" : "none",
+                  }}
+                >
+                  <i
+                    className={`fas fa-${icon}`}
+                    style={{ color: isEditing ? "#5aaa30" : ok ? "#5aaa30" : "#c03030", width: 14, textAlign: "center", fontSize: "0.8rem", flexShrink: 0 }}
+                  />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: "0.65rem", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.07em", color: "#6a7a50", marginBottom: isEditing ? "0.3rem" : 0 }}>{label}</div>
+                    {isEditing ? (
+                      renderEditContent()
+                    ) : (
+                      <div style={{ fontSize: "0.82rem", fontWeight: 700, color: ok ? "#1a4a08" : "#c03030", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {ok ? value : <span style={{ fontStyle: "italic", opacity: 0.75 }}>Not set — click to add</span>}
+                      </div>
+                    )}
                   </div>
+                  {isEditing ? (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setEditingField(null); }}
+                      style={{ flexShrink: 0, width: 24, height: 24, borderRadius: 6, border: "none", background: "#5aaa30", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.65rem" }}
+                    >
+                      <i className="fas fa-check" />
+                    </button>
+                  ) : (
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.3rem", flexShrink: 0 }}>
+                      <i className="fas fa-pen" style={{ color: "#9aaa80", fontSize: "0.62rem", opacity: 0.6 }} />
+                      <i className={`fas fa-${ok ? "check-circle" : "exclamation-circle"}`} style={{ color: ok ? "#5aaa30" : "#c03030", fontSize: "0.85rem" }} />
+                    </div>
+                  )}
                 </div>
-                <i className={`fas fa-${ok ? "check-circle" : "exclamation-circle"}`} style={{ color: ok ? "#5aaa30" : "#c03030", fontSize: "0.85rem" }} />
-              </div>
-            ))}
+              );
+            })}
+          </div>
+
+          {/* Phone reminder banner */}
+          <div style={{ padding: "0.5rem 0.75rem", borderRadius: 9, background: "rgba(28,79,9,0.06)", border: "1px solid rgba(90,170,48,0.2)", marginBottom: "0.875rem", display: "flex", gap: "0.4rem", alignItems: "center" }}>
+            <i className="fas fa-phone" style={{ color: "#5aaa30", fontSize: "0.75rem", flexShrink: 0 }} />
+            <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "#3a5020" }}>
+              {editableUser.phone
+                ? <><strong>{editableUser.phone}</strong> will be used as your contact number.</>
+                : <span style={{ color: "#c03030" }}>Please add a phone number above — it's required for the shelter to reach you.</span>
+              }
+            </span>
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
             <button onClick={onClose} style={{ padding: "0.7rem", borderRadius: 11, fontWeight: 900, fontSize: "0.84rem", background: "rgba(255,248,220,0.7)", border: "1px solid rgba(180,140,60,0.25)", color: "#3a5020", cursor: "pointer", fontFamily: "'Nunito',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.4rem" }}>
               <i className="fas fa-arrow-left" style={{ fontSize: "0.75rem" }} /> Go back
             </button>
-            <button onClick={onContinue} style={{ padding: "0.7rem", borderRadius: 11, fontWeight: 900, fontSize: "0.84rem", color: "#fff", background: "#B45A22", border: "none", cursor: "pointer", fontFamily: "'Nunito',sans-serif", boxShadow: "0 4px 16px rgba(180,90,34,0.28)", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.4rem" }}>
+            <button
+              onClick={() => onContinue(editableUser)}
+              disabled={!editableUser.phone.trim()}
+              style={{ padding: "0.7rem", borderRadius: 11, fontWeight: 900, fontSize: "0.84rem", color: "#fff", background: editableUser.phone.trim() ? "#B45A22" : "#cca080", border: "none", cursor: editableUser.phone.trim() ? "pointer" : "not-allowed", fontFamily: "'Nunito',sans-serif", boxShadow: editableUser.phone.trim() ? "0 4px 16px rgba(180,90,34,0.28)" : "none", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.4rem", transition: "all 0.15s" }}>
               Continue <i className="fas fa-arrow-right" style={{ fontSize: "0.75rem" }} />
             </button>
           </div>
+          {!editableUser.phone.trim() && (
+            <p style={{ textAlign: "center", fontSize: "0.7rem", fontWeight: 700, color: "#c03030", marginTop: "0.5rem" }}>
+              <i className="fas fa-exclamation-circle" style={{ marginRight: "0.3rem" }} />
+              A phone number is required to continue.
+            </p>
+          )}
         </div>
       </div>
       <style>{`@keyframes modalIn{from{opacity:0;transform:scale(0.95) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}`}</style>
@@ -481,26 +630,19 @@ function RehomeReviewModal({ user, onContinue, onClose }) {
   );
 }
 
-/* ─── Pre-form gate card (shown before modal is confirmed) ─────────────── */
+/* ─── Pre-form gate card ─────────────────────────────────────────────────── */
 function PreFormCard({ onStart }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", padding: "2.5rem 1.5rem", gap: "1.25rem" }}>
-
-      {/* Icon badge */}
       <div style={{ width: 64, height: 64, borderRadius: 18, background: "rgba(180,90,34,0.10)", border: "1px solid rgba(180,90,34,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <i className="fas fa-home" style={{ fontSize: "1.5rem", color: "#B45A22" }} />
       </div>
-
       <div>
-        <div style={{ fontFamily: "'Playfair Display',serif", fontSize: "1.2rem", fontWeight: 900, color: "#1a4a08", marginBottom: "0.4rem" }}>
-          Rehome a pet
-        </div>
+        <div style={{ fontFamily: "'Playfair Display',serif", fontSize: "1.2rem", fontWeight: 900, color: "#1a4a08", marginBottom: "0.4rem" }}>Rehome a pet</div>
         <p style={{ fontSize: "0.84rem", fontWeight: 700, color: "#6a7a50", lineHeight: 1.7, maxWidth: 280, margin: "0 auto" }}>
           Fill out a short form and we'll find your pet a safe, verified new home — with full care and discretion.
         </p>
       </div>
-
-      {/* Steps preview */}
       <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", justifyContent: "center" }}>
         {STEPS.map((s, i) => (
           <div key={s} style={{ display: "flex", alignItems: "center", gap: "0.35rem", padding: "0.3rem 0.7rem", borderRadius: 99, background: "rgba(28,79,9,0.06)", border: "1px solid rgba(90,170,48,0.2)", fontSize: "0.72rem", fontWeight: 800, color: "#3a5020" }}>
@@ -509,23 +651,14 @@ function PreFormCard({ onStart }) {
           </div>
         ))}
       </div>
-
       <button
         onClick={onStart}
-        style={{
-          padding: "0.8rem 2rem", borderRadius: 13, fontWeight: 900, fontSize: "0.9rem",
-          color: "#fff", background: "#B45A22", border: "none", cursor: "pointer",
-          fontFamily: "'Nunito',sans-serif",
-          boxShadow: "0 4px 18px rgba(180,90,34,0.28)",
-          display: "flex", alignItems: "center", gap: "0.5rem",
-          transition: "opacity 0.15s",
-        }}
+        style={{ padding: "0.8rem 2rem", borderRadius: 13, fontWeight: 900, fontSize: "0.9rem", color: "#fff", background: "#B45A22", border: "none", cursor: "pointer", fontFamily: "'Nunito',sans-serif", boxShadow: "0 4px 18px rgba(180,90,34,0.28)", display: "flex", alignItems: "center", gap: "0.5rem", transition: "opacity 0.15s" }}
         onMouseOver={e => e.currentTarget.style.opacity = "0.9"}
         onMouseOut={e => e.currentTarget.style.opacity = "1"}
       >
         <i className="fas fa-home" /> Start rehome request
       </button>
-
       <p style={{ fontSize: "0.72rem", fontWeight: 700, color: "#9aaa80", margin: 0 }}>
         <i className="fas fa-lock" style={{ marginRight: "0.3rem" }} />Confidential · Takes about 5 minutes
       </p>
@@ -545,6 +678,10 @@ export default function Rehome() {
   const [showReview, setShowReview] = useState(false);
   const [formStarted, setFormStarted] = useState(false);
 
+  // Store contact + owner name resolved from the Review Modal
+  const [resolvedContact, setResolvedContact] = useState("");
+  const [resolvedOwnerName, setResolvedOwnerName] = useState("");
+
   const [photoPreview, setPhotoPreview] = useState(null);
   const [photoBase64, setPhotoBase64] = useState(null);
   const [vaccPhotos, setVaccPhotos] = useState([]);
@@ -555,12 +692,19 @@ export default function Rehome() {
     if (file.size > 5 * 1024 * 1024) { setSubmitError("Photo must be under 5 MB."); return; }
     try {
       const dataUrl = await fileToBase64(file);
-      setPhotoPreview(dataUrl); setPhotoBase64(dataUrl); setSubmitError(null);
-    } catch { setSubmitError("Could not read the image. Please try another file."); }
+      setPhotoPreview(dataUrl);
+      setPhotoBase64(dataUrl);
+      setSubmitError(null);
+    } catch {
+      setSubmitError("Could not read the image. Please try another file.");
+    }
     e.target.value = "";
   }, []);
 
-  const handlePhotoClear = useCallback(() => { setPhotoPreview(null); setPhotoBase64(null); }, []);
+  const handlePhotoClear = useCallback(() => {
+    setPhotoPreview(null);
+    setPhotoBase64(null);
+  }, []);
 
   const handleVaccPhotoAdd = useCallback(async (e) => {
     const file = e.target.files?.[0];
@@ -568,8 +712,11 @@ export default function Rehome() {
     if (file.size > 5 * 1024 * 1024) { setSubmitError("Photo must be under 5 MB."); return; }
     try {
       const dataUrl = await fileToBase64(file);
-      setVaccPhotos(prev => [...prev.slice(0, 4), dataUrl]); setSubmitError(null);
-    } catch { setSubmitError("Could not read the image. Please try another file."); }
+      setVaccPhotos(prev => [...prev.slice(0, 4), dataUrl]);
+      setSubmitError(null);
+    } catch {
+      setSubmitError("Could not read the image. Please try another file.");
+    }
     e.target.value = "";
   }, []);
 
@@ -583,7 +730,7 @@ export default function Rehome() {
     vaccineType: "", lastVaccDate: "", vaccClinic: "", vaccNotes: "",
     behavior: "", behaviorOther: "", hasAggression: "", isHouseTrained: "", isLeashTrained: "",
     goodWithChildren: "", goodWithPets: "", idealHomeDesc: "",
-    contact: "", reason: "", details: "", triedAlternatives: "",
+    reason: "", details: "", triedAlternatives: "",
     canProvideFood: false, canProvideCarrier: false, canProvideRecords: false,
     understandsPermanent: false, openToFollowup: true,
   });
@@ -598,55 +745,93 @@ export default function Rehome() {
     setTouched(t => ({ ...t, [k]: true }));
   }, []);
 
+  const resetStepState = () => {
+    setTouched({});
+    setFieldErrors({});
+  };
+
   const handleContinue = () => {
     const errs = validateStep(step, form);
-    const stepTouched = {};
-    Object.keys(errs).forEach(k => stepTouched[k] = true);
-    setTouched(stepTouched);
-    setFieldErrors(errs);
-    if (Object.keys(errs).length > 0) return;
-    setTouched({}); setFieldErrors({});
+    if (Object.keys(errs).length > 0) {
+      const stepTouched = {};
+      Object.keys(errs).forEach(k => stepTouched[k] = true);
+      setTouched(stepTouched);
+      setFieldErrors(errs);
+      return;
+    }
+    resetStepState();
     setStep(s => s + 1);
   };
 
   const handleBack = () => {
-    setTouched({}); setFieldErrors({}); setSubmitError(null);
+    resetStepState();
+    setSubmitError(null);
     setStep(s => s - 1);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     const errs = validateStep(4, form);
-    setFieldErrors(errs);
-    const newTouched = {};
-    Object.keys(form).forEach(k => newTouched[k] = true);
-    setTouched(newTouched);
-    if (Object.keys(errs).length > 0) return;
-    setSubmitError(null); setLoading(true);
+    if (Object.keys(errs).length > 0) {
+      const allTouched = {};
+      Object.keys(form).forEach(k => allTouched[k] = true);
+      setTouched(allTouched);
+      setFieldErrors(errs);
+      return;
+    }
+    setSubmitError(null);
+    setLoading(true);
     try {
       const res = await djFetch("/api/approvals/rehoming/", {
-        method: "POST", body: JSON.stringify({
-          pet_name: form.petName, species: form.species, breed: form.breed, age: form.age, gender: form.gender,
-          duration_owned: form.durationOwned, is_vaccinated: form.isVaccinated === "yes", is_neutered: form.isNeutered === "yes",
-          medical_notes: form.medicalNotes,
-          vaccine_type: form.vaccineType || "", last_vacc_date: form.lastVaccDate || "",
-          vacc_clinic: form.vaccClinic || "", vacc_notes: form.vaccNotes || "",
-          vacc_photos: vaccPhotos.length > 0 ? vaccPhotos : [],
-          behavior: form.behavior, behavior_other: form.behaviorOther,
-          has_aggression: form.hasAggression === "yes", is_house_trained: form.isHouseTrained === "yes",
-          is_leash_trained: form.isLeashTrained === "yes", good_with_children: form.goodWithChildren === "yes",
-          good_with_pets: form.goodWithPets === "yes", ideal_home_desc: form.idealHomeDesc,
-          contact: form.contact, reason: form.reason, details: form.details,
+        method: "POST",
+        body: JSON.stringify({
+          pet_name:           form.petName,
+          species:            form.species,
+          breed:              form.breed,
+          age:                form.age,
+          gender:             form.gender,
+          duration_owned:     form.durationOwned,
+          is_vaccinated:      form.isVaccinated === "yes",
+          is_neutered:        form.isNeutered === "yes",
+          medical_notes:      form.medicalNotes,
+          vaccine_type:       form.vaccineType || "",
+          last_vacc_date:     form.lastVaccDate || null,
+          vacc_clinic:        form.vaccClinic || "",
+          vacc_notes:         form.vaccNotes || "",
+          vacc_photos:        vaccPhotos.length > 0 ? vaccPhotos : [],
+          behavior:           form.behavior,
+          behavior_other:     form.behaviorOther,
+          has_aggression:     form.hasAggression === "yes",
+          is_house_trained:   form.isHouseTrained === "yes",
+          is_leash_trained:   form.isLeashTrained === "yes",
+          good_with_children: form.goodWithChildren === "yes",
+          good_with_pets:     form.goodWithPets === "yes",
+          ideal_home_desc:    form.idealHomeDesc,
+          // ── FIX: send both owner name and contact from Review Modal ──
+          owner_name:         resolvedOwnerName || user?.name || user?.username || "",
+          contact:            resolvedContact || user?.phone || "",
+          // ────────────────────────────────────────────────────────────
+          reason:             form.reason,
+          details:            form.details,
           tried_alternatives: form.triedAlternatives,
-          can_provide_food: form.canProvideFood, can_provide_carrier: form.canProvideCarrier,
-          can_provide_records: form.canProvideRecords, understands_permanent: form.understandsPermanent,
-          open_to_followup: form.openToFollowup, photo_base64: photoBase64 ?? null,
-        })
+          can_provide_food:   form.canProvideFood,
+          can_provide_carrier:form.canProvideCarrier,
+          can_provide_records:form.canProvideRecords,
+          understands_permanent: form.understandsPermanent,
+          open_to_followup:   form.openToFollowup,
+          photo_base64:       photoBase64 ?? null,
+        }),
       });
-      let data = {}; try { data = await res.json(); } catch { }
-      if (res.ok && data.success !== false) { setSubmitted(true); }
-      else { setSubmitError(data.message || `Error (${res.status}). Please try again.`); }
-    } catch { setSubmitError("Network error. Please try again."); }
+      let data = {};
+      try { data = await res.json(); } catch { }
+      if (res.ok && data.success !== false) {
+        setSubmitted(true);
+      } else {
+        setSubmitError(data.message || `Error (${res.status}). Please try again.`);
+      }
+    } catch {
+      setSubmitError("Network error. Please try again.");
+    }
     setLoading(false);
   };
 
@@ -729,13 +914,11 @@ export default function Rehome() {
               </div>
 
             ) : !formStarted ? (
-              /* ── Pre-form gate — clean, no repeated info ── */
               <PreFormCard onStart={() => setShowReview(true)} />
 
             ) : (
               /* ── Multi-step form ── */
               <div style={{ padding: "1.75rem" }}>
-                {/* Form header */}
                 <div style={{ marginBottom: "1.25rem" }}>
                   <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: "1.3rem", fontWeight: 900, color: "#1a4a08", margin: 0 }}>Rehome request</h2>
                   <p style={{ fontSize: "0.75rem", fontWeight: 700, color: "#7a8a60", marginTop: "0.2rem" }}>
@@ -853,11 +1036,21 @@ export default function Rehome() {
         </div>
       </footer>
 
-      {/* Review modal */}
       {showReview && (
         <RehomeReviewModal
           user={user}
-          onContinue={() => { setShowReview(false); setFormStarted(true); }}
+          onContinue={(updatedUser) => {
+            // FIX: store both phone (contact) and full name (owner_name)
+            setResolvedContact(updatedUser.phone || user?.phone || "");
+            setResolvedOwnerName(
+              `${updatedUser.firstName || ""} ${updatedUser.lastName || ""}`.trim() ||
+              user?.name ||
+              user?.username ||
+              ""
+            );
+            setShowReview(false);
+            setFormStarted(true);
+          }}
           onClose={() => setShowReview(false)}
         />
       )}
