@@ -51,18 +51,26 @@ public class SecurityConfig {
                                                                 "/api/auth/register",
                                                                 "/api/auth/logout",
                                                                 "/api/auth/me",
-                                                                "/api/auth/forgot-password", // ← add
-                                                                "/api/auth/verify-otp", // ← add
-                                                                "/api/auth/reset-password", // ← add
+                                                                "/api/auth/forgot-password",
+                                                                "/api/auth/verify-otp",
+                                                                "/api/auth/reset-password",
                                                                 "/swagger-ui.html",
                                                                 "/error")
                                                 .permitAll()
 
-                                                // ── Animals: anyone can browse, only admin can write ───────
+                                                // ── Animals: anyone can browse ─────────────────────────────
                                                 .requestMatchers(HttpMethod.GET, "/api/animals/**").permitAll()
-                                                .requestMatchers(HttpMethod.POST, "/api/animals/mark-adopted").permitAll() 
+
+                                                // ── Animals: specific POST routes that must be permitAll ───
+                                                // IMPORTANT: these MUST come BEFORE the wildcard POST rule
+                                                // below, as Spring Security evaluates top-to-bottom and
+                                                // POST /api/animals/** would otherwise shadow them.
+                                                .requestMatchers(HttpMethod.POST, "/api/animals/from-rehoming").permitAll()
+                                                .requestMatchers(HttpMethod.POST, "/api/animals/mark-adopted").permitAll()
                                                 .requestMatchers(HttpMethod.POST, "/api/animals/mark-pending").permitAll()
-                                                .requestMatchers(HttpMethod.POST, "/api/animals").permitAll()  
+                                                .requestMatchers(HttpMethod.POST, "/api/animals").permitAll()
+
+                                                // ── Animals: wildcard write rules (admin only) ─────────────
                                                 .requestMatchers(HttpMethod.POST, "/api/animals/**")
                                                 .hasAnyAuthority("admin", "ADMIN")
                                                 .requestMatchers(HttpMethod.PUT, "/api/animals/**")
@@ -100,11 +108,17 @@ public class SecurityConfig {
                                                 // ── Admin-only routes ──────────────────────────────────────
                                                 .requestMatchers("/api/admin/**").hasAnyAuthority("admin", "ADMIN")
                                                 .requestMatchers("/uploads/**").permitAll()
-                                                // ── Missing Pets: anyone can view & report ──────────
+
+                                                // ── Missing Pets: anyone can view, report & comment ────────
                                                 .requestMatchers(HttpMethod.GET, "/api/missing-pets/**").permitAll()
                                                 .requestMatchers(HttpMethod.POST, "/api/missing-pets").permitAll()
+                                                .requestMatchers(HttpMethod.POST, "/api/missing-pets/*/comments").permitAll()
+
+                                                // ── User photo: public read ────────────────────────────────
                                                 .requestMatchers("/api/users/*/photo/public").permitAll()
+
                                                 .anyRequest().authenticated())
+
                                 .exceptionHandling(ex -> ex
                                                 .authenticationEntryPoint((req, res, e) -> {
                                                         res.setContentType("application/json");

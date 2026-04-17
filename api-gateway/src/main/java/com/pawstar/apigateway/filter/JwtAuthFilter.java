@@ -26,19 +26,21 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
     private String jwtSecret;
 
     private static final List<String> PUBLIC_PATHS = List.of(
-        "/api/auth/login",
-        "/api/auth/register",
-        "/api/auth/logout",
-        "/api/auth/me",
-        "/api/auth/forgot-password",
-        "/api/auth/verify-otp",
-        "/api/auth/reset-password"
-    );
+            "/api/auth/login",
+            "/api/auth/register",
+            "/api/auth/logout",
+            "/api/auth/me",
+            "/api/auth/forgot-password",
+            "/api/auth/verify-otp",
+            "/api/auth/reset-password",
+            "/api/animals/from-rehoming", // ← ADD THIS
+            "/api/animals/mark-adopted", // ← ADD THIS (already permitAll in SB but needs gateway too)
+            "/api/animals/mark-pending");
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         ServerHttpRequest request = exchange.getRequest();
-        String path   = request.getURI().getPath();
+        String path = request.getURI().getPath();
 
         // ── 1. Always pass OPTIONS (CORS preflight) ───────────────────────────
         if (HttpMethod.OPTIONS.equals(request.getMethod())) {

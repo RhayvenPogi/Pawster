@@ -194,8 +194,11 @@ export default function MissingPets() {
   };
 
   const fetchComments = async (petId) => {
-    try {
-      const res = await fetch(`${SB}/api/missing-pets/${petId}/comments`);
+  try {
+    const token = getToken();
+    const res = await fetch(`${SB}/api/missing-pets/${petId}/comments`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
       if (res.ok) {
         const data = await res.json();
         setComments(prev => ({ ...prev, [petId]: data }));

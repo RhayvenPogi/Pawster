@@ -314,38 +314,53 @@ def approve_rehoming(request, pk):
         "Good with other pets." if obj.good_with_pets else "",
         "House-trained." if obj.is_house_trained else "",
         "Leash-trained." if obj.is_leash_trained else "",
+        f"Vaccinated ({obj.vaccine_type})." if obj.is_vaccinated and obj.vaccine_type else "",
     ]
     notes = " ".join(p for p in desc_parts if p).strip() or "Available for adoption."
 
-    # ── Resolve photo ─────────────────────────────────────────────────────────
-    # photo_base64 is a full data URL like "data:image/jpeg;base64,..."
-    # We send it as-is in the JSON payload; Spring Boot will decode it.
-    photo_value = obj.photo_url or obj.photo_base64 or None
+    # ── Resolve photo — strip data URI prefix for Spring Boot ─────────────────
+    photo_base64 = None
+    photo_type = "image/jpeg"
 
-    # ── POST to Spring Boot /api/animals (JSON endpoint) ─────────────────────
+    raw_photo = obj.photo_base64 or obj.photo_url or None
+    if raw_photo:
+        if "base64," in raw_photo:
+            photo_type = _extract_mime_type(raw_photo)
+            photo_base64 = raw_photo.split("base64,", 1)[1]
+        else:
+            photo_base64 = raw_photo
+
+    # ── POST directly to Spring Boot (bypass gateway to avoid auth issues) ────
+    # Uses internal Docker network: sb:8080
     try:
         spring_payload = {
-            "name":      obj.pet_name or "Unknown",
-            "type":      obj.species  or "Other",
-            "breed":     obj.breed    or "",
-            "age":       obj.age      or "",
-            "health":    "Healthy",
-            "status":    "Available",
-            "notes":     notes,
-            # Send base64 photo fields so Spring Boot can decode and store as BYTEA
-            "photoData": _strip_data_uri_prefix(photo_value) if photo_value else None,
-            "photoType": _extract_mime_type(photo_value)     if photo_value else None,
+            "name":        obj.pet_name or "Unknown",
+            "type":        obj.species  or "Other",
+            "breed":       obj.breed    or "",
+            "age":         obj.age      or "",
+            "health":      "Healthy",
+            "status":      "Available",
+            "notes":       notes,
+            "photoData":   photo_base64,   # raw base64, no "data:..." prefix
+            "photoType":   photo_type,
             "removePhoto": False,
         }
+
+        # Call Spring Boot DIRECTLY (not via gateway) to avoid JWT requirement
+        sb_url = f"{settings.SPRING_BOOT_API}/api/animals/from-rehoming"
         resp = requests.post(
-            f"{settings.SPRING_BOOT_API}/api/animals/from-rehoming",
+            sb_url,
             json=spring_payload,
             timeout=10,
         )
         if not resp.ok:
             print(f"[approve_rehoming] Spring Boot {resp.status_code}: {resp.text[:300]}")
+        else:
+            print(f"[approve_rehoming] Animal created in Spring Boot: {resp.json()}")
+
     except Exception as e:
         print(f"[approve_rehoming] Spring Boot unreachable: {e}")
+        # Don't fail the approval — log and continue
 
     # ── In-app notification ───────────────────────────────────────────────────
     if obj.user:
