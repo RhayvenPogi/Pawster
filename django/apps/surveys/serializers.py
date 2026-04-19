@@ -1,6 +1,6 @@
 """apps/surveys/serializers.py"""
 from rest_framework import serializers
-from django.conf import settings
+from django.utils import timezone
 from .models import FollowUpSurvey, SurveyResponse, SurveyPhoto
 
 
@@ -28,24 +28,11 @@ class SurveyPhotoSerializer(serializers.ModelSerializer):
         model  = SurveyPhoto
         fields = ["id", "url", "thumbnail_url", "uploaded_at"]
 
-    def _abs(self, path):
-        # APP_BASE_URL must be what the BROWSER uses to reach Django,
-        # i.e. the api-gateway public URL, NOT the internal container host.
-        # docker-compose: api-gateway is on localhost:8000 → routes to django:8001
-        base = getattr(settings, "APP_BASE_URL", "").rstrip("/")
-        if base:
-            return f"{base}{path}"
-        # Fallback — only used if APP_BASE_URL is unset
-        request = self.context.get("request")
-        if request:
-            return request.build_absolute_uri(path)
-        return path
-
     def get_url(self, obj):
-        return self._abs(obj.image.url) if obj.image else None
+        return obj.as_data_url()
 
     def get_thumbnail_url(self, obj):
-        return self._abs(obj.image.url) if obj.image else None
+        return obj.as_data_url()
 
 
 class SurveyResponseSerializer(serializers.ModelSerializer):
@@ -68,8 +55,7 @@ class SurveyResponseSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data.pop("survey_id")
-        survey = self.context["survey"]
-        from django.utils import timezone
+        survey   = self.context["survey"]
         response = SurveyResponse.objects.create(
             survey=survey,
             user=self.context["request"].user,
@@ -95,8 +81,7 @@ class SurveyResponseAdminSerializer(serializers.ModelSerializer):
             "id", "survey_type", "animal_name", "adopter_name", "adopter_email",
             "adjustment", "behavioral_notes", "showing_illness", "vet_visited",
             "satisfied", "needs_support", "additional_notes", "rating",
-            "submitted_at", "health_flag",
-            "photos",
+            "submitted_at", "health_flag", "photos",
         ]
 
     def get_adopter_name(self, obj):

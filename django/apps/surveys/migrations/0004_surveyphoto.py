@@ -16,7 +16,7 @@ class Migration(migrations.Migration):
             name='SurveyPhoto',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('image', models.ImageField(upload_to=apps.surveys.models.survey_photo_upload_path)),
+                ('image', models.ImageField(upload_to='survey_photos/')),
                 ('uploaded_at', models.DateTimeField(auto_now_add=True)),
                 ('response', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='photos', to='surveys.surveyresponse')),
             ],

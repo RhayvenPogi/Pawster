@@ -2,7 +2,7 @@
 apps/surveys/models.py
 FollowUpSurvey  — one record per schedule (30-sec / 60-sec) per adoption
 SurveyResponse  — adopter's answers; OneToOne with FollowUpSurvey (duplicate-safe)
-SurveyPhoto     — one or more photos attached to a SurveyResponse
+SurveyPhoto     — one or more photos attached to a SurveyResponse (stored as base64 in DB)
 """
 from django.db import models
 from django.contrib.auth.models import User
@@ -65,14 +65,10 @@ class SurveyResponse(models.Model):
         return f"Response — Survey #{self.survey_id} — ⭐{self.rating}"
 
 
-def survey_photo_upload_path(instance, filename):
-    """Stores photos under: survey_photos/<response_id>/<filename>"""
-    return f"survey_photos/{instance.response_id}/{filename}"
-
-
 class SurveyPhoto(models.Model):
-    response   = models.ForeignKey(SurveyResponse, on_delete=models.CASCADE, related_name="photos")
-    image      = models.ImageField(upload_to=survey_photo_upload_path)
+    response    = models.ForeignKey(SurveyResponse, on_delete=models.CASCADE, related_name="photos")
+    image_data  = models.TextField()                        # base64-encoded image string
+    mime_type   = models.CharField(max_length=50, default="image/jpeg")
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -81,3 +77,7 @@ class SurveyPhoto(models.Model):
 
     def __str__(self):
         return f"Photo for Response #{self.response_id}"
+
+    def as_data_url(self):
+        """Returns a ready-to-use data: URL the browser can use directly as <img src>"""
+        return f"data:{self.mime_type};base64,{self.image_data}"

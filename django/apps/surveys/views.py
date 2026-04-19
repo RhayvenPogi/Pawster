@@ -3,6 +3,8 @@ apps/surveys/views.py
 User endpoints:  GET /api/surveys/user/   POST /api/surveys/response/
 Admin endpoints: GET /api/surveys/admin/  GET /api/surveys/admin/pending/
 """
+import base64
+
 from rest_framework.decorators import api_view, permission_classes, parser_classes
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
@@ -22,8 +24,14 @@ def user_surveys(request):
     """
     GET /api/surveys/user/
     Returns pending and completed surveys for the logged-in user.
+    Supports optional ?type=7_day|30_day filter.
     """
     surveys   = FollowUpSurvey.objects.filter(user=request.user).select_related("adoption")
+
+    survey_type = request.query_params.get("type")
+    if survey_type:
+        surveys = surveys.filter(survey_type=survey_type)
+
     pending   = surveys.filter(status="Pending")
     completed = surveys.filter(status="Completed")
 
@@ -37,12 +45,12 @@ def user_surveys(request):
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
-@parser_classes([MultiPartParser, FormParser])   # ← required for file uploads
+@parser_classes([MultiPartParser, FormParser])
 def submit_response(request):
     """
     POST /api/surveys/response/
-    Accepts multipart/form-data.  Photos come in as repeated "photos" keys.
-    Prevents duplicate submissions (OneToOne constraint).
+    Accepts multipart/form-data. Photos come in as repeated "photos" keys.
+    Prevents duplicate submissions via OneToOne constraint on survey.
     """
     serializer = SurveyResponseSerializer(
         data=request.data,
@@ -53,10 +61,13 @@ def submit_response(request):
 
     response = serializer.save()
 
-    # ── Save uploaded photos ───────────────────────────────────────────────────
-    photos = request.FILES.getlist("photos")   # matches fd.append("photos", ...) in JS
-    for photo_file in photos[:5]:              # hard cap at 5
-        SurveyPhoto.objects.create(response=response, image=photo_file)
+    # ── Save photos as base64 directly in the database — no files on disk ─────
+    for photo_file in request.FILES.getlist("photos")[:5]:
+        SurveyPhoto.objects.create(
+            response   = response,
+            image_data = base64.b64encode(photo_file.read()).decode("utf-8"),
+            mime_type  = photo_file.content_type or "image/jpeg",
+        )
 
     return Response(
         {"success": True, "message": "Thank you for your feedback! 🐾"},
@@ -76,24 +87,20 @@ def admin_all_responses(request):
         SurveyResponse.objects
         .all()
         .select_related("survey__adoption", "user")
-        .prefetch_related("photos")   # ← avoids N+1 on photo thumbnails
+        .prefetch_related("photos")
     )
 
     survey_type = request.query_params.get("survey_type")
     if survey_type:
         qs = qs.filter(survey__survey_type=survey_type)
 
-    health_flag = request.query_params.get("health_flag")
-    if health_flag == "true":
+    if request.query_params.get("health_flag") == "true":
         qs = qs.filter(showing_illness=True)
 
-    serializer = SurveyResponseAdminSerializer(
-        qs, many=True, context={"request": request}   # ← request needed for absolute URLs
-    )
     return Response({
         "success": True,
         "count":   qs.count(),
-        "data":    serializer.data,
+        "data":    SurveyResponseAdminSerializer(qs, many=True, context={"request": request}).data,
     })
 
 
