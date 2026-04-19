@@ -49,7 +49,7 @@ class AdminDashboardController
                 'add_user'           => $this->addUser(),
                 'update_user'        => $this->updateUser(),
                 'update_user_status' => $this->updateUserStatus(),
-                'get_id_file' => $this->getIdFile(),
+                'get_id_file'        => $this->getIdFile(),
                 'get_activity'       => $this->getActivity(),
                 'get_chart_data'     => $this->getChartData(),
                 'get_dashboard_stats'=> $this->stats(),   // alias
@@ -65,39 +65,39 @@ class AdminDashboardController
     }
 
     private function nominatimSearch(): void
-{
-    $q = trim($_GET['q'] ?? $_POST['q'] ?? '');
-    if (!$q) {
+    {
+        $q = trim($_GET['q'] ?? $_POST['q'] ?? '');
+        if (!$q) {
+            header('Content-Type: application/json');
+            echo json_encode([]);
+            exit();
+        }
+
+        $url = "https://nominatim.openstreetmap.org/search?" . http_build_query([
+            "q"            => $q,
+            "format"       => "jsonv2",
+            "limit"        => 5,
+            "countrycodes" => "ph",
+        ]);
+
+        $ctx = stream_context_create([
+            "http" => [
+                "method"  => "GET",
+                "header"  => implode("\r\n", [
+                    "User-Agent: Pawster/1.0 (" . gethostname() . "@pawster.com)",
+                    "Accept-Language: en",
+                    "Accept: application/json",
+                ]),
+                "timeout" => 10,
+            ]
+        ]);
+
+        $result = @file_get_contents($url, false, $ctx);
+
         header('Content-Type: application/json');
-        echo json_encode([]);
+        echo $result !== false ? $result : json_encode([]);
         exit();
     }
-
-    $url = "https://nominatim.openstreetmap.org/search?" . http_build_query([
-        "q"            => $q,
-        "format"       => "jsonv2",
-        "limit"        => 5,
-        "countrycodes" => "ph",
-    ]);
-
-    $ctx = stream_context_create([
-        "http" => [
-            "method"  => "GET",
-            "header"  => implode("\r\n", [
-                "User-Agent: Pawster/1.0 (" . gethostname() . "@pawster.com)",
-                "Accept-Language: en",
-                "Accept: application/json",
-            ]),
-            "timeout" => 10,
-        ]
-    ]);
-
-    $result = @file_get_contents($url, false, $ctx);
-
-    header('Content-Type: application/json');
-    echo $result !== false ? $result : json_encode([]);
-    exit();
-}
 
     // ── Resolve the authenticated user's ID from the JWT ─────────────────────
     private function adminId(): int
@@ -130,6 +130,7 @@ class AdminDashboardController
             'total_records'     => $q("SELECT (SELECT COUNT(*) FROM animals) + (SELECT COUNT(*) FROM adoption_requests) + (SELECT COUNT(*) FROM rehome_requests)"),
         ]);
     }
+
     // ── Animals ──────────────────────────────────────────────────────────────
     private function getAnimals(): void
     {
@@ -139,7 +140,7 @@ class AdminDashboardController
         $this->ok($rows);
     }
 
-     private function addAnimal(): void
+    private function addAnimal(): void
     {
         $name   = trim($this->body('name',   ''));
         $type   = $this->body('type',        'Dog');
@@ -149,9 +150,9 @@ class AdminDashboardController
         $status = $this->body('status',      'Available');
         $notes  = $this->body('notes',       '');
         $photo  = $this->handleAnimalPhoto(); // upload if provided, else null
- 
+
         if (!$name) $this->fail('Animal name is required.');
- 
+
         $db   = $this->db();
         $stmt = $db->prepare(
             "INSERT INTO animals (name, type, breed, age, health, status, notes, photo)
@@ -160,11 +161,11 @@ class AdminDashboardController
         );
         $stmt->execute(compact('name', 'type', 'breed', 'age', 'health', 'status', 'notes', 'photo'));
         $id = (int) $stmt->fetchColumn();
- 
+
         $this->logActivity('Add Animal', "Added animal: $name (ID $id)");
         $this->ok(['id' => $id, 'photo' => $photo], 'Animal added.');
     }
- 
+
     private function updateAnimal(): void
     {
         $id     = (int) $this->body('id',    0);
@@ -175,13 +176,13 @@ class AdminDashboardController
         $health = $this->body('health',      'Healthy');
         $status = $this->body('status',      'Available');
         $notes  = $this->body('notes',       '');
- 
+
         if (!$id || !$name) $this->fail('ID and name are required.');
- 
+
         // New upload takes priority; fall back to the URL React sent as existing_photo
         $newPhoto = $this->handleAnimalPhoto();
         $photo    = $newPhoto ?? $this->body('existing_photo', null);
- 
+
         $stmt = $this->db()->prepare(
             "UPDATE animals
              SET name=:name, type=:type, breed=:breed, age=:age,
@@ -189,11 +190,11 @@ class AdminDashboardController
              WHERE id=:id"
         );
         $stmt->execute(compact('name', 'type', 'breed', 'age', 'health', 'status', 'notes', 'photo', 'id'));
- 
+
         $this->logActivity('Update Animal', "Updated animal ID $id: $name");
         $this->ok(['photo' => $photo], 'Animal updated.');
     }
- 
+
     /**
      * Handles the optional "photo" file in $_FILES.
      * Returns the public URL string on success, or null if no file was uploaded.
@@ -204,32 +205,32 @@ class AdminDashboardController
         if (empty($_FILES['photo']['tmp_name'])) {
             return null; // no file uploaded — that's fine
         }
- 
+
         $file    = $_FILES['photo'];
         $maxSize = 2 * 1024 * 1024; // 2 MB
         $allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
- 
+
         if ($file['size'] > $maxSize) {
             $this->fail('Photo exceeds 2 MB limit.');
         }
- 
+
         $mime = mime_content_type($file['tmp_name']);
         if (!in_array($mime, $allowed, true)) {
             $this->fail('Invalid photo type. Allowed: JPG, PNG, GIF, WEBP.');
         }
- 
+
         $ext       = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION) ?: 'jpg');
         $filename  = 'animal_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
         $uploadDir = '/var/www/html/uploads/animals/';
- 
+
         if (!is_dir($uploadDir)) {
             mkdir($uploadDir, 0755, true);
         }
- 
+
         if (!move_uploaded_file($file['tmp_name'], $uploadDir . $filename)) {
             $this->fail('Failed to save photo.');
         }
- 
+
         return '/uploads/animals/' . $filename;
     }
 
@@ -317,201 +318,201 @@ class AdminDashboardController
     }
 
     // ── Chart Data ────────────────────────────────────────────────────────────
-private function getChartData(): void
-{
-    $db = $this->db();
+    private function getChartData(): void
+    {
+        $db = $this->db();
 
-    // Weekly: last 7 days (Mon→Sun)
-    $weekly = [];
-    for ($i = 6; $i >= 0; $i--) {
-        $stmt = $db->prepare(
-            "SELECT COUNT(*) FROM adoption_requests
-             WHERE DATE(created_at) = CURRENT_DATE - INTERVAL ':i days'"
-        );
-        // Use query with direct interpolation for interval
-        $count = (int) $db->query(
-            "SELECT COUNT(*) FROM adoption_requests
-             WHERE DATE(created_at) = CURRENT_DATE - INTERVAL '$i days'"
-        )->fetchColumn();
-        $weekly[] = $count;
-    }
-
-    // Monthly: each month of current year
-    $monthly = [];
-    for ($m = 1; $m <= 12; $m++) {
-        $stmt = $db->prepare(
-            "SELECT COUNT(*) FROM adoption_requests
-             WHERE EXTRACT(MONTH FROM created_at) = :m
-               AND EXTRACT(YEAR  FROM created_at) = EXTRACT(YEAR FROM NOW())"
-        );
-        $stmt->execute(['m' => $m]);
-        $monthly[] = (int) $stmt->fetchColumn();
-    }
-
-    $this->ok(['weekly' => $weekly, 'monthly' => $monthly]);
-}
-
-    // ── Users ─────────────────────────────────────────────────────────────────
-private function getUsers(): void
-{
-    $role = $this->body('role') ?: ($_GET['role'] ?? 'all');
-    $db   = $this->db();
-
-    if ($role && $role !== 'all') {
-        $stmt = $db->prepare(
-            "SELECT id, first_name, last_name, email, phone, role, is_active, created_at, last_login,
-                    id_file_name, photo_name
-             FROM users WHERE role = :role ORDER BY created_at DESC"
-        );
-        $stmt->execute(['role' => $role]);
-    } else {
-        $stmt = $db->query(
-            "SELECT id, first_name, last_name, email, phone, role, is_active, created_at, last_login,
-                    id_file_name, photo_name
-             FROM users ORDER BY created_at DESC"
-        );
-    }
-
-    $this->ok($stmt->fetchAll());
-}
-    private function getUsersGeo(): void
-{
-    $stmt = $this->db()->query(
-        "SELECT id, first_name, last_name, email, phone, role,
-                is_active, created_at, last_login,
-                address, city, province, zip_code,
-                id_file_name
-         FROM users
-         ORDER BY created_at DESC"
-    );
-    $this->ok($stmt->fetchAll());
-}
-
-    private function addUser(): void
-{
-    $firstName = trim($this->body('first_name', ''));
-    $lastName  = trim($this->body('last_name',  ''));
-    $email     = trim($this->body('email',      ''));
-    $phone     = trim($this->body('phone',      ''));
-    $role      = $this->body('role',     'user');
-    $isActive  = (int) $this->body('is_active', 1);
-    $address   = $this->body('address',  '');
-    $city      = $this->body('city',     '');
-    $province  = $this->body('province', '');
-    $zip       = $this->body('zip',      '');
-
-    if (!$firstName || !$lastName || !$email || !$phone) {
-        $this->fail('All fields are required.');
-    }
-
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $this->fail('Invalid email format.');
-    }
-
-    $db = $this->db();
-
-    $chk = $db->prepare("SELECT id FROM users WHERE email = :email");
-    $chk->execute(['email' => $email]);
-    if ($chk->fetch()) {
-        $this->fail('Email already in use.');
-    }
-
-    // Auto-generate a random password
-    $password = bin2hex(random_bytes(8));
-    $hash = password_hash($password, PASSWORD_BCRYPT);
-
-    $stmt = $db->prepare(
-        "INSERT INTO users
-            (first_name, last_name, email, phone, password_hash, role, is_active, address, city, province, zip_code)
-         VALUES
-            (:firstName, :lastName, :email, :phone, :hash, :role, :isActive, :address, :city, :province, :zip)
-         RETURNING id"
-    );
-    $stmt->execute(compact(
-        'firstName', 'lastName', 'email', 'phone', 'hash',
-        'role', 'isActive', 'address', 'city', 'province', 'zip'
-    ));
-    $id = (int) $stmt->fetchColumn();
-
-    $this->logActivity('Add User', "Created user: $email (ID $id)");
-    $this->ok(['id' => $id], 'User created.');
-}
-
-   private function updateUser(): void
-{
-    $id        = (int) $this->body('id', 0);
-    $firstName = trim($this->body('first_name', ''));
-    $lastName  = trim($this->body('last_name',  ''));
-    $email     = trim($this->body('email',      ''));
-    $phone     = trim($this->body('phone',      ''));
-    $password  = $this->body('password', '');
-    $role      = $this->body('role',     'user');
-    $isActive  = (int) $this->body('is_active', 1);
-
-    // ✅ Address fields
-    $address  = $this->body('address',  '');
-    $city     = $this->body('city',     '');
-    $province = $this->body('province', '');
-    $zip      = $this->body('zip',      '');
-
-    if (!$id || !$firstName || !$email) {
-        $this->fail('ID, first name, and email are required.');
-    }
-
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $this->fail('Invalid email format.');
-    }
-
-    $db = $this->db();
-
-    $chk = $db->prepare("SELECT id FROM users WHERE email = :email AND id != :id");
-    $chk->execute(compact('email', 'id'));
-    if ($chk->fetch()) {
-        $this->fail('Email already in use by another account.');
-    }
-
-    // ✅ Build query dynamically
-    if ($password) {
-        if (strlen($password) < 8) {
-            $this->fail('Password must be at least 8 characters.');
+        // Weekly: last 7 days (Mon→Sun)
+        $weekly = [];
+        for ($i = 6; $i >= 0; $i--) {
+            $count = (int) $db->query(
+                "SELECT COUNT(*) FROM adoption_requests
+                 WHERE DATE(created_at) = CURRENT_DATE - INTERVAL '$i days'"
+            )->fetchColumn();
+            $weekly[] = $count;
         }
 
+        // Monthly: each month of current year
+        $monthly = [];
+        for ($m = 1; $m <= 12; $m++) {
+            $stmt = $db->prepare(
+                "SELECT COUNT(*) FROM adoption_requests
+                 WHERE EXTRACT(MONTH FROM created_at) = :m
+                   AND EXTRACT(YEAR  FROM created_at) = EXTRACT(YEAR FROM NOW())"
+            );
+            $stmt->execute(['m' => $m]);
+            $monthly[] = (int) $stmt->fetchColumn();
+        }
+
+        $this->ok(['weekly' => $weekly, 'monthly' => $monthly]);
+    }
+
+    // ── Users ─────────────────────────────────────────────────────────────────
+    // FIX: added address, city, province, zip_code so the edit modal has all fields
+    private function getUsers(): void
+    {
+        $role = $this->body('role') ?: ($_GET['role'] ?? 'all');
+        $db   = $this->db();
+
+        if ($role && $role !== 'all') {
+            $stmt = $db->prepare(
+                "SELECT id, first_name, last_name, email, phone, role, is_active,
+                        created_at, last_login, id_file_name, photo_name,
+                        address, city, province, zip_code
+                 FROM users WHERE role = :role ORDER BY created_at DESC"
+            );
+            $stmt->execute(['role' => $role]);
+        } else {
+            $stmt = $db->query(
+                "SELECT id, first_name, last_name, email, phone, role, is_active,
+                        created_at, last_login, id_file_name, photo_name,
+                        address, city, province, zip_code
+                 FROM users ORDER BY created_at DESC"
+            );
+        }
+
+        $this->ok($stmt->fetchAll());
+    }
+
+    private function getUsersGeo(): void
+    {
+        $stmt = $this->db()->query(
+            "SELECT id, first_name, last_name, email, phone, role,
+                    is_active, created_at, last_login,
+                    address, city, province, zip_code,
+                    id_file_name
+             FROM users
+             ORDER BY created_at DESC"
+        );
+        $this->ok($stmt->fetchAll());
+    }
+
+    private function addUser(): void
+    {
+        $firstName = trim($this->body('first_name', ''));
+        $lastName  = trim($this->body('last_name',  ''));
+        $email     = trim($this->body('email',      ''));
+        $phone     = trim($this->body('phone',      ''));
+        $role      = $this->body('role',     'user');
+        $isActive  = (int) $this->body('is_active', 1);
+        $address   = $this->body('address',  '');
+        $city      = $this->body('city',     '');
+        $province  = $this->body('province', '');
+        $zip       = $this->body('zip',      '');
+
+        if (!$firstName || !$lastName || !$email || !$phone) {
+            $this->fail('All fields are required.');
+        }
+
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $this->fail('Invalid email format.');
+        }
+
+        $db = $this->db();
+
+        $chk = $db->prepare("SELECT id FROM users WHERE email = :email");
+        $chk->execute(['email' => $email]);
+        if ($chk->fetch()) {
+            $this->fail('Email already in use.');
+        }
+
+        // Auto-generate a random password
+        $password = bin2hex(random_bytes(8));
         $hash = password_hash($password, PASSWORD_BCRYPT);
 
         $stmt = $db->prepare(
-            "UPDATE users
-             SET first_name=:firstName, last_name=:lastName, email=:email, phone=:phone,
-                 password_hash=:hash, role=:role, is_active=:isActive,
-                 address=:address, city=:city, province=:province, zip_code=:zip
-             WHERE id=:id"
+            "INSERT INTO users
+                (first_name, last_name, email, phone, password_hash, role, is_active, address, city, province, zip_code)
+             VALUES
+                (:firstName, :lastName, :email, :phone, :hash, :role, :isActive, :address, :city, :province, :zip)
+             RETURNING id"
         );
-
         $stmt->execute(compact(
-            'firstName', 'lastName', 'email', 'phone',
-            'hash', 'role', 'isActive',
-            'address', 'city', 'province', 'zip', 'id'
+            'firstName', 'lastName', 'email', 'phone', 'hash',
+            'role', 'isActive', 'address', 'city', 'province', 'zip'
         ));
+        $id = (int) $stmt->fetchColumn();
 
-    } else {
-        // ✅ No password update
-        $stmt = $db->prepare(
-            "UPDATE users
-             SET first_name=:firstName, last_name=:lastName, email=:email, phone=:phone,
-                 role=:role, is_active=:isActive,
-                 address=:address, city=:city, province=:province, zip_code=:zip
-             WHERE id=:id"
-        );
-
-        $stmt->execute(compact(
-            'firstName', 'lastName', 'email', 'phone',
-            'role', 'isActive',
-            'address', 'city', 'province', 'zip', 'id'
-        ));
+        $this->logActivity('Add User', "Created user: $email (ID $id)");
+        $this->ok(['id' => $id], 'User created.');
     }
 
-    $this->logActivity('Update User', "Updated user ID $id: $email");
-    $this->ok(null, 'User updated.');
-}
+    private function updateUser(): void
+    {
+        $id        = (int) $this->body('id', 0);
+        $firstName = trim($this->body('first_name', ''));
+        $lastName  = trim($this->body('last_name',  ''));
+        $email     = trim($this->body('email',      ''));
+        $phone     = trim($this->body('phone',      ''));
+        $password  = $this->body('password', '');
+        $role      = $this->body('role',     'user');
+        $isActive  = (int) $this->body('is_active', 1);
+
+        // ✅ Address fields
+        $address  = $this->body('address',  '');
+        $city     = $this->body('city',     '');
+        $province = $this->body('province', '');
+        $zip      = $this->body('zip',      '');
+
+        if (!$id || !$firstName || !$email) {
+            $this->fail('ID, first name, and email are required.');
+        }
+
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $this->fail('Invalid email format.');
+        }
+
+        $db = $this->db();
+
+        $chk = $db->prepare("SELECT id FROM users WHERE email = :email AND id != :id");
+        $chk->execute(compact('email', 'id'));
+        if ($chk->fetch()) {
+            $this->fail('Email already in use by another account.');
+        }
+
+        // ✅ Build query dynamically
+        if ($password) {
+            if (strlen($password) < 8) {
+                $this->fail('Password must be at least 8 characters.');
+            }
+
+            $hash = password_hash($password, PASSWORD_BCRYPT);
+
+            $stmt = $db->prepare(
+                "UPDATE users
+                 SET first_name=:firstName, last_name=:lastName, email=:email, phone=:phone,
+                     password_hash=:hash, role=:role, is_active=:isActive,
+                     address=:address, city=:city, province=:province, zip_code=:zip
+                 WHERE id=:id"
+            );
+
+            $stmt->execute(compact(
+                'firstName', 'lastName', 'email', 'phone',
+                'hash', 'role', 'isActive',
+                'address', 'city', 'province', 'zip', 'id'
+            ));
+
+        } else {
+            // ✅ No password update
+            $stmt = $db->prepare(
+                "UPDATE users
+                 SET first_name=:firstName, last_name=:lastName, email=:email, phone=:phone,
+                     role=:role, is_active=:isActive,
+                     address=:address, city=:city, province=:province, zip_code=:zip
+                 WHERE id=:id"
+            );
+
+            $stmt->execute(compact(
+                'firstName', 'lastName', 'email', 'phone',
+                'role', 'isActive',
+                'address', 'city', 'province', 'zip', 'id'
+            ));
+        }
+
+        $this->logActivity('Update User', "Updated user ID $id: $email");
+        $this->ok(null, 'User updated.');
+    }
+
     private function updateUserStatus(): void
     {
         $id       = (int) $this->body('id', 0);
@@ -647,11 +648,11 @@ private function getUsers(): void
         if ($pdo === null) {
             $pdo = new PDO(
                 sprintf(
-        'pgsql:host=%s;port=%s;dbname=%s;options=--search_path=springboot,public',
-        getenv('DB_HOST') ?: 'localhost',
-        getenv('DB_PORT') ?: '5432',
-        getenv('DB_NAME') ?: 'pawster_db'
-    ),
+                    'pgsql:host=%s;port=%s;dbname=%s;options=--search_path=springboot,public',
+                    getenv('DB_HOST') ?: 'localhost',
+                    getenv('DB_PORT') ?: '5432',
+                    getenv('DB_NAME') ?: 'pawster_db'
+                ),
                 getenv('DB_USER')     ?: 'postgres',
                 getenv('DB_PASSWORD') ?: 'secret',
                 [
@@ -663,26 +664,25 @@ private function getUsers(): void
         return $pdo;
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    /**
+     * Reads a field from the JSON body (primary) or $_POST (fallback).
+     * Call once per request — result is cached in a static variable.
+     */
+    private function body(string $key, mixed $default = null): mixed
+    {
+        static $parsed = null;
 
-/**
- * Reads a field from the JSON body (primary) or $_POST (fallback).
- * Call once per request — result is cached in a static variable.
- */
-private function body(string $key, mixed $default = null): mixed
-{
-    static $parsed = null;
+        if ($parsed === null) {
+            $raw     = file_get_contents('php://input');
+            $decoded = json_decode($raw, true);
+            $parsed  = is_array($decoded) ? $decoded : [];
+        }
 
-    if ($parsed === null) {
-        $raw    = file_get_contents('php://input');
-        $decoded = json_decode($raw, true);
-        $parsed  = is_array($decoded) ? $decoded : [];
+        // $_POST takes priority — covers multipart/form-data requests
+        // $parsed covers JSON body requests
+        return $_POST[$key] ?? $parsed[$key] ?? $default;
     }
 
-    // $_POST takes priority — covers multipart/form-data requests
-    // $parsed covers JSON body requests
-    return $_POST[$key] ?? $parsed[$key] ?? $default;
-}
     private function ok(mixed $data = null, string $message = 'OK'): void
     {
         $this->json(['success' => true, 'message' => $message, 'data' => $data]);
@@ -715,27 +715,27 @@ private function body(string $key, mixed $default = null): mixed
         }
     }
 
-private function getIdFile(): void
-{
-    $userId = (int) ($_GET['user_id'] ?? 0);
-    if (!$userId) $this->fail('User ID required.');
+    private function getIdFile(): void
+    {
+        $userId = (int) ($_GET['user_id'] ?? 0);
+        if (!$userId) $this->fail('User ID required.');
 
-    $stmt = $this->db()->prepare("SELECT id_file_name, id_file, id_file_type FROM users WHERE id = :id");
-    $stmt->execute(['id' => $userId]);
-    $row = $stmt->fetch();
+        $stmt = $this->db()->prepare("SELECT id_file_name, id_file, id_file_type FROM users WHERE id = :id");
+        $stmt->execute(['id' => $userId]);
+        $row = $stmt->fetch();
 
-    if (!$row || !$row['id_file']) {
-        http_response_code(404);
-        echo "No ID file found.";
+        if (!$row || !$row['id_file']) {
+            http_response_code(404);
+            echo "No ID file found.";
+            exit();
+        }
+
+        // BYTEA comes back as a PHP resource — read it into a string
+        $data = is_resource($row['id_file']) ? stream_get_contents($row['id_file']) : $row['id_file'];
+
+        header('Content-Type: ' . ($row['id_file_type'] ?: 'application/octet-stream'));
+        header('Content-Disposition: inline; filename="' . $row['id_file_name'] . '"');
+        echo $data;
         exit();
     }
-
-    // BYTEA comes back as a PHP resource — read it into a string
-    $data = is_resource($row['id_file']) ? stream_get_contents($row['id_file']) : $row['id_file'];
-
-    header('Content-Type: ' . ($row['id_file_type'] ?: 'application/octet-stream'));
-    header('Content-Disposition: inline; filename="' . $row['id_file_name'] . '"');
-    echo $data;
-    exit();
-}
 }

@@ -1,6 +1,7 @@
 """apps/surveys/serializers.py"""
 from rest_framework import serializers
-from .models import FollowUpSurvey, SurveyResponse
+from django.conf import settings
+from .models import FollowUpSurvey, SurveyResponse, SurveyPhoto
 
 
 class FollowUpSurveySerializer(serializers.ModelSerializer):
@@ -17,6 +18,34 @@ class FollowUpSurveySerializer(serializers.ModelSerializer):
 
     def get_has_response(self, obj):
         return hasattr(obj, "response")
+
+
+class SurveyPhotoSerializer(serializers.ModelSerializer):
+    url           = serializers.SerializerMethodField()
+    thumbnail_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model  = SurveyPhoto
+        fields = ["id", "url", "thumbnail_url", "uploaded_at"]
+
+    def _abs(self, path):
+        # APP_BASE_URL must be what the BROWSER uses to reach Django,
+        # i.e. the api-gateway public URL, NOT the internal container host.
+        # docker-compose: api-gateway is on localhost:8000 → routes to django:8001
+        base = getattr(settings, "APP_BASE_URL", "").rstrip("/")
+        if base:
+            return f"{base}{path}"
+        # Fallback — only used if APP_BASE_URL is unset
+        request = self.context.get("request")
+        if request:
+            return request.build_absolute_uri(path)
+        return path
+
+    def get_url(self, obj):
+        return self._abs(obj.image.url) if obj.image else None
+
+    def get_thumbnail_url(self, obj):
+        return self._abs(obj.image.url) if obj.image else None
 
 
 class SurveyResponseSerializer(serializers.ModelSerializer):
@@ -46,27 +75,33 @@ class SurveyResponseSerializer(serializers.ModelSerializer):
             user=self.context["request"].user,
             **validated_data,
         )
-        survey.status = "Completed"
+        survey.status       = "Completed"
         survey.submitted_at = timezone.now()
         survey.save(update_fields=["status", "submitted_at"])
         return response
 
 
 class SurveyResponseAdminSerializer(serializers.ModelSerializer):
-    survey_type  = serializers.CharField(source="survey.survey_type", read_only=True)
-    animal_name  = serializers.CharField(source="survey.adoption.animal_name", read_only=True)
-    adopter_name = serializers.SerializerMethodField()
+    survey_type   = serializers.CharField(source="survey.survey_type", read_only=True)
+    animal_name   = serializers.CharField(source="survey.adoption.animal_name", read_only=True)
+    adopter_name  = serializers.SerializerMethodField()
     adopter_email = serializers.EmailField(source="user.email", read_only=True)
-    health_flag  = serializers.SerializerMethodField()
+    health_flag   = serializers.SerializerMethodField()
+    photos        = SurveyPhotoSerializer(many=True, read_only=True)
 
     class Meta:
         model  = SurveyResponse
-        fields = "__all__"
+        fields = [
+            "id", "survey_type", "animal_name", "adopter_name", "adopter_email",
+            "adjustment", "behavioral_notes", "showing_illness", "vet_visited",
+            "satisfied", "needs_support", "additional_notes", "rating",
+            "submitted_at", "health_flag",
+            "photos",
+        ]
 
     def get_adopter_name(self, obj):
         u = obj.user
         return f"{u.first_name} {u.last_name}".strip() or u.username
 
     def get_health_flag(self, obj):
-        """True if the pet showed illness — lets admin filter for follow-up."""
         return obj.showing_illness

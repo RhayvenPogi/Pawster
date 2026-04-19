@@ -1,1052 +1,428 @@
-// ── DASHBOARD OVERVIEW PANEL — real density plots + date/year filters
+// ── DASHBOARD OVERVIEW PANEL — formal design, Pawster color scheme
 import { useState, useEffect, useRef, useCallback } from "react";
 
 const DJANGO = import.meta.env.VITE_DJANGO_API_URL ?? "http://localhost:8000";
-const SPRING = import.meta.env.VITE_API_BASE_URL    ?? "http://localhost:8000";
 const POLL_INTERVAL = 30_000;
 
 function getToken() {
-  return (
-    localStorage.getItem("pawster_token") ||
-    localStorage.getItem("token") ||
-    localStorage.getItem("authToken") ||
-    sessionStorage.getItem("token") ||
-    ""
-  );
+  return localStorage.getItem("pawster_token") || localStorage.getItem("token") ||
+    localStorage.getItem("authToken") || sessionStorage.getItem("token") || "";
 }
 function djFetch(path) {
   const token = getToken();
   return fetch(`${DJANGO}${path}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
 }
-function springFetch(path) {
-  const token = getToken();
-  return fetch(`${SPRING}${path}`, {
-    headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-  });
-}
 
-// ── CARD THEMES ───────────────────────────────────────────────────────────────
-const CARD_THEMES = {
-  green:  { accent: "linear-gradient(90deg,#1c4f09,#5aaa30)", valColor: "#1c4f09", iconBg: "rgba(90,170,48,0.14)",   hoverBorder: "rgba(90,170,48,0.50)",  hoverShadow: "0 8px 28px rgba(90,170,48,0.15)"  },
-  orange: { accent: "linear-gradient(90deg,#B45A22,#e07830)", valColor: "#B45A22", iconBg: "rgba(180,90,34,0.12)",  hoverBorder: "rgba(180,90,34,0.50)", hoverShadow: "0 8px 28px rgba(180,90,34,0.15)" },
-  amber:  { accent: "linear-gradient(90deg,#d4880a,#e0a030)", valColor: "#d4880a", iconBg: "rgba(212,136,10,0.12)", hoverBorder: "rgba(212,136,10,0.50)", hoverShadow: "0 8px 28px rgba(212,136,10,0.15)" },
-  purple: { accent: "linear-gradient(90deg,#7a3dc0,#a070e0)", valColor: "#7a3dc0", iconBg: "rgba(122,61,192,0.12)", hoverBorder: "rgba(122,61,192,0.50)", hoverShadow: "0 8px 28px rgba(122,61,192,0.15)" },
+// ── THEME ─────────────────────────────────────────────────────────────────────
+const T = {
+  card:        { background: "rgba(255,248,225,0.85)", border: "1.5px solid rgba(180,140,60,0.22)", borderRadius: 12, backdropFilter: "blur(12px)", boxShadow: "0 2px 10px rgba(100,70,20,0.08)" },
+  textPrimary:   "#1a4a08",
+  textSecondary: "#6a7a50",
+  textTertiary:  "#9aaa80",
+  accent: {
+    green:  { color: "#1c4f09", bar: "#5aaa30",  hover: "rgba(90,170,48,0.18)"  },
+    orange: { color: "#B45A22", bar: "#e07830",  hover: "rgba(180,90,34,0.15)"  },
+    amber:  { color: "#d4880a", bar: "#e0a030",  hover: "rgba(212,136,10,0.15)" },
+    purple: { color: "#7a3dc0", bar: "#a070e0",  hover: "rgba(122,61,192,0.15)" },
+    rose:   { color: "#b03060", bar: "#e05080",  hover: "rgba(176,48,96,0.15)"  },
+    teal:   { color: "#1a8a6a", bar: "#30c090",  hover: "rgba(26,138,106,0.15)" },
+  },
+  badge: {
+    warn:    { bg: "rgba(212,136,10,0.15)",  color: "#d4880a" },
+    ok:      { bg: "rgba(90,170,48,0.14)",   color: "#1c4f09" },
+    danger:  { bg: "rgba(176,48,96,0.13)",   color: "#b03060" },
+    neutral: { bg: "rgba(180,140,60,0.11)",  color: "#6a7a50" },
+    purple:  { bg: "rgba(122,61,192,0.12)",  color: "#7a3dc0" },
+    blue:    { bg: "rgba(32,96,160,0.10)",   color: "#2060a0" },
+  },
 };
 
-// ── TOOLTIP BUBBLE ────────────────────────────────────────────────────────────
-function Tooltip({ x, y, lines, visible }) {
-  if (!visible) return null;
+// ── COMPONENTS ────────────────────────────────────────────────────────────────
+
+function Badge({ type = "neutral", children }) {
+  const s = T.badge[type] || T.badge.neutral;
   return (
-    <div style={{
-      position: "absolute", left: x, top: y,
-      transform: "translate(-50%, calc(-100% - 10px))",
-      background: "rgba(22,54,10,0.97)",
-      border: "1px solid rgba(90,170,48,0.35)",
-      borderRadius: 9, padding: "8px 13px",
-      pointerEvents: "none", zIndex: 200,
-      boxShadow: "0 6px 22px rgba(0,0,0,0.28)",
-      minWidth: 140,
-    }}>
-      {lines.map((l, i) => (
-        <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: i < lines.length - 1 ? 4 : 0 }}>
-          {l.color && <span style={{ width: 8, height: 8, borderRadius: 2, background: l.color, flexShrink: 0 }} />}
-          <span style={{ fontSize: "0.71rem", fontWeight: l.bold ? 900 : 700, color: l.bold ? "#fff" : "rgba(255,255,255,0.72)", whiteSpace: "nowrap" }}>
-            {l.text}
-          </span>
-        </div>
-      ))}
-      <div style={{ position: "absolute", bottom: -6, left: "50%", transform: "translateX(-50%)", width: 0, height: 0, borderLeft: "6px solid transparent", borderRight: "6px solid transparent", borderTop: "6px solid rgba(22,54,10,0.97)" }} />
+    <span style={{ display: "inline-block", fontSize: "0.65rem", fontWeight: 800, padding: "2px 8px", borderRadius: 20, background: s.bg, color: s.color }}>
+      {children}
+    </span>
+  );
+}
+
+function LiveBadge({ lastUpdated, polling }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.72rem", fontWeight: 700, color: T.textSecondary }}>
+      <span style={{
+        width: 7, height: 7, borderRadius: "50%",
+        background: polling ? "#d4880a" : "#5aaa30",
+        display: "inline-block",
+        boxShadow: polling ? "none" : "0 0 0 3px rgba(90,170,48,0.2)",
+      }} />
+      {polling ? "Refreshing…" : "Live"}
+      {lastUpdated && !polling && (
+        <span style={{ color: T.textTertiary, marginLeft: 4 }}>
+          · {lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+        </span>
+      )}
     </div>
   );
 }
 
-// ── WIDE STAT CARD ────────────────────────────────────────────────────────────
-function StatCard({ val, label, sub, subWarn, icon, theme, onClick }) {
-  const t = CARD_THEMES[theme] || CARD_THEMES.green;
+function StatCard({ val, label, sub, subType = "ok", accent = "green", onClick }) {
   const [hovered, setHovered] = useState(false);
+  const a = T.accent[accent] || T.accent.green;
   return (
-    <div onClick={onClick}
+    <div
+      onClick={onClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        background: "rgba(255,248,225,0.85)", border: `1.5px solid ${hovered ? t.hoverBorder : "rgba(180,140,60,0.22)"}`,
-        borderRadius: 12, padding: "18px 22px", cursor: "pointer", position: "relative", overflow: "hidden",
-        backdropFilter: "blur(12px)", boxShadow: hovered ? t.hoverShadow : "0 2px 10px rgba(100,70,20,0.08)",
-        transform: hovered ? "translateY(-2px)" : "translateY(0)", transition: "transform 0.2s,box-shadow 0.2s,border-color 0.2s",
-        display: "flex", alignItems: "center", gap: 16,
-      }}>
-      <div style={{ position: "absolute", top: 0, left: 0, bottom: 0, width: 4, borderRadius: "12px 0 0 12px", background: t.accent }} />
-      <div style={{ width: 52, height: 52, borderRadius: 12, flexShrink: 0, background: t.iconBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.6rem", marginLeft: 8 }}>
-        {icon}
+        ...T.card,
+        padding: "0 20px 18px",
+        cursor: "pointer",
+        overflow: "hidden",
+        position: "relative",
+        background: hovered ? "rgba(255,248,225,0.97)" : T.card.background,
+        boxShadow: hovered ? `0 6px 24px ${a.hover}` : T.card.boxShadow,
+        transform: hovered ? "translateY(-2px)" : "none",
+        transition: "transform 0.18s, box-shadow 0.18s, background 0.18s",
+      }}
+    >
+      {/* top accent bar */}
+      <div style={{ height: 3, background: a.bar, marginLeft: -20, marginRight: -20, marginBottom: 14 }} />
+      <div style={{ fontSize: "0.7rem", fontWeight: 800, color: T.textSecondary, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 6 }}>
+        {label}
       </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: "2rem", fontWeight: 900, lineHeight: 1.1, color: t.valColor, fontFamily: "'Playfair Display',Georgia,serif" }}>{val}</div>
-        <div style={{ fontSize: "0.76rem", fontWeight: 800, color: "#6a7a50", textTransform: "uppercase", letterSpacing: "0.06em", marginTop: 3 }}>{label}</div>
-        <div style={{ fontSize: "0.68rem", fontWeight: 800, color: subWarn ? "#B45A22" : "#1c4f09", marginTop: 5, display: "inline-block", background: subWarn ? "rgba(180,90,34,0.10)" : "rgba(90,170,48,0.10)", padding: "3px 8px", borderRadius: 20 }}>
-          {sub}
-        </div>
+      <div style={{ fontSize: "2rem", fontWeight: 900, color: a.color, lineHeight: 1.1, fontFamily: "'Playfair Display',Georgia,serif" }}>
+        {val}
+      </div>
+      <div style={{ marginTop: 8 }}>
+        <Badge type={subType}>{sub}</Badge>
       </div>
     </div>
   );
 }
 
-// ── DATE FILTER BAR ───────────────────────────────────────────────────────────
-function DateFilterBar({ years, selectedYear, onYearChange, dateRange, onDateRangeChange, colorScheme }) {
-  const mainColor = colorScheme === "orange" ? "#B45A22" : "#1c4f09";
-
-  const selectStyle = {
-    background: "rgba(255,248,225,0.95)",
-    border: `1.5px solid ${selectedYear !== "all" ? mainColor + "66" : "rgba(180,140,60,0.28)"}`,
-    borderRadius: 8, padding: "5px 28px 5px 10px",
-    fontFamily: "'Nunito',sans-serif", fontSize: "0.75rem", fontWeight: 800,
-    color: selectedYear !== "all" ? mainColor : "#3a5020",
-    cursor: "pointer", outline: "none",
-    appearance: "none", WebkitAppearance: "none",
-    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' fill='none' stroke='%236a7a50' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
-    backgroundRepeat: "no-repeat",
-    backgroundPosition: "right 8px center",
-    minWidth: 110,
-    boxShadow: selectedYear !== "all" ? `0 0 0 2px ${mainColor}18` : "none",
-    transition: "border-color 0.15s, box-shadow 0.15s",
-  };
-
-  const inputStyle = {
-    background: "rgba(255,248,225,0.9)",
-    border: "1.5px solid rgba(180,140,60,0.25)",
-    borderRadius: 7, padding: "5px 8px",
-    fontFamily: "'Nunito',sans-serif", fontSize: "0.69rem", fontWeight: 700,
-    color: "#3a5020", cursor: "pointer", outline: "none",
-  };
-
-  const labelStyle = {
-    fontSize: "0.67rem", fontWeight: 900, color: "#9aaa80", letterSpacing: "0.05em",
-  };
-
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", padding: "8px 12px", background: "rgba(255,252,235,0.70)", border: "1px solid rgba(180,140,60,0.14)", borderRadius: 9, marginBottom: 10 }}>
-      {/* Year dropdown */}
-      <span style={labelStyle}>YEAR</span>
-      <div style={{ position: "relative" }}>
-        <select
-          style={selectStyle}
-          value={selectedYear}
-          onChange={e => onYearChange(e.target.value === "all" ? "all" : Number(e.target.value))}
-        >
-          <option value="all">All Years</option>
-          {years.map(y => (
-            <option key={y} value={y}>{y}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* Divider */}
-      <div style={{ width: 1, height: 20, background: "rgba(180,140,60,0.20)", margin: "0 2px" }} />
-
-      {/* Date range */}
-      <span style={labelStyle}>FROM</span>
-      <input type="date" style={inputStyle} value={dateRange.from} onChange={e => onDateRangeChange({ ...dateRange, from: e.target.value })} />
-      <span style={labelStyle}>TO</span>
-      <input type="date" style={inputStyle} value={dateRange.to} onChange={e => onDateRangeChange({ ...dateRange, to: e.target.value })} />
-
-      {(dateRange.from || dateRange.to) && (
-        <button
-          onClick={() => { onDateRangeChange({ from: "", to: "" }); onYearChange("all"); }}
-          style={{ background: "rgba(192,48,48,0.08)", border: "1.5px solid rgba(192,48,48,0.25)", borderRadius: 7, padding: "4px 10px", fontFamily: "'Nunito',sans-serif", fontSize: "0.68rem", fontWeight: 800, color: "#c03030", cursor: "pointer" }}>
-          ✕ Clear
-        </button>
-      )}
-    </div>
-  );
-}
-
-// ── FILTER RECORDS HELPER ─────────────────────────────────────────────────────
-function filterRecords(records, selectedYear, dateRange) {
-  return records.filter(r => {
-    if (!r.created_at) return false;
-    const d = new Date(r.created_at);
-    if (dateRange.from && d < new Date(dateRange.from)) return false;
-    if (dateRange.to   && d > new Date(dateRange.to + "T23:59:59")) return false;
-    if (selectedYear !== "all" && d.getFullYear() !== Number(selectedYear)) return false;
-    return true;
-  });
-}
-
-// ── COMBO BAR+LINE CHART ──────────────────────────────────────────────────────
-function ComboBarLineChart({ data, labels, colorScheme }) {
-  const canvasRef  = useRef(null);
-  const wrapRef    = useRef(null);
-  const regionsRef = useRef([]);
-  const [tip, setTip] = useState({ visible: false, x: 0, y: 0, lines: [] });
-
-  const approved = data.approved || [];
-  const pending  = data.pending  || [];
-  const rejected = data.rejected || [];
-
-  const approvedColor = colorScheme === "orange" ? "#B45A22" : "#1c4f09";
-  const pendingColor  = "#d4880a";
-  const lineColor     = colorScheme === "orange" ? "#e07830" : "#5aaa30";
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    const W = canvas.width, H = canvas.height;
-    const padL = 38, padR = 52, padTop = 14, padBot = 30;
-    const chartW = W - padL - padR, chartH = H - padTop - padBot;
-    ctx.clearRect(0, 0, W, H);
-    const allVals = [...approved, ...pending, ...rejected];
-    const maxBar  = Math.max(...allVals, 1);
-    const regions = [];
-
-    ctx.strokeStyle = "rgba(180,140,60,0.12)"; ctx.lineWidth = 1;
-    for (let i = 0; i <= 5; i++) {
-      const y = padTop + chartH - (i / 5) * chartH;
-      ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL + chartW, y); ctx.stroke();
-      ctx.fillStyle = "#9aaa80"; ctx.font = "700 9px Nunito,sans-serif"; ctx.textAlign = "right";
-      ctx.fillText(Math.round((i / 5) * maxBar), padL - 5, y + 3);
-    }
-
-    const n = labels.length;
-    const groupW = chartW / n;
-    const barW = Math.max(5, (groupW * 0.65) / 2);
-    const gap  = Math.max(2, barW * 0.25);
-
-    labels.forEach((lbl, i) => {
-      const groupX = padL + i * groupW + groupW / 2;
-      const startX = groupX - (2 * barW + gap) / 2;
-      const aVal = approved[i] || 0, aH = (aVal / maxBar) * chartH;
-      ctx.fillStyle = approvedColor + "cc";
-      ctx.beginPath();
-      if (ctx.roundRect) ctx.roundRect(startX, padTop + chartH - Math.max(aH, 1), barW, Math.max(aH, 1), [3,3,0,0]);
-      else ctx.rect(startX, padTop + chartH - Math.max(aH, 1), barW, Math.max(aH, 1));
-      ctx.fill();
-      regions.push({ x: startX, y: padTop + chartH - Math.max(aH, 8), w: barW, h: Math.max(aH, 8), lbl, series: "Approved", val: aVal, color: approvedColor });
-
-      const pVal = pending[i] || 0, pH = (pVal / maxBar) * chartH, x2 = startX + barW + gap;
-      ctx.fillStyle = pendingColor + "aa";
-      ctx.beginPath();
-      if (ctx.roundRect) ctx.roundRect(x2, padTop + chartH - Math.max(pH, 1), barW, Math.max(pH, 1), [3,3,0,0]);
-      else ctx.rect(x2, padTop + chartH - Math.max(pH, 1), barW, Math.max(pH, 1));
-      ctx.fill();
-      regions.push({ x: x2, y: padTop + chartH - Math.max(pH, 8), w: barW, h: Math.max(pH, 8), lbl, series: "Pending", val: pVal, color: pendingColor });
-
-      ctx.fillStyle = "#6a7a50"; ctx.font = "700 9px Nunito,sans-serif"; ctx.textAlign = "center";
-      ctx.fillText(lbl, groupX, H - 7);
-    });
-
-    const maxLine = Math.max(...rejected, 1);
-    ctx.beginPath();
-    rejected.forEach((val, i) => {
-      const x = padL + (n > 1 ? (i / (n - 1)) * chartW : chartW / 2);
-      const y = padTop + chartH - (val / maxLine) * chartH;
-      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-    });
-    ctx.strokeStyle = lineColor; ctx.lineWidth = 2.5; ctx.lineJoin = "round"; ctx.stroke();
-
-    rejected.forEach((val, i) => {
-      const x = padL + (n > 1 ? (i / (n - 1)) * chartW : chartW / 2);
-      const y = padTop + chartH - (val / maxLine) * chartH;
-      ctx.beginPath(); ctx.arc(x, y, 4.5, 0, Math.PI * 2);
-      ctx.fillStyle = "#fff"; ctx.fill();
-      ctx.strokeStyle = lineColor; ctx.lineWidth = 2; ctx.stroke();
-      regions.push({ x: x - 12, y: y - 12, w: 24, h: 24, lbl: labels[i], series: "Rejected", val, color: "#c03030" });
-    });
-
-    ctx.fillStyle = "#9aaa80"; ctx.font = "700 9px Nunito,sans-serif"; ctx.textAlign = "left";
-    for (let i = 0; i <= 4; i++) {
-      const y = padTop + chartH - (i / 4) * chartH;
-      ctx.fillText(Math.round((i / 4) * Math.max(...rejected, 1)), padL + chartW + 5, y + 3);
-    }
-    ctx.save(); ctx.translate(W - 8, padTop + chartH / 2); ctx.rotate(Math.PI / 2);
-    ctx.fillStyle = "#b0b890"; ctx.font = "700 8px Nunito,sans-serif"; ctx.textAlign = "center";
-    ctx.fillText("Rejected", 0, 0); ctx.restore();
-
-    regionsRef.current = regions;
-  }, [data, labels, colorScheme]);
-
-  const handleMouseMove = useCallback((e) => {
-    const canvas = canvasRef.current, wrap = wrapRef.current;
-    if (!canvas || !wrap) return;
-    const rect  = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width, scaleY = canvas.height / rect.height;
-    const mx = (e.clientX - rect.left) * scaleX, my = (e.clientY - rect.top) * scaleY;
-    const hit = regionsRef.current.find(r => mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h);
-    if (hit) {
-      const wRect = wrap.getBoundingClientRect();
-      setTip({ visible: true, x: e.clientX - wRect.left, y: e.clientY - wRect.top,
-        lines: [{ text: hit.lbl, bold: true }, { text: `${hit.series}: ${hit.val}`, color: hit.color }] });
-    } else setTip(t => ({ ...t, visible: false }));
-  }, []);
-
-  return (
-    <div ref={wrapRef} style={{ position: "relative", cursor: "crosshair" }}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={() => setTip(t => ({ ...t, visible: false }))}>
-      <canvas ref={canvasRef} width={580} height={220} style={{ width: "100%", height: 220 }} />
-      <Tooltip {...tip} />
-    </div>
-  );
-}
-
-// ── DUAL DENSITY PLOT (Adoptions + Rehomings on same canvas) ──────────────────
-function DualDensityPlot({ adoptionRecords, rehomingRecords, view }) {
-  const canvasRef = useRef(null);
-  const wrapRef   = useRef(null);
-  const kdeRef    = useRef({ adoptKDE: [], rehomeKDE: [], xs: [], minV: 1, maxV: 31, maxKDE: 0.001, chartW: 1, chartH: 1 });
-  const [tip, setTip]     = useState({ visible: false, x: 0, y: 0, lines: [] });
-  const [peaks, setPeaks] = useState({ adopt: null, rehome: null });
-  const [showGuide, setShowGuide] = useState(false);
-
-  const PAD = { L: 44, R: 14, T: 16, B: 28 };
-  const H_PX = 120;
-
-  // Extract day-of-period values based on view
-  const extractValues = useCallback((records) => {
-    return records
-      .map(r => {
-        if (!r.created_at) return null;
-        const d = new Date(r.created_at);
-        if (view === "weekly") return d.getDay() === 0 ? 7 : d.getDay(); // Mon=1..Sun=7
-        if (view === "monthly") return d.getDate();                       // 1–31
-        if (view === "yearly") return d.getMonth() + 1;                   // 1–12
-        return d.getDate();
-      })
-      .filter(Boolean);
-  }, [view]);
-
-  const computeKDE = useCallback((data, xs, bw) => {
-    if (!data.length) return xs.map(() => 0);
-    return xs.map(x =>
-      data.reduce((acc, xi) => {
-        const u = (x - xi) / bw;
-        return acc + Math.exp(-0.5 * u * u) / (Math.sqrt(2 * Math.PI) * bw);
-      }, 0) / data.length
-    );
-  }, []);
-
-  const xLabels = view === "weekly"
-    ? ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
-    : view === "yearly"
-    ? ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
-    : null; // null = numeric days
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    const W = canvas.width;
-    const chartW = W - PAD.L - PAD.R;
-    const chartH = H_PX - PAD.T - PAD.B;
-    ctx.clearRect(0, 0, W, H_PX);
-
-    const adoptVals  = extractValues(adoptionRecords);
-    const rehomeVals = extractValues(rehomingRecords);
-
-    const minV = view === "weekly" ? 1 : view === "yearly" ? 1 : 1;
-    const maxV = view === "weekly" ? 7 : view === "yearly" ? 12 : 31;
-    const pts  = view === "weekly" ? 7 : view === "yearly" ? 12 : 60;
-    const xs   = Array.from({ length: pts }, (_, i) => minV + (i / (pts - 1)) * (maxV - minV));
-
-    const bwA  = Math.max(0.5, Math.sqrt(Math.max(adoptVals.length, 1)) * 0.8);
-    const bwR  = Math.max(0.5, Math.sqrt(Math.max(rehomeVals.length, 1)) * 0.8);
-    const adoptKDE  = computeKDE(adoptVals, xs, bwA);
-    const rehomeKDE = computeKDE(rehomeVals, xs, bwR);
-    const maxKDE    = Math.max(...adoptKDE, ...rehomeKDE, 0.001);
-
-    kdeRef.current = { adoptKDE, rehomeKDE, xs, minV, maxV, maxKDE, chartW, chartH };
-
-    // Peak detection
-    const adoptPeakIdx  = adoptKDE.indexOf(Math.max(...adoptKDE));
-    const rehomePeakIdx = rehomeKDE.indexOf(Math.max(...rehomeKDE));
-
-    const fmtLabel = (idx) => {
-      if (xLabels) return xLabels[Math.round(xs[idx]) - 1] || `${Math.round(xs[idx])}`;
-      return `Day ${Math.round(xs[idx])}`;
-    };
-
-    setPeaks({
-      adopt:  adoptVals.length  ? fmtLabel(adoptPeakIdx)  : null,
-      rehome: rehomeVals.length ? fmtLabel(rehomePeakIdx) : null,
-    });
-
-    // Empty state
-    if (!adoptVals.length && !rehomeVals.length) {
-      ctx.fillStyle = "rgba(180,140,60,0.07)";
-      ctx.fillRect(PAD.L, PAD.T, chartW, chartH);
-      ctx.fillStyle = "#b0b890"; ctx.font = "700 10px Nunito,sans-serif"; ctx.textAlign = "center";
-      ctx.fillText("No data for the selected period", PAD.L + chartW / 2, PAD.T + chartH / 2 + 4);
-      return;
-    }
-
-    // Gridlines + Y labels
-    ctx.strokeStyle = "rgba(180,140,60,0.10)"; ctx.lineWidth = 1;
-    for (let i = 0; i <= 4; i++) {
-      const y = PAD.T + (i / 4) * chartH;
-      ctx.beginPath(); ctx.moveTo(PAD.L, y); ctx.lineTo(PAD.L + chartW, y); ctx.stroke();
-      ctx.fillStyle = "#b0b890"; ctx.font = "600 8px Nunito,sans-serif"; ctx.textAlign = "right";
-      ctx.fillText(((1 - i / 4) * 100).toFixed(0) + "%", PAD.L - 4, y + 3);
-    }
-
-    const drawKDE = (kde, color, fillColor) => {
-      if (!kde.some(v => v > 0)) return;
-      const grad = ctx.createLinearGradient(0, PAD.T, 0, PAD.T + chartH);
-      grad.addColorStop(0, fillColor + "55");
-      grad.addColorStop(1, fillColor + "08");
-      ctx.beginPath();
-      ctx.moveTo(PAD.L, PAD.T + chartH);
-      xs.forEach((x, i) => {
-        const px = PAD.L + ((x - minV) / (maxV - minV)) * chartW;
-        const py = PAD.T + chartH - (kde[i] / maxKDE) * chartH;
-        ctx.lineTo(px, py);
-      });
-      ctx.lineTo(PAD.L + chartW, PAD.T + chartH);
-      ctx.closePath();
-      ctx.fillStyle = grad; ctx.fill();
-
-      ctx.beginPath();
-      xs.forEach((x, i) => {
-        const px = PAD.L + ((x - minV) / (maxV - minV)) * chartW;
-        const py = PAD.T + chartH - (kde[i] / maxKDE) * chartH;
-        i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
-      });
-      ctx.strokeStyle = color; ctx.lineWidth = 2.2; ctx.lineJoin = "round"; ctx.stroke();
-    };
-
-    // Draw both KDE curves
-    drawKDE(rehomeKDE, "#d4880a", "#d4880a");
-    drawKDE(adoptKDE, "#1c4f09", "#5aaa30");
-
-    // Peak markers
-    const drawPeak = (kde, color) => {
-      if (!kde.some(v => v > 0)) return;
-      const peakIdx = kde.indexOf(Math.max(...kde));
-      const pkX = PAD.L + ((xs[peakIdx] - minV) / (maxV - minV)) * chartW;
-      const pkY = PAD.T + chartH - (kde[peakIdx] / maxKDE) * chartH;
-      ctx.setLineDash([3, 3]);
-      ctx.beginPath(); ctx.moveTo(pkX, PAD.T); ctx.lineTo(pkX, PAD.T + chartH);
-      ctx.strokeStyle = color + "44"; ctx.lineWidth = 1.5; ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.beginPath(); ctx.arc(pkX, pkY, 5, 0, Math.PI * 2);
-      ctx.fillStyle = "#fff"; ctx.fill();
-      ctx.strokeStyle = color; ctx.lineWidth = 2.5; ctx.stroke();
-    };
-    drawPeak(rehomeKDE, "#d4880a");
-    drawPeak(adoptKDE, "#1c4f09");
-
-    // X axis labels
-    if (xLabels) {
-      ctx.fillStyle = "#8a9a70"; ctx.font = "600 8px Nunito,sans-serif"; ctx.textAlign = "center";
-      xLabels.forEach((lbl, i) => {
-        const val = i + 1;
-        const px  = PAD.L + ((val - minV) / (maxV - minV)) * chartW;
-        ctx.fillText(lbl, px, H_PX - 6);
-      });
-    } else {
-      const tickCount = 10;
-      ctx.fillStyle = "#8a9a70"; ctx.font = "600 8px Nunito,sans-serif"; ctx.textAlign = "center";
-      for (let i = 0; i <= tickCount; i++) {
-        const val = Math.round(minV + (i / tickCount) * (maxV - minV));
-        const px  = PAD.L + ((val - minV) / (maxV - minV)) * chartW;
-        ctx.fillText(`${val}`, px, H_PX - 6);
-      }
-    }
-    ctx.fillStyle = "#b0b890"; ctx.font = "600 8px Nunito,sans-serif"; ctx.textAlign = "center";
-    const axisLabel = view === "weekly" ? "Day of week →" : view === "yearly" ? "Month →" : "Day of month →";
-    ctx.fillText(axisLabel, PAD.L + chartW / 2, H_PX);
-  }, [adoptionRecords, rehomingRecords, view, extractValues, computeKDE]);
-
-  const handleMouseMove = useCallback((e) => {
-    const canvas = canvasRef.current, wrap = wrapRef.current;
-    if (!canvas || !wrap) return;
-    const rect   = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const mx     = (e.clientX - rect.left) * scaleX;
-    const { xs, adoptKDE, rehomeKDE, minV, maxV, maxKDE, chartW } = kdeRef.current;
-    if (!xs.length || !chartW) return;
-    const frac = (mx - PAD.L) / chartW;
-    if (frac < 0 || frac > 1) { setTip(t => ({ ...t, visible: false })); return; }
-    const dayVal  = minV + frac * (maxV - minV);
-    const closest = xs.reduce((best, x, i) => Math.abs(x - dayVal) < Math.abs(xs[best] - dayVal) ? i : best, 0);
-    const aRel = ((adoptKDE[closest]  / maxKDE) * 100).toFixed(1);
-    const rRel = ((rehomeKDE[closest] / maxKDE) * 100).toFixed(1);
-    const labelStr = xLabels ? (xLabels[Math.round(xs[closest]) - 1] || `${Math.round(xs[closest])}`) : `Day ${Math.round(xs[closest])}`;
-    const wRect = wrap.getBoundingClientRect();
-    setTip({
-      visible: true,
-      x: e.clientX - wRect.left,
-      y: e.clientY - wRect.top,
-      lines: [
-        { text: labelStr, bold: true },
-        { text: `Adoptions density: ${aRel}%`,  color: "#1c4f09" },
-        { text: `Rehomings density: ${rRel}%`,  color: "#d4880a" },
-        { text: `Adopt submissions: ~${Math.max(1, Math.round((adoptKDE[closest] / maxKDE) * adoptionRecords.length))}` },
-        { text: `Rehome submissions: ~${Math.max(1, Math.round((rehomeKDE[closest] / maxKDE) * rehomingRecords.length))}` },
-      ],
-    });
-  }, [adoptionRecords, rehomingRecords, xLabels]);
-
-  return (
-    <div style={{ marginTop: 12, borderTop: "1px solid rgba(180,140,60,0.13)", paddingTop: 10 }}>
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, flexWrap: "wrap", gap: 6 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          <span style={{ fontSize: "0.72rem", fontWeight: 900, color: "#3a5020" }}>Submission Density</span>
-          {peaks.adopt  && <span style={{ fontSize: "0.64rem", fontWeight: 800, color: "#1c4f09", background: "rgba(90,170,48,0.14)", border: "1px solid rgba(90,170,48,0.30)", borderRadius: 5, padding: "1px 7px" }}>❤️ Adopt peak: {peaks.adopt}</span>}
-          {peaks.rehome && <span style={{ fontSize: "0.64rem", fontWeight: 800, color: "#d4880a", background: "rgba(212,136,10,0.14)", border: "1px solid rgba(212,136,10,0.30)", borderRadius: 5, padding: "1px 7px" }}>🏠 Rehome peak: {peaks.rehome}</span>}
-          <span style={{ fontSize: "0.65rem", fontWeight: 700, color: "#9aaa80" }}>KDE · {view === "weekly" ? "day of week" : view === "yearly" ? "month" : "day of month"}</span>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ display: "flex", gap: 10 }}>
-            {[{ label: "❤️ Adoptions", color: "#1c4f09" }, { label: "🏠 Rehomings", color: "#d4880a" }].map(l => (
-              <span key={l.label} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.67rem", fontWeight: 700, color: "#6a7a50" }}>
-                <span style={{ width: 9, height: 9, borderRadius: 2, background: l.color, display: "inline-block" }} />
-                {l.label}
-              </span>
-            ))}
-          </div>
-          <button onClick={() => setShowGuide(g => !g)}
-            style={{ background: showGuide ? "rgba(90,170,48,0.12)" : "none", border: `1px solid ${showGuide ? "rgba(90,170,48,0.40)" : "rgba(180,140,60,0.20)"}`, borderRadius: 6, padding: "2px 8px", fontFamily: "'Nunito',sans-serif", fontSize: "0.65rem", fontWeight: 800, color: showGuide ? "#1c4f09" : "#9aaa80", cursor: "pointer" }}>
-            {showGuide ? "✕ Guide" : "? Guide"}
-          </button>
-        </div>
-      </div>
-
-      {/* Canvas */}
-      <div ref={wrapRef} style={{ position: "relative", cursor: "crosshair" }}
-        onMouseMove={handleMouseMove}
-        onMouseLeave={() => setTip(t => ({ ...t, visible: false }))}>
-        <canvas ref={canvasRef} width={560} height={H_PX} style={{ width: "100%", height: H_PX }} />
-        <Tooltip {...tip} />
-      </div>
-
-      {/* Stats below */}
-      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-        {[
-          { label: "Adoption submissions", val: adoptionRecords.length, color: "#1c4f09", bg: "rgba(90,170,48,0.09)" },
-          { label: "Rehome submissions",   val: rehomingRecords.length, color: "#d4880a", bg: "rgba(212,136,10,0.09)" },
-        ].map(s => (
-          <div key={s.label} style={{ flex: 1, background: s.bg, border: `1px solid ${s.color}22`, borderRadius: 8, padding: "6px 10px", display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: "1.1rem", fontWeight: 900, color: s.color }}>{s.val}</span>
-            <span style={{ fontSize: "0.67rem", fontWeight: 700, color: "#6a7a50" }}>{s.label}</span>
-          </div>
-        ))}
-      </div>
-
-      {/* Guide */}
-      {showGuide && (
-        <div style={{ marginTop: 8, background: "rgba(250,248,230,0.80)", border: "1px solid rgba(90,170,48,0.20)", borderRadius: 9, overflow: "hidden" }}>
-          <div style={{ background: "rgba(90,170,48,0.10)", borderBottom: "1px solid rgba(90,170,48,0.15)", padding: "8px 13px", display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: "0.80rem" }}>📖</span>
-            <span style={{ fontSize: "0.72rem", fontWeight: 900, color: "#1a4a08" }}>Density Plot Guide</span>
-            <span style={{ fontSize: "0.66rem", fontWeight: 700, color: "#9aaa80", marginLeft: 4 }}>— KDE (Kernel Density Estimation)</span>
-          </div>
-          <div style={{ padding: "10px 13px", display: "flex", flexDirection: "column", gap: 0 }}>
-            {[
-              { icon: "📈", title: "KDE Curve", desc: "Gaussian-smoothed curve showing when requests are submitted. Taller = more activity at that time." },
-              { icon: "●", title: "Peak Marker (colored dot)", desc: "Marks the highest-density point for each type. Dashed vertical line drops from that peak." },
-              { icon: "🟩", title: "Green area — Adoptions", desc: "KDE distribution of adoption requests. Overlap with orange = simultaneous busy periods for both." },
-              { icon: "🟧", title: "Orange area — Rehomings", desc: "KDE distribution of rehoming requests. Watch for diverging peaks — different submission patterns." },
-              { icon: "%",  title: "Y-axis (relative density)", desc: "Normalized 0–100%. Compare shapes & peaks, not absolute counts. Hover for estimated counts." },
-            ].map((item, i, arr) => (
-              <div key={i} style={{ display: "flex", gap: 10, padding: "7px 0", borderBottom: i < arr.length - 1 ? "1px solid rgba(180,140,60,0.10)" : "none" }}>
-                <span style={{ fontSize: "0.9rem", width: 22, flexShrink: 0, textAlign: "center" }}>{item.icon}</span>
-                <div>
-                  <div style={{ fontSize: "0.69rem", fontWeight: 900, color: "#2a4a12", marginBottom: 2 }}>{item.title}</div>
-                  <div style={{ fontSize: "0.66rem", fontWeight: 700, color: "#6a7a50", lineHeight: 1.45 }}>{item.desc}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div style={{ background: "rgba(180,140,60,0.07)", borderTop: "1px solid rgba(180,140,60,0.12)", padding: "6px 13px" }}>
-            <span style={{ fontSize: "0.63rem", fontWeight: 700, color: "#9aaa80" }}>
-              💡 Hover over the density plot to see estimated submission counts for both types at any point. Use the Year / Date filters above to narrow the time window.
-            </span>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── DONUT CHART ───────────────────────────────────────────────────────────────
 function DonutChart({ healthy, care, treatment }) {
   const canvasRef = useRef(null);
-  const wrapRef   = useRef(null);
-  const slicesRef = useRef([]);
-  const [tip, setTip] = useState({ visible: false, x: 0, y: 0, lines: [] });
   const total = (healthy + care + treatment) || 1;
-  const pct   = Math.round((healthy / total) * 100);
+  const pct = Math.round((healthy / total) * 100);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
-    const cx = canvas.width / 2, cy = canvas.height / 2, r = 58, inner = 38;
-    const defs = [
-      { val: healthy,   color: "#5aaa30", label: "Healthy"    },
-      { val: care,      color: "#c87820", label: "Needs Care" },
-      { val: treatment, color: "#8957e5", label: "Treatment"  },
+    const cx = canvas.width / 2, cy = canvas.height / 2, r = 52, inner = 34;
+    const segs = [
+      { val: healthy,   color: "#5aaa30" },
+      { val: care,      color: "#d4880a" },
+      { val: treatment, color: "#7a3dc0" },
     ];
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    let startAngle = -Math.PI / 2;
-    const drawn = [];
-    defs.forEach(({ val, color, label }) => {
+    let start = -Math.PI / 2;
+    segs.forEach(({ val, color }) => {
       if (val <= 0) return;
       const sweep = (val / total) * 2 * Math.PI;
-      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, r, startAngle, startAngle + sweep); ctx.closePath();
-      ctx.fillStyle = color; ctx.fill();
-      drawn.push({ startAngle, endAngle: startAngle + sweep, color, label, val });
-      startAngle += sweep;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, r, start, start + sweep);
+      ctx.closePath();
+      ctx.fillStyle = color;
+      ctx.fill();
+      start += sweep;
     });
-    ctx.save(); ctx.globalCompositeOperation = "destination-out";
-    ctx.beginPath(); ctx.arc(cx, cy, inner, 0, 2 * Math.PI); ctx.fill(); ctx.restore();
-    slicesRef.current = drawn;
-  }, [healthy, care, treatment]);
-
-  const handleMouseMove = useCallback((e) => {
-    const canvas = canvasRef.current, wrap = wrapRef.current;
-    if (!canvas || !wrap) return;
-    const rect = canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left - canvas.width / 2, my = e.clientY - rect.top - canvas.height / 2;
-    const dist = Math.sqrt(mx * mx + my * my);
-    if (dist < 38 || dist > 58) { setTip(t => ({ ...t, visible: false })); return; }
-    let angle = Math.atan2(my, mx) + Math.PI / 2;
-    if (angle < 0) angle += 2 * Math.PI;
-    const hit = slicesRef.current.find(s => {
-      let sa = s.startAngle + Math.PI / 2, ea = s.endAngle + Math.PI / 2;
-      if (sa < 0) sa += 2 * Math.PI; if (ea < 0) ea += 2 * Math.PI;
-      if (ea < sa) return angle >= sa || angle <= ea;
-      return angle >= sa && angle <= ea;
-    }) || slicesRef.current[0];
-    if (!hit) return;
-    const wRect = wrap.getBoundingClientRect();
-    setTip({ visible: true, x: e.clientX - wRect.left, y: e.clientY - wRect.top,
-      lines: [{ text: hit.label, bold: true }, { text: `${hit.val} animals`, color: hit.color }, { text: `${Math.round((hit.val / total) * 100)}% of shelter` }] });
-  }, [total]);
+    ctx.save();
+    ctx.globalCompositeOperation = "destination-out";
+    ctx.beginPath();
+    ctx.arc(cx, cy, inner, 0, 2 * Math.PI);
+    ctx.fill();
+    ctx.restore();
+  }, [healthy, care, treatment, total]);
 
   return (
-    <div ref={wrapRef} style={{ position: "relative", width: 124, height: 124, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={() => setTip(t => ({ ...t, visible: false }))}>
-      <canvas ref={canvasRef} width={124} height={124} style={{ position: "absolute", inset: 0, cursor: "crosshair" }} />
+    <div style={{ position: "relative", width: 112, height: 112, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+      <canvas ref={canvasRef} width={112} height={112} style={{ position: "absolute", inset: 0 }} />
       <div style={{ position: "relative", textAlign: "center", zIndex: 1, pointerEvents: "none" }}>
-        <span style={{ display: "block", fontSize: "1.4rem", fontWeight: 900, color: "#1c4f09", lineHeight: 1 }}>{pct}%</span>
-        <small style={{ fontSize: "0.62rem", fontWeight: 800, color: "#6a7a50" }}>Healthy</small>
+        <span style={{ display: "block", fontSize: "1.35rem", fontWeight: 900, color: T.textPrimary, lineHeight: 1 }}>{pct}%</span>
+        <small style={{ fontSize: "0.6rem", fontWeight: 800, color: T.textSecondary }}>Healthy</small>
       </div>
-      <Tooltip {...tip} />
     </div>
   );
 }
 
-// ── HORIZONTAL BAR CHART ─────────────────────────────────────────────────────
-function HorizontalBarChart({ items, colorA, colorB }) {
-  const maxVal = Math.max(...items.flatMap(i => [i.valA, i.valB]), 1);
-  const [hoveredIdx, setHoveredIdx] = useState(null);
+function HealthBar({ label, val, total, color, bg }) {
+  const pct = total ? Math.round((val / total) * 100) : 0;
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      {items.map((item, i) => (
-        <div key={i}
-          onMouseEnter={() => setHoveredIdx(i)}
-          onMouseLeave={() => setHoveredIdx(null)}
-          style={{ borderRadius: 6, padding: "4px 0", background: hoveredIdx === i ? "rgba(255,248,220,0.70)" : "transparent", transition: "background 0.15s" }}>
-          <div style={{ fontSize: "0.71rem", fontWeight: 800, color: "#3a5020", marginBottom: 4 }}>{item.label}</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-            <div style={{ flex: item.valA / maxVal, height: 13, background: colorA, borderRadius: "3px 0 0 3px", minWidth: 2, transition: "flex 0.8s ease", opacity: hoveredIdx === i ? 1 : 0.85 }} />
-            <span style={{ fontSize: "0.68rem", fontWeight: 900, color: colorA, width: 24, textAlign: "right", flexShrink: 0 }}>{item.valA}</span>
-            <div style={{ flex: item.valB / maxVal, height: 13, background: colorB, borderRadius: "0 3px 3px 0", minWidth: 2, transition: "flex 0.8s ease", opacity: hoveredIdx === i ? 1 : 0.85 }} />
-            <span style={{ fontSize: "0.68rem", fontWeight: 900, color: colorB, width: 24, textAlign: "right", flexShrink: 0 }}>{item.valB}</span>
-          </div>
-          {hoveredIdx === i && (
-            <div style={{ fontSize: "0.64rem", fontWeight: 700, color: "#9aaa80", marginTop: 3 }}>
-              Adoptions: {item.valA} · Rehomes: {item.valB} · Total: {item.valA + item.valB}
-            </div>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ── AGGREGATION ───────────────────────────────────────────────────────────────
-const WEEK_LABELS  = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
-const MONTH_LABELS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-const YEAR_LABELS  = ["2021","2022","2023","2024","2025","2026"];
-
-function aggregate(records, view) {
-  const now = new Date();
-  const empty = (n) => Array(n).fill(0);
-  let approved, pending, rejected, labels;
-  if (view === "weekly") {
-    approved = empty(7); pending = empty(7); rejected = empty(7); labels = WEEK_LABELS;
-    const monday = new Date(now); monday.setDate(now.getDate() - ((now.getDay() + 6) % 7)); monday.setHours(0,0,0,0);
-    records.forEach(r => {
-      if (!r.created_at) return;
-      const idx = Math.floor((new Date(r.created_at) - monday) / 86400000);
-      if (idx < 0 || idx > 6) return;
-      const s = (r.status || "").toLowerCase();
-      if (s === "approved") approved[idx]++; else if (s === "rejected") rejected[idx]++; else pending[idx]++;
-    });
-  } else if (view === "monthly") {
-    approved = empty(12); pending = empty(12); rejected = empty(12); labels = MONTH_LABELS;
-    records.forEach(r => {
-      if (!r.created_at) return;
-      const d = new Date(r.created_at);
-      if (d.getFullYear() !== now.getFullYear()) return;
-      const s = (r.status || "").toLowerCase();
-      if (s === "approved") approved[d.getMonth()]++; else if (s === "rejected") rejected[d.getMonth()]++; else pending[d.getMonth()]++;
-    });
-  } else {
-    approved = empty(6); pending = empty(6); rejected = empty(6); labels = YEAR_LABELS;
-    records.forEach(r => {
-      if (!r.created_at) return;
-      const idx = new Date(r.created_at).getFullYear() - 2021;
-      if (idx < 0 || idx > 5) return;
-      const s = (r.status || "").toLowerCase();
-      if (s === "approved") approved[idx]++; else if (s === "rejected") rejected[idx]++; else pending[idx]++;
-    });
-  }
-  return { approved, pending, rejected, labels };
-}
-
-// ── CHART CARD with shared filters ────────────────────────────────────────────
-function ChartCard({ title, subtitle, records, rehomingRecords, colorScheme, sharedYear, sharedDateRange, availableYears }) {
-  const [view, setView] = useState("weekly");
-
-  // Apply shared filters to records
-  const filteredAdopt  = filterRecords(records,          sharedYear, sharedDateRange);
-  const filteredRehome = filterRecords(rehomingRecords,  sharedYear, sharedDateRange);
-
-  // For the bar chart: use filtered records of this card's type
-  const mainRecords = colorScheme === "orange" ? filteredRehome : filteredAdopt;
-  const agg = aggregate(mainRecords, view);
-
-  const mainColor    = colorScheme === "orange" ? "#B45A22" : "#1c4f09";
-  const activeStyle  = colorScheme === "orange"
-    ? { background: "rgba(180,90,34,0.12)", borderColor: "rgba(180,90,34,0.38)", color: "#B45A22" }
-    : { background: "rgba(90,170,48,0.13)", borderColor: "rgba(90,170,48,0.38)", color: "#1c4f09" };
-
-  const legendItems = [
-    { label: "Approved (bars)", color: mainColor },
-    { label: "Pending (bars)",  color: "#d4880a" },
-    { label: "Rejected (line)", color: colorScheme === "orange" ? "#e07830" : "#5aaa30" },
-  ];
-
-  const filterLabel = sharedYear !== "all"
-    ? `Year: ${sharedYear}`
-    : sharedDateRange.from || sharedDateRange.to
-    ? `${sharedDateRange.from || "…"} → ${sharedDateRange.to || "…"}`
-    : null;
-
-  return (
-    <div style={{ background: "rgba(255,248,225,0.85)", border: "1.5px solid rgba(180,140,60,0.22)", borderRadius: 12, padding: "18px 20px", backdropFilter: "blur(12px)", boxShadow: "0 2px 10px rgba(100,70,20,0.08)" }}>
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 }}>
-        <div>
-          <div style={{ fontSize: "0.88rem", fontWeight: 800, color: "#1a4a08" }}>{title}</div>
-          <div style={{ fontSize: "0.70rem", fontWeight: 700, color: "#6a7a50", marginTop: 1 }}>{subtitle}</div>
-          {filterLabel && (
-            <div style={{ marginTop: 4, fontSize: "0.65rem", fontWeight: 800, color: mainColor, background: mainColor + "12", border: `1px solid ${mainColor}28`, borderRadius: 5, display: "inline-block", padding: "1px 7px" }}>
-              📅 {filterLabel} · {mainRecords.length} records
-            </div>
-          )}
-        </div>
-        <div style={{ display: "flex", gap: 3 }}>
-          {["weekly","monthly","yearly"].map(v => (
-            <button key={v} onClick={() => setView(v)} style={{
-              background: view === v ? activeStyle.background : "none",
-              border: `1.5px solid ${view === v ? activeStyle.borderColor : "rgba(180,140,60,0.22)"}`,
-              borderRadius: 7, padding: "3px 9px",
-              fontFamily: "'Nunito',sans-serif", fontSize: "0.68rem", fontWeight: 800,
-              color: view === v ? activeStyle.color : "#6a7a50", cursor: "pointer", transition: "all 0.14s", textTransform: "capitalize",
-            }}>{v.charAt(0).toUpperCase() + v.slice(1)}</button>
-          ))}
-        </div>
+    <div style={{ padding: "9px 12px", borderRadius: 8, background: bg, marginBottom: 6 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
+        <span style={{ fontSize: "0.78rem", fontWeight: 700, color: T.textPrimary }}>{label}</span>
+        <strong style={{ fontSize: "1rem", fontWeight: 900, color: T.textPrimary }}>{val}</strong>
       </div>
-
-      <div style={{ display: "flex", gap: 14, marginBottom: 8 }}>
-        {legendItems.map(({ label, color }) => (
-          <span key={label} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.68rem", fontWeight: 700, color: "#6a7a50" }}>
-            <span style={{ width: 9, height: 9, borderRadius: 2, background: color, display: "inline-block" }} />{label}
-          </span>
-        ))}
+      <div style={{ height: 4, borderRadius: 2, background: "rgba(180,140,60,0.15)" }}>
+        <div style={{ height: 4, borderRadius: 2, background: color, width: `${pct}%`, transition: "width 0.7s ease" }} />
       </div>
-
-      <ComboBarLineChart data={agg} labels={agg.labels} colorScheme={colorScheme} />
-
-      {/* Dual density plot showing BOTH adoption + rehoming */}
-      <DualDensityPlot adoptionRecords={filteredAdopt} rehomingRecords={filteredRehome} view={view} />
     </div>
   );
 }
 
-// ── RECENT REQUEST ROW ────────────────────────────────────────────────────────
-function ReqMini({ name, detail, status, type }) {
-  const ico = type === "rehome"
-    ? { color: "#d4880a", icon: "🏠", bg: "rgba(212,136,10,0.12)" }
-    : { color: "#1c4f09", icon: "❤️", bg: "rgba(90,170,48,0.12)" };
-  const statusStyle = {
-    pending:  { bg: "rgba(212,136,10,0.15)", color: "#d4880a" },
-    approved: { bg: "rgba(90,170,48,0.14)",  color: "#1c4f09" },
-    rejected: { bg: "rgba(192,48,48,0.12)",  color: "#c03030" },
-  }[(status||"").toLowerCase()] || { bg: "rgba(180,140,60,0.11)", color: "#6a7a50" };
+function ReqRow({ name, detail, status }) {
+  const s = (status || "").toLowerCase();
+  const badgeType = s === "approved" ? "ok" : s === "rejected" ? "danger" : "warn";
   return (
-    <div style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 10px", borderRadius:9, background:"rgba(255,250,230,0.50)", borderLeft:`3px solid ${ico.color}`, marginBottom:5, cursor:"pointer", transition:"background 0.14s" }}
-      onMouseEnter={e=>e.currentTarget.style.background="rgba(255,250,230,0.88)"}
-      onMouseLeave={e=>e.currentTarget.style.background="rgba(255,250,230,0.50)"}>
-      <div style={{ width:28, height:28, borderRadius:7, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, fontSize:"0.8rem", background:ico.bg }}>{ico.icon}</div>
-      <div style={{ flex:1, minWidth:0 }}>
-        <strong style={{ display:"block", fontSize:"0.80rem", fontWeight:800, color:"#1a4a08", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{name}</strong>
-        <small style={{ fontSize:"0.68rem", fontWeight:700, color:"#6a7a50" }}>{detail}</small>
+    <div style={{
+      display: "flex", alignItems: "center", gap: 10,
+      padding: "8px 10px", borderRadius: 8,
+      background: "rgba(255,250,230,0.50)",
+      borderBottom: "1px solid rgba(180,140,60,0.10)",
+      transition: "background 0.13s", cursor: "pointer",
+    }}
+      onMouseEnter={e => e.currentTarget.style.background = "rgba(255,250,230,0.90)"}
+      onMouseLeave={e => e.currentTarget.style.background = "rgba(255,250,230,0.50)"}
+    >
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: "0.78rem", fontWeight: 800, color: T.textPrimary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</div>
+        <div style={{ fontSize: "0.67rem", fontWeight: 700, color: T.textSecondary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{detail}</div>
       </div>
-      <div style={{ fontSize:"0.65rem", fontWeight:900, padding:"2px 7px", borderRadius:20, flexShrink:0, background:statusStyle.bg, color:statusStyle.color, textTransform:"capitalize" }}>{status}</div>
+      <Badge type={badgeType}>{status}</Badge>
     </div>
   );
 }
 
-// ── LIVE BADGE ────────────────────────────────────────────────────────────────
-function LiveBadge({ lastUpdated, polling }) {
+function SectionHeader({ title, action, onAction }) {
   return (
-    <div style={{ display:"flex", alignItems:"center", gap:6, fontSize:"0.72rem", fontWeight:700, color:"#6a7a50" }}>
-      <span style={{ width:7, height:7, borderRadius:"50%", background:polling?"#d4880a":"#5aaa30", display:"inline-block", boxShadow:polling?"none":"0 0 0 3px rgba(90,170,48,0.2)" }} />
-      {polling ? "Refreshing…" : "Live"}
-      {lastUpdated && !polling && <span style={{ color:"#9aaa80", marginLeft:4 }}>· {lastUpdated.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</span>}
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+      <span style={{ fontSize: "0.78rem", fontWeight: 800, color: T.textPrimary, textTransform: "uppercase", letterSpacing: "0.06em" }}>{title}</span>
+      {action && (
+        <button onClick={onAction} style={{
+          background: "none", border: "none", cursor: "pointer",
+          fontFamily: "'Nunito',sans-serif", fontSize: "0.72rem",
+          fontWeight: 800, color: "#d4880a",
+        }}>{action}</button>
+      )}
     </div>
   );
 }
 
-// ── MAIN DASHBOARD PANEL ──────────────────────────────────────────────────────
+function EmptyState({ message }) {
+  return (
+    <div style={{ textAlign: "center", padding: "28px 0", color: T.textTertiary, fontSize: "0.80rem", fontWeight: 700 }}>
+      {message}
+    </div>
+  );
+}
+
+// ── MAIN COMPONENT ────────────────────────────────────────────────────────────
 export default function DashboardPanel({ stats = {}, onNav, user }) {
   const [adoptions,   setAdoptions]   = useState([]);
   const [rehomings,   setRehomings]   = useState([]);
   const [recentUsers, setRecentUsers] = useState([]);
-  const [animalCount, setAnimalCount] = useState(null);
   const [polling,     setPolling]     = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
-
-  // ── Shared filter state ──────────────────────────────────────────────────────
-  const [selectedYear, setSelectedYear] = useState("all");
-  const [dateRange,    setDateRange]    = useState({ from: "", to: "" });
 
   const healthy   = stats.health_healthy   || 0;
   const care      = stats.health_care      || 0;
   const treatment = stats.health_treatment || 0;
+  const healthTotal = healthy + care + treatment || 1;
 
   const fetchData = useCallback(async () => {
     setPolling(true);
     try {
-      const [aRes, rRes] = await Promise.all([djFetch("/api/approvals/adoptions/admin/"), djFetch("/api/approvals/rehoming/admin/")]);
+      const [aRes, rRes] = await Promise.all([
+        djFetch("/api/approvals/adoptions/admin/"),
+        djFetch("/api/approvals/rehoming/admin/"),
+      ]);
       if (aRes.ok) { const d = await aRes.json(); setAdoptions(d.data || d || []); }
       if (rRes.ok) { const d = await rRes.json(); setRehomings(d.data || d || []); }
-      try { const sRes = await springFetch("/api/animals?limit=1"); if (sRes.ok) { const sData = await sRes.json(); setAnimalCount(Array.isArray(sData) ? sData.length : sData.totalElements || (sData.content||[]).length); } } catch {}
-      try { const uRes = await fetch("/php/admin/dashboard",{method:"POST",body:(() => { const f=new FormData(); f.append("action","get_users"); f.append("role","all"); return f; })(),credentials:"include"}); if (uRes.ok) { const uData = await uRes.json(); if (uData.success) setRecentUsers((uData.data||[]).slice(0,5)); } } catch {}
+      try {
+        const uRes = await fetch("/php/admin/dashboard", {
+          method: "POST",
+          body: (() => { const f = new FormData(); f.append("action", "get_users"); f.append("role", "all"); return f; })(),
+          credentials: "include",
+        });
+        if (uRes.ok) {
+          const uData = await uRes.json();
+          if (uData.success) setRecentUsers((uData.data || []).slice(0, 5));
+        }
+      } catch {}
       setLastUpdated(new Date());
-    } catch(e) { console.warn("[DashboardPanel] fetch error:", e); }
+    } catch (e) { console.warn("[DashboardPanel] fetch error:", e); }
     setPolling(false);
   }, []);
 
-  useEffect(() => { fetchData(); const id = setInterval(fetchData, POLL_INTERVAL); return () => clearInterval(id); }, [fetchData]);
+  useEffect(() => {
+    fetchData();
+    const id = setInterval(fetchData, POLL_INTERVAL);
+    return () => clearInterval(id);
+  }, [fetchData]);
 
-  // Show 2021 → current year + 5 future years, plus any years from actual data
-  const currentYear = new Date().getFullYear();
-  const dataYears = [...new Set([...adoptions, ...rehomings]
-    .filter(r => r.created_at)
-    .map(r => new Date(r.created_at).getFullYear())
-  )];
-  const allYears = new Set([...dataYears]);
-  for (let y = 2021; y <= currentYear + 5; y++) allYears.add(y);
-  const availableYears = [...allYears].sort((a, b) => b - a);
+  const adoptPending  = adoptions.filter(r => (r.status || "").toLowerCase() === "pending").length;
+  const rehomePending = rehomings.filter(r => (r.status || "").toLowerCase() === "pending").length;
+  const missingCount  = stats.missing_pets ?? 0;
 
-  // Handle year change: clear date range when year selected
-  const handleYearChange = (y) => {
-    setSelectedYear(y);
-    if (y !== "all") setDateRange({ from: "", to: "" });
-  };
-
-  // Handle date range: clear year selection when date range used
-  const handleDateRangeChange = (dr) => {
-    setDateRange(dr);
-    if (dr.from || dr.to) setSelectedYear("all");
-  };
-
-  const adoptPending  = adoptions.filter(r=>(r.status||"").toLowerCase()==="pending").length;
-  const rehomePending = rehomings.filter(r=>(r.status||"").toLowerCase()==="pending").length;
-  const recentAdopt   = [...adoptions].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).slice(0,5);
-  const recentRehome  = [...rehomings].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).slice(0,5);
-  const totalAnimals  = animalCount ?? stats.animals ?? 0;
-
-  const adoptStatusItems = [
-    { label:"Approved", valA:adoptions.filter(r=>r.status?.toLowerCase()==="approved").length, valB:rehomings.filter(r=>r.status?.toLowerCase()==="approved").length },
-    { label:"Pending",  valA:adoptPending, valB:rehomePending },
-    { label:"Rejected", valA:adoptions.filter(r=>r.status?.toLowerCase()==="rejected").length, valB:rehomings.filter(r=>r.status?.toLowerCase()==="rejected").length },
-    { label:"Total",    valA:adoptions.length, valB:rehomings.length },
-  ];
+  const recentAdopt  = [...adoptions].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 5);
+  const recentRehome = [...rehomings].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 5);
 
   const statCards = [
-    { val:totalAnimals,       label:"Total Animals",     sub:"↑ Active listings",          theme:"green",  panel:"animals",   icon:"🐾" },
-    { val:adoptions.length,   label:"Adoption Requests", sub:`⏱ ${adoptPending} pending`,  subWarn:adoptPending>0,  theme:"orange", panel:"adoptions", icon:"❤️" },
-    { val:rehomings.length,   label:"Rehome Requests",   sub:`⏱ ${rehomePending} pending`, subWarn:rehomePending>0, theme:"amber",  panel:"rehome",    icon:"🏠" },
-    { val:stats.users??"—",   label:"Registered Users",  sub:"👤 All accounts",            theme:"purple", panel:"users",     icon:"👥" },
+    { val: stats.animals ?? "—",  label: "Total Animals",     sub: "Active listings",             subType: "ok",      accent: "green",  panel: "animals"    },
+    { val: adoptions.length,       label: "Adoption Requests", sub: `${adoptPending} pending`,     subType: adoptPending  > 0 ? "warn" : "ok", accent: "orange", panel: "adoptions" },
+    { val: rehomings.length,       label: "Rehome Requests",   sub: `${rehomePending} pending`,    subType: rehomePending > 0 ? "warn" : "ok", accent: "amber",  panel: "rehome"    },
+    { val: stats.users ?? "—",     label: "Registered Users",  sub: "All accounts",                subType: "neutral", accent: "purple", panel: "users"      },
+    { val: stats.surveys ?? "—",   label: "Feedback Reports",  sub: "Post-adoption",               subType: "neutral", accent: "teal",   panel: "surveys"    },
+    { val: missingCount,           label: "Missing Pets",      sub: `${missingCount} active`,      subType: missingCount > 0 ? "danger" : "ok", accent: "rose", panel: "missingpets" },
   ];
 
-  const dashCard = { background:"rgba(255,248,225,0.85)", border:"1.5px solid rgba(180,140,60,0.22)", borderRadius:12, padding:"18px 20px", backdropFilter:"blur(12px)", boxShadow:"0 2px 10px rgba(100,70,20,0.08)" };
-
-  const activeFilterCount = (selectedYear !== "all" ? 1 : 0) + (dateRange.from || dateRange.to ? 1 : 0);
+  const quickActions = [
+    { label: "Manage Animals",    accent: "green",  panel: "animals"     },
+    { label: "Review Adoptions",  accent: "orange", panel: "adoptions"   },
+    { label: "Rehoming Requests", accent: "amber",  panel: "rehome"      },
+    { label: "User Management",   accent: "purple", panel: "users"       },
+    { label: "Missing Pets",      accent: "rose",   panel: "missingpets" },
+    { label: "Analytics",         accent: "teal",   panel: "analytics"   },
+  ];
 
   return (
-    <div style={{ display:"flex", flexDirection:"column", gap:18, animation:"fadeUp 0.25s ease both", fontFamily:"'Nunito',sans-serif" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 18, fontFamily: "'Nunito',sans-serif", animation: "fadeUp 0.25s ease both" }}>
 
-      {/* Header */}
-      <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", flexWrap:"wrap", gap:10 }}>
+      {/* ── Header */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
         <div>
-          <h2 style={{ fontFamily:"'Playfair Display',Georgia,serif", fontSize:"1.45rem", fontWeight:800, color:"#1a4a08", margin:0 }}>Good day, {user?.firstName}! 🐾</h2>
-          <p style={{ color:"#6a7a50", fontSize:"0.82rem", fontWeight:700, marginTop:3, margin:0 }}>Here's what's happening at the shelter today.</p>
+          <h2 style={{ fontFamily: "'Playfair Display',Georgia,serif", fontSize: "1.45rem", fontWeight: 800, color: T.textPrimary, margin: 0 }}>
+            Good day, {user?.firstName || "Administrator"}
+          </h2>
+          <p style={{ color: T.textSecondary, fontSize: "0.82rem", fontWeight: 700, marginTop: 3, margin: 0 }}>
+            Here is a snapshot of the shelter right now.
+          </p>
         </div>
-        <LiveBadge lastUpdated={lastUpdated} polling={polling} />
-      </div>
-
-      {/* Row 1 — stat cards */}
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:14 }}>
-        {statCards.map(c => <StatCard key={c.panel} {...c} onClick={() => onNav(c.panel)} />)}
-      </div>
-
-      {/* ── SHARED FILTER SECTION ─────────────────────────────────────────────── */}
-      <div style={{ background: "rgba(255,252,235,0.85)", border: "1.5px solid rgba(180,140,60,0.20)", borderRadius: 12, padding: "14px 18px", backdropFilter: "blur(8px)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-          <span style={{ fontSize: "0.82rem", fontWeight: 900, color: "#1a4a08" }}>📅 Chart Filters</span>
-          <span style={{ fontSize: "0.70rem", fontWeight: 700, color: "#6a7a50" }}>— applied to all charts &amp; density plots below</span>
-          {activeFilterCount > 0 && (
-            <span style={{ marginLeft: "auto", fontSize: "0.67rem", fontWeight: 900, color: "#B45A22", background: "rgba(180,90,34,0.12)", border: "1px solid rgba(180,90,34,0.25)", borderRadius: 20, padding: "2px 9px" }}>
-              {activeFilterCount} filter{activeFilterCount > 1 ? "s" : ""} active
-            </span>
-          )}
-        </div>
-
-        <DateFilterBar
-          years={availableYears}
-          selectedYear={selectedYear}
-          onYearChange={handleYearChange}
-          dateRange={dateRange}
-          onDateRangeChange={handleDateRangeChange}
-          colorScheme="green"
-        />
-
-        {/* Filter summary */}
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-          {[
-            { label: "❤️ Adoption records in view", val: filterRecords(adoptions, selectedYear, dateRange).length, total: adoptions.length, color: "#1c4f09" },
-            { label: "🏠 Rehoming records in view",  val: filterRecords(rehomings, selectedYear, dateRange).length, total: rehomings.length, color: "#d4880a" },
-          ].map(s => (
-            <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 7, padding: "5px 11px", background: s.color + "0a", border: `1px solid ${s.color}22`, borderRadius: 8 }}>
-              <span style={{ fontSize: "1.0rem", fontWeight: 900, color: s.color }}>{s.val}</span>
-              <span style={{ fontSize: "0.67rem", fontWeight: 700, color: "#6a7a50" }}>{s.label}</span>
-              {s.val !== s.total && <span style={{ fontSize: "0.64rem", fontWeight: 700, color: "#9aaa80" }}>of {s.total}</span>}
-            </div>
-          ))}
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <LiveBadge lastUpdated={lastUpdated} polling={polling} />
+          <button
+            onClick={() => onNav("analytics")}
+            style={{
+              background: "rgba(26,138,106,0.10)", border: "1.5px solid rgba(26,138,106,0.35)",
+              borderRadius: 10, padding: "6px 14px", fontFamily: "'Nunito',sans-serif",
+              fontSize: "0.78rem", fontWeight: 800, color: "#1a8a6a", cursor: "pointer",
+            }}
+          >
+            View Analytics
+          </button>
         </div>
       </div>
 
-      {/* Row 2 — charts + right panel */}
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 300px", gap:14 }}>
-        <ChartCard
-          title="Adoption Activity"
-          subtitle="Bars: Approved & Pending · Line: Rejected rate"
-          records={adoptions}
-          rehomingRecords={rehomings}
-          colorScheme="green"
-          sharedYear={selectedYear}
-          sharedDateRange={dateRange}
-          availableYears={availableYears}
-        />
-        <ChartCard
-          title="Rehome Activity"
-          subtitle="Bars: Approved & Pending · Line: Rejected rate"
-          records={adoptions}
-          rehomingRecords={rehomings}
-          colorScheme="orange"
-          sharedYear={selectedYear}
-          sharedDateRange={dateRange}
-          availableYears={availableYears}
-        />
+      {/* ── Stat cards — 3 × 2 */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14 }}>
+        {statCards.map(c => (
+          <StatCard key={c.panel} {...c} onClick={() => onNav(c.panel)} />
+        ))}
+      </div>
 
-        <div style={dashCard}>
-          <div style={{ marginBottom:12 }}>
-            <div style={{ fontSize:"0.88rem", fontWeight:800, color:"#1a4a08" }}>Requests by Status</div>
-            <div style={{ fontSize:"0.70rem", fontWeight:700, color:"#6a7a50", marginTop:1 }}>Adoptions vs Rehomes</div>
-          </div>
-          <div style={{ display:"flex", gap:12, marginBottom:10 }}>
-            {[{label:"Adoptions",color:"#1c4f09"},{label:"Rehomes",color:"#d4880a"}].map(l=>(
-              <span key={l.label} style={{ display:"flex", alignItems:"center", gap:4, fontSize:"0.68rem", fontWeight:700, color:"#6a7a50" }}>
-                <span style={{ width:9, height:9, borderRadius:2, background:l.color, display:"inline-block" }} />{l.label}
-              </span>
-            ))}
-          </div>
-          <HorizontalBarChart items={adoptStatusItems} colorA="#1c4f09" colorB="#d4880a" />
-          <div style={{ borderTop:"1px solid rgba(180,140,60,0.14)", paddingTop:14, marginTop:14 }}>
-            <div style={{ fontSize:"0.82rem", fontWeight:800, color:"#1a4a08", marginBottom:10 }}>Animal Health</div>
-            <div style={{ display:"flex", alignItems:"center", gap:14 }}>
-              <DonutChart healthy={healthy} care={care} treatment={treatment} />
-              <div style={{ display:"flex", flexDirection:"column", gap:7 }}>
-                {[{label:"Healthy",val:healthy,color:"#5aaa30"},{label:"Needs Care",val:care,color:"#c87820"},{label:"Treatment",val:treatment,color:"#8957e5"}].map(l=>(
-                  <div key={l.label} style={{ display:"flex", alignItems:"center", gap:6, fontSize:"0.75rem", fontWeight:700, color:"#3a5020" }}>
-                    <span style={{ width:9, height:9, borderRadius:2, flexShrink:0, background:l.color }} />
-                    {l.label}
-                    <b style={{ marginLeft:"auto", color:"#1a4a08", fontWeight:900, paddingLeft:8 }}>{l.val}</b>
-                  </div>
-                ))}
-              </div>
+      {/* ── Middle row: health + quick actions */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+
+        {/* Animal Health */}
+        <div style={{ ...T.card, padding: "18px 20px" }}>
+          <SectionHeader title="Animal Health Overview" />
+          <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+            <DonutChart healthy={healthy} care={care} treatment={treatment} />
+            <div style={{ flex: 1 }}>
+              <HealthBar label="Healthy"          val={healthy}   total={healthTotal} color="#5aaa30" bg="rgba(90,170,48,0.10)"    />
+              <HealthBar label="Needs Care"       val={care}      total={healthTotal} color="#d4880a" bg="rgba(212,136,10,0.10)"   />
+              <HealthBar label="Under Treatment"  val={treatment} total={healthTotal} color="#7a3dc0" bg="rgba(122,61,192,0.10)"   />
             </div>
           </div>
         </div>
+
+        {/* Quick Actions */}
+        <div style={{ ...T.card, padding: "18px 20px" }}>
+          <SectionHeader title="Quick Actions" />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            {quickActions.map(a => {
+              const ac = T.accent[a.accent] || T.accent.green;
+              return (
+                <button
+                  key={a.panel}
+                  onClick={() => onNav(a.panel)}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 8,
+                    padding: "12px 14px", borderRadius: 10,
+                    background: `${ac.hover}`,
+                    border: `1.5px solid ${ac.color}33`,
+                    cursor: "pointer", fontFamily: "'Nunito',sans-serif", textAlign: "left",
+                    transition: "transform 0.15s, box-shadow 0.15s",
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 4px 14px rgba(0,0,0,0.10)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; }}
+                >
+                  <span style={{ fontSize: "0.78rem", fontWeight: 800, color: ac.color }}>{a.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
-      {/* Row 3 — recent lists */}
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:14 }}>
-        <div style={dashCard}>
-          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
-            <div><div style={{ fontSize:"0.88rem", fontWeight:800, color:"#1a4a08" }}>Recent Adoptions</div><div style={{ fontSize:"0.70rem", fontWeight:700, color:"#6a7a50", marginTop:1 }}>Latest requests</div></div>
-            <button onClick={()=>onNav("adoptions")} style={{ background:"none", border:"none", cursor:"pointer", fontFamily:"'Nunito',sans-serif", fontSize:"0.74rem", fontWeight:800, color:"#c87820" }}
-              onMouseEnter={e=>{e.currentTarget.style.opacity="0.72";e.currentTarget.style.textDecoration="underline";}}
-              onMouseLeave={e=>{e.currentTarget.style.opacity="1";e.currentTarget.style.textDecoration="none";}}>View All</button>
-          </div>
-          {recentAdopt.length>0 ? recentAdopt.map((r,i)=><ReqMini key={i} name={r.name||"Unknown"} detail={r.animal_name||"Adoption request"} status={r.status||"Pending"} type="adoption" />) : <div style={{ textAlign:"center", padding:"28px 0", color:"#9aaa80", fontSize:"0.82rem", fontWeight:700 }}>❤️ No recent requests</div>}
+      {/* ── Bottom row: recent lists */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
+
+        {/* Recent Adoptions */}
+        <div style={{ ...T.card, padding: "18px 20px" }}>
+          <SectionHeader title="Recent Adoptions" action="View All" onAction={() => onNav("adoptions")} />
+          {recentAdopt.length > 0
+            ? recentAdopt.map((r, i) => (
+                <ReqRow key={i} name={r.name || "Unknown"} detail={r.animal_name || "Adoption request"} status={r.status || "Pending"} />
+              ))
+            : <EmptyState message="No recent adoption requests" />
+          }
         </div>
 
-        <div style={dashCard}>
-          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
-            <div><div style={{ fontSize:"0.88rem", fontWeight:800, color:"#1a4a08" }}>Recent Rehomes</div><div style={{ fontSize:"0.70rem", fontWeight:700, color:"#6a7a50", marginTop:1 }}>Latest requests</div></div>
-            <button onClick={()=>onNav("rehome")} style={{ background:"none", border:"none", cursor:"pointer", fontFamily:"'Nunito',sans-serif", fontSize:"0.74rem", fontWeight:800, color:"#c87820" }}
-              onMouseEnter={e=>{e.currentTarget.style.opacity="0.72";e.currentTarget.style.textDecoration="underline";}}
-              onMouseLeave={e=>{e.currentTarget.style.opacity="1";e.currentTarget.style.textDecoration="none";}}>View All</button>
-          </div>
-          {recentRehome.length>0 ? recentRehome.map((r,i)=><ReqMini key={i} name={r.pet_name||"Unknown Pet"} detail={r.reason||`by ${r.contact||"—"}`} status={r.status||"Pending"} type="rehome" />) : <div style={{ textAlign:"center", padding:"28px 0", color:"#9aaa80", fontSize:"0.82rem", fontWeight:700 }}>🏠 No recent rehomes</div>}
+        {/* Recent Rehomings */}
+        <div style={{ ...T.card, padding: "18px 20px" }}>
+          <SectionHeader title="Recent Rehomings" action="View All" onAction={() => onNav("rehome")} />
+          {recentRehome.length > 0
+            ? recentRehome.map((r, i) => (
+                <ReqRow key={i} name={r.pet_name || "Unknown Pet"} detail={r.reason || `by ${r.contact || "—"}`} status={r.status || "Pending"} />
+              ))
+            : <EmptyState message="No recent rehoming requests" />
+          }
         </div>
 
-        <div style={dashCard}>
-          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
-            <div><div style={{ fontSize:"0.88rem", fontWeight:800, color:"#1a4a08" }}>Recent Users</div><div style={{ fontSize:"0.70rem", fontWeight:700, color:"#6a7a50", marginTop:1 }}>Newly registered</div></div>
-            <button onClick={()=>onNav("users")} style={{ background:"none", border:"none", cursor:"pointer", fontFamily:"'Nunito',sans-serif", fontSize:"0.74rem", fontWeight:800, color:"#c87820" }}
-              onMouseEnter={e=>{e.currentTarget.style.opacity="0.72";e.currentTarget.style.textDecoration="underline";}}
-              onMouseLeave={e=>{e.currentTarget.style.opacity="1";e.currentTarget.style.textDecoration="none";}}>View All</button>
-          </div>
-          {recentUsers.length>0
-            ? recentUsers.map((u,i) => {
-                const name = `${u.first_name||""} ${u.last_name||""}`.trim();
-                const rs = u.role==="admin" ? {bg:"rgba(122,61,192,0.12)",color:"#7a3dc0"} : {bg:"rgba(32,96,160,0.10)",color:"#2060a0"};
+        {/* Recent Users */}
+        <div style={{ ...T.card, padding: "18px 20px" }}>
+          <SectionHeader title="Recent Users" action="View All" onAction={() => onNav("users")} />
+          {recentUsers.length > 0
+            ? recentUsers.map((u, i) => {
+                const name = `${u.first_name || ""} ${u.last_name || ""}`.trim();
+                const isAdmin = u.role === "admin";
                 return (
-                  <div key={i} style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 10px", borderRadius:9, background:"rgba(255,250,230,0.50)", marginBottom:5, cursor:"pointer", transition:"background 0.14s" }}
-                    onMouseEnter={e=>e.currentTarget.style.background="rgba(255,250,230,0.88)"}
-                    onMouseLeave={e=>e.currentTarget.style.background="rgba(255,250,230,0.50)"}>
-                    <div style={{ width:28, height:28, borderRadius:"50%", flexShrink:0, background:"linear-gradient(135deg,#1c4f09,#2a7010)", border:"2px solid #5aaa30", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontSize:"0.76rem", fontWeight:900 }}>
-                      {name?.charAt(0)?.toUpperCase()||"?"}
+                  <div
+                    key={i}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 10,
+                      padding: "8px 10px", borderRadius: 8,
+                      background: "rgba(255,250,230,0.50)",
+                      borderBottom: "1px solid rgba(180,140,60,0.10)",
+                      cursor: "pointer", transition: "background 0.13s",
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = "rgba(255,250,230,0.90)"}
+                    onMouseLeave={e => e.currentTarget.style.background = "rgba(255,250,230,0.50)"}
+                  >
+                    <div style={{
+                      width: 30, height: 30, borderRadius: "50%", flexShrink: 0,
+                      background: "linear-gradient(135deg,#1c4f09,#2a7010)",
+                      border: "2px solid #5aaa30",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      color: "rgba(255,248,220,0.9)", fontSize: "0.76rem", fontWeight: 900,
+                    }}>
+                      {name?.charAt(0)?.toUpperCase() || "?"}
                     </div>
-                    <div style={{ flex:1, minWidth:0 }}>
-                      <strong style={{ display:"block", fontSize:"0.78rem", fontWeight:800, color:"#1a4a08", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{name||"—"}</strong>
-                      <small style={{ fontSize:"0.67rem", fontWeight:700, color:"#6a7a50", overflow:"hidden", textOverflow:"ellipsis", display:"block" }}>{u.email}</small>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: "0.78rem", fontWeight: 800, color: T.textPrimary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name || "—"}</div>
+                      <div style={{ fontSize: "0.67rem", fontWeight: 700, color: T.textSecondary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.email}</div>
                     </div>
-                    <div style={{ fontSize:"0.64rem", fontWeight:900, padding:"2px 7px", borderRadius:20, background:rs.bg, color:rs.color, flexShrink:0, textTransform:"capitalize" }}>{u.role}</div>
+                    <Badge type={isAdmin ? "purple" : "blue"}>{u.role}</Badge>
                   </div>
                 );
               })
-            : <div style={{ textAlign:"center", padding:"28px 0", color:"#9aaa80", fontSize:"0.82rem", fontWeight:700 }}>👤 No user data</div>}
+            : <EmptyState message="No user data available" />
+          }
         </div>
       </div>
 

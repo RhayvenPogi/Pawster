@@ -5,16 +5,14 @@ import logo from "../images/logo.png";
 import { Link } from 'react-router-dom';
 
 const DJANGO      = import.meta.env.VITE_DJANGO_API ?? "http://localhost:8000";
-const POLL_7DAY   = 30_000;  // 30s — 7-day surveys check frequently
-const POLL_30DAY  = 60_000;  // 60s — 30-day surveys check every minute
+const POLL_7DAY   = 30_000;
+const POLL_30DAY  = 60_000;
 
-// Token is passed in from the component — sourced from useAuth, not guessed from localStorage
 function makeDjFetch(token) {
   return function djFetch(path, opts = {}) {
     return fetch(`${DJANGO}${path}`, {
       ...opts,
       headers: {
-        "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...opts.headers,
       },
@@ -23,8 +21,8 @@ function makeDjFetch(token) {
 }
 
 const TYPE_INFO = {
-  "7_day":  { label: "7-Day Check-In",  icon: "fa-calendar-week", color: "#1c7a09", bg: "rgba(28,122,9,0.08)"  },
-  "30_day": { label: "30-Day Check-In", icon: "fa-calendar-alt",  color: "#1a5fbf", bg: "rgba(26,95,191,0.08)" },
+  "7_day":  { label: "7-Day Feedback Report",  icon: "fa-calendar-week", color: "#1c7a09", bg: "rgba(28,122,9,0.08)"  },
+  "30_day": { label: "30-Day Feedback Report", icon: "fa-calendar-alt",  color: "#1a5fbf", bg: "rgba(26,95,191,0.08)" },
 };
 
 // ── Star Rating ───────────────────────────────────────────────────────────────
@@ -80,13 +78,76 @@ const SectionBox = ({ icon, title, children }) => (
   </div>
 );
 
-// ── Survey form modal ─────────────────────────────────────────────────────────
-function SurveyModal({ survey, onClose, onSuccess, token }) {
+// ── Photo Upload ──────────────────────────────────────────────────────────────
+function PhotoUpload({ photos, onChange }) {
+  const inputRef = useRef(null);
+
+  const handleFiles = (e) => {
+    const files = Array.from(e.target.files);
+    const valid = files.filter(f => f.type.startsWith("image/")).slice(0, 5 - photos.length);
+    if (valid.length === 0) return;
+    const readers = valid.map(file => new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onload = () => resolve({ file, preview: reader.result, name: file.name });
+      reader.readAsDataURL(file);
+    }));
+    Promise.all(readers).then(newPhotos => onChange([...photos, ...newPhotos]));
+    e.target.value = "";
+  };
+
+  const remove = (idx) => onChange(photos.filter((_, i) => i !== idx));
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
+      {/* Preview grid */}
+      {photos.length > 0 && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(80px,1fr))", gap: "0.5rem" }}>
+          {photos.map((p, i) => (
+            <div key={i} style={{ position: "relative", borderRadius: 10, overflow: "hidden", aspectRatio: "1", border: "1px solid rgba(90,170,48,0.35)" }}>
+              <img src={p.preview} alt={`pet-photo-${i+1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              <button type="button" onClick={() => remove(i)}
+                style={{ position: "absolute", top: 3, right: 3, width: 20, height: 20, borderRadius: 6, background: "rgba(192,48,48,0.85)", border: "none", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.6rem" }}>
+                <i className="fas fa-times" />
+              </button>
+              <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "0.15rem 0.3rem", background: "rgba(0,0,0,0.5)", fontSize: "0.55rem", color: "#fff", fontWeight: 700, textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                Photo {i + 1}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Upload button */}
+      {photos.length < 5 && (
+        <>
+          <input ref={inputRef} type="file" accept="image/*" multiple onChange={handleFiles} style={{ display: "none" }} />
+          <button type="button" onClick={() => inputRef.current.click()}
+            style={{ padding: "0.625rem 1rem", borderRadius: 10, border: "2px dashed rgba(90,170,48,0.4)", background: "rgba(90,170,48,0.04)", color: "#3a7020", fontWeight: 800, fontSize: "0.82rem", cursor: "pointer", fontFamily: "'Nunito',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.4rem", transition: "all 0.15s" }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = "#5aaa30"; e.currentTarget.style.background = "rgba(90,170,48,0.08)"; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(90,170,48,0.4)"; e.currentTarget.style.background = "rgba(90,170,48,0.04)"; }}>
+            <i className="fas fa-camera" />
+            {photos.length === 0 ? "Upload Pet Photos" : `Add More (${5 - photos.length} remaining)`}
+          </button>
+          <p style={{ fontSize: "0.68rem", fontWeight: 700, color: "#9aaa80", margin: 0 }}>
+            Up to 5 photos · JPG, PNG, WEBP · Helps the shelter track your pet's progress
+          </p>
+        </>
+      )}
+      {photos.length >= 5 && (
+        <p style={{ fontSize: "0.68rem", fontWeight: 700, color: "#9aaa80", margin: 0 }}>Maximum 5 photos reached.</p>
+      )}
+    </div>
+  );
+}
+
+// ── Feedback Report form modal ─────────────────────────────────────────────────
+function ReportModal({ survey, onClose, onSuccess, token }) {
   const [form, setForm] = useState({
     adjustment: "", behavioralNotes: "", showingIllness: "",
     vetVisited: "", satisfied: "", needsSupport: "",
     additionalNotes: "", rating: 0,
   });
+  const [photos,  setPhotos]  = useState([]);
   const [loading, setLoading] = useState(false);
 
   const ti = TYPE_INFO[survey.survey_type] || TYPE_INFO["7_day"];
@@ -103,19 +164,27 @@ function SurveyModal({ survey, onClose, onSuccess, token }) {
     }
     setLoading(true);
     try {
+      const fd = new FormData();
+      fd.append("survey_id",        survey.id);
+      fd.append("adjustment",       form.adjustment);
+      fd.append("behavioral_notes", form.behavioralNotes);
+      fd.append("showing_illness",  form.showingIllness === "yes");
+      fd.append("vet_visited",      form.vetVisited === "yes");
+      fd.append("satisfied",        form.satisfied === "yes");
+      fd.append("needs_support",    form.needsSupport === "yes");
+      fd.append("additional_notes", form.additionalNotes);
+      fd.append("rating",           form.rating);
+
+      // ✅ FIX: append each photo under the same key "photos"
+      // Django's request.FILES.getlist("photos") will receive all of them
+      photos.forEach((p) => fd.append("photos", p.file, p.name));
+
       const res  = await makeDjFetch(token)("/api/surveys/response/", {
         method: "POST",
-        body: JSON.stringify({
-          survey_id:        survey.id,
-          adjustment:       form.adjustment,
-          behavioral_notes: form.behavioralNotes,
-          showing_illness:  form.showingIllness === "yes",
-          vet_visited:      form.vetVisited === "yes",
-          satisfied:        form.satisfied === "yes",
-          needs_support:    form.needsSupport === "yes",
-          additional_notes: form.additionalNotes,
-          rating:           form.rating,
-        }),
+        body: fd,
+        // ✅ Do NOT set Content-Type — browser sets multipart boundary automatically
+        // Override to remove any default json header that makeDjFetch might inherit
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       });
       const data = await res.json();
       if (data.success) { onSuccess(); onClose(); }
@@ -183,6 +252,14 @@ function SurveyModal({ survey, onClose, onSuccess, token }) {
               )}
             </SectionBox>
 
+            {/* Pet Photos */}
+            <SectionBox icon="fa-camera" title="Pet Photos">
+              <p style={{ fontSize: "0.78rem", fontWeight: 700, color: "#5a7a40", margin: 0 }}>
+                Share how your pet is doing! Photos help our team track their wellbeing and progress.
+              </p>
+              <PhotoUpload photos={photos} onChange={setPhotos} />
+            </SectionBox>
+
             <SectionBox icon="fa-smile" title="Your Satisfaction">
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
                 <SField label="Satisfied with the adoption? *">
@@ -219,7 +296,7 @@ function SurveyModal({ survey, onClose, onSuccess, token }) {
               style={{ width: "100%", padding: "0.8rem", borderRadius: 12, fontWeight: 900, fontSize: "0.9rem", color: "#fff", background: loading ? "#5a8a40" : "#1c4f09", border: "none", cursor: loading ? "not-allowed" : "pointer", fontFamily: "'Nunito',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", boxShadow: "0 4px 16px rgba(28,79,9,0.28)" }}>
               {loading
                 ? <><i className="fas fa-spinner" style={{ animation: "spin .8s linear infinite" }} /> Submitting…</>
-                : <><i className="fas fa-paper-plane" /> Submit Follow-Up</>}
+                : <><i className="fas fa-paper-plane" /> Submit Feedback Report</>}
             </button>
           </div>
         </form>
@@ -232,8 +309,8 @@ function SurveyModal({ survey, onClose, onSuccess, token }) {
   );
 }
 
-// ── Survey card (list view) ───────────────────────────────────────────────────
-function SurveyCard({ survey, onOpen }) {
+// ── Report card (list view) ───────────────────────────────────────────────────
+function ReportCard({ survey, onOpen }) {
   const ti        = TYPE_INFO[survey.survey_type] || TYPE_INFO["7_day"];
   const isPending = survey.status === "Pending";
   const dateLabel = survey.submitted_at || survey.scheduled_for;
@@ -278,11 +355,11 @@ function SurveyCard({ survey, onOpen }) {
         {isPending ? (
           <button onClick={() => onOpen(survey)}
             style={{ width: "100%", padding: "0.625rem", borderRadius: 10, fontWeight: 900, fontSize: "0.84rem", color: "#fff", background: "#1c4f09", border: "none", cursor: "pointer", fontFamily: "'Nunito',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.4rem", boxShadow: "0 4px 14px rgba(28,79,9,0.22)", transition: "background 0.2s" }}>
-            <i className="fas fa-clipboard-list" /> Fill Out Survey
+            <i className="fas fa-file-alt" /> Submit Feedback Report
           </button>
         ) : (
           <div style={{ width: "100%", padding: "0.625rem", borderRadius: 10, fontWeight: 900, fontSize: "0.84rem", color: "#6a7a50", background: "rgba(180,140,60,0.10)", border: "1px solid rgba(180,140,60,0.22)", textAlign: "center", fontFamily: "'Nunito',sans-serif" }}>
-            <i className="fas fa-check-circle" style={{ marginRight: "0.4rem", color: "#5aaa30" }} />Survey Completed
+            <i className="fas fa-check-circle" style={{ marginRight: "0.4rem", color: "#5aaa30" }} />Report Submitted
           </div>
         )}
       </div>
@@ -290,7 +367,7 @@ function SurveyCard({ survey, onOpen }) {
   );
 }
 
-// ── Upcoming survey card ──────────────────────────────────────────────────────
+// ── Upcoming report card ──────────────────────────────────────────────────────
 function UpcomingCard({ survey }) {
   const ti       = TYPE_INFO[survey.survey_type] || TYPE_INFO["7_day"];
   const dueDate  = new Date(survey.scheduled_for);
@@ -336,7 +413,6 @@ function PollIndicator({ label, intervalMs, lastPolled }) {
 
   return (
     <div style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", padding: "0.3rem 0.75rem", borderRadius: 50, background: "rgba(255,248,220,0.85)", border: "1px solid rgba(180,140,60,0.25)" }}>
-      {/* Mini ring progress */}
       <svg width="14" height="14" viewBox="0 0 14 14">
         <circle cx="7" cy="7" r="5.5" fill="none" stroke="rgba(180,140,60,0.22)" strokeWidth="1.5" />
         <circle cx="7" cy="7" r="5.5" fill="none" stroke="#5aaa30" strokeWidth="1.5"
@@ -353,11 +429,9 @@ function PollIndicator({ label, intervalMs, lastPolled }) {
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
-export default function FollowUpSurveys() {
+export default function FollowUpReports() {
   const auth                  = useAuth();
   const user                  = auth.user;
-  // useAuth may expose the token as auth.token, auth.accessToken, or user.token —
-  // try all three so this works regardless of how your hook is shaped.
   const token                 = auth.token ?? auth.accessToken ?? user?.token ??
     localStorage.getItem("pawster_token") ?? localStorage.getItem("token") ?? "";
   const [data,    setData]    = useState({ pending: [], completed: [], pending_count: 0 });
@@ -366,21 +440,12 @@ export default function FollowUpSurveys() {
   const [toast,   setToast]   = useState(null);
   const [tab,     setTab]     = useState("pending");
 
-  // Track when each type was last polled (for the ring indicators)
   const [last7,  setLast7]  = useState(null);
   const [last30, setLast30] = useState(null);
 
-  // Interval refs — managed manually so we can start/stop them dynamically
-  // without causing re-renders or stale closure issues
   const interval7Ref  = useRef(null);
   const interval30Ref = useRef(null);
 
-  // ── Core fetcher: fetches both types in one call, merges state, then
-  //    starts/stops each interval based on whether that survey type actually
-  //    exists for this user (i.e. they have an approved adoption).
-  //    Poll for 7-day starts the moment a 7-day survey appears.
-  //    Poll for 30-day starts only once a 30-day survey appears (30 days post-approval).
-  // ────────────────────────────────────────────────────────────────────────────
   const fetchAll = useCallback(async (isFirstLoad = false) => {
     if (isFirstLoad) setLoading(true);
     try {
@@ -399,44 +464,18 @@ export default function FollowUpSurveys() {
           setLast7(Date.now());
           setLast30(Date.now());
 
-          // ── Smart interval management ────────────────────────────────────
-          // A survey type is "active" when the user has at least one pending
-          // OR upcoming entry of that type — meaning an adoption was approved
-          // and the backend has created the survey record.
+          const has7Day  = pending.some(s => s.survey_type === "7_day")  || completed.some(s => s.survey_type === "7_day");
+          const has30Day = pending.some(s => s.survey_type === "30_day") || completed.some(s => s.survey_type === "30_day");
 
-          const has7Day  = pending.some(s => s.survey_type === "7_day")  ||
-                           completed.some(s => s.survey_type === "7_day");
-          const has30Day = pending.some(s => s.survey_type === "30_day") ||
-                           completed.some(s => s.survey_type === "30_day");
-
-          // 7-day: start 30s interval if surveys exist and not already running
-          if (has7Day && !interval7Ref.current) {
-            interval7Ref.current = setInterval(() => fetch7DayOnly(), POLL_7DAY);
-          }
-          // 7-day: stop if no surveys exist
-          if (!has7Day && interval7Ref.current) {
-            clearInterval(interval7Ref.current);
-            interval7Ref.current = null;
-          }
-
-          // 30-day: start 60s interval if surveys exist and not already running
-          if (has30Day && !interval30Ref.current) {
-            interval30Ref.current = setInterval(() => fetch30DayOnly(), POLL_30DAY);
-          }
-          // 30-day: stop if no surveys exist
-          if (!has30Day && interval30Ref.current) {
-            clearInterval(interval30Ref.current);
-            interval30Ref.current = null;
-          }
+          if (has7Day && !interval7Ref.current)   interval7Ref.current  = setInterval(() => fetch7DayOnly(),  POLL_7DAY);
+          if (!has7Day && interval7Ref.current)  { clearInterval(interval7Ref.current);  interval7Ref.current  = null; }
+          if (has30Day && !interval30Ref.current) interval30Ref.current = setInterval(() => fetch30DayOnly(), POLL_30DAY);
+          if (!has30Day && interval30Ref.current){ clearInterval(interval30Ref.current); interval30Ref.current = null; }
         }
       }
     } catch { /* silent */ }
     if (isFirstLoad) setLoading(false);
   }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
-  // (fetch7DayOnly / fetch30DayOnly are defined below and referenced via closure)
-
-  // ── Targeted fetchers called by each interval ────────────────────────────
-  // These only replace their own type's slice of state, leaving the other intact.
 
   const fetch7DayOnly = useCallback(async () => {
     try {
@@ -450,11 +489,7 @@ export default function FollowUpSurveys() {
             const new7    = (json.pending   || []).filter(s => s.survey_type === "7_day");
             const new7c   = (json.completed || []).filter(s => s.survey_type === "7_day");
             const merged  = [...keep30, ...new7];
-            return {
-              pending:       merged,
-              completed:     [...keep30c, ...new7c],
-              pending_count: merged.filter(s => new Date(s.scheduled_for) <= Date.now()).length,
-            };
+            return { pending: merged, completed: [...keep30c, ...new7c], pending_count: merged.filter(s => new Date(s.scheduled_for) <= Date.now()).length };
           });
           setLast7(Date.now());
         }
@@ -474,11 +509,7 @@ export default function FollowUpSurveys() {
             const new30   = (json.pending   || []).filter(s => s.survey_type === "30_day");
             const new30c  = (json.completed || []).filter(s => s.survey_type === "30_day");
             const merged  = [...keep7, ...new30];
-            return {
-              pending:       merged,
-              completed:     [...keep7c, ...new30c],
-              pending_count: merged.filter(s => new Date(s.scheduled_for) <= Date.now()).length,
-            };
+            return { pending: merged, completed: [...keep7c, ...new30c], pending_count: merged.filter(s => new Date(s.scheduled_for) <= Date.now()).length };
           });
           setLast30(Date.now());
         }
@@ -486,33 +517,20 @@ export default function FollowUpSurveys() {
     } catch { /* silent */ }
   }, [token]);
 
-  // ── Bootstrap: one combined fetch on mount + a slow "approval watcher" ───
-  // The approval watcher polls /api/surveys/user/ every 30s just to detect
-  // when a new survey type appears (i.e. an adoption just got approved).
-  // Once detected, the smart interval management above takes over.
   useEffect(() => {
-    if (!token) return; // don't poll until authenticated
-
-    // First load — show spinner, fetch everything, start intervals if needed
+    if (!token) return;
     fetchAll(true);
-
-    // Approval watcher: checks every 30s for newly approved adoptions that
-    // would generate new survey records on the backend.
-    // This is the *only* always-on interval — it's cheap (one GET).
     const approvalWatcher = setInterval(() => fetchAll(false), POLL_7DAY);
-
     return () => {
       clearInterval(approvalWatcher);
-      // Clean up any type-specific intervals on unmount
       if (interval7Ref.current)  clearInterval(interval7Ref.current);
       if (interval30Ref.current) clearInterval(interval30Ref.current);
     };
   }, [fetchAll, token]);
 
   const handleSuccess = () => {
-    setToast("Thank you for your feedback! 🐾");
+    setToast("Thank you for your feedback report! 🐾");
     setTimeout(() => setToast(null), 3500);
-    // Refresh everything after submission so intervals re-evaluate
     fetchAll(false);
   };
 
@@ -520,10 +538,8 @@ export default function FollowUpSurveys() {
   const dueSurveys   = data.pending.filter(s => new Date(s.scheduled_for) <= now);
   const upcoming     = data.pending.filter(s => new Date(s.scheduled_for) > now);
   const totalPending = dueSurveys.length;
-
-  // Split due surveys by type for display clarity
-  const due7Day  = dueSurveys.filter(s => s.survey_type === "7_day");
-  const due30Day = dueSurveys.filter(s => s.survey_type === "30_day");
+  const due7Day      = dueSurveys.filter(s => s.survey_type === "7_day");
+  const due30Day     = dueSurveys.filter(s => s.survey_type === "30_day");
 
   return (
     <div style={{ minHeight: "100vh", background: "#EDDABB", fontFamily: "'Nunito',sans-serif", color: "#1a2e0a" }}>
@@ -551,16 +567,15 @@ export default function FollowUpSurveys() {
       <div style={{ position: "relative", zIndex: 10, paddingTop: "4rem", paddingBottom: "2.5rem", textAlign: "center", animation: "fadeUp .6s ease both" }}>
         <div style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", borderRadius: 50, padding: "0.375rem 1rem", fontSize: "0.72rem", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "1rem", background: "rgba(28,79,9,0.09)", border: "1px solid rgba(90,170,48,0.32)", color: "#1c4f09" }}>
           <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#5aaa30", display: "inline-block", animation: "pdot 2s ease infinite" }} />
-          <i className="fas fa-clipboard-list" style={{ fontSize: "0.65rem" }} /> Follow-Up Surveys
+          <i className="fas fa-file-alt" style={{ fontSize: "0.65rem" }} /> Feedback Reports
         </div>
         <h1 style={{ fontFamily: "'Playfair Display',serif", fontSize: "clamp(2rem,4vw,3.5rem)", fontWeight: 900, color: "#1a4a08", lineHeight: 1.1, marginBottom: "0.75rem" }}>
           How's Your <em style={{ fontStyle: "italic", color: "#e07820" }}>New Pet</em> Doing?
         </h1>
         <p style={{ fontWeight: 700, fontSize: "0.95rem", maxWidth: 500, margin: "0 auto", lineHeight: 1.7, color: "#3a5020" }}>
-          We check in at 7 and 30 days after adoption to make sure both you and your pet are settling in well.
+          We check in at 7 and 30 days after adoption. Share photos and feedback so we can track your pet's wellbeing.
         </p>
 
-        {/* Poll indicators — only shown when that survey type is active */}
         {!loading && (
           <div style={{ display: "inline-flex", gap: "0.5rem", marginTop: "1rem", flexWrap: "wrap", justifyContent: "center" }}>
             {(data.pending.some(s => s.survey_type === "7_day") || data.completed.some(s => s.survey_type === "7_day")) && (
@@ -572,7 +587,6 @@ export default function FollowUpSurveys() {
           </div>
         )}
 
-        {/* Stats row */}
         {!loading && (
           <div style={{ display: "inline-flex", gap: "1rem", marginTop: "1rem", flexWrap: "wrap", justifyContent: "center" }}>
             {[
@@ -597,7 +611,6 @@ export default function FollowUpSurveys() {
           </div>
         ) : (
           <>
-            {/* Due now banner */}
             {totalPending > 0 && (
               <div style={{ padding: "0.875rem 1.125rem", borderRadius: 14, background: "rgba(28,79,9,0.08)", border: "1px solid rgba(90,170,48,0.28)", marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: "0.75rem" }}>
                 <div style={{ width: 36, height: 36, borderRadius: 10, background: "#1c4f09", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", flexShrink: 0 }}>
@@ -605,11 +618,11 @@ export default function FollowUpSurveys() {
                 </div>
                 <div>
                   <div style={{ fontWeight: 900, fontSize: "0.9rem", color: "#1a4a08" }}>
-                    You have {totalPending} survey{totalPending > 1 ? "s" : ""} ready to fill in
+                    You have {totalPending} feedback report{totalPending > 1 ? "s" : ""} ready to submit
                     {due7Day.length > 0 && due30Day.length > 0 && ` (${due7Day.length} × 7-day, ${due30Day.length} × 30-day)`}
                   </div>
                   <div style={{ fontWeight: 700, fontSize: "0.78rem", color: "#5a7a40", marginTop: "0.1rem" }}>
-                    Your feedback helps us improve our adoption process for everyone.
+                    Include photos to help our team see how your pet is settling in.
                   </div>
                 </div>
               </div>
@@ -636,35 +649,33 @@ export default function FollowUpSurveys() {
               </div>
             )}
 
-            {/* Due Now — grouped by type */}
+            {/* Due Now */}
             {tab === "pending" && (
               dueSurveys.length > 0 ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-                  {/* 7-Day group */}
                   {due7Day.length > 0 && (
                     <div>
                       <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.75rem" }}>
                         <div style={{ height: 3, width: 20, borderRadius: 2, background: TYPE_INFO["7_day"].color }} />
                         <span style={{ fontSize: "0.7rem", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.08em", color: TYPE_INFO["7_day"].color }}>
-                          7-Day Surveys <span style={{ opacity: 0.6 }}>· polls every 30s</span>
+                          7-Day Reports <span style={{ opacity: 0.6 }}>· polls every 30s</span>
                         </span>
                       </div>
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: "1rem" }}>
-                        {due7Day.map(s => <SurveyCard key={s.id} survey={s} onOpen={setActive} />)}
+                        {due7Day.map(s => <ReportCard key={s.id} survey={s} onOpen={setActive} />)}
                       </div>
                     </div>
                   )}
-                  {/* 30-Day group */}
                   {due30Day.length > 0 && (
                     <div>
                       <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.75rem" }}>
                         <div style={{ height: 3, width: 20, borderRadius: 2, background: TYPE_INFO["30_day"].color }} />
                         <span style={{ fontSize: "0.7rem", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.08em", color: TYPE_INFO["30_day"].color }}>
-                          30-Day Surveys <span style={{ opacity: 0.6 }}>· polls every 60s</span>
+                          30-Day Reports <span style={{ opacity: 0.6 }}>· polls every 60s</span>
                         </span>
                       </div>
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: "1rem" }}>
-                        {due30Day.map(s => <SurveyCard key={s.id} survey={s} onOpen={setActive} />)}
+                        {due30Day.map(s => <ReportCard key={s.id} survey={s} onOpen={setActive} />)}
                       </div>
                     </div>
                   )}
@@ -673,12 +684,11 @@ export default function FollowUpSurveys() {
                 <div style={{ textAlign: "center", padding: "4rem 2rem", borderRadius: 18, border: "1px solid rgba(180,140,60,0.28)", background: "rgba(255,248,225,0.75)" }}>
                   <i className="fas fa-check-circle" style={{ fontSize: "3rem", color: "#5aaa30", opacity: 0.5, display: "block", marginBottom: "1rem" }} />
                   <p style={{ fontWeight: 700, fontSize: "1rem", color: "#3a5020", margin: "0 0 0.4rem" }}>All caught up!</p>
-                  <p style={{ fontSize: "0.85rem", fontWeight: 700, color: "#6a7a50", margin: 0 }}>No surveys due right now.</p>
+                  <p style={{ fontSize: "0.85rem", fontWeight: 700, color: "#6a7a50", margin: 0 }}>No feedback reports due right now.</p>
                 </div>
               )
             )}
 
-            {/* Upcoming */}
             {tab === "upcoming" && (
               upcoming.length > 0 ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
@@ -687,40 +697,37 @@ export default function FollowUpSurveys() {
               ) : (
                 <div style={{ textAlign: "center", padding: "4rem 2rem", borderRadius: 18, border: "1px solid rgba(180,140,60,0.28)", background: "rgba(255,248,225,0.75)" }}>
                   <i className="fas fa-calendar" style={{ fontSize: "3rem", color: "#b4903a", opacity: 0.4, display: "block", marginBottom: "1rem" }} />
-                  <p style={{ fontWeight: 700, fontSize: "1rem", color: "#3a5020", margin: 0 }}>No upcoming surveys scheduled.</p>
+                  <p style={{ fontWeight: 700, fontSize: "1rem", color: "#3a5020", margin: 0 }}>No upcoming reports scheduled.</p>
                 </div>
               )
             )}
 
-            {/* Completed */}
             {tab === "completed" && (
               data.completed.length > 0 ? (
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: "1rem" }}>
-                  {data.completed.map(s => <SurveyCard key={s.id} survey={s} onOpen={() => {}} />)}
+                  {data.completed.map(s => <ReportCard key={s.id} survey={s} onOpen={() => {}} />)}
                 </div>
               ) : (
                 <div style={{ textAlign: "center", padding: "4rem 2rem", borderRadius: 18, border: "1px solid rgba(180,140,60,0.28)", background: "rgba(255,248,225,0.75)" }}>
-                  <i className="fas fa-clipboard-list" style={{ fontSize: "3rem", color: "#1c4f09", opacity: 0.3, display: "block", marginBottom: "1rem" }} />
-                  <p style={{ fontWeight: 700, fontSize: "1rem", color: "#3a5020", margin: "0 0 0.4rem" }}>No completed surveys yet.</p>
-                  <p style={{ fontSize: "0.85rem", fontWeight: 700, color: "#6a7a50", margin: 0 }}>Surveys appear here 7 and 30 days after your adoption is approved.</p>
+                  <i className="fas fa-file-alt" style={{ fontSize: "3rem", color: "#1c4f09", opacity: 0.3, display: "block", marginBottom: "1rem" }} />
+                  <p style={{ fontWeight: 700, fontSize: "1rem", color: "#3a5020", margin: "0 0 0.4rem" }}>No completed reports yet.</p>
+                  <p style={{ fontSize: "0.85rem", fontWeight: 700, color: "#6a7a50", margin: 0 }}>Reports appear here 7 and 30 days after your adoption is approved.</p>
                 </div>
               )
             )}
           </>
         )}
-        
       </div>
 
-
-      {active && <SurveyModal survey={active} onClose={() => setActive(null)} onSuccess={handleSuccess} token={token} />}
+      {active && <ReportModal survey={active} onClose={() => setActive(null)} onSuccess={handleSuccess} token={token} />}
 
       {toast && (
         <div style={{ position: "fixed", bottom: "1.5rem", left: "50%", transform: "translateX(-50%)", zIndex: 9999, padding: "0.75rem 1.25rem", borderRadius: 12, fontWeight: 800, fontSize: "0.85rem", background: "#1c4f09", color: "#fff", boxShadow: "0 8px 32px rgba(0,0,0,0.25)", fontFamily: "'Nunito',sans-serif", display: "flex", alignItems: "center", gap: "0.5rem", animation: "fadeUp .25s ease both", whiteSpace: "nowrap" }}>
           <i className="fas fa-check-circle" /> {toast}
         </div>
       )}
-      
-                 <footer className="relative z-10 border-t border-[rgba(90,170,48,0.45)] bg-[rgba(255,248,218,0.85)] backdrop-blur-md px-10 py-12">
+
+      <footer className="relative z-10 border-t border-[rgba(90,170,48,0.45)] bg-[rgba(255,248,218,0.85)] backdrop-blur-md px-10 py-12">
         <div className="max-w-[1200px] mx-auto grid gap-12 mb-10 grid-cols-[repeat(auto-fit,minmax(160px,1fr))]">
           <div>
             <div className="mb-2">
@@ -758,7 +765,5 @@ export default function FollowUpSurveys() {
         </div>
       </footer>
     </div>
-
-    
   );
 }

@@ -1,3 +1,4 @@
+// ── useAuth.js ────────────────────────────────────────────────────────────────
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../config/axios';
@@ -15,22 +16,25 @@ export const useAuth = () => {
     const [isLoading, setIsLoading] = useState(true);
     const navigate = useNavigate();
 
+    // ── Session check on mount ────────────────────────────────────────────────
     useEffect(() => {
         const checkSession = async () => {
-            const token = localStorage.getItem('pawster_token');
-            const storedUser = localStorage.getItem('pawster_user');
+            const token       = localStorage.getItem('pawster_token');
+            const storedUser  = localStorage.getItem('pawster_user');
 
-            if (!token && !storedUser) {   // ← Add this guard
+            // Nothing stored — skip the network call entirely
+            if (!token && !storedUser) {
                 setIsLoading(false);
                 return;
             }
 
             try {
                 const { data } = await api.get('/api/auth/me');
-                setUser(prev => ({ ...(prev ?? {}), ...data }));
-                localStorage.setItem('pawster_user',
-                    JSON.stringify({ ...(user ?? {}), ...data }));
+                const merged = { ...(user ?? {}), ...data };
+                setUser(merged);
+                localStorage.setItem('pawster_user', JSON.stringify(merged));
             } catch {
+                // Token expired or invalid — clear everything
                 setUser(null);
                 localStorage.removeItem('pawster_user');
                 localStorage.removeItem('pawster_token');
@@ -38,9 +42,11 @@ export const useAuth = () => {
                 setIsLoading(false);
             }
         };
+
         checkSession();
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+    // ── Login ─────────────────────────────────────────────────────────────────
     const login = useCallback(async (email, password) => {
         const fd = new FormData();
         fd.append('email', email);
@@ -58,12 +64,13 @@ export const useAuth = () => {
         return data;
     }, [navigate]);
 
+    // ── Register ──────────────────────────────────────────────────────────────
     const register = useCallback(async (formData) => {
         const { data } = await api.post('/api/auth/register', formData, {
             headers: { 'Content-Type': 'multipart/form-data' },
         });
 
-        // Clear all session data so checkSession can't restore it
+        // Clear session so checkSession can't restore a stale user
         setUser(null);
         localStorage.removeItem('pawster_token');
         localStorage.removeItem('pawster_user');
@@ -72,6 +79,7 @@ export const useAuth = () => {
         return data;
     }, [navigate]);
 
+    // ── Logout ────────────────────────────────────────────────────────────────
     const logout = useCallback(async () => {
         try {
             await api.post('/api/auth/logout');
@@ -87,7 +95,7 @@ export const useAuth = () => {
         user,
         setUser,
         isAuthenticated: !!user,
-        isAdmin: user?.role === 'admin',
+        isAdmin:         user?.role === 'admin',
         isLoading,
         login,
         register,

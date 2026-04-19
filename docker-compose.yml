@@ -139,7 +139,7 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       - BREVO_API_KEY=${BREVO_API_KEY}
       - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL} 
-      - APP_BASE_URL=http://localhost:3000
+      - APP_BASE_URL=http://localhost:8000
       - SPRING_BOOT_API=http://sb:8080
     volumes:
       - ./django:/app

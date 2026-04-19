@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 
 const STATUS_STYLE = {
-  approved: { bg: "bg-green-100",  text: "text-green-800",  border: "border-green-300",  dot: "bg-green-400",  label: "Approved" },
-  pending:  { bg: "bg-amber-100",  text: "text-amber-700",  border: "border-amber-300",  dot: "bg-amber-400",  label: "Pending"  },
-  rejected: { bg: "bg-red-100",    text: "text-red-700",    border: "border-red-300",    dot: "bg-red-400",    label: "Rejected" },
+  approved: { bg: "bg-green-100",  text: "text-green-800",  border: "border-green-300",  dot: "bg-green-400",  label: "Approved"     },
+  pending:  { bg: "bg-amber-100",  text: "text-amber-700",  border: "border-amber-300",  dot: "bg-amber-400",  label: "Pending"      },
+  rejected: { bg: "bg-red-100",    text: "text-red-700",    border: "border-red-300",    dot: "bg-red-400",    label: "Rejected"     },
+  resolved: { bg: "bg-blue-100",   text: "text-blue-700",   border: "border-blue-300",   dot: "bg-blue-400",   label: "Resolved ✅"  },
 };
 
 function getPetPhotoUrl(pet) {
@@ -204,6 +205,8 @@ function DetailModal({ pet, onClose, onApprove, onReject, onDelete, onEdit }) {
     { icon: "📅", label: "Reported", value: pet.reportedDate ? new Date(pet.reportedDate).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" }) : "—" },
     { icon: "🐾", label: "Species",  value: pet.species || "—" },
     ...(pet.breed ? [{ icon: "🦮", label: "Breed", value: pet.breed }] : []),
+    // ── NEW: show resolved status if owner marked it ──
+    ...(pet.resolvedByUser ? [{ icon: "🏠", label: "Owner Status", value: "Reunited with owner ✅" }] : []),
   ];
 
   return (
@@ -221,6 +224,13 @@ function DetailModal({ pet, onClose, onApprove, onReject, onDelete, onEdit }) {
           <div className="flex items-center gap-2">
             <TypeBadge type={pet.type} />
             <StatusBadge status={pet.status ?? "pending"} />
+            {/* ── NEW: Resolved badge in header ── */}
+            {pet.resolvedByUser && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide border bg-blue-100 text-blue-700 border-blue-300">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+                Reunited
+              </span>
+            )}
             <button onClick={onClose}
               className="w-7 h-7 rounded-lg border border-black/12 bg-transparent text-gray-400 hover:bg-gray-50 cursor-pointer flex items-center justify-center text-sm transition-colors">
               ✕
@@ -246,6 +256,12 @@ function DetailModal({ pet, onClose, onApprove, onReject, onDelete, onEdit }) {
               </div>
             )}
             <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-white to-transparent" />
+            {/* ── NEW: Resolved ribbon over photo ── */}
+            {pet.resolvedByUser && (
+              <div className="absolute top-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-600/90 backdrop-blur-sm text-white text-[11px] font-black shadow-lg">
+                🏠 Reunited with owner
+              </div>
+            )}
             <div className="absolute bottom-3 left-4 right-4">
               <p className="font-extrabold text-lg text-[#1a3a08] leading-tight">{pet.name || "Unknown"}</p>
               {(pet.species || pet.breed) && (
@@ -256,6 +272,19 @@ function DetailModal({ pet, onClose, onApprove, onReject, onDelete, onEdit }) {
 
           {/* Content */}
           <div className="p-5 flex flex-col gap-3">
+            {/* ── NEW: Resolved info banner ── */}
+            {pet.resolvedByUser && (
+              <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-50 border border-blue-200">
+                <span className="text-2xl">🏠</span>
+                <div>
+                  <p className="text-xs font-black text-blue-700 uppercase tracking-wider m-0">Pet Reunited</p>
+                  <p className="text-sm font-bold text-blue-600 m-0 mt-0.5">
+                    The owner has confirmed this pet was found and reunited.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-2 flex-wrap">
               {pills.map(({ icon, label, value }) => (
                 <div key={label} className="bg-[#faf8f0] border border-black/8 rounded-xl px-3 py-1.5">
@@ -412,20 +441,25 @@ export default function MissingPetsPanel({ show, onStatsChange }) {
     }
   };
 
+  // ── counts now includes resolved ──────────────────────────────────────────
   const counts = {
     all:      pets.length,
     pending:  pets.filter(p => !p.status || p.status === "pending").length,
     approved: pets.filter(p => p.status === "approved").length,
     rejected: pets.filter(p => p.status === "rejected").length,
+    resolved: pets.filter(p => !!p.resolvedByUser).length,
     lost:     pets.filter(p => p.type === "lost").length,
     found:    pets.filter(p => p.type === "found").length,
   };
 
+  // ── filter logic now handles "resolved" ───────────────────────────────────
   const filtered = pets.filter(p => {
-    const matchStatus = statusFilter === "all" ? true
-      : statusFilter === "pending" ? (!p.status || p.status === "pending")
-      : p.status === statusFilter;
-    const matchType = typeFilter === "all" || p.type === typeFilter;
+    const matchStatus =
+      statusFilter === "all"      ? true :
+      statusFilter === "pending"  ? (!p.status || p.status === "pending") :
+      statusFilter === "resolved" ? !!p.resolvedByUser :
+      p.status === statusFilter;
+    const matchType   = typeFilter === "all" || p.type === typeFilter;
     const matchSearch = !search.trim() || [p.name, p.breed, p.area, p.address, p.color, p.species]
       .some(f => f?.toLowerCase().includes(search.toLowerCase()));
     return matchStatus && matchType && matchSearch;
@@ -433,20 +467,24 @@ export default function MissingPetsPanel({ show, onStatsChange }) {
 
   if (!show) return null;
 
+  // ── stat cards now includes Resolved ─────────────────────────────────────
   const STAT_CARDS = [
     { label: "Total",    value: counts.all,      icon: "📋", bg: "bg-amber-100",  text: "text-amber-700"  },
     { label: "Pending",  value: counts.pending,  icon: "🕐", bg: "bg-amber-100",  text: "text-amber-700"  },
     { label: "Approved", value: counts.approved, icon: "✅", bg: "bg-green-100",  text: "text-green-800"  },
     { label: "Rejected", value: counts.rejected, icon: "❌", bg: "bg-red-100",    text: "text-red-700"    },
+    { label: "Resolved", value: counts.resolved, icon: "🏠", bg: "bg-blue-100",   text: "text-blue-700"   },
     { label: "Lost",     value: counts.lost,     icon: "🔴", bg: "bg-red-50",     text: "text-red-600"    },
     { label: "Found",    value: counts.found,    icon: "🟢", bg: "bg-green-50",   text: "text-green-700"  },
   ];
 
+  // ── status filters now includes Resolved ─────────────────────────────────
   const STATUS_FILTERS = [
-    { val: "all",      label: "All",      active: "bg-[#1a4a08] text-white"  },
-    { val: "pending",  label: "Pending",  active: "bg-amber-600 text-white"  },
-    { val: "approved", label: "Approved", active: "bg-[#1c4f09] text-white"  },
-    { val: "rejected", label: "Rejected", active: "bg-red-600 text-white"    },
+    { val: "all",      label: "All",         active: "bg-[#1a4a08] text-white"  },
+    { val: "pending",  label: "Pending",     active: "bg-amber-600 text-white"  },
+    { val: "approved", label: "Approved",    active: "bg-[#1c4f09] text-white"  },
+    { val: "rejected", label: "Rejected",    active: "bg-red-600 text-white"    },
+    { val: "resolved", label: "Resolved 🏠", active: "bg-blue-600 text-white"   },
   ];
 
   return (
@@ -470,7 +508,7 @@ export default function MissingPetsPanel({ show, onStatsChange }) {
             <em className="italic text-[#B45A22]">Missing</em> Pets
           </h2>
           <p className="text-sm font-bold text-[#6a7a50] mt-1">
-            {counts.all} total · {counts.pending} pending · {counts.approved} approved · {counts.rejected} rejected
+            {counts.all} total · {counts.pending} pending · {counts.approved} approved · {counts.rejected} rejected · {counts.resolved} reunited
           </p>
         </div>
         <button onClick={fetchPets}
@@ -479,8 +517,8 @@ export default function MissingPetsPanel({ show, onStatsChange }) {
         </button>
       </div>
 
-      {/* Stat cards */}
-      <div className="grid grid-cols-6 gap-2.5 mb-5">
+      {/* Stat cards — 7 columns */}
+      <div className="grid grid-cols-7 gap-2.5 mb-5">
         {STAT_CARDS.map(c => (
           <div key={c.label} className={`${c.bg} rounded-2xl p-3 flex items-center gap-2.5 border border-black/8`}>
             <span className="text-lg">{c.icon}</span>
@@ -528,13 +566,25 @@ export default function MissingPetsPanel({ show, onStatsChange }) {
         )}
       </div>
 
-      {/* Pending banner */}
+      {/* ── Pending banner ── */}
       {counts.pending > 0 && statusFilter !== "pending" && (
         <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-amber-50 border border-amber-200 mb-4 cursor-pointer hover:bg-amber-100 transition-colors"
           onClick={() => setStatus("pending")}>
           <div className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
           <p className="text-xs font-extrabold text-amber-700 m-0">
             {counts.pending} report{counts.pending !== 1 ? "s" : ""} awaiting review —{" "}
+            <span className="underline">click to filter</span>
+          </p>
+        </div>
+      )}
+
+      {/* ── NEW: Resolved / Reunited banner ── */}
+      {counts.resolved > 0 && statusFilter !== "resolved" && (
+        <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-blue-50 border border-blue-200 mb-4 cursor-pointer hover:bg-blue-100 transition-colors"
+          onClick={() => setStatus("resolved")}>
+          <div className="w-2 h-2 rounded-full bg-blue-400 shrink-0" />
+          <p className="text-xs font-extrabold text-blue-700 m-0">
+            🏠 {counts.resolved} pet{counts.resolved !== 1 ? "s" : ""} marked as reunited by their owner —{" "}
             <span className="underline">click to filter</span>
           </p>
         </div>
@@ -561,8 +611,8 @@ export default function MissingPetsPanel({ show, onStatsChange }) {
       {!loading && filtered.length > 0 && (
         <div className="bg-[rgba(255,248,225,0.9)] border border-[rgba(180,140,60,0.28)] rounded-2xl overflow-hidden shadow-sm">
           <div className="grid gap-2 px-4 py-2.5 bg-[rgba(180,140,60,0.08)] border-b border-[rgba(180,140,60,0.18)]"
-            style={{ gridTemplateColumns: "56px 80px 1fr 90px 130px 100px 95px 160px" }}>
-            {["Photo","Type","Pet / Breed","Species","Area / Address","Status","Reported","Actions"].map(h => (
+            style={{ gridTemplateColumns: "56px 80px 1fr 90px 130px 120px 95px 160px" }}>
+            {["Photo", "Type", "Pet / Breed", "Species", "Area / Address", "Status", "Reported", "Actions"].map(h => (
               <div key={h} className="text-[10px] font-black uppercase tracking-widest text-[#6a7a50]">{h}</div>
             ))}
           </div>
@@ -570,11 +620,11 @@ export default function MissingPetsPanel({ show, onStatsChange }) {
           {filtered.map((pet, i) => (
             <div key={pet.id}
               className="grid gap-2 px-4 py-3 items-center cursor-pointer transition-colors hover:bg-[rgba(90,170,48,0.05)]"
-              style={{ gridTemplateColumns: "56px 80px 1fr 90px 130px 100px 95px 160px", borderBottom: i < filtered.length - 1 ? "1px solid rgba(180,140,60,0.11)" : "none" }}
+              style={{ gridTemplateColumns: "56px 80px 1fr 90px 130px 120px 95px 160px", borderBottom: i < filtered.length - 1 ? "1px solid rgba(180,140,60,0.11)" : "none" }}
               onClick={() => setSelected(pet)}>
 
               {/* Photo */}
-              <div className="w-11 h-11 rounded-xl overflow-hidden bg-[rgba(180,140,60,0.12)] flex items-center justify-center shrink-0">
+              <div className="w-11 h-11 rounded-xl overflow-hidden bg-[rgba(180,140,60,0.12)] flex items-center justify-center shrink-0 relative">
                 <img
                   src={getPetPhotoUrl(pet)}
                   alt=""
@@ -587,6 +637,12 @@ export default function MissingPetsPanel({ show, onStatsChange }) {
                 <span className="text-2xl hidden items-center justify-center w-full h-full">
                   {pet.species?.toLowerCase() === "cat" ? "🐱" : "🐶"}
                 </span>
+                {/* ── NEW: small resolved overlay on photo thumbnail ── */}
+                {pet.resolvedByUser && (
+                  <div className="absolute inset-0 bg-blue-600/60 flex items-center justify-center rounded-xl">
+                    <span className="text-base">🏠</span>
+                  </div>
+                )}
               </div>
 
               <div><TypeBadge type={pet.type} /></div>
@@ -603,7 +659,15 @@ export default function MissingPetsPanel({ show, onStatsChange }) {
                 {pet.address && <p className="text-[10px] font-bold text-[#9aaa80] m-0 truncate">{pet.address}</p>}
               </div>
 
-              <div><StatusBadge status={pet.status ?? "pending"} /></div>
+              {/* ── UPDATED: Status column shows both approval status + resolved badge ── */}
+              <div className="flex flex-col gap-1">
+                <StatusBadge status={pet.status ?? "pending"} />
+                {pet.resolvedByUser && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-blue-700 border border-blue-300 w-fit">
+                    🏠 Reunited
+                  </span>
+                )}
+              </div>
 
               <div className="text-[11px] font-bold text-[#6a7a50]">{formatDate(pet.reportedDate)}</div>
 

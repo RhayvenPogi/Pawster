@@ -13,6 +13,7 @@ import GeoMapPanel      from "./admin/GeoMapPanel";
 import ActivityPanel    from "./admin/ActivityPanel";
 import ProfilePanel     from "./admin/ProfilePanel";
 import MissingPetsPanel from "./admin/MissingPetsPanel";
+import AnalyticsPanel from "./admin/AnalyticsPanel";
 
 const NAV = [
   {
@@ -38,12 +39,14 @@ const NAV = [
     ],
   },
   {
-    group: "Analytics",
-    items: [
-      { id: "map", label: "Geographic Map", ico: "ico-blue", faIcon: "globe-asia",
-        badge: "users", badgeWarn: false },
-    ],
-  },
+  group: "Analytics",
+  items: [
+    { id: "analytics", label: "Analytics",      ico: "ico-teal",  faIcon: "chart-line",
+      badge: "total_records", badgeWarn: false },
+    { id: "map",       label: "Geographic Map", ico: "ico-blue",  faIcon: "globe-asia",
+      badge: "users",         badgeWarn: false },
+  ],
+},
   {
     group: "System",
     items: [
@@ -594,6 +597,7 @@ const fetchStats = useCallback(async () => {
       <main className="min-h-screen relative z-10 overflow-auto transition-all duration-300" style={{ marginLeft: sidebarWidth, paddingTop: 64, transitionTimingFunction: "cubic-bezier(0.4,0,0.2,1)" }}>
         <div className="p-6">
           {panel === "overview"    && <DashboardPanel   stats={stats} onNav={setPanel} user={user} onStatsChange={fetchStats} />}
+          {panel === "analytics" && <AnalyticsPanel show={panel === "analytics"} />}
           {panel === "animals"     && <AnimalsPanel     show onStatsChange={fetchStats} />}
           {panel === "adoptions"   && <RequestsPanel    type="adoptions" show onStatsChange={fetchStats} />}
           {panel === "rehome"      && <RequestsPanel    type="rehome"    show onStatsChange={fetchStats} />}

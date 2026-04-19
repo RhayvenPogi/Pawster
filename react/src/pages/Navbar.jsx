@@ -97,7 +97,7 @@ export default function Navbar({ photoUrl: externalPhotoUrl }) {
             `}
           >
             <i className="fas fa-clipboard-list text-[0.7rem]" />
-            Surveys
+            Feedback
           </Link>
         )}
       </div>

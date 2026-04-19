@@ -1,13 +1,14 @@
 """
 apps/surveys/views.py
 User endpoints:  GET /api/surveys/user/   POST /api/surveys/response/
-Admin endpoints: GET /api/surveys/admin/  GET /api/surveys/admin/health-flags/
+Admin endpoints: GET /api/surveys/admin/  GET /api/surveys/admin/pending/
 """
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, parser_classes
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 
-from .models import FollowUpSurvey, SurveyResponse
+from .models import FollowUpSurvey, SurveyResponse, SurveyPhoto
 from .serializers import (
     FollowUpSurveySerializer,
     SurveyResponseSerializer,
@@ -36,22 +37,31 @@ def user_surveys(request):
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
+@parser_classes([MultiPartParser, FormParser])   # ← required for file uploads
 def submit_response(request):
     """
     POST /api/surveys/response/
-    Submit a follow-up survey. Prevents duplicate submissions (OneToOne constraint).
+    Accepts multipart/form-data.  Photos come in as repeated "photos" keys.
+    Prevents duplicate submissions (OneToOne constraint).
     """
     serializer = SurveyResponseSerializer(
         data=request.data,
         context={"request": request},
     )
-    if serializer.is_valid():
-        serializer.save()
-        return Response(
-            {"success": True, "message": "Thank you for your feedback! 🐾"},
-            status=201,
-        )
-    return Response({"success": False, "errors": serializer.errors}, status=400)
+    if not serializer.is_valid():
+        return Response({"success": False, "errors": serializer.errors}, status=400)
+
+    response = serializer.save()
+
+    # ── Save uploaded photos ───────────────────────────────────────────────────
+    photos = request.FILES.getlist("photos")   # matches fd.append("photos", ...) in JS
+    for photo_file in photos[:5]:              # hard cap at 5
+        SurveyPhoto.objects.create(response=response, image=photo_file)
+
+    return Response(
+        {"success": True, "message": "Thank you for your feedback! 🐾"},
+        status=201,
+    )
 
 
 @api_view(["GET"])
@@ -59,9 +69,15 @@ def submit_response(request):
 def admin_all_responses(request):
     """
     GET /api/surveys/admin/
-    All submitted responses. Supports ?survey_type=7_day|30_day and ?health_flag=true filters.
+    All submitted responses with photos.
+    Supports ?survey_type=7_day|30_day and ?health_flag=true filters.
     """
-    qs = SurveyResponse.objects.all().select_related("survey__adoption", "user")
+    qs = (
+        SurveyResponse.objects
+        .all()
+        .select_related("survey__adoption", "user")
+        .prefetch_related("photos")   # ← avoids N+1 on photo thumbnails
+    )
 
     survey_type = request.query_params.get("survey_type")
     if survey_type:
@@ -71,10 +87,13 @@ def admin_all_responses(request):
     if health_flag == "true":
         qs = qs.filter(showing_illness=True)
 
+    serializer = SurveyResponseAdminSerializer(
+        qs, many=True, context={"request": request}   # ← request needed for absolute URLs
+    )
     return Response({
         "success": True,
         "count":   qs.count(),
-        "data":    SurveyResponseAdminSerializer(qs, many=True).data,
+        "data":    serializer.data,
     })
 
 
@@ -83,7 +102,7 @@ def admin_all_responses(request):
 def admin_pending_surveys(request):
     """
     GET /api/surveys/admin/pending/
-    All surveys that have not yet been answered — useful for admin follow-up.
+    All surveys that have not yet been answered.
     """
     qs = FollowUpSurvey.objects.filter(status="Pending").select_related("adoption", "user")
 

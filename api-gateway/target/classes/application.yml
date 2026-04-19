@@ -55,7 +55,7 @@ spring:
         - id: django-service
           uri: http://django:8001
           predicates:
-            - Path=/api/approvals/**, /api/notifications/**, /api/surveys/**, /api/django/**
+            - Path=/api/approvals/**, /api/notifications/**, /api/surveys/**, /api/django/**, /media/**
 
 eureka:
   client:

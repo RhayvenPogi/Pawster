@@ -52,8 +52,14 @@ export default function UsersPanel({ show: isVisible }) {
     setLoading(true);
     try {
       const r = await phpApi("get_users", { role: roleFilter === "all" ? "" : roleFilter });
-      if (r.success) setUsers(r.data || []);
-      else toast(r.message || "Failed to load users", "error");
+      if (r.success) {
+        setUsers((r.data || []).map(u => ({
+          ...u,
+          zip: u.zip || u.zip_code || "",
+        })));
+      } else {
+        toast(r.message || "Failed to load users", "error");
+      }
     } catch (err) {
       toast("Server error loading users", "error");
       console.error("load users error:", err);
@@ -107,8 +113,9 @@ export default function UsersPanel({ show: isVisible }) {
   };
 
   // ── Open edit modal ───────────────────────────────────────────────────────
+  // FIX: normalize zip so the edit form always shows the saved value
   const openEdit = (u) => {
-    setForm({ ...u });
+    setForm({ ...u, zip: u.zip || u.zip_code || "" });
     setErrs({});
     setStep(1);
     setModal("edit");
@@ -134,6 +141,7 @@ export default function UsersPanel({ show: isVisible }) {
     try {
       if (form.id) {
         // Edit — goes through PHP
+        // FIX: send 'zip' (not 'zip_code') — PHP updateUser reads $this->body('zip')
         const r = await phpApi("update_user", {
           id:         form.id,
           first_name: form.first_name,
@@ -145,7 +153,7 @@ export default function UsersPanel({ show: isVisible }) {
           address:    form.address  || "",
           city:       form.city     || "",
           province:   form.province || "",
-          zip:        form.zip      || "",
+          zip:        form.zip || form.zip_code || "",
         });
         if (r.success) {
           toast("User updated", "success");
@@ -156,25 +164,21 @@ export default function UsersPanel({ show: isVisible }) {
         }
 
       } else {
-        // Add — goes through Spring Boot (handles password gen + email)
-        const res = await fetch("/api/admin/users", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            firstName: form.first_name,
-            lastName:  form.last_name,
-            email:     form.email,
-            phone:     form.phone,
-            role:      form.role,
-            address:   form.address  || "",
-            city:      form.city     || "",
-            province:  form.province || "",
-            zip:       form.zip      || "",
-          }),
+        // Add — goes through PHP so all fields (address, city, province, zip) are saved
+        const r = await phpApi("add_user", {
+          first_name: form.first_name,
+          last_name:  form.last_name,
+          email:      form.email,
+          phone:      form.phone,
+          role:       form.role,
+          is_active:  form.is_active ?? 1,
+          address:    form.address  || "",
+          city:       form.city     || "",
+          province:   form.province || "",
+          zip:        form.zip      || "",
         });
-        const r = await res.json();
         if (r.success) {
-          toast("User added ✉️ credentials emailed!", "success");
+          toast("User added successfully!", "success");
           setModal(null);
           load();
         } else {
@@ -572,15 +576,15 @@ export default function UsersPanel({ show: isVisible }) {
         contentClassName="!p-0 !overflow-visible"
         footer={
           <div className="flex justify-between items-center w-full px-4 py-2">
-{idPreview && (
-  <a
-    href={idPreview.url}
-    download={idPreview.name}
-    className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black border transition-all hover:bg-green-50 hover:border-green-400 hover:text-green-700"
-    style={{ borderColor: "#c5d8a0", color: "#4a7020" }}>
-    ⬇ Download
-  </a>
-)}
+            {idPreview && (
+              <a
+                href={idPreview.url}
+                download={idPreview.name}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black border transition-all hover:bg-green-50 hover:border-green-400 hover:text-green-700"
+                style={{ borderColor: "#c5d8a0", color: "#4a7020" }}>
+                ⬇ Download
+              </a>
+            )}
             <BtnCancel onClick={() => setIdPreview(null)} />
           </div>
         }>
