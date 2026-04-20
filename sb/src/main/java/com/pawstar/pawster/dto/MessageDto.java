@@ -1,6 +1,7 @@
 package com.pawstar.pawster.dto;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 public class MessageDto {
 
@@ -28,7 +29,7 @@ public class MessageDto {
         private String senderName;   // firstName + " " + lastName
         private String content;
         private boolean isRead;
-        private LocalDateTime createdAt;
+        private OffsetDateTime createdAt;;
 
         public Long getId() { return id; }
         public void setId(Long id) { this.id = id; }
@@ -51,8 +52,8 @@ public class MessageDto {
         public boolean isRead() { return isRead; }
         public void setRead(boolean read) { isRead = read; }
 
-        public LocalDateTime getCreatedAt() { return createdAt; }
-        public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+        public OffsetDateTime getCreatedAt() { return createdAt; }
+public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
     }
 
     // ── Conversation thread summary (used in admin inbox list) ────────────────
@@ -60,7 +61,7 @@ public class MessageDto {
         private Integer userId;
         private String userName;
         private String lastMessage;
-        private LocalDateTime lastMessageAt;
+        private OffsetDateTime lastMessageAt;
         private long unreadCount;   // messages FROM user not yet read by admin
 
         public Integer getUserId() { return userId; }
@@ -72,8 +73,8 @@ public class MessageDto {
         public String getLastMessage() { return lastMessage; }
         public void setLastMessage(String lastMessage) { this.lastMessage = lastMessage; }
 
-        public LocalDateTime getLastMessageAt() { return lastMessageAt; }
-        public void setLastMessageAt(LocalDateTime lastMessageAt) { this.lastMessageAt = lastMessageAt; }
+        public OffsetDateTime getLastMessageAt() { return lastMessageAt; }
+        public void setLastMessageAt(OffsetDateTime lastMessageAt) { this.lastMessageAt = lastMessageAt; }
 
         public long getUnreadCount() { return unreadCount; }
         public void setUnreadCount(long unreadCount) { this.unreadCount = unreadCount; }

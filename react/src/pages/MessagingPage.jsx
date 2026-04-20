@@ -3,6 +3,51 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { useMessaging } from "../hooks/useMessaging";
 
+const PH_LOCALE = "en-PH";
+const PH_TZ     = "Asia/Manila";
+
+function formatTime(dt) {
+  if (!dt) return "";
+  const d   = new Date(dt);
+  const now = new Date();
+  const sameDay =
+    d.toLocaleDateString(PH_LOCALE, { timeZone: PH_TZ }) ===
+    now.toLocaleDateString(PH_LOCALE, { timeZone: PH_TZ });
+  if (sameDay)
+    return d.toLocaleTimeString(PH_LOCALE, { hour: "2-digit", minute: "2-digit", timeZone: PH_TZ });
+  return d.toLocaleDateString(PH_LOCALE, {
+    month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: PH_TZ,
+  });
+}
+
+function sameDayCheck(a, b) {
+  if (!a || !b) return false;
+  return (
+    new Date(a).toLocaleDateString(PH_LOCALE, { timeZone: PH_TZ }) ===
+    new Date(b).toLocaleDateString(PH_LOCALE, { timeZone: PH_TZ })
+  );
+}
+
+function formatDivider(dt) {
+  if (!dt) return "";
+  const d    = new Date(dt);
+  const now  = new Date();
+  const diff = (now - d) / 86400000;
+  if (diff < 1) return "Today";
+  if (diff < 2) return "Yesterday";
+  return d.toLocaleDateString(PH_LOCALE, {
+    weekday: "long", month: "short", day: "numeric", timeZone: PH_TZ,
+  });
+}
+
+function bubbleRadius(isMine, isFirst, isLast) {
+  if (isMine) {
+    return `16px ${isFirst ? "4px" : "16px"} ${isLast ? "4px" : "16px"} 16px`;
+  } else {
+    return `${isFirst ? "4px" : "16px"} 16px 16px ${isLast ? "4px" : "16px"}`;
+  }
+}
+
 function PawWatermark({ style }) {
   return (
     <svg style={style} viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
@@ -15,87 +60,196 @@ function PawWatermark({ style }) {
   );
 }
 
-function Bubble({ msg, userId }) {
-  // A message is "mine" if I sent it — check both senderId and senderRole
+function SendingSpinner() {
+  return (
+    <>
+      <style>{`@keyframes _msgspin { to { transform: rotate(360deg); } }`}</style>
+      <svg
+        width="10" height="10" viewBox="0 0 10 10"
+        style={{ animation: "_msgspin 0.8s linear infinite", flexShrink: 0 }}
+      >
+        <circle
+          cx="5" cy="5" r="4"
+          fill="none" stroke="rgba(255,255,255,0.5)"
+          strokeWidth="1.5" strokeDasharray="18" strokeDashoffset="6" strokeLinecap="round"
+        />
+      </svg>
+    </>
+  );
+}
+
+function ReadTicks({ read }) {
+  const color = read ? "#4ade80" : "rgba(255,255,255,0.35)";
+  return (
+    <svg width="18" height="8" viewBox="0 0 18 8" fill="none" style={{ flexShrink: 0 }}>
+      <path d="M1 4l3 3L10 1" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M7 4l3 3 6-6" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function DateDivider({ label }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        margin: "14px 0 10px",
+        userSelect: "none",
+      }}
+    >
+      <div style={{ flex: 1, height: 1, background: "rgba(180,140,60,0.2)" }} />
+      <span
+        style={{
+          fontSize: 10,
+          fontWeight: 700,
+          color: "#b0a07a",
+          letterSpacing: "0.04em",
+          textTransform: "uppercase",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {label}
+      </span>
+      <div style={{ flex: 1, height: 1, background: "rgba(180,140,60,0.2)" }} />
+    </div>
+  );
+}
+
+function Bubble({ msg, userId, isFirst, isLast }) {
   const isMine =
     (msg.senderId != null && String(msg.senderId) === String(userId)) ||
     (msg.senderId == null && msg.senderRole !== "admin");
 
-  const time = msg.createdAt
-    ? new Date(msg.createdAt).toLocaleTimeString("en-PH", {
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-    : "";
-
   return (
-    <div className={`flex items-end gap-2 mb-3 ${isMine ? "flex-row-reverse" : "flex-row"}`}>
-      <div
-        className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black text-white flex-shrink-0"
-        style={{
-          background: isMine
-            ? "linear-gradient(135deg,#1c4f09,#3a8a18)"
-            : "linear-gradient(135deg,#B45A22,#e07820)",
-        }}
-      >
-        {isMine ? "You" : "🐾"}
-      </div>
-
-      <div className={`max-w-[72%] ${isMine ? "items-end" : "items-start"} flex flex-col gap-1`}>
+    <div
+      className={`flex items-end gap-2 ${isMine ? "flex-row-reverse" : "flex-row"}`}
+      style={{ marginBottom: isLast ? 10 : 3 }}
+    >
+      {/* Avatar: only on last bubble of a run */}
+      {isLast ? (
         <div
-          className="px-4 py-2.5 rounded-2xl text-sm font-semibold leading-relaxed shadow-sm"
+          className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black text-white flex-shrink-0"
           style={{
+            background: isMine
+              ? "linear-gradient(135deg,#1c4f09,#3a8a18)"
+              : "linear-gradient(135deg,#B45A22,#e07820)",
+          }}
+        >
+          {isMine ? "You" : "🐾"}
+        </div>
+      ) : (
+        <div className="w-7 flex-shrink-0" />
+      )}
+
+      <div
+        className={`max-w-[72%] flex flex-col gap-1 ${isMine ? "items-end" : "items-start"}`}
+      >
+        <div
+          className="px-4 py-2.5 text-sm font-semibold leading-relaxed"
+          style={{
+            borderRadius: bubbleRadius(isMine, isFirst, isLast),
             background: isMine
               ? "linear-gradient(135deg,rgba(28,79,9,0.92),rgba(58,138,24,0.88))"
               : "rgba(255,250,232,0.95)",
             color: isMine ? "#fff" : "#1a2e0a",
-            borderBottomRightRadius: isMine ? 4 : undefined,
-            borderBottomLeftRadius: !isMine ? 4 : undefined,
             border: isMine ? "none" : "1.5px solid rgba(180,140,60,0.28)",
+            wordBreak: "break-word",
+            opacity: msg.pending ? 0.55 : 1,
+            transition: "opacity 0.25s ease",
+            boxShadow: isMine
+              ? "inset 0 1px 0 rgba(255,255,255,0.08)"
+              : "inset 0 1px 0 rgba(255,255,255,0.7), 0 1px 3px rgba(0,0,0,0.04)",
           }}
         >
           {msg.content}
         </div>
-        <span className="text-[10px] font-semibold" style={{ color: "#9aaa80" }}>
-          {time}
-        </span>
+
+        {/* Meta row: only on last bubble of a run */}
+        {isLast && (
+          <div
+            className="flex items-center gap-1"
+            style={{
+              paddingInline: 3,
+              justifyContent: isMine ? "flex-end" : "flex-start",
+            }}
+          >
+            {msg.pending ? (
+              <>
+                <SendingSpinner />
+                <span style={{ fontSize: 10, fontWeight: 600, color: "#9aaa80" }}>sending…</span>
+              </>
+            ) : (
+              <>
+                <span className="text-[10px] font-semibold" style={{ color: "#9aaa80" }}>
+                  {formatTime(msg.createdAt)}
+                </span>
+                {isMine && <ReadTicks read={msg.read ?? false} />}
+              </>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
 export default function MessagingPage() {
-  const { user } = useAuth();
+  const { user }  = useAuth();
   const navigate  = useNavigate();
   const [input, setInput] = useState("");
-  const bottomRef = useRef(null);
-  const inputRef  = useRef(null);
+  const bottomRef   = useRef(null);
+  const textareaRef = useRef(null);
 
   const {
     messages,
+    setMessages,
     connected,
     loadHistory,
     sendMessage,
     markRead,
   } = useMessaging(user);
 
-  // Load history and mark read once user is available
   useEffect(() => {
     if (!user) { navigate("/login"); return; }
     loadHistory();
     markRead();
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-scroll on new messages
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   const handleSend = () => {
-    if (!input.trim()) return;
-    sendMessage(input.trim());
+    const text = input.trim();
+    if (!text || !connected) return;
+
+    const tempId = `pending-${Date.now()}`;
+    const optimistic = {
+      id: tempId,
+      content: text,
+      senderId: user.id,
+      senderRole: "user",
+      createdAt: new Date().toISOString(),
+      pending: true,
+      read: false,
+    };
+    setMessages(prev => [...prev, optimistic]);
+
+    sendMessage(text);
     setInput("");
-    inputRef.current?.focus();
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.focus();
+    }
+
+    // Fallback: resolve pending after 3s if WS ack hasn't replaced it
+    setTimeout(() => {
+      setMessages(prev =>
+        prev.map(m => m.id === tempId ? { ...m, pending: false } : m)
+      );
+    }, 3000);
   };
 
   const handleKey = (e) => {
@@ -106,6 +260,33 @@ export default function MessagingPage() {
   };
 
   if (!user) return null;
+
+  // Build enriched list: date dividers + isFirst/isLast grouping flags
+  const enriched = [];
+  messages.forEach((msg, i) => {
+    const prev = messages[i - 1];
+    const next = messages[i + 1];
+
+    // Determine sender key: user messages group by senderId, admin by role
+    const senderKey = msg.senderRole === "admin"
+      ? "admin"
+      : String(msg.senderId ?? "user");
+    const prevKey = prev
+      ? (prev.senderRole === "admin" ? "admin" : String(prev.senderId ?? "user"))
+      : null;
+    const nextKey = next
+      ? (next.senderRole === "admin" ? "admin" : String(next.senderId ?? "user"))
+      : null;
+
+    if (!prev || !sameDayCheck(prev.createdAt, msg.createdAt)) {
+      enriched.push({ type: "divider", key: `div-${msg.id}`, label: formatDivider(msg.createdAt) });
+    }
+
+    const isFirst = !prev || prevKey !== senderKey || !sameDayCheck(prev.createdAt, msg.createdAt);
+    const isLast  = !next || nextKey !== senderKey || !sameDayCheck(msg.createdAt, next?.createdAt);
+
+    enriched.push({ type: "bubble", msg, isFirst, isLast });
+  });
 
   return (
     <div
@@ -165,7 +346,7 @@ export default function MessagingPage() {
         className="flex-1 overflow-y-auto px-4 py-5 relative z-10"
         style={{ maxWidth: 720, width: "100%", margin: "0 auto" }}
       >
-        {messages.length === 0 ? (
+        {enriched.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full py-20 gap-4 text-center">
             <PawWatermark style={{ width: 80, opacity: 0.15, color: "#1c4f09" }} />
             <p className="text-[0.95rem] font-bold" style={{ color: "#6a8a50" }}>
@@ -176,9 +357,19 @@ export default function MessagingPage() {
             </p>
           </div>
         ) : (
-          messages.map((msg) => (
-            <Bubble key={msg.id} msg={msg} userId={user.id} />
-          ))
+          enriched.map(item =>
+            item.type === "divider" ? (
+              <DateDivider key={item.key} label={item.label} />
+            ) : (
+              <Bubble
+                key={item.msg.id}
+                msg={item.msg}
+                userId={user.id}
+                isFirst={item.isFirst}
+                isLast={item.isLast}
+              />
+            )
+          )
         )}
         <div ref={bottomRef} />
       </main>
@@ -200,7 +391,7 @@ export default function MessagingPage() {
           }}
         >
           <textarea
-            ref={inputRef}
+            ref={textareaRef}
             rows={1}
             value={input}
             onChange={(e) => {
@@ -229,6 +420,8 @@ export default function MessagingPage() {
                   : "rgba(180,140,60,0.18)",
               color: input.trim() && connected ? "#fff" : "#9aaa80",
             }}
+            onMouseDown={e => { if (input.trim() && connected) e.currentTarget.style.transform = "scale(0.93)"; }}
+            onMouseUp={e => (e.currentTarget.style.transform = "scale(1)")}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
               <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />

@@ -2,6 +2,8 @@ package com.pawstar.pawster.model;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 
 @Entity
 @Table(name = "messages")
@@ -32,8 +34,8 @@ public class Message {
     @Column(name = "is_read", nullable = false)
     private boolean isRead = false;
 
-    @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt = LocalDateTime.now();
+   @Column(name = "created_at", nullable = false)
+private OffsetDateTime createdAt = OffsetDateTime.now(ZoneOffset.UTC);
 
     public Message() {}
 
@@ -56,6 +58,6 @@ public class Message {
     public boolean isRead() { return isRead; }
     public void setRead(boolean read) { isRead = read; }
 
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public OffsetDateTime getCreatedAt() { return createdAt; }
+public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
 }

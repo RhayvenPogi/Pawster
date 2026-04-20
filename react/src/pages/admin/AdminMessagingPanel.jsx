@@ -2,62 +2,312 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useMessaging } from "../../hooks/useMessaging";
 
+const PH_LOCALE = "en-PH";
+const PH_TZ     = "Asia/Manila";
+
 function timeAgo(dt) {
   if (!dt) return "";
   const diff = (Date.now() - new Date(dt).getTime()) / 1000;
   if (diff < 60)    return "just now";
   if (diff < 3600)  return `${Math.floor(diff / 60)}m ago`;
   if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  return new Date(dt).toLocaleDateString("en-PH", { month: "short", day: "numeric" });
+  return new Date(dt).toLocaleDateString(PH_LOCALE, { month: "short", day: "numeric", timeZone: PH_TZ });
 }
 
-function Avatar({ name, size = 9 }) {
+function formatTime(dt) {
+  if (!dt) return "";
+  const d   = new Date(dt);
+  const now = new Date();
+  const sameDay =
+    d.toLocaleDateString(PH_LOCALE, { timeZone: PH_TZ }) ===
+    now.toLocaleDateString(PH_LOCALE, { timeZone: PH_TZ });
+  if (sameDay)
+    return d.toLocaleTimeString(PH_LOCALE, { hour: "2-digit", minute: "2-digit", timeZone: PH_TZ });
+  return d.toLocaleDateString(PH_LOCALE, {
+    month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: PH_TZ,
+  });
+}
+
+function sameDay(a, b) {
+  if (!a || !b) return false;
+  return (
+    new Date(a).toLocaleDateString(PH_LOCALE, { timeZone: PH_TZ }) ===
+    new Date(b).toLocaleDateString(PH_LOCALE, { timeZone: PH_TZ })
+  );
+}
+
+function formatDivider(dt) {
+  if (!dt) return "";
+  const d   = new Date(dt);
+  const now = new Date();
+  const diff = (now - d) / 86400000;
+  if (diff < 1) return "Today";
+  if (diff < 2) return "Yesterday";
+  return d.toLocaleDateString(PH_LOCALE, { weekday: "long", month: "short", day: "numeric", timeZone: PH_TZ });
+}
+
+function bubbleRadius(isAdmin, isFirst, isLast) {
+  if (isAdmin) {
+    return `16px ${isFirst ? "4px" : "16px"} ${isLast ? "4px" : "16px"} 16px`;
+  } else {
+    return `${isFirst ? "4px" : "16px"} 16px 16px ${isLast ? "4px" : "16px"}`;
+  }
+}
+
+function Avatar({ name, size = 36, style = {} }) {
   const initials = name
     ? name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()
     : "?";
   return (
     <div
-      className={`w-${size} h-${size} rounded-full flex items-center justify-center text-white font-black flex-shrink-0`}
-      style={{ background: "linear-gradient(135deg,#1c4f09,#2a7010)", fontSize: size > 8 ? 14 : 11 }}
+      style={{
+        width: size,
+        height: size,
+        borderRadius: "50%",
+        background: "linear-gradient(135deg, #1c4f09, #3a8a18)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "#e8f5d4",
+        fontWeight: 800,
+        fontSize: size * 0.36,
+        flexShrink: 0,
+        letterSpacing: "-0.01em",
+        ...style,
+      }}
     >
       {initials}
     </div>
   );
 }
 
-function Bubble({ msg }) {
-  const isMine = msg.senderRole === "admin";
-  const time = msg.createdAt
-    ? new Date(msg.createdAt).toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" })
-    : "";
+function StatusDot({ online }) {
   return (
-    <div className={`flex items-end gap-2 mb-3 ${isMine ? "flex-row-reverse" : "flex-row"}`}>
-      <div
-        className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black text-white flex-shrink-0"
-        style={{ background: isMine ? "linear-gradient(135deg,#1c4f09,#3a8a18)" : "linear-gradient(135deg,#B45A22,#e07820)" }}
+    <span
+      style={{
+        display: "inline-block",
+        width: 7,
+        height: 7,
+        borderRadius: "50%",
+        background: online ? "#4ade80" : "#94a3b8",
+        flexShrink: 0,
+      }}
+    />
+  );
+}
+
+function ReadTicks({ read }) {
+  return (
+    <svg width="18" height="8" viewBox="0 0 18 8" fill="none" style={{ flexShrink: 0 }}>
+      <path
+        d="M1 4l3 3L10 1"
+        stroke={read ? "#4ade80" : "rgba(212,240,176,0.45)"}
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M7 4l3 3 6-6"
+        stroke={read ? "#4ade80" : "rgba(212,240,176,0.45)"}
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function SendingSpinner() {
+  return (
+    <>
+      <style>{`@keyframes _spin { to { transform: rotate(360deg); } }`}</style>
+      <svg
+        width="10"
+        height="10"
+        viewBox="0 0 10 10"
+        style={{ animation: "_spin 0.8s linear infinite", flexShrink: 0 }}
       >
-        {isMine ? "Me" : msg.senderName?.[0] || "U"}
-      </div>
-      <div className={`max-w-[70%] flex flex-col gap-1 ${isMine ? "items-end" : "items-start"}`}>
-        {!isMine && (
-          <span className="text-[10px] font-extrabold" style={{ color: "#B45A22" }}>{msg.senderName}</span>
-        )}
+        <circle
+          cx="5" cy="5" r="4"
+          fill="none"
+          stroke="#8a9e70"
+          strokeWidth="1.5"
+          strokeDasharray="18"
+          strokeDashoffset="6"
+          strokeLinecap="round"
+        />
+      </svg>
+    </>
+  );
+}
+
+function DateDivider({ label }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        margin: "14px 0 10px",
+        userSelect: "none",
+      }}
+    >
+      <div style={{ flex: 1, height: 1, background: "rgba(170,135,55,0.15)" }} />
+      <span
+        style={{
+          fontSize: 10,
+          fontWeight: 700,
+          color: "#a8b898",
+          letterSpacing: "0.04em",
+          textTransform: "uppercase",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {label}
+      </span>
+      <div style={{ flex: 1, height: 1, background: "rgba(170,135,55,0.15)" }} />
+    </div>
+  );
+}
+
+function Bubble({ msg, isFirst, isLast }) {
+  const isAdmin = msg.senderRole === "admin";
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: isAdmin ? "row-reverse" : "row",
+        alignItems: "flex-end",
+        gap: 8,
+        marginBottom: isLast ? 10 : 3,
+      }}
+    >
+      {/* Avatar on last bubble of a run; invisible spacer otherwise */}
+      {isLast ? (
         <div
-          className="px-3.5 py-2 rounded-2xl text-sm font-semibold leading-relaxed shadow-sm"
           style={{
-            background: isMine
-              ? "linear-gradient(135deg,rgba(28,79,9,0.92),rgba(58,138,24,0.88))"
-              : "rgba(255,250,232,0.95)",
-            color: isMine ? "#fff" : "#1a2e0a",
-            borderBottomRightRadius: isMine ? 4 : undefined,
-            borderBottomLeftRadius:  !isMine ? 4 : undefined,
-            border: isMine ? "none" : "1.5px solid rgba(180,140,60,0.28)",
+            width: 26,
+            height: 26,
+            borderRadius: "50%",
+            background: isAdmin ? "#1c4f09" : "#7c3300",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 9,
+            fontWeight: 800,
+            color: isAdmin ? "#d4f0b0" : "#fde8d4",
+            flexShrink: 0,
+            letterSpacing: "0.02em",
+          }}
+        >
+          {isAdmin ? "AD" : (msg.senderName?.[0] ?? "U")}
+        </div>
+      ) : (
+        <div style={{ width: 26, flexShrink: 0 }} />
+      )}
+
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: isAdmin ? "flex-end" : "flex-start",
+          maxWidth: "68%",
+          gap: 2,
+        }}
+      >
+        {/* Sender name: user only, first bubble only */}
+        {!isAdmin && isFirst && (
+          <span
+            style={{
+              fontSize: 10,
+              fontWeight: 700,
+              color: "#c2581e",
+              letterSpacing: "0.04em",
+              textTransform: "uppercase",
+              paddingInline: 2,
+            }}
+          >
+            {msg.senderName}
+          </span>
+        )}
+
+        {/* Bubble */}
+        <div
+          style={{
+            padding: "9px 13px",
+            borderRadius: bubbleRadius(isAdmin, isFirst, isLast),
+            fontSize: 13.5,
+            fontWeight: 500,
+            lineHeight: 1.55,
+            background: isAdmin ? "#1e5c0a" : "rgba(255, 251, 235, 0.98)",
+            color: isAdmin ? "#d8f2b0" : "#1a2e0a",
+            border: isAdmin ? "none" : "1px solid rgba(170, 130, 50, 0.2)",
+            wordBreak: "break-word",
+            opacity: msg.pending ? 0.55 : 1,
+            transition: "opacity 0.25s ease",
+            boxShadow: isAdmin
+              ? "inset 0 1px 0 rgba(255,255,255,0.06)"
+              : "inset 0 1px 0 rgba(255,255,255,0.7), 0 1px 3px rgba(0,0,0,0.04)",
           }}
         >
           {msg.content}
         </div>
-        <span className="text-[10px] font-semibold" style={{ color: "#9aaa80" }}>{time}</span>
+
+        {/* Meta: time + read ticks (or spinner) — last bubble only */}
+        {isLast && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              paddingInline: 3,
+              marginTop: 1,
+              justifyContent: isAdmin ? "flex-end" : "flex-start",
+            }}
+          >
+            {msg.pending ? (
+              <>
+                <SendingSpinner />
+                <span style={{ fontSize: 10, fontWeight: 600, color: "#8a9e70" }}>sending…</span>
+              </>
+            ) : (
+              <>
+                <span style={{ fontSize: 10, fontWeight: 600, color: "#8a9e70" }}>
+                  {formatTime(msg.createdAt)}
+                </span>
+                {isAdmin && <ReadTicks read={msg.read ?? false} />}
+              </>
+            )}
+          </div>
+        )}
       </div>
+    </div>
+  );
+}
+
+function EmptyState({ icon, title, subtitle }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        height: "100%",
+        gap: 10,
+        padding: "0 24px",
+        textAlign: "center",
+        userSelect: "none",
+      }}
+    >
+      <div style={{ fontSize: 36, opacity: 0.45 }}>{icon}</div>
+      <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "#5a7840" }}>{title}</p>
+      {subtitle && (
+        <p style={{ margin: 0, fontSize: 12, fontWeight: 500, color: "#8a9e70", maxWidth: 220 }}>
+          {subtitle}
+        </p>
+      )}
     </div>
   );
 }
@@ -67,8 +317,8 @@ export default function AdminMessagingPanel({ user, onUnreadChange }) {
   const [activeUserName, setActiveUserName] = useState("");
   const [input,          setInput]          = useState("");
   const [searchQ,        setSearchQ]        = useState("");
-  const bottomRef = useRef(null);
-  const inputRef  = useRef(null);
+  const bottomRef   = useRef(null);
+  const textareaRef = useRef(null);
 
   const {
     messages,
@@ -82,7 +332,6 @@ export default function AdminMessagingPanel({ user, onUnreadChange }) {
     fetchConversations,
   } = useMessaging(user, activeUserId);
 
-  // Push unread count up to AdminDashboard for the sidebar badge
   useEffect(() => {
     onUnreadChange?.(unreadCount);
   }, [unreadCount, onUnreadChange]);
@@ -102,153 +351,347 @@ export default function AdminMessagingPanel({ user, onUnreadChange }) {
   }, [messages]);
 
   const handleSend = () => {
-    if (!input.trim() || !activeUserId) return;
-    sendMessage(input.trim(), activeUserId);
+    const text = input.trim();
+    if (!text || !activeUserId) return;
+
+    const tempId = `pending-${Date.now()}`;
+    const optimistic = {
+      id: tempId,
+      content: text,
+      senderRole: "admin",
+      createdAt: new Date().toISOString(),
+      pending: true,
+      read: false,
+    };
+    setMessages(prev => [...prev, optimistic]);
+
+    sendMessage(text, activeUserId);
     setInput("");
-    inputRef.current?.focus();
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.focus();
+    }
+
+    setTimeout(() => {
+      setMessages(prev =>
+        prev.map(m => m.id === tempId ? { ...m, pending: false } : m)
+      );
+    }, 3000);
   };
 
   const handleKey = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
   };
 
-  const filtered    = conversations.filter(c => c.userName?.toLowerCase().includes(searchQ.toLowerCase()));
+  const filtered    = conversations.filter(c =>
+    c.userName?.toLowerCase().includes(searchQ.toLowerCase())
+  );
   const totalUnread = conversations.reduce((sum, c) => sum + (c.unreadCount ?? 0), 0);
 
   if (!user?.id) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <span className="text-sm font-semibold" style={{ color: "#9aaa80" }}>Loading…</span>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 256 }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: "#8a9e70" }}>Loading…</span>
       </div>
     );
   }
 
+  // Build enriched list: inject date dividers + compute isFirst/isLast
+  const enrichedMessages = [];
+  messages.forEach((msg, i) => {
+    const prev = messages[i - 1];
+    const next = messages[i + 1];
+    if (!prev || !sameDay(prev.createdAt, msg.createdAt)) {
+      enrichedMessages.push({ type: "divider", key: `div-${msg.id}`, label: formatDivider(msg.createdAt) });
+    }
+    const isFirst = !prev || prev.senderRole !== msg.senderRole || !sameDay(prev.createdAt, msg.createdAt);
+    const isLast  = !next || next.senderRole !== msg.senderRole || !sameDay(msg.createdAt, next?.createdAt);
+    enrichedMessages.push({ type: "bubble", msg, isFirst, isLast });
+  });
+
   return (
     <div
-      className="flex rounded-2xl overflow-hidden"
       style={{
+        display: "flex",
+        borderRadius: 16,
+        overflow: "hidden",
         height: "calc(100vh - 140px)",
-        minHeight: 500,
-        border: "1.5px solid rgba(90,170,48,0.35)",
-        background: "rgba(255,252,235,0.6)",
-        backdropFilter: "blur(12px)",
+        minHeight: 520,
+        border: "1px solid rgba(90, 160, 50, 0.28)",
+        background: "rgba(252, 250, 240, 0.7)",
+        backdropFilter: "blur(16px)",
+        fontFamily: "'Nunito', sans-serif",
       }}
     >
-      {/* ══ LEFT: Conversation list ══════════════════════════════════════════ */}
+      {/* ═══ LEFT SIDEBAR ═══════════════════════════════════════════════════ */}
       <aside
-        className="flex flex-col"
-        style={{ width: 280, flexShrink: 0, borderRight: "1.5px solid rgba(180,140,60,0.28)", background: "rgba(255,248,220,0.85)" }}
+        style={{
+          width: 272,
+          flexShrink: 0,
+          display: "flex",
+          flexDirection: "column",
+          borderRight: "1px solid rgba(170, 135, 55, 0.22)",
+          background: "rgba(255, 250, 228, 0.88)",
+        }}
       >
-        <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: "1.5px solid rgba(180,140,60,0.22)" }}>
+        <div
+          style={{
+            padding: "14px 16px 12px",
+            borderBottom: "1px solid rgba(170, 135, 55, 0.18)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
           <div>
-            <div className="font-black text-[#1a4a08] text-sm">Inbox</div>
-            {totalUnread > 0 && (
-              <div className="text-[11px] font-bold" style={{ color: "#B45A22" }}>{totalUnread} unread</div>
+            <div style={{ fontWeight: 800, fontSize: 14, color: "#1a4a08", letterSpacing: "-0.01em" }}>
+              Inbox
+            </div>
+            {totalUnread > 0 ? (
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#b44a16", marginTop: 1 }}>
+                {totalUnread} unread
+              </div>
+            ) : (
+              <div style={{ fontSize: 11, fontWeight: 600, color: "#8a9e70", marginTop: 1 }}>
+                All caught up
+              </div>
             )}
           </div>
+
           <div
-            className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] font-black"
-            style={{ background: connected ? "rgba(90,170,48,0.12)" : "rgba(180,140,60,0.12)", color: connected ? "#1c4f09" : "#9aaa80" }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
+              padding: "4px 9px",
+              borderRadius: 20,
+              background: connected ? "rgba(74, 222, 128, 0.1)" : "rgba(148, 163, 184, 0.12)",
+              border: `1px solid ${connected ? "rgba(74, 222, 128, 0.28)" : "rgba(148, 163, 184, 0.22)"}`,
+            }}
           >
-            <span className="w-1.5 h-1.5 rounded-full" style={{ background: connected ? "#4ccc20" : "#ccc" }} />
-            {connected ? "Live" : "Offline"}
+            <StatusDot online={connected} />
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: connected ? "#1c4f09" : "#6b7280",
+                letterSpacing: "0.02em",
+              }}
+            >
+              {connected ? "Live" : "Offline"}
+            </span>
           </div>
         </div>
 
-        <div className="px-3 py-2" style={{ borderBottom: "1px solid rgba(180,140,60,0.15)" }}>
-          <input
-            value={searchQ}
-            onChange={e => setSearchQ(e.target.value)}
-            placeholder="Search users…"
-            className="w-full px-3 py-1.5 rounded-lg text-xs font-semibold outline-none"
-            style={{ background: "rgba(255,248,225,0.7)", border: "1px solid rgba(180,140,60,0.28)", color: "#1a2e0a", fontFamily: "'Nunito', sans-serif" }}
-          />
+        <div style={{ padding: "10px 12px 8px", borderBottom: "1px solid rgba(170, 135, 55, 0.12)" }}>
+          <div style={{ position: "relative" }}>
+            <svg
+              width="13" height="13" viewBox="0 0 24 24"
+              fill="none" stroke="#8a9e70" strokeWidth="2.5" strokeLinecap="round"
+              style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}
+            >
+              <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+            </svg>
+            <input
+              value={searchQ}
+              onChange={e => setSearchQ(e.target.value)}
+              placeholder="Search users…"
+              style={{
+                width: "100%",
+                boxSizing: "border-box",
+                padding: "7px 10px 7px 28px",
+                borderRadius: 9,
+                border: "1px solid rgba(170, 135, 55, 0.24)",
+                background: "rgba(255, 250, 230, 0.8)",
+                color: "#1a2e0a",
+                fontSize: 12,
+                fontWeight: 600,
+                fontFamily: "'Nunito', sans-serif",
+                outline: "none",
+              }}
+            />
+          </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        <div style={{ flex: 1, overflowY: "auto" }}>
           {filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-32 gap-2 px-4 text-center">
-              <span className="text-2xl">📭</span>
-              <span className="text-xs font-bold" style={{ color: "#9aaa80" }}>No conversations yet</span>
-            </div>
+            <EmptyState
+              icon="📭"
+              title="No conversations yet"
+              subtitle="Users who message you will appear here."
+            />
           ) : (
-            filtered.map(conv => (
-              <button
-                key={conv.userId}
-                onClick={() => openConversation(conv.userId, conv.userName)}
-                className="w-full text-left px-4 py-3 transition-all"
-                style={{
-                  background: activeUserId === conv.userId ? "rgba(90,170,48,0.14)" : "transparent",
-                  borderLeft: activeUserId === conv.userId ? "3px solid #5aaa30" : "3px solid transparent",
-                  borderBottom: "1px solid rgba(180,140,60,0.12)",
-                }}
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="relative">
-                    <Avatar name={conv.userName} size={9} />
-                    {conv.unreadCount > 0 && (
-                      <span
-                        className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black text-white"
-                        style={{ background: "#B45A22" }}
-                      >
-                        {conv.unreadCount > 9 ? "9+" : conv.unreadCount}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-extrabold truncate" style={{ color: "#1a4a08" }}>{conv.userName}</span>
-                      <span className="text-[10px] font-semibold flex-shrink-0 ml-1" style={{ color: "#9aaa80" }}>{timeAgo(conv.lastMessageAt)}</span>
+            filtered.map(conv => {
+              const isActive = activeUserId === conv.userId;
+              return (
+                <button
+                  key={conv.userId}
+                  onClick={() => openConversation(conv.userId, conv.userName)}
+                  style={{
+                    width: "100%",
+                    textAlign: "left",
+                    padding: "10px 14px",
+                    background: isActive ? "rgba(90, 160, 50, 0.12)" : "transparent",
+                    borderLeft: `3px solid ${isActive ? "#4a8f20" : "transparent"}`,
+                    borderBottom: "1px solid rgba(170, 135, 55, 0.1)",
+                    borderTop: "none",
+                    borderRight: "none",
+                    cursor: "pointer",
+                    transition: "background 0.15s, border-left-color 0.15s",
+                    fontFamily: "'Nunito', sans-serif",
+                  }}
+                  onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "rgba(90, 160, 50, 0.06)"; }}
+                  onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ position: "relative", flexShrink: 0 }}>
+                      <Avatar name={conv.userName} size={36} />
+                      {conv.unreadCount > 0 && (
+                        <span
+                          style={{
+                            position: "absolute",
+                            top: -3, right: -3,
+                            minWidth: 16, height: 16,
+                            borderRadius: 8,
+                            background: "#c2581e",
+                            color: "#fff",
+                            fontSize: 9, fontWeight: 800,
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            padding: "0 3px",
+                            border: "1.5px solid rgba(255, 250, 228, 0.9)",
+                          }}
+                        >
+                          {conv.unreadCount > 9 ? "9+" : conv.unreadCount}
+                        </span>
+                      )}
                     </div>
-                    <p className="text-[11px] font-semibold truncate mt-0.5" style={{ color: conv.unreadCount > 0 ? "#3a5020" : "#9aaa80" }}>
-                      {conv.lastMessage}
-                    </p>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4 }}>
+                        <span
+                          style={{
+                            fontSize: 12.5,
+                            fontWeight: conv.unreadCount > 0 ? 800 : 700,
+                            color: "#1a4a08",
+                            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                          }}
+                        >
+                          {conv.userName}
+                        </span>
+                        <span style={{ fontSize: 10, fontWeight: 600, color: "#8a9e70", flexShrink: 0 }}>
+                          {timeAgo(conv.lastMessageAt)}
+                        </span>
+                      </div>
+                      <p
+                        style={{
+                          margin: "2px 0 0",
+                          fontSize: 11.5,
+                          fontWeight: conv.unreadCount > 0 ? 700 : 500,
+                          color: conv.unreadCount > 0 ? "#3a5820" : "#8a9e70",
+                          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                        }}
+                      >
+                        {conv.lastMessage}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              </button>
-            ))
+                </button>
+              );
+            })
           )}
         </div>
       </aside>
 
-      {/* ══ RIGHT: Chat window ═══════════════════════════════════════════════ */}
-      <div className="flex flex-col flex-1 min-w-0">
+      {/* ═══ RIGHT: CHAT WINDOW ══════════════════════════════════════════════ */}
+      <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
         {activeUserId ? (
           <>
             <div
-              className="flex items-center gap-3 px-5 py-3 flex-shrink-0"
-              style={{ borderBottom: "1.5px solid rgba(180,140,60,0.28)", background: "rgba(255,250,235,0.9)" }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                padding: "12px 20px",
+                borderBottom: "1px solid rgba(170, 135, 55, 0.22)",
+                background: "rgba(255, 252, 238, 0.92)",
+                flexShrink: 0,
+              }}
             >
-              <Avatar name={activeUserName} size={10} />
-              <div>
-                <div className="font-black text-sm" style={{ color: "#1a4a08" }}>{activeUserName}</div>
-                <div className="text-[11px] font-semibold" style={{ color: "#9aaa80" }}>User ID #{activeUserId}</div>
+              <Avatar name={activeUserName} size={38} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  style={{
+                    fontWeight: 800, fontSize: 14, color: "#1a4a08",
+                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                  }}
+                >
+                  {activeUserName}
+                </div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "#8a9e70", marginTop: 1 }}>
+                  User #{activeUserId}
+                </div>
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-5 py-4">
-              {messages.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full gap-3 text-center">
-                  <span className="text-4xl">💬</span>
-                  <p className="text-sm font-bold" style={{ color: "#6a8a50" }}>No messages yet</p>
-                  <p className="text-xs font-semibold" style={{ color: "#9aaa80" }}>Send a message to start the conversation.</p>
-                </div>
+            <div
+              style={{
+                flex: 1,
+                overflowY: "auto",
+                padding: "16px 20px 8px",
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
+              {enrichedMessages.length === 0 ? (
+                <EmptyState
+                  icon="💬"
+                  title="No messages yet"
+                  subtitle="Send a message to start the conversation."
+                />
               ) : (
-                messages.map(msg => <Bubble key={msg.id} msg={msg} />)
+                enrichedMessages.map(item =>
+                  item.type === "divider" ? (
+                    <DateDivider key={item.key} label={item.label} />
+                  ) : (
+                    <Bubble
+                      key={item.msg.id}
+                      msg={item.msg}
+                      isFirst={item.isFirst}
+                      isLast={item.isLast}
+                    />
+                  )
+                )
               )}
               <div ref={bottomRef} />
             </div>
 
             <div
-              className="flex-shrink-0 px-4 py-3"
-              style={{ borderTop: "1.5px solid rgba(180,140,60,0.28)", background: "rgba(255,250,235,0.9)" }}
+              style={{
+                flexShrink: 0,
+                padding: "12px 16px 14px",
+                borderTop: "1px solid rgba(170, 135, 55, 0.22)",
+                background: "rgba(255, 252, 238, 0.92)",
+              }}
             >
               <div
-                className="flex items-end gap-2 rounded-xl px-3 py-2"
-                style={{ background: "rgba(255,252,238,0.9)", border: "1.5px solid rgba(180,140,60,0.30)" }}
+                style={{
+                  display: "flex",
+                  alignItems: "flex-end",
+                  gap: 8,
+                  borderRadius: 14,
+                  padding: "8px 8px 8px 14px",
+                  background: "rgba(255, 253, 242, 0.95)",
+                  border: "1px solid rgba(170, 135, 55, 0.28)",
+                  boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
+                  transition: "border-color 0.15s",
+                }}
+                onFocusCapture={e => (e.currentTarget.style.borderColor = "rgba(74, 143, 32, 0.5)")}
+                onBlurCapture={e => (e.currentTarget.style.borderColor = "rgba(170, 135, 55, 0.28)")}
               >
                 <textarea
-                  ref={inputRef}
+                  ref={textareaRef}
                   rows={1}
                   value={input}
                   onChange={e => {
@@ -257,39 +700,94 @@ export default function AdminMessagingPanel({ user, onUnreadChange }) {
                     e.target.style.height = Math.min(e.target.scrollHeight, 100) + "px";
                   }}
                   onKeyDown={handleKey}
-                  placeholder={`Reply to ${activeUserName}…`}
-                  className="flex-1 bg-transparent border-none outline-none resize-none text-sm font-semibold leading-relaxed"
-                  style={{ color: "#1a2e0a", minHeight: 26, maxHeight: 100, fontFamily: "'Nunito', sans-serif" }}
+                  placeholder={`Message ${activeUserName}…`}
+                  style={{
+                    flex: 1,
+                    background: "transparent",
+                    border: "none",
+                    outline: "none",
+                    resize: "none",
+                    fontSize: 13.5,
+                    fontWeight: 500,
+                    lineHeight: 1.55,
+                    color: "#1a2e0a",
+                    minHeight: 26,
+                    maxHeight: 100,
+                    fontFamily: "'Nunito', sans-serif",
+                    overflowY: "auto",
+                  }}
                 />
                 <button
                   onClick={handleSend}
                   disabled={!input.trim() || !connected}
-                  className="w-8 h-8 rounded-lg flex items-center justify-center transition-all flex-shrink-0"
                   style={{
-                    background: input.trim() && connected ? "linear-gradient(135deg,#1c4f09,#2a7010)" : "rgba(180,140,60,0.15)",
-                    color: input.trim() && connected ? "#fff" : "#9aaa80",
+                    width: 34,
+                    height: 34,
+                    borderRadius: 10,
+                    border: "none",
+                    cursor: input.trim() && connected ? "pointer" : "not-allowed",
+                    background: input.trim() && connected ? "#1e5c0a" : "rgba(170, 135, 55, 0.12)",
+                    color: input.trim() && connected ? "#d4f0b0" : "#8a9e70",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                    transition: "background 0.15s, transform 0.1s",
                   }}
+                  onMouseDown={e => { if (input.trim() && connected) e.currentTarget.style.transform = "scale(0.93)"; }}
+                  onMouseUp={e => (e.currentTarget.style.transform = "scale(1)")}
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
                   </svg>
                 </button>
               </div>
+              <p
+                style={{
+                  margin: "6px 0 0 4px",
+                  fontSize: 10.5,
+                  fontWeight: 600,
+                  color: "#8a9e70",
+                  userSelect: "none",
+                }}
+              >
+                Enter to send · Shift + Enter for new line
+              </p>
             </div>
           </>
         ) : (
-          <div className="flex flex-col items-center justify-center h-full gap-4 text-center px-8">
-            <svg width="64" height="64" viewBox="0 0 100 100" fill="rgba(90,170,48,0.18)">
-              <ellipse cx="50" cy="66" rx="24" ry="21" />
-              <ellipse cx="25" cy="43" rx="11" ry="14" transform="rotate(-14 25 43)" />
-              <ellipse cx="43" cy="33" rx="11" ry="14" transform="rotate(-5 43 33)" />
-              <ellipse cx="62" cy="33" rx="11" ry="14" transform="rotate(5 62 33)" />
-              <ellipse cx="78" cy="43" rx="10" ry="13" transform="rotate(14 78 43)" />
-            </svg>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              height: "100%",
+              gap: 16,
+              padding: "0 40px",
+              textAlign: "center",
+              userSelect: "none",
+            }}
+          >
+            <div
+              style={{
+                width: 64, height: 64,
+                borderRadius: 20,
+                background: "rgba(90, 160, 50, 0.1)",
+                border: "1.5px solid rgba(90, 160, 50, 0.22)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}
+            >
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(58, 138, 24, 0.7)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              </svg>
+            </div>
             <div>
-              <p className="font-black text-base" style={{ color: "#6a8a50" }}>Select a conversation</p>
-              <p className="text-sm font-semibold mt-1" style={{ color: "#9aaa80" }}>
-                Choose a user from the inbox to view and reply to their messages.
+              <p style={{ margin: 0, fontSize: 14, fontWeight: 800, color: "#3a5820" }}>
+                Select a conversation
+              </p>
+              <p style={{ margin: "6px 0 0", fontSize: 12.5, fontWeight: 500, color: "#8a9e70", maxWidth: 260, lineHeight: 1.5 }}>
+                Pick a user from the inbox to view and reply to their messages.
               </p>
             </div>
           </div>

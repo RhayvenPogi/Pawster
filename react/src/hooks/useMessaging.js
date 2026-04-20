@@ -134,9 +134,25 @@ export function useMessaging(user, targetUserId = null) {
             if (String(msg.userId) !== String(activeId)) return;
 
             setMessages((prev) => {
-              if (prev.some(m => m.id === msg.id)) return prev;
-              return [...prev, msg];
-            });
+  // 1. If already exists by real ID → skip
+  if (prev.some(m => m.id === msg.id)) return prev;
+
+  // 2. Try to replace optimistic message
+  const index = prev.findIndex(m =>
+    m.id?.toString().startsWith("pending") &&
+    m.content === msg.content &&
+    m.senderRole === msg.senderRole
+  );
+
+  if (index !== -1) {
+    const updated = [...prev];
+    updated[index] = msg; // 🔥 replace pending with real
+    return updated;
+  }
+
+  // 3. Otherwise add normally
+  return [...prev, msg];
+});
           });
 
         } else {
@@ -148,9 +164,25 @@ export function useMessaging(user, targetUserId = null) {
             const msg = JSON.parse(frame.body);
             console.log("[STOMP] user received:", msg);
             setMessages((prev) => {
-              if (prev.some(m => m.id === msg.id)) return prev;
-              return [...prev, msg];
-            });
+  // 1. If already exists by real ID → skip
+  if (prev.some(m => m.id === msg.id)) return prev;
+
+  // 2. Try to replace optimistic message
+  const index = prev.findIndex(m =>
+    m.id?.toString().startsWith("pending") &&
+    m.content === msg.content &&
+    m.senderRole === msg.senderRole
+  );
+
+  if (index !== -1) {
+    const updated = [...prev];
+    updated[index] = msg; // 🔥 replace pending with real
+    return updated;
+  }
+
+  // 3. Otherwise add normally
+  return [...prev, msg];
+});
             fetchUnreadCount();
           });
         }

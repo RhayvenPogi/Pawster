@@ -8,6 +8,7 @@ import com.pawstar.pawster.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -101,8 +102,8 @@ public class MessageService {
 
             // row[2] = last message created_at (Timestamp → LocalDateTime)
             if (row[2] instanceof java.sql.Timestamp ts) {
-                summary.setLastMessageAt(ts.toLocalDateTime());
-            }
+    summary.setLastMessageAt(ts.toInstant().atOffset(ZoneOffset.UTC));
+}
 
             // row[3] = unread count (BigInteger from native query)
             summary.setUnreadCount(row[3] != null ? ((Number) row[3]).longValue() : 0L);
