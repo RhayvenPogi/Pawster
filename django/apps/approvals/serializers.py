@@ -1,10 +1,21 @@
+"""
+apps/approvals/serializers.py
+"""
 from rest_framework import serializers
 from .models import AdoptionRequest, RehomingRequest
 
 
 class AdoptionRequestSerializer(serializers.ModelSerializer):
+
+    # ── Expose address subfields explicitly so PATCH updates work cleanly ──
+    street_address = serializers.CharField(required=False, allow_blank=True, default="")
+    city           = serializers.CharField(required=False, allow_blank=True, default="")
+    province       = serializers.CharField(required=False, allow_blank=True, default="")
+    zip_code       = serializers.CharField(required=False, allow_blank=True, default="")
+    address        = serializers.CharField(required=False, allow_blank=True, default="")
+
     class Meta:
-        model = AdoptionRequest
+        model  = AdoptionRequest
         fields = "__all__"
         read_only_fields = [
             "status",
@@ -22,14 +33,23 @@ class RehomingRequestSerializer(serializers.ModelSerializer):
 
     owner_name = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
-    is_vaccinated = serializers.BooleanField(allow_null=True, required=False)
-    is_neutered = serializers.BooleanField(allow_null=True, required=False)
-    has_aggression = serializers.BooleanField(allow_null=True, required=False)
-    is_house_trained = serializers.BooleanField(allow_null=True, required=False)
-    is_leash_trained = serializers.BooleanField(allow_null=True, required=False)
-    good_with_children = serializers.BooleanField(allow_null=True, required=False)
-    good_with_pets = serializers.BooleanField(allow_null=True, required=False)
+    # ── Address subfields ──────────────────────────────────────────────────
+    street_address = serializers.CharField(required=False, allow_blank=True, default="")
+    city           = serializers.CharField(required=False, allow_blank=True, default="")
+    province       = serializers.CharField(required=False, allow_blank=True, default="")
+    zip_code       = serializers.CharField(required=False, allow_blank=True, default="")
+    address        = serializers.CharField(required=False, allow_blank=True, default="")
 
+    # ── Boolean flags — allow_null so missing fields don't blow up ─────────
+    is_vaccinated      = serializers.BooleanField(allow_null=True, required=False)
+    is_neutered        = serializers.BooleanField(allow_null=True, required=False)
+    has_aggression     = serializers.BooleanField(allow_null=True, required=False)
+    is_house_trained   = serializers.BooleanField(allow_null=True, required=False)
+    is_leash_trained   = serializers.BooleanField(allow_null=True, required=False)
+    good_with_children = serializers.BooleanField(allow_null=True, required=False)
+    good_with_pets     = serializers.BooleanField(allow_null=True, required=False)
+
+    # ── Photo / media ──────────────────────────────────────────────────────
     photo_base64 = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
     vacc_photos = serializers.ListField(
@@ -39,15 +59,14 @@ class RehomingRequestSerializer(serializers.ModelSerializer):
         default=list,
     )
 
-    # FIXED: match model (DateField) ❗
+    # ── Vaccination detail fields ──────────────────────────────────────────
     last_vacc_date = serializers.DateField(required=False, allow_null=True)
-
-    vaccine_type = serializers.CharField(required=False, allow_blank=True, allow_null=True)
-    vacc_clinic = serializers.CharField(required=False, allow_blank=True, allow_null=True)
-    vacc_notes = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    vaccine_type   = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    vacc_clinic    = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    vacc_notes     = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
     class Meta:
-        model = RehomingRequest
+        model  = RehomingRequest
         fields = "__all__"
         read_only_fields = [
             "status",
@@ -59,9 +78,9 @@ class RehomingRequestSerializer(serializers.ModelSerializer):
             "user",
         ]
 
+    # ── Owner name resolution ──────────────────────────────────────────────
     def _resolve_owner_name(self, validated_data, instance=None):
         name = validated_data.get("owner_name")
-
         if name:
             return name.strip() if isinstance(name, str) else name
 

@@ -1,6 +1,6 @@
 """
 apps/approvals/views.py
-10 endpoints — submit adoption/rehome, list all, approve, reject,
+12 endpoints — submit adoption/rehome, list all, detail, approve, reject,
 UPDATE, and DELETE (each action sends email where applicable).
 """
 import requests
@@ -138,12 +138,15 @@ def submit_adoption(request):
             requests.post(
                 f"{settings.SPRING_BOOT_API}/api/animals/mark-pending",
                 json={"animalName": obj.animal_name},
-                timeout=5
+                timeout=5,
             )
         except Exception:
             pass
 
-        return Response({"success": True, "id": obj.id, "message": "Adoption request submitted."}, status=201)
+        return Response(
+            {"success": True, "id": obj.id, "message": "Adoption request submitted."},
+            status=201,
+        )
     return Response({"success": False, "errors": serializer.errors}, status=400)
 
 
@@ -156,6 +159,22 @@ def list_adoptions(request):
     if req_status:
         qs = qs.filter(status=req_status)
     return Response({"success": True, "data": AdoptionRequestSerializer(qs, many=True).data})
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def adoption_detail(request, pk):
+    """GET /api/approvals/adoptions/<pk>/  — fetch a single adoption record (admin or owner)"""
+    try:
+        obj = AdoptionRequest.objects.get(pk=pk)
+    except AdoptionRequest.DoesNotExist:
+        return Response({"success": False, "message": "Not found."}, status=404)
+
+    # Allow admins or the owning user
+    if not (request.user.is_staff or obj.user == request.user):
+        return Response({"success": False, "message": "Permission denied."}, status=403)
+
+    return Response({"success": True, "data": AdoptionRequestSerializer(obj).data})
 
 
 @api_view(["POST"])
@@ -174,11 +193,10 @@ def approve_adoption(request, pk):
     obj.save()
 
     try:
-        spring_url = f"{settings.SPRING_BOOT_API}/api/animals/mark-adopted"
         requests.post(
-            spring_url,
+            f"{settings.SPRING_BOOT_API}/api/animals/mark-adopted",
             json={"animalName": obj.animal_name},
-            timeout=5
+            timeout=5,
         )
     except Exception:
         pass
@@ -241,9 +259,9 @@ def update_adoption(request, pk):
         return Response({"success": False, "message": "Not found."}, status=404)
 
     data = request.data.copy()
-    data.pop("status", None)
-    data.pop("decided_by", None)
-    data.pop("decided_at", None)
+    # Guard: never allow status/decision fields via PATCH
+    for f in ("status", "decided_by", "decided_at"):
+        data.pop(f, None)
 
     serializer = AdoptionRequestSerializer(obj, data=data, partial=True)
     if serializer.is_valid():
@@ -267,6 +285,14 @@ def delete_adoption(request, pk):
     return Response({"success": True, "message": f"Adoption request for '{animal_name}' deleted."})
 
 
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def user_adoptions(request):
+    """GET /api/approvals/adoptions/user/  — logged-in user's own adoption requests"""
+    qs = AdoptionRequest.objects.filter(user=request.user).order_by("-created_at")
+    return Response({"success": True, "data": AdoptionRequestSerializer(qs, many=True).data})
+
+
 # ── Rehoming endpoints ────────────────────────────────────────────────────────
 
 @api_view(["POST"])
@@ -276,7 +302,10 @@ def submit_rehoming(request):
     serializer = RehomingRequestSerializer(data=request.data, context={"request": request})
     if serializer.is_valid():
         obj = serializer.save(user=request.user)
-        return Response({"success": True, "id": obj.id, "message": "Rehoming request submitted."}, status=201)
+        return Response(
+            {"success": True, "id": obj.id, "message": "Rehoming request submitted."},
+            status=201,
+        )
     return Response({"success": False, "errors": serializer.errors}, status=400)
 
 
@@ -289,6 +318,21 @@ def list_rehoming(request):
     if req_status:
         qs = qs.filter(status=req_status)
     return Response({"success": True, "data": RehomingRequestSerializer(qs, many=True).data})
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def rehoming_detail(request, pk):
+    """GET /api/approvals/rehoming/<pk>/  — fetch a single rehoming record (admin or owner)"""
+    try:
+        obj = RehomingRequest.objects.get(pk=pk)
+    except RehomingRequest.DoesNotExist:
+        return Response({"success": False, "message": "Not found."}, status=404)
+
+    if not (request.user.is_staff or obj.user == request.user):
+        return Response({"success": False, "message": "Permission denied."}, status=403)
+
+    return Response({"success": True, "data": RehomingRequestSerializer(obj).data})
 
 
 @api_view(["POST"])
@@ -305,10 +349,13 @@ def approve_rehoming(request, pk):
     obj.decided_at = timezone.now()
     obj.save()
 
-    # ── Build notes from pet details ──────────────────────────────────────────
+    # ── Build notes from pet details ──────────────────────────────────────
     desc_parts = [
         obj.ideal_home_desc or "",
-        (f"Behavior: {obj.behavior}" + (f" ({obj.behavior_other})" if obj.behavior_other else "")) if obj.behavior else "",
+        (
+            f"Behavior: {obj.behavior}"
+            + (f" ({obj.behavior_other})" if obj.behavior_other else "")
+        ) if obj.behavior else "",
         f"Medical notes: {obj.medical_notes}" if obj.medical_notes else "",
         "Good with children." if obj.good_with_children else "",
         "Good with other pets." if obj.good_with_pets else "",
@@ -318,20 +365,19 @@ def approve_rehoming(request, pk):
     ]
     notes = " ".join(p for p in desc_parts if p).strip() or "Available for adoption."
 
-    # ── Resolve photo — strip data URI prefix for Spring Boot ─────────────────
+    # ── Resolve photo ─────────────────────────────────────────────────────
     photo_base64 = None
-    photo_type = "image/jpeg"
+    photo_type   = "image/jpeg"
 
     raw_photo = obj.photo_base64 or obj.photo_url or None
     if raw_photo:
         if "base64," in raw_photo:
-            photo_type = _extract_mime_type(raw_photo)
+            photo_type   = _extract_mime_type(raw_photo)
             photo_base64 = raw_photo.split("base64,", 1)[1]
         else:
             photo_base64 = raw_photo
 
-    # ── POST directly to Spring Boot (bypass gateway to avoid auth issues) ────
-    # Uses internal Docker network: sb:8080
+    # ── POST to Spring Boot ───────────────────────────────────────────────
     try:
         spring_payload = {
             "name":        obj.pet_name or "Unknown",
@@ -341,28 +387,19 @@ def approve_rehoming(request, pk):
             "health":      "Healthy",
             "status":      "Available",
             "notes":       notes,
-            "photoData":   photo_base64,   # raw base64, no "data:..." prefix
+            "photoData":   photo_base64,
             "photoType":   photo_type,
             "removePhoto": False,
         }
-
-        # Call Spring Boot DIRECTLY (not via gateway) to avoid JWT requirement
         sb_url = f"{settings.SPRING_BOOT_API}/api/animals/from-rehoming"
-        resp = requests.post(
-            sb_url,
-            json=spring_payload,
-            timeout=10,
-        )
+        resp   = requests.post(sb_url, json=spring_payload, timeout=10)
         if not resp.ok:
             print(f"[approve_rehoming] Spring Boot {resp.status_code}: {resp.text[:300]}")
         else:
             print(f"[approve_rehoming] Animal created in Spring Boot: {resp.json()}")
-
     except Exception as e:
         print(f"[approve_rehoming] Spring Boot unreachable: {e}")
-        # Don't fail the approval — log and continue
 
-    # ── In-app notification ───────────────────────────────────────────────────
     if obj.user:
         from apps.notifications.models import Notification
         Notification.objects.create(
@@ -377,7 +414,6 @@ def approve_rehoming(request, pk):
 
 
 def _strip_data_uri_prefix(data_url: str) -> str:
-    """Remove 'data:image/jpeg;base64,' prefix, returning only the raw base64 string."""
     if not data_url:
         return ""
     if "base64," in data_url:
@@ -386,7 +422,6 @@ def _strip_data_uri_prefix(data_url: str) -> str:
 
 
 def _extract_mime_type(data_url: str) -> str:
-    """Extract MIME type from a data URI, e.g. 'image/jpeg'."""
     if not data_url:
         return "image/jpeg"
     if data_url.startswith("data:"):
@@ -439,9 +474,8 @@ def update_rehoming(request, pk):
         return Response({"success": False, "message": "Not found."}, status=404)
 
     data = request.data.copy()
-    data.pop("status", None)
-    data.pop("decided_by", None)
-    data.pop("decided_at", None)
+    for f in ("status", "decided_by", "decided_at"):
+        data.pop(f, None)
 
     serializer = RehomingRequestSerializer(obj, data=data, partial=True)
     if serializer.is_valid():
@@ -463,13 +497,6 @@ def delete_rehoming(request, pk):
     pet_name = obj.pet_name
     obj.delete()
     return Response({"success": True, "message": f"Rehoming request for '{pet_name}' deleted."})
-
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def user_adoptions(request):
-    """GET /api/approvals/adoptions/user/  — logged-in user's own adoption requests"""
-    qs = AdoptionRequest.objects.filter(user=request.user).order_by("-created_at")
-    return Response({"success": True, "data": AdoptionRequestSerializer(qs, many=True).data})
 
 
 @api_view(["GET"])

@@ -16,6 +16,7 @@ import MissingPetsPanel from "./admin/MissingPetsPanel";
 import AnalyticsPanel   from "./admin/AnalyticsPanel";
 import AdminMessagingPanel from "./admin/AdminMessagingPanel";
 
+// ── Messaging removed from NAV — it lives in the topbar now
 const NAV = [
   {
     group: "Overview",
@@ -33,17 +34,10 @@ const NAV = [
         badge: "pending_adoptions", badgeWarn: true  },
       { id: "rehome",      label: "Rehoming",     ico: "ico-amber",  faIcon: "home",
         badge: "pending_rehome",    badgeWarn: true  },
-      { id: "surveys",     label: "Surveys",      ico: "ico-teal",   faIcon: "clipboard-list",
+      { id: "surveys",     label: "Feedbacks",      ico: "ico-teal",   faIcon: "clipboard-list",
         badge: "surveys",           badgeWarn: false },
       { id: "missingpets", label: "Missing Pets", ico: "ico-rose",   faIcon: "search",
         badge: "missing_pets",      badgeWarn: true  },
-    ],
-  },
-  {
-    group: "Communication",
-    items: [
-      { id: "messaging", label: "Messages", ico: "ico-teal", faIcon: "comments",
-        badge: "unread_messages", badgeWarn: true },
     ],
   },
   {
@@ -91,7 +85,6 @@ function filterActive(arr) {
   return arr.filter(item => !isDeleted(item));
 }
 
-// ── NORMALIZE AUTH USER ────────────────────────────────────────────────────────
 function normalizeUser(authUser) {
   if (!authUser) return null;
   if (authUser.id) return authUser;
@@ -438,8 +431,34 @@ function Sidebar({ active, onNav, stats, user, collapsed, onToggle, onLogout }) 
   );
 }
 
+// ── MESSAGING BUTTON (topbar) ─────────────────────────────────────────────────
+function MessagingButton({ unreadCount, isActive, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      title="Messages"
+      className="relative flex items-center justify-center w-9 h-9 rounded-xl transition-all duration-150 cursor-pointer border-none"
+      style={{
+        background: isActive ? "rgba(26,138,106,0.18)" : "rgba(255,250,232,0.78)",
+        border: isActive ? "1.5px solid rgba(26,138,106,0.45)" : "1.5px solid rgba(180,140,60,0.28)",
+        color: isActive ? "#1a8a6a" : "#6a7a50",
+      }}
+    >
+      <FaIcon name="comments" size={16} color="currentColor" />
+      {unreadCount > 0 && (
+        <span
+          className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center text-[9px] font-black text-white"
+          style={{ background: "#B45A22", lineHeight: 1 }}
+        >
+          {unreadCount > 99 ? "99+" : unreadCount}
+        </span>
+      )}
+    </button>
+  );
+}
+
 // ── TOPBAR ─────────────────────────────────────────────────────────────────────
-function Topbar({ panel, user, onRefresh, onToggle, collapsed, onNav, onOpenProfile, onLogout }) {
+function Topbar({ panel, user, onRefresh, onToggle, collapsed, onNav, onOpenProfile, onLogout, unreadMessages }) {
   const [profileOpen, setProfileOpen] = useState(false);
   const avatarSrc = user?.avatar || "";
   return (
@@ -448,13 +467,26 @@ function Topbar({ panel, user, onRefresh, onToggle, collapsed, onNav, onOpenProf
       <button onClick={onToggle} className="p-1.5 rounded-lg text-[#6a7a50] hover:bg-[rgba(90,170,48,0.12)] hover:text-[#1a4a08] transition-all duration-200 border-none bg-transparent cursor-pointer">
         <FaIcon name="bars" size={18} color="currentColor" />
       </button>
+
       <div className="flex items-center gap-2">
+        {/* Refresh */}
         <button onClick={onRefresh} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[#6a7a50] text-sm font-bold hover:text-[#1a4a08] hover:border-[#5aaa30] transition-all duration-150 cursor-pointer" style={{ background: "rgba(255,250,232,0.78)", border: "1.5px solid rgba(180,140,60,0.28)" }} title="Refresh">
           <FaIcon name="rotate-right" size={14} color="currentColor" />
         </button>
+
+        {/* View Site */}
         <button onClick={() => window.open("/home", "_blank")} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold text-[#1c4f09] hover:bg-[#1c4f09] hover:text-white transition-all duration-150 cursor-pointer" style={{ background: "rgba(90,170,48,0.13)", border: "1.5px solid rgba(90,170,48,0.35)" }}>
           <FaIcon name="external-link-alt" size={13} color="currentColor" /> View Site
         </button>
+
+        {/* ── Messages icon button ── */}
+        <MessagingButton
+          unreadCount={unreadMessages}
+          isActive={panel === "messaging"}
+          onClick={() => onNav("messaging")}
+        />
+
+        {/* Profile dropdown */}
         <div className="relative">
           <div onClick={() => { setProfileOpen(o => !o); }} className="flex items-center gap-2 cursor-pointer px-3 py-1.5 rounded-xl transition-all duration-200 hover:border-[#5aaa30]" style={{ background: "rgba(255,250,232,0.78)", border: "1.5px solid rgba(180,140,60,0.28)" }}>
             <div className="w-7 h-7 rounded-full flex items-center justify-center text-white overflow-hidden border border-[#5aaa30]" style={{ background: "linear-gradient(135deg,#1c4f09,#2a7010)" }}>
@@ -498,8 +530,6 @@ function Topbar({ panel, user, onRefresh, onToggle, collapsed, onNav, onOpenProf
 // ── ADMIN DASHBOARD ────────────────────────────────────────────────────────────
 export default function AdminDashboard() {
   const { user: authUser, logout } = useAuth();
-
-  // Normalize: inject id from JWT since login response has no id field
   const normalizedAuthUser = normalizeUser(authUser);
 
   const [user, setUser]           = useState(normalizedAuthUser ?? null);
@@ -558,8 +588,6 @@ export default function AdminDashboard() {
         const adoptionData = await adoptionRes.json();
         const arr = adoptionData?.data || adoptionData || [];
         if (Array.isArray(arr)) adoptionCount = filterActive(arr).filter(r => r.status === "Pending").length;
-      } else {
-        console.warn("adoptions fetch failed:", adoptionRes.status, adoptionRes.url);
       }
 
       let rehomeCount = phpData.pending_rehome ?? 0;
@@ -567,8 +595,6 @@ export default function AdminDashboard() {
         const rehomeData = await rehomeRes.json();
         const arr = rehomeData?.data || rehomeData || [];
         if (Array.isArray(arr)) rehomeCount = filterActive(arr).filter(r => r.status === "Pending").length;
-      } else {
-        console.warn("rehoming fetch failed:", rehomeRes.status, rehomeRes.url);
       }
 
       setStats(prev => ({
@@ -605,8 +631,26 @@ export default function AdminDashboard() {
   return (
     <div className="font-['Nunito',sans-serif] text-[#1a2e0a]">
       <MeshBackground />
-      <Sidebar active={panel} onNav={setPanel} stats={stats} user={user} collapsed={collapsed} onToggle={() => setCollapsed(c => !c)} onLogout={logout} />
-      <Topbar panel={panel} user={user} onRefresh={refresh} onToggle={() => setCollapsed(c => !c)} collapsed={collapsed} onNav={setPanel} onLogout={logout} onOpenProfile={(tab) => setProfileModal({ open: true, tab })} />
+      <Sidebar
+        active={panel}
+        onNav={setPanel}
+        stats={stats}
+        user={user}
+        collapsed={collapsed}
+        onToggle={() => setCollapsed(c => !c)}
+        onLogout={logout}
+      />
+      <Topbar
+        panel={panel}
+        user={user}
+        onRefresh={refresh}
+        onToggle={() => setCollapsed(c => !c)}
+        collapsed={collapsed}
+        onNav={setPanel}
+        onLogout={logout}
+        onOpenProfile={(tab) => setProfileModal({ open: true, tab })}
+        unreadMessages={stats.unread_messages}
+      />
       <main className="min-h-screen relative z-10 overflow-auto transition-all duration-300" style={{ marginLeft: sidebarWidth, paddingTop: 64, transitionTimingFunction: "cubic-bezier(0.4,0,0.2,1)" }}>
         <div className="p-6">
           {panel === "overview"    && <DashboardPanel   stats={stats} onNav={setPanel} user={user} onStatsChange={fetchStats} />}
@@ -617,7 +661,7 @@ export default function AdminDashboard() {
           {panel === "surveys"     && <SurveysPanel     show onStatsChange={fetchStats} />}
           {panel === "missingpets" && <MissingPetsPanel show onStatsChange={fetchStats} />}
 
-          {/* ── Always mounted so WebSocket stays connected ── */}
+          {/* Always mounted so WebSocket stays alive */}
           <div style={{ display: panel === "messaging" ? "block" : "none" }}>
             <AdminMessagingPanel user={normalizedAuthUser} onUnreadChange={handleUnreadChange} />
           </div>
@@ -628,7 +672,14 @@ export default function AdminDashboard() {
           {panel === "profile"  && <ProfilePanel  user={user} onUserUpdate={updateUser} onStatsChange={fetchStats} />}
         </div>
       </main>
-      {profileModal.open && <ProfileModal user={user} defaultTab={profileModal.tab} onClose={() => setProfileModal({ open: false, tab: "profile" })} onUserUpdate={updateUser} />}
+      {profileModal.open && (
+        <ProfileModal
+          user={user}
+          defaultTab={profileModal.tab}
+          onClose={() => setProfileModal({ open: false, tab: "profile" })}
+          onUserUpdate={updateUser}
+        />
+      )}
       <ToastContainer toasts={toasts} />
     </div>
   );

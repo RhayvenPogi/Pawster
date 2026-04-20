@@ -712,50 +712,77 @@ function AdoptModal({ animal, user, onClose, onSuccess }) {
     setTimeout(() => scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" }), 30);
   };
 
-  const submit = async () => {
-    if (!allAgreed) { onSuccess("Please check all agreement boxes.", "err"); return; }
-    setLoading(true);
-    try {
-      // Use the real numeric id for the adoption request.
-      // PHP animals have a plain numeric id; SB animals also have a numeric id.
-      const animalId = animal._source === "php" ? animal.id : (animal.id ?? animal._id);
-      const res = await djFetch("/api/approvals/adoptions/", {
-        method: "POST",
-        body: JSON.stringify({
-          animal_id: animalId, animal_name: animal.name,
-          name: form.name, phone: form.phone, email: form.email, address: form.address,
-          city:     form.city,
-          province: form.province,
-          zip:      form.zip,
-          reason: form.reason, previous_pet: form.previousPet === "yes",
-          previous_pet_details: form.previousPetDetails, primary_caregiver: form.primaryCaregiver,
-          housing: form.housing, owns_home: form.ownsHome === "own",
-          pet_permission: form.petPermission === "yes", pet_space: form.petSpace,
-          household_size: form.householdSize, has_children: form.hasChildren === "yes",
-          children_ages: form.childrenAges, has_other_pets: form.hasOtherPets === "yes",
-          other_pets_detail: form.otherPetsDetail, other_pets_vaccinated: form.otherPetsVaccinated === "yes",
-          introduction_plan: form.introductionPlan, exp: form.exp, alone_hours: form.aloneHours,
-          backup_care: form.backupCare, budget: form.budget, vet_plan: form.vetPlan,
-          behavior_response: form.behaviorResponse, open_to_guidance: form.openToGuidance === "yes",
-          agree_proper_care: form.agreeProperCare, agree_long_term: form.agreeLongTerm,
-          agree_no_abandon: form.agreeNoAbandon, agree_followup: form.agreeFollowup,
-        }),
-      });
-      let data = {};
-      try { data = await res.json(); } catch { /**/ }
-      if (res.ok && data.success !== false) {
-        onSuccess("Request submitted! We'll be in touch soon 🐾");
-        onClose();
-      } else if (res.status === 401) {
-        onSuccess("Session expired — please log in again.", "err");
-      } else {
-        onSuccess(data.message || `Error submitting (${res.status})`, "err");
-      }
-    } catch {
-      onSuccess("Server error. Please try again.", "err");
+const submit = async () => {
+  if (!allAgreed) { onSuccess("Please check all agreement boxes.", "err"); return; }
+  setLoading(true);
+  try {
+    const animalId = animal._source === "php" ? animal.id : (animal.id ?? animal._id);
+    const res = await djFetch("/api/approvals/adoptions/", {
+      method: "POST",
+      body: JSON.stringify({
+        animal_id:   animalId,
+        animal_name: animal.name,
+ 
+        // contact
+        name:  form.name,
+        phone: form.phone,
+        email: form.email,
+ 
+        // ── address (4 fields from registration form) ──────────────────────
+        street_address: form.address  || user?.address  || "",   // "Street address" field
+        city:           form.city     || user?.city     || "",
+        province:       form.province || user?.province || "",
+        zip_code:       form.zip      || user?.zip      || "",
+        // keep raw address as fallback for older records
+        address:        form.address  || user?.address  || "",
+ 
+        // ── everything else — unchanged ────────────────────────────────────
+        reason:                form.reason,
+        previous_pet:          form.previousPet === "yes",
+        previous_pet_details:  form.previousPetDetails,
+        primary_caregiver:     form.primaryCaregiver,
+        housing:               form.housing,
+        owns_home:             form.ownsHome === "own",
+        pet_permission:        form.petPermission === "yes",
+        pet_space:             form.petSpace,
+        household_size:        form.householdSize,
+        has_children:          form.hasChildren === "yes",
+        children_ages:         form.childrenAges,
+        has_other_pets:        form.hasOtherPets === "yes",
+        other_pets_detail:     form.otherPetsDetail,
+        other_pets_vaccinated: form.otherPetsVaccinated === "yes",
+        introduction_plan:     form.introductionPlan,
+        exp:                   form.exp,
+        alone_hours:           form.aloneHours,
+        backup_care:           form.backupCare,
+        budget:                form.budget,
+        vet_plan:              form.vetPlan,
+        behavior_response:     form.behaviorResponse,
+        open_to_guidance:      form.openToGuidance === "yes",
+        agree_proper_care:     form.agreeProperCare,
+        agree_long_term:       form.agreeLongTerm,
+        agree_no_abandon:      form.agreeNoAbandon,
+        agree_followup:        form.agreeFollowup,
+      }),
+    });
+ 
+    let data = {};
+    try { data = await res.json(); } catch { /**/ }
+    if (res.ok && data.success !== false) {
+      onSuccess("Request submitted! We'll be in touch soon 🐾");
+      onClose();
+    } else if (res.status === 401) {
+      onSuccess("Session expired — please log in again.", "err");
+    } else {
+      onSuccess(data.message || `Error submitting (${res.status})`, "err");
     }
-    setLoading(false);
-  };
+  } catch {
+    onSuccess("Server error. Please try again.", "err");
+  }
+  setLoading(false);
+};
+ 
+ 
 
   return (
     <div style={{ position:"fixed", inset:0, zIndex:600, display:"flex", alignItems:"center", justifyContent:"center", padding:"1rem", background:"rgba(10,6,2,0.65)", backdropFilter:"blur(8px)" }}

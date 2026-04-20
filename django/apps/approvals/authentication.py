@@ -53,17 +53,17 @@ class SpringBootJWTAuthentication(BaseAuthentication):
         user, created = User.objects.get_or_create(
             username=username,
             defaults={
-                "email":      payload.get("email", username if "@" in username else ""),
-                "first_name": payload.get("firstName", payload.get("given_name", "")),
-                "last_name":  payload.get("lastName",  payload.get("family_name", "")),
-                "is_staff":   is_admin,
+                "email":        payload.get("email", username if "@" in username else ""),
+                "first_name":   payload.get("firstName", payload.get("given_name", "")),
+                "last_name":    payload.get("lastName",  payload.get("family_name", "")),
+                "is_staff":     is_admin,
                 "is_superuser": is_admin,
             }
         )
 
         # Sync admin status on every request in case role changed
         if not created and user.is_staff != is_admin:
-            user.is_staff = is_admin
+            user.is_staff     = is_admin
             user.is_superuser = is_admin
             user.save(update_fields=["is_staff", "is_superuser"])
 

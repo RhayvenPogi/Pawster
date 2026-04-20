@@ -100,23 +100,7 @@ export default function Navbar({ photoUrl: externalPhotoUrl }) {
           );
         })}
 
-        {/* Follow-Up Surveys — only shown when logged in */}
-        {user && (
-          <Link
-            to="/follow-up-surveys"
-            className={`
-              flex items-center gap-1 px-3 py-1.5 text-[0.78rem] font-extrabold rounded-full whitespace-nowrap h-[34px]
-              transition-all
-              ${location.pathname === "/follow-up-surveys"
-                ? "bg-gradient-to-br from-[rgba(28,79,9,0.16)] to-[rgba(90,170,48,0.12)] text-[#1a4a08] shadow"
-                : "text-[#1a5fbf] hover:bg-[rgba(26,95,191,0.08)]"
-              }
-            `}
-          >
-            <i className="fas fa-clipboard-list text-[0.7rem]" />
-            Feedback
-          </Link>
-        )}
+      
       </div>
 
       {/* RIGHT SIDE */}
@@ -215,15 +199,7 @@ export default function Navbar({ photoUrl: externalPhotoUrl }) {
                   My Profile
                 </Link>
 
-                <Link
-                  to="/follow-up-surveys"
-                  className={`flex items-center gap-2 px-3 py-2 text-sm font-bold hover:bg-black/5 rounded-md
-                    ${location.pathname === "/follow-up-surveys" ? "text-[#1a4a08]" : "text-[#1a5fbf]"}
-                  `}
-                >
-                  <i className="fas fa-clipboard-list text-xs" />
-                  Follow-Up Surveys
-                </Link>
+
 
                 {/* ← NEW: Messages link in dropdown */}
                 {user.role !== "admin" && (
