@@ -54,29 +54,57 @@ function bubbleRadius(isAdmin, isFirst, isLast) {
   }
 }
 
-function Avatar({ name, size = 36, style = {} }) {
+// ── Avatar: initials base layer + image overlay (graceful fallback) ──────────
+function Avatar({ name, photoUrl, size = 36, style = {} }) {
+  const [imgFailed, setImgFailed] = useState(false);
+
   const initials = name
     ? name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()
     : "?";
+
+  // Reset failed state when photoUrl changes (e.g. switching conversations)
+  useEffect(() => {
+    setImgFailed(false);
+  }, [photoUrl]);
+
   return (
     <div
       style={{
-        width: size,
-        height: size,
-        borderRadius: "50%",
+        width: size, height: size, borderRadius: "50%",
         background: "linear-gradient(135deg, #1c4f09, #3a8a18)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        color: "#e8f5d4",
-        fontWeight: 800,
-        fontSize: size * 0.36,
-        flexShrink: 0,
-        letterSpacing: "-0.01em",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        color: "#e8f5d4", fontWeight: 800, fontSize: size * 0.36,
+        flexShrink: 0, letterSpacing: "-0.01em",
+        overflow: "hidden",
+        position: "relative",
         ...style,
       }}
     >
-      {initials}
+      {/* Initials always rendered as the base layer */}
+      <span
+        style={{
+          position: "absolute", inset: 0,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          userSelect: "none",
+        }}
+      >
+        {initials}
+      </span>
+
+      {/* Photo overlaid on top; disappears on load error, revealing initials */}
+      {photoUrl && !imgFailed && (
+        <img
+          src={photoUrl}
+          alt={initials}
+          style={{
+            position: "absolute", inset: 0,
+            width: "100%", height: "100%",
+            objectFit: "cover", display: "block",
+            zIndex: 1,
+          }}
+          onError={() => setImgFailed(true)}
+        />
+      )}
     </div>
   );
 }
@@ -86,8 +114,7 @@ function StatusDot({ online }) {
     <span
       style={{
         display: "inline-block",
-        width: 7,
-        height: 7,
+        width: 7, height: 7,
         borderRadius: "50%",
         background: online ? "#4ade80" : "#94a3b8",
         flexShrink: 0,
@@ -102,16 +129,12 @@ function ReadTicks({ read }) {
       <path
         d="M1 4l3 3L10 1"
         stroke={read ? "#4ade80" : "rgba(212,240,176,0.45)"}
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
+        strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"
       />
       <path
         d="M7 4l3 3 6-6"
         stroke={read ? "#4ade80" : "rgba(212,240,176,0.45)"}
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
+        strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"
       />
     </svg>
   );
@@ -122,19 +145,13 @@ function SendingSpinner() {
     <>
       <style>{`@keyframes _spin { to { transform: rotate(360deg); } }`}</style>
       <svg
-        width="10"
-        height="10"
-        viewBox="0 0 10 10"
+        width="10" height="10" viewBox="0 0 10 10"
         style={{ animation: "_spin 0.8s linear infinite", flexShrink: 0 }}
       >
         <circle
           cx="5" cy="5" r="4"
-          fill="none"
-          stroke="#8a9e70"
-          strokeWidth="1.5"
-          strokeDasharray="18"
-          strokeDashoffset="6"
-          strokeLinecap="round"
+          fill="none" stroke="#8a9e70"
+          strokeWidth="1.5" strokeDasharray="18" strokeDashoffset="6" strokeLinecap="round"
         />
       </svg>
     </>
@@ -145,22 +162,15 @@ function DateDivider({ label }) {
   return (
     <div
       style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        margin: "14px 0 10px",
-        userSelect: "none",
+        display: "flex", alignItems: "center", gap: 10,
+        margin: "14px 0 10px", userSelect: "none",
       }}
     >
       <div style={{ flex: 1, height: 1, background: "rgba(170,135,55,0.15)" }} />
       <span
         style={{
-          fontSize: 10,
-          fontWeight: 700,
-          color: "#a8b898",
-          letterSpacing: "0.04em",
-          textTransform: "uppercase",
-          whiteSpace: "nowrap",
+          fontSize: 10, fontWeight: 700, color: "#a8b898",
+          letterSpacing: "0.04em", textTransform: "uppercase", whiteSpace: "nowrap",
         }}
       >
         {label}
@@ -170,8 +180,18 @@ function DateDivider({ label }) {
   );
 }
 
-function Bubble({ msg, isFirst, isLast }) {
+function Bubble({ msg, isFirst, isLast, adminPhotoUrl, userPhotoUrl }) {
   const isAdmin = msg.senderRole === "admin";
+
+  const avatarName     = isAdmin ? "Pawster Support" : (msg.senderName ?? "");
+  const avatarPhotoUrl = isAdmin
+    ? (adminPhotoUrl ?? null)
+    : (userPhotoUrl ?? msg.senderPhotoUrl ?? null);
+  const avatarStyle    = {
+    background: isAdmin
+      ? "linear-gradient(135deg, #1c4f09, #3a8a18)"
+      : "linear-gradient(135deg, #7c3300, #c2581e)",
+  };
 
   return (
     <div
@@ -183,63 +203,35 @@ function Bubble({ msg, isFirst, isLast }) {
         marginBottom: isLast ? 10 : 3,
       }}
     >
-      {/* Avatar on last bubble of a run; invisible spacer otherwise */}
       {isLast ? (
-        <div
-          style={{
-            width: 26,
-            height: 26,
-            borderRadius: "50%",
-            background: isAdmin ? "#1c4f09" : "#7c3300",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 9,
-            fontWeight: 800,
-            color: isAdmin ? "#d4f0b0" : "#fde8d4",
-            flexShrink: 0,
-            letterSpacing: "0.02em",
-          }}
-        >
-          {isAdmin ? "AD" : (msg.senderName?.[0] ?? "U")}
-        </div>
+        <Avatar name={avatarName} photoUrl={avatarPhotoUrl} size={26} style={avatarStyle} />
       ) : (
         <div style={{ width: 26, flexShrink: 0 }} />
       )}
 
       <div
         style={{
-          display: "flex",
-          flexDirection: "column",
+          display: "flex", flexDirection: "column",
           alignItems: isAdmin ? "flex-end" : "flex-start",
-          maxWidth: "68%",
-          gap: 2,
+          maxWidth: "68%", gap: 2,
         }}
       >
-        {/* Sender name: user only, first bubble only */}
         {!isAdmin && isFirst && (
           <span
             style={{
-              fontSize: 10,
-              fontWeight: 700,
-              color: "#c2581e",
-              letterSpacing: "0.04em",
-              textTransform: "uppercase",
-              paddingInline: 2,
+              fontSize: 10, fontWeight: 700, color: "#c2581e",
+              letterSpacing: "0.04em", textTransform: "uppercase", paddingInline: 2,
             }}
           >
             {msg.senderName}
           </span>
         )}
 
-        {/* Bubble */}
         <div
           style={{
             padding: "9px 13px",
             borderRadius: bubbleRadius(isAdmin, isFirst, isLast),
-            fontSize: 13.5,
-            fontWeight: 500,
-            lineHeight: 1.55,
+            fontSize: 13.5, fontWeight: 500, lineHeight: 1.55,
             background: isAdmin ? "#1e5c0a" : "rgba(255, 251, 235, 0.98)",
             color: isAdmin ? "#d8f2b0" : "#1a2e0a",
             border: isAdmin ? "none" : "1px solid rgba(170, 130, 50, 0.2)",
@@ -254,15 +246,11 @@ function Bubble({ msg, isFirst, isLast }) {
           {msg.content}
         </div>
 
-        {/* Meta: time + read ticks (or spinner) — last bubble only */}
         {isLast && (
           <div
             style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-              paddingInline: 3,
-              marginTop: 1,
+              display: "flex", alignItems: "center", gap: 4,
+              paddingInline: 3, marginTop: 1,
               justifyContent: isAdmin ? "flex-end" : "flex-start",
             }}
           >
@@ -290,18 +278,13 @@ function EmptyState({ icon, title, subtitle }) {
   return (
     <div
       style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        height: "100%",
-        gap: 10,
-        padding: "0 24px",
-        textAlign: "center",
-        userSelect: "none",
+        display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "center",
+        height: "100%", gap: 10, padding: "0 24px",
+        textAlign: "center", userSelect: "none",
       }}
     >
-      <div style={{ fontSize: 36, opacity: 0.45 }}>{icon}</div>
+      <div style={{ opacity: 0.45, color: "#5a7840" }}>{icon}</div>
       <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "#5a7840" }}>{title}</p>
       {subtitle && (
         <p style={{ margin: 0, fontSize: 12, fontWeight: 500, color: "#8a9e70", maxWidth: 220 }}>
@@ -312,34 +295,58 @@ function EmptyState({ icon, title, subtitle }) {
   );
 }
 
+function IconInbox() {
+  return (
+    <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/>
+      <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>
+    </svg>
+  );
+}
+
+function IconChat() {
+  return (
+    <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+    </svg>
+  );
+}
+
+function IconSelectChat() {
+  return (
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(58, 138, 24, 0.7)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+    </svg>
+  );
+}
+
 export default function AdminMessagingPanel({ user, onUnreadChange }) {
-  const [activeUserId,   setActiveUserId]   = useState(null);
-  const [activeUserName, setActiveUserName] = useState("");
-  const [input,          setInput]          = useState("");
-  const [searchQ,        setSearchQ]        = useState("");
+  const [activeUserId,       setActiveUserId]      = useState(null);
+  const [activeUserName,     setActiveUserName]     = useState("");
+  const [activeUserPhotoUrl, setActiveUserPhotoUrl] = useState(null);
+  const [input,              setInput]              = useState("");
+  const [searchQ,            setSearchQ]            = useState("");
   const bottomRef   = useRef(null);
   const textareaRef = useRef(null);
 
   const {
-    messages,
-    setMessages,
-    connected,
-    unreadCount,
-    conversations,
-    loadHistory,
-    sendMessage,
-    markRead,
-    fetchConversations,
+    messages, setMessages, connected, unreadCount,
+    conversations, loadHistory, sendMessage, markRead, fetchConversations,
   } = useMessaging(user, activeUserId);
 
   useEffect(() => {
     onUnreadChange?.(unreadCount);
   }, [unreadCount, onUnreadChange]);
 
-  const openConversation = useCallback(async (uid, name) => {
+  const openConversation = useCallback(async (uid, name, photoUrl) => {
     setMessages([]);
     setActiveUserId(uid);
     setActiveUserName(name);
+    // Construct a reliable photo URL from the user ID, just like UsersPanel does.
+    // Fall back to whatever the conversations list provided.
+    setActiveUserPhotoUrl(
+      photoUrl ?? (uid ? `/api/users/${uid}/photo/public` : null)
+    );
     setInput("");
     await loadHistory(uid);
     await markRead(uid);
@@ -355,15 +362,10 @@ export default function AdminMessagingPanel({ user, onUnreadChange }) {
     if (!text || !activeUserId) return;
 
     const tempId = `pending-${Date.now()}`;
-    const optimistic = {
-      id: tempId,
-      content: text,
-      senderRole: "admin",
-      createdAt: new Date().toISOString(),
-      pending: true,
-      read: false,
-    };
-    setMessages(prev => [...prev, optimistic]);
+    setMessages(prev => [...prev, {
+      id: tempId, content: text, senderRole: "admin",
+      createdAt: new Date().toISOString(), pending: true, read: false,
+    }]);
 
     sendMessage(text, activeUserId);
     setInput("");
@@ -373,17 +375,12 @@ export default function AdminMessagingPanel({ user, onUnreadChange }) {
     }
 
     setTimeout(() => {
-      setMessages(prev =>
-        prev.map(m => m.id === tempId ? { ...m, pending: false } : m)
-      );
+      setMessages(prev => prev.map(m => m.id === tempId ? { ...m, pending: false } : m));
     }, 3000);
   };
 
   const handleKey = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
 
   const filtered    = conversations.filter(c =>
@@ -399,7 +396,6 @@ export default function AdminMessagingPanel({ user, onUnreadChange }) {
     );
   }
 
-  // Build enriched list: inject date dividers + compute isFirst/isLast
   const enrichedMessages = [];
   messages.forEach((msg, i) => {
     const prev = messages[i - 1];
@@ -415,11 +411,8 @@ export default function AdminMessagingPanel({ user, onUnreadChange }) {
   return (
     <div
       style={{
-        display: "flex",
-        borderRadius: 16,
-        overflow: "hidden",
-        height: "calc(100vh - 140px)",
-        minHeight: 520,
+        display: "flex", borderRadius: 16, overflow: "hidden",
+        height: "calc(100vh - 140px)", minHeight: 520,
         border: "1px solid rgba(90, 160, 50, 0.28)",
         background: "rgba(252, 250, 240, 0.7)",
         backdropFilter: "blur(16px)",
@@ -429,10 +422,8 @@ export default function AdminMessagingPanel({ user, onUnreadChange }) {
       {/* ═══ LEFT SIDEBAR ═══════════════════════════════════════════════════ */}
       <aside
         style={{
-          width: 272,
-          flexShrink: 0,
-          display: "flex",
-          flexDirection: "column",
+          width: 272, flexShrink: 0,
+          display: "flex", flexDirection: "column",
           borderRight: "1px solid rgba(170, 135, 55, 0.22)",
           background: "rgba(255, 250, 228, 0.88)",
         }}
@@ -441,9 +432,7 @@ export default function AdminMessagingPanel({ user, onUnreadChange }) {
           style={{
             padding: "14px 16px 12px",
             borderBottom: "1px solid rgba(170, 135, 55, 0.18)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
+            display: "flex", alignItems: "center", justifyContent: "space-between",
           }}
         >
           <div>
@@ -463,24 +452,14 @@ export default function AdminMessagingPanel({ user, onUnreadChange }) {
 
           <div
             style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 5,
-              padding: "4px 9px",
-              borderRadius: 20,
+              display: "flex", alignItems: "center", gap: 5,
+              padding: "4px 9px", borderRadius: 20,
               background: connected ? "rgba(74, 222, 128, 0.1)" : "rgba(148, 163, 184, 0.12)",
               border: `1px solid ${connected ? "rgba(74, 222, 128, 0.28)" : "rgba(148, 163, 184, 0.22)"}`,
             }}
           >
             <StatusDot online={connected} />
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: connected ? "#1c4f09" : "#6b7280",
-                letterSpacing: "0.02em",
-              }}
-            >
+            <span style={{ fontSize: 11, fontWeight: 700, color: connected ? "#1c4f09" : "#6b7280", letterSpacing: "0.02em" }}>
               {connected ? "Live" : "Offline"}
             </span>
           </div>
@@ -500,17 +479,12 @@ export default function AdminMessagingPanel({ user, onUnreadChange }) {
               onChange={e => setSearchQ(e.target.value)}
               placeholder="Search users…"
               style={{
-                width: "100%",
-                boxSizing: "border-box",
-                padding: "7px 10px 7px 28px",
-                borderRadius: 9,
+                width: "100%", boxSizing: "border-box",
+                padding: "7px 10px 7px 28px", borderRadius: 9,
                 border: "1px solid rgba(170, 135, 55, 0.24)",
                 background: "rgba(255, 250, 230, 0.8)",
-                color: "#1a2e0a",
-                fontSize: 12,
-                fontWeight: 600,
-                fontFamily: "'Nunito', sans-serif",
-                outline: "none",
+                color: "#1a2e0a", fontSize: 12, fontWeight: 600,
+                fontFamily: "'Nunito', sans-serif", outline: "none",
               }}
             />
           </div>
@@ -519,26 +493,26 @@ export default function AdminMessagingPanel({ user, onUnreadChange }) {
         <div style={{ flex: 1, overflowY: "auto" }}>
           {filtered.length === 0 ? (
             <EmptyState
-              icon="📭"
+              icon={<IconInbox />}
               title="No conversations yet"
               subtitle="Users who message you will appear here."
             />
           ) : (
             filtered.map(conv => {
               const isActive = activeUserId === conv.userId;
+              // Construct a reliable photo URL — same pattern as UsersPanel
+              const convPhotoUrl = conv.userPhotoUrl ?? `/api/users/${conv.userId}/photo/public`;
+
               return (
                 <button
                   key={conv.userId}
-                  onClick={() => openConversation(conv.userId, conv.userName)}
+                  onClick={() => openConversation(conv.userId, conv.userName, convPhotoUrl)}
                   style={{
-                    width: "100%",
-                    textAlign: "left",
-                    padding: "10px 14px",
+                    width: "100%", textAlign: "left", padding: "10px 14px",
                     background: isActive ? "rgba(90, 160, 50, 0.12)" : "transparent",
                     borderLeft: `3px solid ${isActive ? "#4a8f20" : "transparent"}`,
                     borderBottom: "1px solid rgba(170, 135, 55, 0.1)",
-                    borderTop: "none",
-                    borderRight: "none",
+                    borderTop: "none", borderRight: "none",
                     cursor: "pointer",
                     transition: "background 0.15s, border-left-color 0.15s",
                     fontFamily: "'Nunito', sans-serif",
@@ -548,16 +522,13 @@ export default function AdminMessagingPanel({ user, onUnreadChange }) {
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <div style={{ position: "relative", flexShrink: 0 }}>
-                      <Avatar name={conv.userName} size={36} />
+                      <Avatar name={conv.userName} photoUrl={convPhotoUrl} size={36} />
                       {conv.unreadCount > 0 && (
                         <span
                           style={{
-                            position: "absolute",
-                            top: -3, right: -3,
-                            minWidth: 16, height: 16,
-                            borderRadius: 8,
-                            background: "#c2581e",
-                            color: "#fff",
+                            position: "absolute", top: -3, right: -3,
+                            minWidth: 16, height: 16, borderRadius: 8,
+                            background: "#c2581e", color: "#fff",
                             fontSize: 9, fontWeight: 800,
                             display: "flex", alignItems: "center", justifyContent: "center",
                             padding: "0 3px",
@@ -586,8 +557,7 @@ export default function AdminMessagingPanel({ user, onUnreadChange }) {
                       </div>
                       <p
                         style={{
-                          margin: "2px 0 0",
-                          fontSize: 11.5,
+                          margin: "2px 0 0", fontSize: 11.5,
                           fontWeight: conv.unreadCount > 0 ? 700 : 500,
                           color: conv.unreadCount > 0 ? "#3a5820" : "#8a9e70",
                           overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
@@ -610,23 +580,16 @@ export default function AdminMessagingPanel({ user, onUnreadChange }) {
           <>
             <div
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
+                display: "flex", alignItems: "center", gap: 12,
                 padding: "12px 20px",
                 borderBottom: "1px solid rgba(170, 135, 55, 0.22)",
                 background: "rgba(255, 252, 238, 0.92)",
                 flexShrink: 0,
               }}
             >
-              <Avatar name={activeUserName} size={38} />
+              <Avatar name={activeUserName} photoUrl={activeUserPhotoUrl} size={38} />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div
-                  style={{
-                    fontWeight: 800, fontSize: 14, color: "#1a4a08",
-                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                  }}
-                >
+                <div style={{ fontWeight: 800, fontSize: 14, color: "#1a4a08", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {activeUserName}
                 </div>
                 <div style={{ fontSize: 11, fontWeight: 600, color: "#8a9e70", marginTop: 1 }}>
@@ -637,16 +600,14 @@ export default function AdminMessagingPanel({ user, onUnreadChange }) {
 
             <div
               style={{
-                flex: 1,
-                overflowY: "auto",
+                flex: 1, overflowY: "auto",
                 padding: "16px 20px 8px",
-                display: "flex",
-                flexDirection: "column",
+                display: "flex", flexDirection: "column",
               }}
             >
               {enrichedMessages.length === 0 ? (
                 <EmptyState
-                  icon="💬"
+                  icon={<IconChat />}
                   title="No messages yet"
                   subtitle="Send a message to start the conversation."
                 />
@@ -660,6 +621,8 @@ export default function AdminMessagingPanel({ user, onUnreadChange }) {
                       msg={item.msg}
                       isFirst={item.isFirst}
                       isLast={item.isLast}
+                      adminPhotoUrl={user?.photoUrl ?? user?.avatarUrl ?? null}
+                      userPhotoUrl={activeUserPhotoUrl}
                     />
                   )
                 )
@@ -669,19 +632,15 @@ export default function AdminMessagingPanel({ user, onUnreadChange }) {
 
             <div
               style={{
-                flexShrink: 0,
-                padding: "12px 16px 14px",
+                flexShrink: 0, padding: "12px 16px 14px",
                 borderTop: "1px solid rgba(170, 135, 55, 0.22)",
                 background: "rgba(255, 252, 238, 0.92)",
               }}
             >
               <div
                 style={{
-                  display: "flex",
-                  alignItems: "flex-end",
-                  gap: 8,
-                  borderRadius: 14,
-                  padding: "8px 8px 8px 14px",
+                  display: "flex", alignItems: "flex-end", gap: 8,
+                  borderRadius: 14, padding: "8px 8px 8px 14px",
                   background: "rgba(255, 253, 242, 0.95)",
                   border: "1px solid rgba(170, 135, 55, 0.28)",
                   boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
@@ -702,37 +661,22 @@ export default function AdminMessagingPanel({ user, onUnreadChange }) {
                   onKeyDown={handleKey}
                   placeholder={`Message ${activeUserName}…`}
                   style={{
-                    flex: 1,
-                    background: "transparent",
-                    border: "none",
-                    outline: "none",
-                    resize: "none",
-                    fontSize: 13.5,
-                    fontWeight: 500,
-                    lineHeight: 1.55,
-                    color: "#1a2e0a",
-                    minHeight: 26,
-                    maxHeight: 100,
-                    fontFamily: "'Nunito', sans-serif",
-                    overflowY: "auto",
+                    flex: 1, background: "transparent", border: "none", outline: "none",
+                    resize: "none", fontSize: 13.5, fontWeight: 500, lineHeight: 1.55,
+                    color: "#1a2e0a", minHeight: 26, maxHeight: 100,
+                    fontFamily: "'Nunito', sans-serif", overflowY: "auto",
                   }}
                 />
                 <button
                   onClick={handleSend}
                   disabled={!input.trim() || !connected}
                   style={{
-                    width: 34,
-                    height: 34,
-                    borderRadius: 10,
-                    border: "none",
+                    width: 34, height: 34, borderRadius: 10, border: "none",
                     cursor: input.trim() && connected ? "pointer" : "not-allowed",
                     background: input.trim() && connected ? "#1e5c0a" : "rgba(170, 135, 55, 0.12)",
                     color: input.trim() && connected ? "#d4f0b0" : "#8a9e70",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexShrink: 0,
-                    transition: "background 0.15s, transform 0.1s",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    flexShrink: 0, transition: "background 0.15s, transform 0.1s",
                   }}
                   onMouseDown={e => { if (input.trim() && connected) e.currentTarget.style.transform = "scale(0.93)"; }}
                   onMouseUp={e => (e.currentTarget.style.transform = "scale(1)")}
@@ -742,15 +686,7 @@ export default function AdminMessagingPanel({ user, onUnreadChange }) {
                   </svg>
                 </button>
               </div>
-              <p
-                style={{
-                  margin: "6px 0 0 4px",
-                  fontSize: 10.5,
-                  fontWeight: 600,
-                  color: "#8a9e70",
-                  userSelect: "none",
-                }}
-              >
+              <p style={{ margin: "6px 0 0 4px", fontSize: 10.5, fontWeight: 600, color: "#8a9e70", userSelect: "none" }}>
                 Enter to send · Shift + Enter for new line
               </p>
             </div>
@@ -758,29 +694,21 @@ export default function AdminMessagingPanel({ user, onUnreadChange }) {
         ) : (
           <div
             style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              height: "100%",
-              gap: 16,
-              padding: "0 40px",
-              textAlign: "center",
-              userSelect: "none",
+              display: "flex", flexDirection: "column",
+              alignItems: "center", justifyContent: "center",
+              height: "100%", gap: 16, padding: "0 40px",
+              textAlign: "center", userSelect: "none",
             }}
           >
             <div
               style={{
-                width: 64, height: 64,
-                borderRadius: 20,
+                width: 64, height: 64, borderRadius: 20,
                 background: "rgba(90, 160, 50, 0.1)",
                 border: "1.5px solid rgba(90, 160, 50, 0.22)",
                 display: "flex", alignItems: "center", justifyContent: "center",
               }}
             >
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(58, 138, 24, 0.7)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-              </svg>
+              <IconSelectChat />
             </div>
             <div>
               <p style={{ margin: 0, fontSize: 14, fontWeight: 800, color: "#3a5820" }}>

@@ -1,3 +1,4 @@
+// pages/MessagingPage.jsx
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
@@ -48,17 +49,7 @@ function bubbleRadius(isMine, isFirst, isLast) {
   }
 }
 
-function PawWatermark({ style }) {
-  return (
-    <svg style={style} viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
-      <ellipse cx="50" cy="66" rx="24" ry="21" />
-      <ellipse cx="25" cy="43" rx="11" ry="14" transform="rotate(-14 25 43)" />
-      <ellipse cx="43" cy="33" rx="11" ry="14" transform="rotate(-5 43 33)" />
-      <ellipse cx="62" cy="33" rx="11" ry="14" transform="rotate(5 62 33)" />
-      <ellipse cx="78" cy="43" rx="10" ry="13" transform="rotate(14 78 43)" />
-    </svg>
-  );
-}
+
 
 function SendingSpinner() {
   return (
@@ -90,26 +81,9 @@ function ReadTicks({ read }) {
 
 function DateDivider({ label }) {
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        margin: "14px 0 10px",
-        userSelect: "none",
-      }}
-    >
+    <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "14px 0 10px", userSelect: "none" }}>
       <div style={{ flex: 1, height: 1, background: "rgba(180,140,60,0.2)" }} />
-      <span
-        style={{
-          fontSize: 10,
-          fontWeight: 700,
-          color: "#b0a07a",
-          letterSpacing: "0.04em",
-          textTransform: "uppercase",
-          whiteSpace: "nowrap",
-        }}
-      >
+      <span style={{ fontSize: 10, fontWeight: 700, color: "#b0a07a", letterSpacing: "0.04em", textTransform: "uppercase", whiteSpace: "nowrap" }}>
         {label}
       </span>
       <div style={{ flex: 1, height: 1, background: "rgba(180,140,60,0.2)" }} />
@@ -117,35 +91,79 @@ function DateDivider({ label }) {
   );
 }
 
-function Bubble({ msg, userId, isFirst, isLast }) {
+// ── AvatarCircle: initials base + photo overlay with graceful fallback ────────
+function AvatarCircle({ name, photoUrl, size = 28, bg, color }) {
+  const [imgFailed, setImgFailed] = useState(false);
+
+  const initials = name
+    ? name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()
+    : "?";
+
+  useEffect(() => { setImgFailed(false); }, [photoUrl]);
+
+  return (
+    <div
+      style={{
+        width: size, height: size, borderRadius: "50%",
+        background: bg ?? "linear-gradient(135deg,#1c4f09,#3a8a18)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontSize: size * 0.34, fontWeight: 800, color: color ?? "#fff",
+        flexShrink: 0, letterSpacing: "0.01em",
+        overflow: "hidden", position: "relative",
+      }}
+    >
+      {/* Initials always as base layer */}
+      <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", userSelect: "none" }}>
+        {initials}
+      </span>
+      {/* Photo on top — falls back to initials on error */}
+      {photoUrl && !imgFailed && (
+        <img
+          src={photoUrl} alt={initials}
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", display: "block", zIndex: 1 }}
+          onError={() => setImgFailed(true)}
+        />
+      )}
+    </div>
+  );
+}
+
+function Bubble({ msg, userId, user, isFirst, isLast }) {
   const isMine =
     (msg.senderId != null && String(msg.senderId) === String(userId)) ||
     (msg.senderId == null && msg.senderRole !== "admin");
+
+  const avatarName = isMine
+    ? [user?.firstName, user?.lastName].filter(Boolean).join(" ") || user?.name || ""
+    : ("Pawster Support");          // e.g. "Admin User" → "AU"
+
+  const avatarPhoto = isMine
+    ? (user?.photoUrl ?? user?.avatarUrl ?? null)
+    : (msg.senderPhotoUrl ?? null);
+
+  const avatarBg = isMine
+    ? "linear-gradient(135deg,#1c4f09,#3a8a18)"
+    : "linear-gradient(135deg,#1c4f09,#3a8a18)";
 
   return (
     <div
       className={`flex items-end gap-2 ${isMine ? "flex-row-reverse" : "flex-row"}`}
       style={{ marginBottom: isLast ? 10 : 3 }}
     >
-      {/* Avatar: only on last bubble of a run */}
       {isLast ? (
-        <div
-          className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black text-white flex-shrink-0"
-          style={{
-            background: isMine
-              ? "linear-gradient(135deg,#1c4f09,#3a8a18)"
-              : "linear-gradient(135deg,#B45A22,#e07820)",
-          }}
-        >
-          {isMine ? "You" : "🐾"}
-        </div>
+        // ── FIX: no more emoji fallback — always shows initials ────────────
+        <AvatarCircle
+          name={avatarName}
+          photoUrl={avatarPhoto}
+          size={28}
+          bg={avatarBg}
+          color="#fff"
+        />
       ) : (
         <div className="w-7 flex-shrink-0" />
       )}
 
-      <div
-        className={`max-w-[72%] flex flex-col gap-1 ${isMine ? "items-end" : "items-start"}`}
-      >
+      <div className={`max-w-[72%] flex flex-col gap-1 ${isMine ? "items-end" : "items-start"}`}>
         <div
           className="px-4 py-2.5 text-sm font-semibold leading-relaxed"
           style={{
@@ -166,14 +184,10 @@ function Bubble({ msg, userId, isFirst, isLast }) {
           {msg.content}
         </div>
 
-        {/* Meta row: only on last bubble of a run */}
         {isLast && (
           <div
             className="flex items-center gap-1"
-            style={{
-              paddingInline: 3,
-              justifyContent: isMine ? "flex-end" : "flex-start",
-            }}
+            style={{ paddingInline: 3, justifyContent: isMine ? "flex-end" : "flex-start" }}
           >
             {msg.pending ? (
               <>
@@ -202,14 +216,7 @@ export default function MessagingPage() {
   const bottomRef   = useRef(null);
   const textareaRef = useRef(null);
 
-  const {
-    messages,
-    setMessages,
-    connected,
-    loadHistory,
-    sendMessage,
-    markRead,
-  } = useMessaging(user);
+  const { messages, setMessages, connected, loadHistory, sendMessage, markRead } = useMessaging(user);
 
   useEffect(() => {
     if (!user) { navigate("/login"); return; }
@@ -224,86 +231,48 @@ export default function MessagingPage() {
   const handleSend = () => {
     const text = input.trim();
     if (!text || !connected) return;
-
     const tempId = `pending-${Date.now()}`;
-    const optimistic = {
-      id: tempId,
-      content: text,
-      senderId: user.id,
-      senderRole: "user",
-      createdAt: new Date().toISOString(),
-      pending: true,
-      read: false,
-    };
-    setMessages(prev => [...prev, optimistic]);
-
+    setMessages(prev => [...prev, {
+      id: tempId, content: text, senderId: user.id,
+      senderRole: "user", createdAt: new Date().toISOString(), pending: true, read: false,
+    }]);
     sendMessage(text);
     setInput("");
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto";
-      textareaRef.current.focus();
-    }
-
-    // Fallback: resolve pending after 3s if WS ack hasn't replaced it
+    if (textareaRef.current) { textareaRef.current.style.height = "auto"; textareaRef.current.focus(); }
     setTimeout(() => {
-      setMessages(prev =>
-        prev.map(m => m.id === tempId ? { ...m, pending: false } : m)
-      );
+      setMessages(prev => prev.map(m => m.id === tempId ? { ...m, pending: false } : m));
     }, 3000);
   };
 
   const handleKey = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
 
   if (!user) return null;
 
-  // Build enriched list: date dividers + isFirst/isLast grouping flags
   const enriched = [];
   messages.forEach((msg, i) => {
     const prev = messages[i - 1];
     const next = messages[i + 1];
-
-    // Determine sender key: user messages group by senderId, admin by role
-    const senderKey = msg.senderRole === "admin"
-      ? "admin"
-      : String(msg.senderId ?? "user");
-    const prevKey = prev
-      ? (prev.senderRole === "admin" ? "admin" : String(prev.senderId ?? "user"))
-      : null;
-    const nextKey = next
-      ? (next.senderRole === "admin" ? "admin" : String(next.senderId ?? "user"))
-      : null;
-
-    if (!prev || !sameDayCheck(prev.createdAt, msg.createdAt)) {
+    const senderKey = msg.senderRole === "admin" ? "admin" : String(msg.senderId ?? "user");
+    const prevKey   = prev ? (prev.senderRole === "admin" ? "admin" : String(prev.senderId ?? "user")) : null;
+    const nextKey   = next ? (next.senderRole === "admin" ? "admin" : String(next.senderId ?? "user")) : null;
+    if (!prev || !sameDayCheck(prev.createdAt, msg.createdAt))
       enriched.push({ type: "divider", key: `div-${msg.id}`, label: formatDivider(msg.createdAt) });
-    }
-
     const isFirst = !prev || prevKey !== senderKey || !sameDayCheck(prev.createdAt, msg.createdAt);
     const isLast  = !next || nextKey !== senderKey || !sameDayCheck(msg.createdAt, next?.createdAt);
-
     enriched.push({ type: "bubble", msg, isFirst, isLast });
   });
 
-  return (
-    <div
-      className="min-h-screen flex flex-col"
-      style={{ background: "#EDDABB", fontFamily: "'Nunito', sans-serif" }}
-    >
-      <PawWatermark style={{ position: "fixed", bottom: -60, right: -40, width: 300, opacity: 0.05, color: "#1c4f09", pointerEvents: "none", zIndex: 0 }} />
-      <PawWatermark style={{ position: "fixed", top: 80, left: -30, width: 200, opacity: 0.04, color: "#B45A22", pointerEvents: "none", zIndex: 0 }} />
+  // ── "Support" initials for the header avatar ─────────────────────────────
+  const supportName = "Pawster Support";   // → "PS"
 
-      {/* Header */}
+  return (
+    <div className="min-h-screen flex flex-col" style={{ background: "#EDDABB", fontFamily: "'Nunito', sans-serif" }}>
+    
       <header
         className="sticky top-0 z-20 flex items-center gap-3 px-5 h-[64px] shadow-sm"
-        style={{
-          background: "rgba(255,248,218,0.94)",
-          backdropFilter: "blur(16px)",
-          borderBottom: "1.5px solid rgba(90,170,48,0.35)",
-        }}
+        style={{ background: "rgba(255,248,218,0.94)", backdropFilter: "blur(16px)", borderBottom: "1.5px solid rgba(90,170,48,0.35)" }}
       >
         <button
           onClick={() => navigate(-1)}
@@ -315,43 +284,36 @@ export default function MessagingPage() {
           </svg>
         </button>
 
-        <div
-          className="w-10 h-10 rounded-full flex items-center justify-center text-white font-black text-sm border-2 border-[#5aaa30]"
-          style={{ background: "linear-gradient(135deg,#B45A22,#e07820)" }}
-        >
-          🐾
-        </div>
+        {/* ── FIX: initials avatar instead of 🐾 emoji ── */}
+        <AvatarCircle
+          name={supportName}
+          photoUrl={null}
+          size={40}
+          bg="linear-gradient(135deg,#1c4f09,#3a8a18)"
+          color="#fff"
+        />
 
         <div className="flex-1 min-w-0">
           <div className="font-black text-[#1a4a08] text-[0.95rem]">Pawster Support</div>
           <div className="flex items-center gap-1.5">
-            <span
-              className="w-2 h-2 rounded-full inline-block"
-              style={{ background: connected ? "#4ccc20" : "#ccc" }}
-            />
-            <span
-              className="text-[0.72rem] font-bold"
-              style={{ color: connected ? "#3a8a18" : "#9aaa80" }}
-            >
+            <span className="w-2 h-2 rounded-full inline-block" style={{ background: connected ? "#4ccc20" : "#ccc" }} />
+            <span className="text-[0.72rem] font-bold" style={{ color: connected ? "#3a8a18" : "#9aaa80" }}>
               {connected ? "Online" : "Connecting…"}
             </span>
           </div>
         </div>
 
-        <PawWatermark style={{ width: 28, opacity: 0.25, color: "#1c4f09" }} />
+        
       </header>
 
-      {/* Messages */}
       <main
         className="flex-1 overflow-y-auto px-4 py-5 relative z-10"
         style={{ maxWidth: 720, width: "100%", margin: "0 auto" }}
       >
         {enriched.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full py-20 gap-4 text-center">
-            <PawWatermark style={{ width: 80, opacity: 0.15, color: "#1c4f09" }} />
-            <p className="text-[0.95rem] font-bold" style={{ color: "#6a8a50" }}>
-              No messages yet
-            </p>
+           
+            <p className="text-[0.95rem] font-bold" style={{ color: "#6a8a50" }}>No messages yet</p>
             <p className="text-sm font-semibold" style={{ color: "#9aaa80", maxWidth: 280 }}>
               Send a message to the Pawster team — we're here to help with adoptions, rehoming, and more.
             </p>
@@ -365,6 +327,7 @@ export default function MessagingPage() {
                 key={item.msg.id}
                 msg={item.msg}
                 userId={user.id}
+                user={user}
                 isFirst={item.isFirst}
                 isLast={item.isLast}
               />
@@ -374,52 +337,25 @@ export default function MessagingPage() {
         <div ref={bottomRef} />
       </main>
 
-      {/* Input */}
       <footer
         className="sticky bottom-0 z-20 px-4 py-3"
-        style={{
-          background: "rgba(255,248,218,0.96)",
-          backdropFilter: "blur(16px)",
-          borderTop: "1.5px solid rgba(180,140,60,0.28)",
-        }}
+        style={{ background: "rgba(255,248,218,0.96)", backdropFilter: "blur(16px)", borderTop: "1.5px solid rgba(180,140,60,0.28)" }}
       >
         <div
           className="flex items-end gap-2 rounded-2xl px-3 py-2 max-w-[720px] mx-auto"
-          style={{
-            background: "rgba(255,252,238,0.85)",
-            border: "1.5px solid rgba(180,140,60,0.35)",
-          }}
+          style={{ background: "rgba(255,252,238,0.85)", border: "1.5px solid rgba(180,140,60,0.35)" }}
         >
           <textarea
-            ref={textareaRef}
-            rows={1}
-            value={input}
-            onChange={(e) => {
-              setInput(e.target.value);
-              e.target.style.height = "auto";
-              e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
-            }}
-            onKeyDown={handleKey}
-            placeholder="Type a message…"
+            ref={textareaRef} rows={1} value={input}
+            onChange={(e) => { setInput(e.target.value); e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px"; }}
+            onKeyDown={handleKey} placeholder="Type a message…"
             className="flex-1 bg-transparent border-none outline-none resize-none text-sm font-semibold leading-relaxed"
-            style={{
-              color: "#1a2e0a",
-              minHeight: 28,
-              maxHeight: 120,
-              fontFamily: "'Nunito', sans-serif",
-            }}
+            style={{ color: "#1a2e0a", minHeight: 28, maxHeight: 120, fontFamily: "'Nunito', sans-serif" }}
           />
           <button
-            onClick={handleSend}
-            disabled={!input.trim() || !connected}
+            onClick={handleSend} disabled={!input.trim() || !connected}
             className="w-9 h-9 rounded-xl flex items-center justify-center transition-all flex-shrink-0"
-            style={{
-              background:
-                input.trim() && connected
-                  ? "linear-gradient(135deg,#1c4f09,#2a7010)"
-                  : "rgba(180,140,60,0.18)",
-              color: input.trim() && connected ? "#fff" : "#9aaa80",
-            }}
+            style={{ background: input.trim() && connected ? "linear-gradient(135deg,#1c4f09,#2a7010)" : "rgba(180,140,60,0.18)", color: input.trim() && connected ? "#fff" : "#9aaa80" }}
             onMouseDown={e => { if (input.trim() && connected) e.currentTarget.style.transform = "scale(0.93)"; }}
             onMouseUp={e => (e.currentTarget.style.transform = "scale(1)")}
           >
@@ -428,10 +364,7 @@ export default function MessagingPage() {
             </svg>
           </button>
         </div>
-        <p
-          className="text-center text-[10px] font-semibold mt-1.5"
-          style={{ color: "#b0a07a" }}
-        >
+        <p className="text-center text-[10px] font-semibold mt-1.5" style={{ color: "#b0a07a" }}>
           Press Enter to send · Shift+Enter for new line
         </p>
       </footer>

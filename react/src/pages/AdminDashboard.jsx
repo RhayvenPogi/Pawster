@@ -34,7 +34,7 @@ const NAV = [
         badge: "pending_adoptions", badgeWarn: true  },
       { id: "rehome",      label: "Rehoming",     ico: "ico-amber",  faIcon: "home",
         badge: "pending_rehome",    badgeWarn: true  },
-      { id: "surveys",     label: "Feedbacks",      ico: "ico-teal",   faIcon: "clipboard-list",
+      { id: "surveys",     label: "Feedbacks",    ico: "ico-teal",   faIcon: "clipboard-list",
         badge: "surveys",           badgeWarn: false },
       { id: "missingpets", label: "Missing Pets", ico: "ico-rose",   faIcon: "search",
         badge: "missing_pets",      badgeWarn: true  },
@@ -145,8 +145,23 @@ function FaIcon({ name, size = 14, color = "currentColor" }) {
     "shield-alt":        "M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z",
     "times":             "M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z",
     "search":            "M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z",
-    "comments":          "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z",
   };
+
+  // ── B-style stacked bubbles messaging icon ──────────────────────────────────
+  if (name === "comments") {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+        {/* Back bubble */}
+        <rect x="7" y="3" width="13" height="9" rx="2.5" opacity="0.4" />
+        {/* Front bubble */}
+        <path d="M2 8.5C2 7.4 2.9 6.5 4 6.5H14C15.1 6.5 16 7.4 16 8.5V15C16 16.1 15.1 17 14 17H8.5L5.5 19.5C5.2 19.8 4.7 19.6 4.7 19.2V17H4C2.9 17 2 16.1 2 15V8.5Z" />
+        {/* Lines on front bubble */}
+        <rect x="5" y="10.5" width="8" height="1.4" rx="0.7" fill="white" opacity="0.85" />
+        <rect x="5" y="13" width="5" height="1.4" rx="0.7" fill="white" opacity="0.85" />
+      </svg>
+    );
+  }
+
   const d = paths[name];
   if (!d) return null;
   if (name === "chart-line") {

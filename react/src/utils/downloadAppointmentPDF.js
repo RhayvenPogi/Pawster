@@ -232,7 +232,7 @@ function drawHeader(doc, pal, logo, record, status) {
   roundRect(doc, tagX, tagY, tagW, tagH, tagH / 2, "F");
   doc.setFont("helvetica", "bold"); doc.setFontSize(5);
   setT(doc, WHITE);
-  doc.text(pal.typeTag, PW / 2, tagY + tagH / 2 + 1.8, { align: "center" });
+  doc.text(pal.typeTag, PW / 2, tagY + tagH / 3 + 1.8, { align: "center" });
 
   // ── Meta strip (below header box) ───────────────────────────────────────
   const stripY = 40;
@@ -274,7 +274,7 @@ function drawHeader(doc, pal, logo, record, status) {
   roundRect(doc, badgeX, badgeY, badgeW, badgeH, badgeH / 2, "FD");
   doc.setFont("helvetica", "bold"); doc.setFontSize(FONT.badge);
   setT(doc, st.fg);
-  doc.text(status.toUpperCase(), badgeX + badgeW / 2, badgeY + badgeH / 2 + 2.2, { align: "center" });
+  doc.text(status.toUpperCase(), badgeX + badgeW / 2, badgeY + badgeH / 3 + 2.1, { align: "center" });
 
   return stripY + 14 + SECTION_GAP;
 }
