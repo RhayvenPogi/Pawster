@@ -4,12 +4,12 @@
  * Handles both adoption and rehoming requests.
  * Props: type = "adoptions" | "rehoming"  |  show = boolean
  *
- * FIXES applied:
- *  ✅ Rehoming cards now show real owner name via r.owner_name field
- *  ✅ Rehoming cards now show pet photo (photo_base64 or photo_url)
- *  ✅ Detail modal also uses owner_name for rehoming
+ * FIXED: DownloadPDFButton now always receives the `type` prop so _type is
+ *        correctly stamped. It also fetches the full detail record from Django
+ *        before generating the PDF, so no fields are missing.
  */
 import { useState, useEffect, useCallback } from "react";
+import { downloadAppointmentPDF } from "../../utils/downloadAppointmentPDF";
 
 const DJANGO = import.meta.env.VITE_DJANGO_API ?? "http://localhost:8000";
 const SPRING = import.meta.env.VITE_API_BASE ?? "http://localhost:8000";
@@ -106,9 +106,9 @@ async function createAnimalFromRehoming(record) {
 
 // ── Status config ─────────────────────────────────────────────────────────────
 const STATUS_CFG = {
-  Pending: { bg: "bg-amber-50", border: "border-amber-200", dot: "#f59e0b", pill: "bg-amber-100 text-amber-700" },
-  Approved: { bg: "bg-green-50", border: "border-green-200", dot: "#22c55e", pill: "bg-green-100 text-green-700" },
-  Rejected: { bg: "bg-red-50", border: "border-red-200", dot: "#ef4444", pill: "bg-red-100 text-red-700" },
+  Pending:  { bg: "bg-amber-50",  border: "border-amber-200",  dot: "#f59e0b", pill: "bg-amber-100 text-amber-700"  },
+  Approved: { bg: "bg-green-50",  border: "border-green-200",  dot: "#22c55e", pill: "bg-green-100 text-green-700"  },
+  Rejected: { bg: "bg-red-50",    border: "border-red-200",    dot: "#ef4444", pill: "bg-red-100 text-red-700"      },
 };
 
 // ── Shared style helpers ──────────────────────────────────────────────────────
@@ -153,6 +153,100 @@ const labelStyle = {
   marginBottom: 4,
   display: "block",
 };
+
+// ── PDF Download Button ───────────────────────────────────────────────────────
+// FIX: `type` prop is now required. We fetch the full detail record from Django
+//      before generating the PDF so no fields are missing from the list payload.
+function DownloadPDFButton({ record, type, small = false }) {
+  const [busy, setBusy] = useState(false);
+  const [errMsg, setErrMsg] = useState(null);
+
+  // type = "adoptions" | "rehoming"  (the panel prop, passed down to every call site)
+  const isAdoption = type === "adoptions";
+  const apiBase = isAdoption
+    ? "/api/approvals/adoptions"
+    : "/api/approvals/rehoming";
+
+  const handle = async () => {
+    if (!record?.id) return;
+    setBusy(true);
+    setErrMsg(null);
+    try {
+      // Fetch the full detail record so every field is available for the PDF
+      const res  = await djFetch(`${apiBase}/${record.id}/`);
+      let fullRecord = record; // fallback to list record if fetch fails
+      if (res.ok) {
+        const data = await res.json();
+        // Django detail endpoints typically return { success, data } or the object directly
+        fullRecord = data?.data ?? data;
+      }
+
+      // Stamp _type so downloadAppointmentPDF knows which layout to use
+      await downloadAppointmentPDF(
+        { ...fullRecord, _type: isAdoption ? "Adoption" : "Rehoming" },
+        "admin"
+      );
+    } catch (e) {
+      console.error("PDF generation error:", e);
+      setErrMsg("Failed to generate PDF");
+      // Still try with the list record as a last resort
+      try {
+        await downloadAppointmentPDF(
+          { ...record, _type: isAdoption ? "Adoption" : "Rehoming" },
+          "admin"
+        );
+        setErrMsg(null);
+      } catch { /* give up */ }
+    }
+    setBusy(false);
+  };
+
+  const borderColor  = isAdoption ? "rgba(90,170,48,0.42)"  : "rgba(180,90,34,0.40)";
+  const bgColor      = isAdoption ? "rgba(28,79,9,0.08)"    : "rgba(140,60,20,0.08)";
+  const bgBusy       = isAdoption ? "rgba(28,79,9,0.04)"    : "rgba(140,60,20,0.04)";
+  const textColor    = isAdoption ? "#1c4f09"               : "#8c3c14";
+
+  return (
+    <>
+      <button
+        onClick={handle}
+        disabled={busy}
+        className="px-3 py-2 rounded-xl text-xs font-black border transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+        style={{
+          background:  busy ? bgBusy : bgColor,
+          borderColor,
+          color:       textColor,
+          display:     "flex",
+          alignItems:  "center",
+          gap:         "0.3rem",
+          whiteSpace:  "nowrap",
+          fontFamily:  "'Nunito',sans-serif",
+        }}
+        title="Download PDF receipt"
+      >
+        {busy ? (
+          <>
+            <span style={{
+              display: "inline-block", width: 11, height: 11,
+              borderRadius: "50%",
+              border: `2px solid ${textColor}44`,
+              borderTopColor: textColor,
+              animation: "spin 0.7s linear infinite",
+            }} />
+            {small ? "PDF" : "Generating…"}
+          </>
+        ) : (
+          <>
+            {isAdoption ? "🐾" : "🏠"} {small ? "PDF" : "Download PDF"}
+          </>
+        )}
+      </button>
+      {errMsg && (
+        <span style={{ fontSize: "0.65rem", color: "#c03030", fontWeight: 700 }}>{errMsg}</span>
+      )}
+    </>
+  );
+}
 
 // ── Reject modal ──────────────────────────────────────────────────────────────
 function RejectModal({ open, onClose, onConfirm }) {
@@ -251,6 +345,9 @@ function EditModal({ open, record, type, onClose, onSave }) {
     { key: "email", label: "Email", type: "email" },
     { key: "phone", label: "Phone", type: "text" },
     { key: "address", label: "Address", type: "text" },
+    { key: "city", label: "City / Municipality", type: "text" },
+    { key: "province", label: "Province", type: "text" },
+    { key: "zip", label: "Zip / Postal Code", type: "text" },
     { key: "animal_name", label: "Animal Name", type: "text" },
     { key: "primary_caregiver", label: "Primary Caregiver", type: "text" },
     { key: "housing", label: "Housing Type", type: "text" },
@@ -268,7 +365,12 @@ function EditModal({ open, record, type, onClose, onSave }) {
   ];
 
   const allRehomingFields = [
-    { key: "owner_name", label: "Owner Name", type: "text" }, // FIX: editable owner name
+    { key: "owner_name", label: "Owner Name", type: "text" },
+    { key: "contact", label: "Contact", type: "text" },
+    { key: "address", label: "Address", type: "text" },
+    { key: "city", label: "City / Municipality", type: "text" },
+    { key: "province", label: "Province", type: "text" },
+    { key: "zip", label: "Zip / Postal Code", type: "text" },
     { key: "pet_name", label: "Pet Name", type: "text" },
     { key: "species", label: "Species", type: "text" },
     { key: "breed", label: "Breed", type: "text" },
@@ -284,7 +386,6 @@ function EditModal({ open, record, type, onClose, onSave }) {
     { key: "behavior", label: "Behavior", type: "text" },
     { key: "behavior_other", label: "Behavior Detail", type: "text" },
     { key: "details", label: "Details", type: "textarea" },
-    { key: "contact", label: "Contact", type: "text" },
     { key: "reason", label: "Reason for Rehoming", type: "textarea" },
     { key: "tried_alternatives", label: "Tried Alternatives", type: "textarea" },
   ];
@@ -312,25 +413,24 @@ function EditModal({ open, record, type, onClose, onSave }) {
     { key: "can_provide_records", label: "Can Provide Records" },
   ];
 
-  // FIX: owner_name moved to tab0 for rehoming so it's visible up front
   const editTabsRehoming = [
-    { key: "tab0", label: "Pet info", fieldKeys: ["owner_name", "pet_name", "species", "breed", "age", "gender", "duration_owned", "ideal_home_desc"] },
+    { key: "tab0", label: "Pet info", fieldKeys: ["owner_name", "contact", "address", "city", "province", "zip", "pet_name", "species", "breed", "age", "gender", "duration_owned", "ideal_home_desc"] },
     { key: "tab1", label: "Health", fieldKeys: ["vaccine_type", "last_vacc_date", "vacc_clinic", "vacc_notes", "medical_notes"] },
     { key: "tab2", label: "Behavior", fieldKeys: ["behavior", "behavior_other", "details"] },
-    { key: "tab3", label: "Contact & reason", fieldKeys: ["contact", "reason", "tried_alternatives"] },
+    { key: "tab3", label: "Contact & reason", fieldKeys: ["reason", "tried_alternatives"] },
     { key: "tab4", label: "Flags", boolOnly: true },
   ];
 
   const editTabsAdoption = [
-    { key: "tab0", label: "Applicant", fieldKeys: ["name", "email", "phone", "address", "animal_name", "primary_caregiver"] },
+    { key: "tab0", label: "Applicant", fieldKeys: ["name", "email", "phone", "address", "city", "province", "zip", "animal_name", "primary_caregiver"] },
     { key: "tab1", label: "Housing", fieldKeys: ["housing", "household_size", "children_ages", "other_pets_detail"] },
     { key: "tab2", label: "Time & budget", fieldKeys: ["exp", "alone_hours", "backup_care", "budget", "vet_plan"] },
     { key: "tab3", label: "Commitment", fieldKeys: ["reason", "behavior_response", "previous_pet_details"] },
     { key: "tab4", label: "Flags", boolOnly: true },
   ];
 
-  const editTabs = type === "adoptions" ? editTabsAdoption : editTabsRehoming;
-  const allFields = type === "adoptions" ? allAdoptionFields : allRehomingFields;
+  const editTabs   = type === "adoptions" ? editTabsAdoption : editTabsRehoming;
+  const allFields  = type === "adoptions" ? allAdoptionFields : allRehomingFields;
   const boolFields = type === "adoptions" ? boolFieldsAdoption : boolFieldsRehoming;
 
   const curIdx = editTabs.findIndex(t => t.key === activeTab);
@@ -347,8 +447,6 @@ function EditModal({ open, record, type, onClose, onSave }) {
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div style={{ width: "100%", maxWidth: 700, borderRadius: 20, background: "#fffce8", border: "1px solid rgba(180,140,60,0.3)", boxShadow: "0 24px 64px rgba(40,20,5,0.45)", display: "flex", flexDirection: "column", maxHeight: "92vh", overflow: "hidden" }}>
-
-        {/* Header */}
         <div style={{ padding: "1rem 1.25rem", borderBottom: "1px solid rgba(180,140,60,0.2)", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
           <div>
             <div style={{ fontFamily: "'Playfair Display',serif", fontWeight: 900, fontSize: "1rem", color: "#1a4a08", display: "flex", alignItems: "center", gap: "0.5rem" }}>
@@ -365,7 +463,6 @@ function EditModal({ open, record, type, onClose, onSave }) {
           </button>
         </div>
 
-        {/* Tab bar */}
         <div style={{ display: "flex", borderBottom: "1px solid rgba(180,140,60,0.2)", padding: "0 1.25rem", flexShrink: 0, overflowX: "auto" }}>
           {editTabs.map(t => (
             <button key={t.key} onClick={() => setActiveTab(t.key)} style={tabStyle(activeTab === t.key)}>
@@ -374,37 +471,17 @@ function EditModal({ open, record, type, onClose, onSave }) {
           ))}
         </div>
 
-        {/* Tab body */}
         <div style={{ overflowY: "auto", padding: "1rem 1.25rem", flex: 1 }}>
           {curTab.boolOnly ? (
             <div>
-              <div style={{ fontSize: "0.7rem", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.07em", color: "#1c4f09", marginBottom: "0.625rem" }}>
-                🔘 Flags
-              </div>
+              <div style={{ fontSize: "0.7rem", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.07em", color: "#1c4f09", marginBottom: "0.625rem" }}>🔘 Flags</div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(180px,1fr))", gap: "0.5rem" }}>
                 {boolFields.map(({ key, label }) => {
                   const val = form[key];
                   return (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => set(key, !val)}
-                      style={{
-                        padding: "0.5rem 0.75rem",
-                        borderRadius: 10,
-                        border: val ? "1px solid rgba(90,170,48,0.45)" : "1px solid rgba(180,140,60,0.25)",
-                        background: val ? "rgba(28,79,9,0.07)" : "rgba(255,248,218,0.5)",
-                        display: "flex", alignItems: "center", gap: "0.5rem",
-                        cursor: "pointer", transition: "all 0.15s", textAlign: "left",
-                      }}
-                    >
-                      <span style={{
-                        width: 16, height: 16, borderRadius: 4,
-                        border: val ? "2px solid #5aaa30" : "2px solid rgba(180,140,60,0.35)",
-                        background: val ? "#5aaa30" : "transparent",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        flexShrink: 0, transition: "all 0.15s", fontSize: "0.55rem", color: "#fff",
-                      }}>
+                    <button key={key} type="button" onClick={() => set(key, !val)}
+                      style={{ padding: "0.5rem 0.75rem", borderRadius: 10, border: val ? "1px solid rgba(90,170,48,0.45)" : "1px solid rgba(180,140,60,0.25)", background: val ? "rgba(28,79,9,0.07)" : "rgba(255,248,218,0.5)", display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", transition: "all 0.15s", textAlign: "left" }}>
+                      <span style={{ width: 16, height: 16, borderRadius: 4, border: val ? "2px solid #5aaa30" : "2px solid rgba(180,140,60,0.35)", background: val ? "#5aaa30" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "all 0.15s", fontSize: "0.55rem", color: "#fff" }}>
                         {val && "✓"}
                       </span>
                       <span style={{ fontSize: "0.78rem", fontWeight: 800, color: val ? "#1c4f09" : "#7a8060" }}>{label}</span>
@@ -419,19 +496,9 @@ function EditModal({ open, record, type, onClose, onSave }) {
                 <div key={key} style={{ gridColumn: ftype === "textarea" ? "span 2" : "span 1" }}>
                   <label style={labelStyle}>{label}</label>
                   {ftype === "textarea" ? (
-                    <textarea
-                      rows={3}
-                      value={form[key] ?? ""}
-                      onChange={e => set(key, e.target.value)}
-                      style={{ ...inputStyle, resize: "vertical" }}
-                    />
+                    <textarea rows={3} value={form[key] ?? ""} onChange={e => set(key, e.target.value)} style={{ ...inputStyle, resize: "vertical" }} />
                   ) : (
-                    <input
-                      type={ftype}
-                      value={form[key] ?? ""}
-                      onChange={e => set(key, e.target.value)}
-                      style={inputStyle}
-                    />
+                    <input type={ftype} value={form[key] ?? ""} onChange={e => set(key, e.target.value)} style={inputStyle} />
                   )}
                 </div>
               ))}
@@ -439,35 +506,27 @@ function EditModal({ open, record, type, onClose, onSave }) {
           )}
         </div>
 
-        {/* Footer */}
         <div style={{ padding: "0.875rem 1.25rem", borderTop: "1px solid rgba(180,140,60,0.18)", display: "flex", gap: "0.625rem", flexShrink: 0, background: "rgba(255,252,235,0.97)", alignItems: "center" }}>
           <button onClick={onClose}
             style={{ padding: "0.7rem 1.1rem", borderRadius: 11, fontWeight: 800, fontSize: "0.84rem", background: "transparent", border: "1px solid rgba(180,140,60,0.3)", color: "#3a5020", cursor: "pointer", fontFamily: "'Nunito',sans-serif" }}>
             ✕ Cancel
           </button>
-
           <span style={{ flex: 1, fontSize: "0.75rem", fontWeight: 700, color: "#9aaa80", textAlign: "center" }}>
             {curIdx + 1} of {editTabs.length} — {curTab.label}
           </span>
-
           {curIdx > 0 && (
-            <button
-              onClick={() => setActiveTab(editTabs[curIdx - 1].key)}
+            <button onClick={() => setActiveTab(editTabs[curIdx - 1].key)}
               style={{ padding: "0.7rem 1.1rem", borderRadius: 11, fontWeight: 800, fontSize: "0.84rem", background: "transparent", border: "1px solid rgba(180,140,60,0.3)", color: "#3a5020", cursor: "pointer", fontFamily: "'Nunito',sans-serif" }}>
               ← Back
             </button>
           )}
-
           {!isLast ? (
-            <button
-              onClick={() => setActiveTab(editTabs[curIdx + 1].key)}
+            <button onClick={() => setActiveTab(editTabs[curIdx + 1].key)}
               style={{ padding: "0.7rem 1.25rem", borderRadius: 11, fontWeight: 900, fontSize: "0.88rem", color: "#fff", background: "#1c7a09", border: "none", cursor: "pointer", fontFamily: "'Nunito',sans-serif" }}>
               Next →
             </button>
           ) : (
-            <button
-              disabled={saving}
-              onClick={async () => { setSaving(true); await onSave(form); setSaving(false); }}
+            <button disabled={saving} onClick={async () => { setSaving(true); await onSave(form); setSaving(false); }}
               style={{ padding: "0.7rem 1.25rem", borderRadius: 11, fontWeight: 900, fontSize: "0.88rem", color: "#fff", background: saving ? "#5aaa30aa" : "#1c7a09", border: "none", cursor: saving ? "not-allowed" : "pointer", fontFamily: "'Nunito',sans-serif", display: "flex", alignItems: "center", gap: "0.4rem", transition: "background 0.15s" }}>
               {saving
                 ? <><div style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", animation: "spin 0.7s linear infinite" }} /> Saving…</>
@@ -477,7 +536,6 @@ function EditModal({ open, record, type, onClose, onSave }) {
           )}
         </div>
       </div>
-
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
@@ -503,7 +561,6 @@ function VaccPhotosGallery({ photos }) {
           ))}
         </div>
       </div>
-
       {lightbox && (
         <div style={{ position: "fixed", inset: 0, zIndex: 9000, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.88)", backdropFilter: "blur(8px)" }}
           onClick={() => setLightbox(null)}>
@@ -524,31 +581,24 @@ function VaccPhotosGallery({ photos }) {
 // ── Field display helper ──────────────────────────────────────────────────────
 function FieldPill({ label, value, accent }) {
   return (
-    <div style={{
-      padding: "0.5rem 0.75rem",
-      borderRadius: 10,
-      background: accent ? "rgba(28,79,9,0.07)" : "rgba(255,248,218,0.6)",
-      border: `1px solid ${accent ? "rgba(90,170,48,0.28)" : "rgba(180,140,60,0.18)"}`,
-    }}>
+    <div style={{ padding: "0.5rem 0.75rem", borderRadius: 10, background: accent ? "rgba(28,79,9,0.07)" : "rgba(255,248,218,0.6)", border: `1px solid ${accent ? "rgba(90,170,48,0.28)" : "rgba(180,140,60,0.18)"}` }}>
       <div style={{ fontSize: "0.62rem", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.07em", color: "#9aaa80", marginBottom: 2 }}>{label}</div>
       <div style={{ fontSize: "0.83rem", fontWeight: 700, color: accent ? "#1c4f09" : "#1a2e0a", wordBreak: "break-word", whiteSpace: "pre-wrap" }}>{String(value)}</div>
     </div>
   );
 }
 
-// ── Expanded detail modal (tabbed) ────────────────────────────────────────────
+// ── Detail modal (tabbed) ─────────────────────────────────────────────────────
+// FIX: passes `type` prop to DownloadPDFButton
 function DetailModal({ r, type, open, onClose, onApprove, onReject, onEdit, onDelete }) {
   const [activeTab, setActiveTab] = useState("tab0");
 
-  useEffect(() => {
-    if (open) setActiveTab("tab0");
-  }, [open, r]);
+  useEffect(() => { if (open) setActiveTab("tab0"); }, [open, r]);
 
   if (!open || !r) return null;
 
-  const status = r.status || "Pending";
-  const cfg = STATUS_CFG[status] || STATUS_CFG.Pending;
-
+  const status  = r.status || "Pending";
+  const cfg     = STATUS_CFG[status] || STATUS_CFG.Pending;
   const photoSrc = type === "rehoming" ? (r.photo_base64 || r.photo_url || null) : null;
 
   let vaccPhotos = [];
@@ -567,147 +617,56 @@ function DetailModal({ r, type, open, onClose, onApprove, onReject, onEdit, onDe
     return String(v);
   };
 
-  // ── Rehoming tab sections ─────────────────────────────────────────────────
   const rehomingTabs = [
-    {
-      key: "tab0", label: "Pet info",
-      sections: [{
-        title: "Pet Details", icon: "🐾",
-        fields: [
-          // FIX: show owner_name prominently in Pet info tab
-          ["Owner Name", fmt(r.owner_name)],
-          ["Pet Name", fmt(r.pet_name)],
-          ["Species", fmt(r.species)],
-          ["Breed", fmt(r.breed)],
-          ["Age", fmt(r.age)],
-          ["Gender", fmt(r.gender)],
-          ["Duration Owned", fmt(r.duration_owned)],
-          ["Ideal Home", fmt(r.ideal_home_desc)],
-        ],
-      }],
-      showPhoto: true,
-    },
-    {
-      key: "tab1", label: "Health",
-      sections: [{
-        title: "Health", icon: "💉",
-        fields: [
-          ["Vaccinated", r.is_vaccinated !== undefined ? fmt(r.is_vaccinated) : null],
-          ["Vaccine Type", fmt(r.vaccine_type)],
-          ["Last Vaccinated", fmt(r.last_vacc_date)],
-          ["Vet / Clinic", fmt(r.vacc_clinic)],
-          ["Vaccination Notes", fmt(r.vacc_notes)],
-          ["Neutered", r.is_neutered !== undefined ? fmt(r.is_neutered) : null],
-          ["Medical Notes", fmt(r.medical_notes)],
-        ],
-      }],
-      showVacc: true,
-    },
-    {
-      key: "tab2", label: "Behavior",
-      sections: [{
-        title: "Behavior", icon: "⭐",
-        fields: [
-          ["Behavior", fmt(r.behavior)],
-          ["Behavior Detail", fmt(r.behavior_other)],
-          ["Has Aggression", r.has_aggression !== undefined ? fmt(r.has_aggression) : null],
-          ["House Trained", r.is_house_trained !== undefined ? fmt(r.is_house_trained) : null],
-          ["Leash Trained", r.is_leash_trained !== undefined ? fmt(r.is_leash_trained) : null],
-          ["Good w/ Children", r.good_with_children !== undefined ? fmt(r.good_with_children) : null],
-          ["Good w/ Pets", r.good_with_pets !== undefined ? fmt(r.good_with_pets) : null],
-        ],
-      }],
-    },
-    {
-      key: "tab3", label: "Contact",
-      sections: [{
-        title: "Contact & Reason", icon: "📞",
-        fields: [
-          ["Contact", fmt(r.contact)],
-          ["Reason", fmt(r.reason)],
-          ["Details", fmt(r.details)],
-          ["Tried Alternatives", fmt(r.tried_alternatives)],
-          ["Can Provide Food", r.can_provide_food !== undefined ? fmt(r.can_provide_food) : null],
-          ["Can Provide Carrier", r.can_provide_carrier !== undefined ? fmt(r.can_provide_carrier) : null],
-          ["Can Provide Records", r.can_provide_records !== undefined ? fmt(r.can_provide_records) : null],
-        ],
-      }],
-    },
+    { key: "tab0", label: "Pet info", showPhoto: true, sections: [{ title: "Pet Details", icon: "🐾", fields: [
+        ["Owner Name",          fmt(r.owner_name)],
+        ["Pet Name",            fmt(r.pet_name)],
+        ["Species",             fmt(r.species)],
+        ["Breed",               fmt(r.breed)],
+        ["Age",                 fmt(r.age)],
+        ["Gender",              fmt(r.gender)],
+        ["Duration Owned",      fmt(r.duration_owned)],
+        ["Ideal Home",          fmt(r.ideal_home_desc)],
+        ["Street / House No.",  fmt(r.street_address || r.street || r.house_number || null)],
+        ["Barangay",            fmt(r.barangay)],
+        ["City / Municipality", fmt(r.city || r.municipality || r.city_municipality || null)],
+        ["Province",            fmt(r.province)],
+        ["Region",              fmt(r.region)],
+        ["Zip / Postal Code",   fmt(r.zip_code || r.zipcode || r.postal_code || r.zip || null)],
+        ...( !(r.barangay || r.city || r.province || r.zip_code || r.zip)
+             ? [["Address", fmt(r.address || r.home_address || null)]]
+             : [] ),
+    ]}]},
+    { key: "tab1", label: "Health", showVacc: true, sections: [{ title: "Health", icon: "💉", fields: [["Vaccinated", r.is_vaccinated !== undefined ? fmt(r.is_vaccinated) : null], ["Vaccine Type", fmt(r.vaccine_type)], ["Last Vaccinated", fmt(r.last_vacc_date)], ["Vet / Clinic", fmt(r.vacc_clinic)], ["Vaccination Notes", fmt(r.vacc_notes)], ["Neutered", r.is_neutered !== undefined ? fmt(r.is_neutered) : null], ["Medical Notes", fmt(r.medical_notes)]] }] },
+    { key: "tab2", label: "Behavior", sections: [{ title: "Behavior", icon: "⭐", fields: [["Behavior", fmt(r.behavior)], ["Behavior Detail", fmt(r.behavior_other)], ["Has Aggression", r.has_aggression !== undefined ? fmt(r.has_aggression) : null], ["House Trained", r.is_house_trained !== undefined ? fmt(r.is_house_trained) : null], ["Leash Trained", r.is_leash_trained !== undefined ? fmt(r.is_leash_trained) : null], ["Good w/ Children", r.good_with_children !== undefined ? fmt(r.good_with_children) : null], ["Good w/ Pets", r.good_with_pets !== undefined ? fmt(r.good_with_pets) : null]] }] },
+    { key: "tab3", label: "Contact", sections: [{ title: "Contact & Reason", icon: "📞", fields: [["Contact", fmt(r.contact)], ["Reason", fmt(r.reason)], ["Details", fmt(r.details)], ["Tried Alternatives", fmt(r.tried_alternatives)], ["Can Provide Food", r.can_provide_food !== undefined ? fmt(r.can_provide_food) : null], ["Can Provide Carrier", r.can_provide_carrier !== undefined ? fmt(r.can_provide_carrier) : null], ["Can Provide Records", r.can_provide_records !== undefined ? fmt(r.can_provide_records) : null]] }] },
   ];
 
-  // ── Adoption tab sections ─────────────────────────────────────────────────
   const adoptionTabs = [
-    {
-      key: "tab0", label: "Applicant",
-      sections: [{
-        title: "Applicant", icon: "👤",
-        fields: [
-          ["Full Name", fmt(r.name)],
-          ["Email", fmt(r.email)],
-          ["Phone", fmt(r.phone)],
-          ["Address", fmt(r.address)],
-          ["Animal", fmt(r.animal_name)],
-          ["Primary Caregiver", fmt(r.primary_caregiver)],
-        ],
-      }],
-    },
-    {
-      key: "tab1", label: "Housing",
-      sections: [
-        {
-          title: "Housing", icon: "🏠",
-          fields: [
-            ["Housing Type", fmt(r.housing)],
-            ["Owns / Rents", r.owns_home !== undefined ? (r.owns_home ? "Owns" : "Rents") : null],
-            ["Pet Permission", r.pet_permission !== undefined ? fmt(r.pet_permission) : null],
-            ["Pet Space", fmt(r.pet_space)],
-            ["Household Size", fmt(r.household_size)],
-            ["Has Children", r.has_children !== undefined ? fmt(r.has_children) : null],
-            ["Children Ages", fmt(r.children_ages)],
-          ],
-        },
-        {
-          title: "Other Pets", icon: "🐶",
-          fields: [
-            ["Has Other Pets", r.has_other_pets !== undefined ? fmt(r.has_other_pets) : null],
-            ["Other Pets Detail", fmt(r.other_pets_detail)],
-            ["Pets Vaccinated", r.other_pets_vaccinated !== undefined ? fmt(r.other_pets_vaccinated) : null],
-          ],
-        },
-      ],
-    },
-    {
-      key: "tab2", label: "Time & budget",
-      sections: [{
-        title: "Time & Budget", icon: "🕐",
-        fields: [
-          ["Experience", fmt(r.exp)],
-          ["Hours Alone", fmt(r.alone_hours)],
-          ["Backup Care", fmt(r.backup_care)],
-          ["Monthly Budget", fmt(r.budget)],
-          ["Vet Plan", fmt(r.vet_plan)],
-        ],
-      }],
-    },
-    {
-      key: "tab3", label: "Commitment",
-      sections: [{
-        title: "Commitment", icon: "📋",
-        fields: [
-          ["Behavior Response", fmt(r.behavior_response)],
-          ["Open to Guidance", r.open_to_guidance !== undefined ? fmt(r.open_to_guidance) : null],
-          ["Previous Pet", r.previous_pet !== undefined ? fmt(r.previous_pet) : null],
-          ["Previous Pet Info", fmt(r.previous_pet_details)],
-          ["Reason to Adopt", fmt(r.reason)],
-        ],
-      }],
-    },
+    { key: "tab0", label: "Applicant", sections: [{ title: "Applicant", icon: "👤", fields: [
+        ["Full Name",           fmt(r.name)],
+        ["Email",               fmt(r.email)],
+        ["Phone",               fmt(r.phone)],
+        ["Street / House No.",  fmt(r.street_address || r.street || r.house_number || null)],
+        ["Barangay",            fmt(r.barangay)],
+        ["City / Municipality", fmt(r.city || r.municipality || r.city_municipality || null)],
+        ["Province",            fmt(r.province)],
+        ["Region",              fmt(r.region)],
+        ["Zip / Postal Code",   fmt(r.zip_code || r.zipcode || r.postal_code || r.zip || null)],
+        ...( !(r.barangay || r.city || r.province || r.zip_code || r.zip)
+             ? [["Address", fmt(r.address)]]
+             : [] ),
+        ["Animal",              fmt(r.animal_name)],
+        ["Primary Caregiver",   fmt(r.primary_caregiver)],
+    ]}]},
+    { key: "tab1", label: "Housing", sections: [{ title: "Housing", icon: "🏠", fields: [["Housing Type", fmt(r.housing)], ["Owns / Rents", r.owns_home !== undefined ? (r.owns_home ? "Owns" : "Rents") : null], ["Pet Permission", r.pet_permission !== undefined ? fmt(r.pet_permission) : null], ["Pet Space", fmt(r.pet_space)], ["Household Size", fmt(r.household_size)], ["Has Children", r.has_children !== undefined ? fmt(r.has_children) : null], ["Children Ages", fmt(r.children_ages)]] }, { title: "Other Pets", icon: "🐶", fields: [["Has Other Pets", r.has_other_pets !== undefined ? fmt(r.has_other_pets) : null], ["Other Pets Detail", fmt(r.other_pets_detail)], ["Pets Vaccinated", r.other_pets_vaccinated !== undefined ? fmt(r.other_pets_vaccinated) : null]] }] },
+    { key: "tab2", label: "Time & budget", sections: [{ title: "Time & Budget", icon: "🕐", fields: [["Experience", fmt(r.exp)], ["Hours Alone", fmt(r.alone_hours)], ["Backup Care", fmt(r.backup_care)], ["Monthly Budget", fmt(r.budget)], ["Vet Plan", fmt(r.vet_plan)]] }] },
+    { key: "tab3", label: "Commitment", sections: [{ title: "Commitment", icon: "📋", fields: [["Behavior Response", fmt(r.behavior_response)], ["Open to Guidance", r.open_to_guidance !== undefined ? fmt(r.open_to_guidance) : null], ["Previous Pet", r.previous_pet !== undefined ? fmt(r.previous_pet) : null], ["Previous Pet Info", fmt(r.previous_pet_details)], ["Reason to Adopt", fmt(r.reason)]] }] },
   ];
 
-  const detailTabs = type === "adoptions" ? adoptionTabs : rehomingTabs;
-  const curTabData = detailTabs.find(t => t.key === activeTab) || detailTabs[0];
-
-  const accentLabels = new Set(["Vaccinated", "Neutered", "House Trained", "Leash Trained"]);
+  const detailTabs    = type === "adoptions" ? adoptionTabs : rehomingTabs;
+  const curTabData    = detailTabs.find(t => t.key === activeTab) || detailTabs[0];
+  const accentLabels  = new Set(["Vaccinated", "Neutered", "House Trained", "Leash Trained"]);
 
   return (
     <div
@@ -723,7 +682,6 @@ function DetailModal({ r, type, open, onClose, onApprove, onReject, onEdit, onDe
               {type === "adoptions" ? "Adoption" : "Rehoming"} Request — Full Details
             </div>
             <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "#6a7a50", marginTop: 2 }}>
-              {/* FIX: show owner name in modal subtitle for rehoming */}
               {type === "rehoming" && (
                 <span style={{ color: "#b45a22", marginRight: "0.5rem" }}>
                   👤 {r.owner_name || "Unknown Owner"} ·
@@ -752,25 +710,21 @@ function DetailModal({ r, type, open, onClose, onApprove, onReject, onEdit, onDe
 
         {/* Tab body */}
         <div style={{ overflowY: "auto", padding: "1rem 1.25rem", flex: 1, display: "flex", flexDirection: "column", gap: "1rem" }}>
-
           {curTabData.showPhoto && photoSrc && (
             <div style={{ borderRadius: 14, overflow: "hidden", border: "1px solid rgba(180,140,60,0.22)", flexShrink: 0 }}>
               <img src={photoSrc} alt={r.pet_name || "Pet photo"} style={{ width: "100%", maxHeight: 220, objectFit: "cover", display: "block" }} />
             </div>
           )}
-
           {curTabData.showVacc && vaccPhotos.length > 0 && (
             <div style={{ padding: "0.875rem", borderRadius: 12, background: "rgba(28,79,9,0.05)", border: "1px solid rgba(90,170,48,0.22)", flexShrink: 0 }}>
               <VaccPhotosGallery photos={vaccPhotos} />
             </div>
           )}
-
           {activeTab === "tab0" && r.reject_note && (
             <div style={{ padding: "0.75rem 1rem", borderRadius: 12, background: "rgba(192,48,48,0.06)", border: "1px solid rgba(192,48,48,0.2)", fontSize: "0.82rem", fontWeight: 700, color: "#c03030", flexShrink: 0 }}>
               <strong>Rejection note:</strong> {r.reject_note}
             </div>
           )}
-
           {curTabData.sections.map(({ title, icon, fields }) => {
             const visibleFields = fields.filter(([, v]) => v !== null && v !== undefined);
             if (visibleFields.length === 0) return null;
@@ -782,12 +736,7 @@ function DetailModal({ r, type, open, onClose, onApprove, onReject, onEdit, onDe
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
                   {visibleFields.map(([label, value]) => (
-                    <FieldPill
-                      key={label}
-                      label={label}
-                      value={value}
-                      accent={accentLabels.has(label) && value === "Yes ✓"}
-                    />
+                    <FieldPill key={label} label={label} value={value} accent={accentLabels.has(label) && value === "Yes ✓"} />
                   ))}
                 </div>
               </div>
@@ -795,7 +744,7 @@ function DetailModal({ r, type, open, onClose, onApprove, onReject, onEdit, onDe
           })}
         </div>
 
-        {/* Footer */}
+        {/* Footer — FIX: type prop now passed to DownloadPDFButton */}
         <div style={{ padding: "0.875rem 1.25rem", borderTop: "1px solid rgba(180,140,60,0.18)", display: "flex", gap: "0.5rem", flexShrink: 0, background: "rgba(255,252,235,0.97)", flexWrap: "wrap" }}>
           <button onClick={() => { onEdit(r); onClose(); }}
             style={{ padding: "0.65rem 1.1rem", borderRadius: 11, fontWeight: 900, fontSize: "0.84rem", color: "#1a4a08", background: "rgba(255,248,218,0.9)", border: "1px solid rgba(180,140,60,0.35)", cursor: "pointer", fontFamily: "'Nunito',sans-serif", display: "flex", alignItems: "center", gap: "0.4rem" }}>
@@ -805,6 +754,9 @@ function DetailModal({ r, type, open, onClose, onApprove, onReject, onEdit, onDe
             style={{ padding: "0.65rem 1.1rem", borderRadius: 11, fontWeight: 900, fontSize: "0.84rem", color: "#c03030", background: "rgba(192,48,48,0.06)", border: "1px solid rgba(192,48,48,0.25)", cursor: "pointer", fontFamily: "'Nunito',sans-serif", display: "flex", alignItems: "center", gap: "0.4rem" }}>
             🗑 Delete
           </button>
+
+          {/* FIX: type prop added */}
+          <DownloadPDFButton record={r} type={type} small />
 
           {status === "Pending" && (
             <>
@@ -825,80 +777,42 @@ function DetailModal({ r, type, open, onClose, onApprove, onReject, onEdit, onDe
 }
 
 // ── Request card ──────────────────────────────────────────────────────────────
+// FIX: type prop now passed to DownloadPDFButton
 function RequestCard({ r, type, onApprove, onReject, onView, onEdit, onDelete }) {
-  const status = r.status || "Pending";
-  const cfg = STATUS_CFG[status] || STATUS_CFG.Pending;
-  const avatarBg = type === "adoptions" ? "#1c4f09" : "#b45a22";
-
-  // FIX: for rehoming, prefer owner_name which is now stored from the form submission
+  const status    = r.status || "Pending";
+  const cfg       = STATUS_CFG[status] || STATUS_CFG.Pending;
+  const avatarBg  = type === "adoptions" ? "#1c4f09" : "#b45a22";
   const ownerName = type === "rehoming"
     ? (r.owner_name ?? "Unknown Owner")
     : (r.name || "Applicant");
-
-  const photoSrc = type === "rehoming" ? (r.photo_base64 || r.photo_url || null) : null;
-
-  const initials = ownerName.split(" ").map(w => w[0] || "").slice(0, 2).join("").toUpperCase() || "?";
-
+  const photoSrc  = type === "rehoming" ? (r.photo_base64 || r.photo_url || null) : null;
+  const initials  = ownerName.split(" ").map(w => w[0] || "").slice(0, 2).join("").toUpperCase() || "?";
 
   const details = type === "adoptions"
-    ? [
-      ["Animal", r.animal_name || "—"],
-      ["Email", r.email || "—"],
-      ["Phone", r.phone || "—"],
-      ["Address", r.address || "—"],
-      ["Housing", r.housing || "—"],
-      ["Budget", r.budget || "—"],
-    ]
-    : [
-      ["Pet", r.pet_name || "—"],
-      ["Species", r.species || "—"],
-      ["Reason", r.reason || "—"],
-      ["Contact", r.contact || "—"],
-      ["Vaccinated", r.is_vaccinated ? "Yes ✓" : "No"],
-      ["Neutered", r.is_neutered ? "Yes ✓" : "No"],
-    ];
+    ? [["Animal", r.animal_name || "—"], ["Email", r.email || "—"], ["Phone", r.phone || "—"],
+       ["City", r.city || "—"], ["Province", r.province || "—"], ["Budget", r.budget || "—"]]
+    : [["Pet", r.pet_name || "—"], ["Species", r.species || "—"], ["Reason", r.reason || "—"],
+       ["Contact", r.contact || "—"], ["Vaccinated", r.is_vaccinated ? "Yes ✓" : "No"], ["Neutered", r.is_neutered ? "Yes ✓" : "No"]];
 
   return (
     <div className={`rounded-2xl border overflow-hidden shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all flex flex-col ${cfg.bg} ${cfg.border}`}>
       <div className="h-1 w-full" style={{ background: cfg.dot }} />
 
-      {/* FIX: rehoming photo section — shows pet photo with owner name overlay */}
       {type === "rehoming" && (
-        <div style={{
-          position: "relative", width: "100%", height: 190,
-          background: "rgba(255,248,220,0.5)", flexShrink: 0, overflow: "hidden",
-          borderBottom: "1px solid rgba(180,140,60,0.15)"
-        }}>
+        <div style={{ position: "relative", width: "100%", height: 190, background: "rgba(255,248,220,0.5)", flexShrink: 0, overflow: "hidden", borderBottom: "1px solid rgba(180,140,60,0.15)" }}>
           {photoSrc
-            ? <img src={photoSrc} alt={r.pet_name || "Pet"}
-              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-            : <div style={{
-              width: "100%", height: "100%", display: "flex",
-              alignItems: "center", justifyContent: "center", fontSize: "3.5rem"
-            }}>
-              {r.species === "Cat" ? "🐈" : r.species === "Bird" ? "🐦" : r.species === "Rabbit" ? "🐇" : "🐕"}
-            </div>
+            ? <img src={photoSrc} alt={r.pet_name || "Pet"} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+            : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "3.5rem" }}>
+                {r.species === "Cat" ? "🐈" : r.species === "Bird" ? "🐦" : r.species === "Rabbit" ? "🐇" : "🐕"}
+              </div>
           }
           {r.is_vaccinated && (
-            <span style={{
-              position: "absolute", top: 8, left: 8, padding: "0.2rem 0.5rem",
-              borderRadius: 50, background: "rgba(28,79,9,0.85)", color: "#fff",
-              fontSize: "0.65rem", fontWeight: 900, display: "flex", alignItems: "center", gap: "0.3rem"
-            }}>
+            <span style={{ position: "absolute", top: 8, left: 8, padding: "0.2rem 0.5rem", borderRadius: 50, background: "rgba(28,79,9,0.85)", color: "#fff", fontSize: "0.65rem", fontWeight: 900, display: "flex", alignItems: "center", gap: "0.3rem" }}>
               💉 Vaccinated
             </span>
           )}
-          {/* FIX: owner name overlay now uses r.owner_name */}
-          <div style={{
-            position: "absolute", bottom: 0, left: 0, right: 0,
-            background: "linear-gradient(transparent,rgba(10,6,2,0.65))",
-            padding: "1.5rem 0.75rem 0.6rem", display: "flex", alignItems: "center", gap: "0.5rem"
-          }}>
-            <div style={{
-              width: 28, height: 28, borderRadius: "50%", background: "#b45a22",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: "0.65rem", fontWeight: 900, color: "#fff", flexShrink: 0
-            }}>
+          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "linear-gradient(transparent,rgba(10,6,2,0.65))", padding: "1.5rem 0.75rem 0.6rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#b45a22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.65rem", fontWeight: 900, color: "#fff", flexShrink: 0 }}>
               {initials}
             </div>
             <div>
@@ -913,16 +827,13 @@ function RequestCard({ r, type, onApprove, onReject, onView, onEdit, onDelete })
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-3">
             {type !== "rehoming" && (
-              <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-black text-sm flex-shrink-0"
-                style={{ background: avatarBg }}>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-black text-sm flex-shrink-0" style={{ background: avatarBg }}>
                 {initials}
               </div>
             )}
             <div>
               <div className="font-black text-sm" style={{ color: "#1a4a08" }}>
-                {type === "rehoming"
-                  ? `${r.pet_name || "—"} • ${ownerName}`
-                  : ownerName}
+                {type === "rehoming" ? `${r.pet_name || "—"} • ${ownerName}` : ownerName}
               </div>
               {type === "rehoming" && (
                 <div className="text-xs font-semibold" style={{ color: "#6a7a50" }}>
@@ -984,6 +895,7 @@ function RequestCard({ r, type, onApprove, onReject, onView, onEdit, onDelete })
           </div>
         )}
 
+        {/* FIX: type prop now passed to DownloadPDFButton in card buttons row */}
         <div className="flex gap-2 mt-auto pt-1 flex-wrap">
           <button onClick={() => onView(r)}
             className="px-3 py-2 rounded-xl text-xs font-black border transition-all hover:bg-amber-50"
@@ -1000,6 +912,9 @@ function RequestCard({ r, type, onApprove, onReject, onView, onEdit, onDelete })
             style={{ background: "rgba(192,48,48,0.05)", borderColor: "rgba(192,48,48,0.22)", color: "#c03030", display: "flex", alignItems: "center", gap: "0.3rem" }}>
             🗑
           </button>
+
+          {/* FIX: type prop added */}
+          <DownloadPDFButton record={r} type={type} />
 
           {status === "Pending" ? (
             <>
@@ -1027,14 +942,14 @@ function RequestCard({ r, type, onApprove, onReject, onView, onEdit, onDelete })
 
 // ── Main panel ────────────────────────────────────────────────────────────────
 export default function RequestsPanel({ type, show, onStatsChange }) {
-  const [records, setRecords] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [filter, setFilter] = useState("all");
-  const [rejectId, setRejectId] = useState(null);
-  const [viewTarget, setViewTarget] = useState(null);
-  const [editTarget, setEditTarget] = useState(null);
+  const [records,      setRecords]      = useState([]);
+  const [loading,      setLoading]      = useState(false);
+  const [filter,       setFilter]       = useState("all");
+  const [rejectId,     setRejectId]     = useState(null);
+  const [viewTarget,   setViewTarget]   = useState(null);
+  const [editTarget,   setEditTarget]   = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
-  const [toast, setToast] = useState(null);
+  const [toast,        setToast]        = useState(null);
 
   const apiBase = type === "adoptions"
     ? "/api/approvals/adoptions"
@@ -1049,7 +964,7 @@ export default function RequestsPanel({ type, show, onStatsChange }) {
     setLoading(true);
     try {
       const url = `${apiBase}/admin/${status !== "all" ? `?status=${status}` : ""}`;
-      const res = await djFetch(url);
+      const res  = await djFetch(url);
       if (res.status === 401) { showToast("Unauthorized — please log in as admin", "err"); setLoading(false); return; }
       const data = await res.json();
       if (data.success) setRecords(data.data || []);
@@ -1060,10 +975,9 @@ export default function RequestsPanel({ type, show, onStatsChange }) {
 
   useEffect(() => { if (show) load(filter); }, [show, filter, load]);
 
-  // ── Approve ────────────────────────────────────────────────────────────────
   const approve = async (id) => {
     try {
-      const res = await djFetch(`${apiBase}/${id}/approve/`, { method: "POST" });
+      const res  = await djFetch(`${apiBase}/${id}/approve/`, { method: "POST" });
       const data = await res.json();
       if (!data.success) { showToast(data.message || "Error approving", "err"); return; }
       showToast(
@@ -1073,43 +987,32 @@ export default function RequestsPanel({ type, show, onStatsChange }) {
       );
       load(filter);
       onStatsChange?.();
-    } catch (e) {
-      console.error("Approve error:", e);
-      showToast("Network error", "err");
-    }
+    } catch (e) { console.error("Approve error:", e); showToast("Network error", "err"); }
   };
 
-  // ── Reject ─────────────────────────────────────────────────────────────────
   const doReject = async (reason) => {
     try {
-      const res = await djFetch(`${apiBase}/${rejectId}/reject/`, { method: "POST", body: JSON.stringify({ reason }) });
+      const res  = await djFetch(`${apiBase}/${rejectId}/reject/`, { method: "POST", body: JSON.stringify({ reason }) });
       const data = await res.json();
-      if (data.success) {
-        showToast("Request rejected");
-        load(filter);
-        onStatsChange?.();
-      } else {
-        showToast(data.message || "Error rejecting", "err");
-      }
+      if (data.success) { showToast("Request rejected"); load(filter); onStatsChange?.(); }
+      else showToast(data.message || "Error rejecting", "err");
     } catch { showToast("Network error", "err"); }
     setRejectId(null);
   };
 
-  // ── Edit/save ──────────────────────────────────────────────────────────────
   const doUpdate = async (form) => {
     try {
-      const res = await djFetch(`${apiBase}/${form.id}/update/`, { method: "PATCH", body: JSON.stringify(form) });
+      const res  = await djFetch(`${apiBase}/${form.id}/update/`, { method: "PATCH", body: JSON.stringify(form) });
       const data = await res.json();
       if (data.success) { showToast("Changes saved ✓"); setEditTarget(null); load(filter); }
       else showToast(data.message || "Error saving", "err");
     } catch { showToast("Network error", "err"); }
   };
 
-  // ── Delete ─────────────────────────────────────────────────────────────────
   const doDelete = async () => {
     if (!deleteTarget) return;
     try {
-      const res = await djFetch(`${apiBase}/${deleteTarget.id}/delete/`, { method: "DELETE" });
+      const res  = await djFetch(`${apiBase}/${deleteTarget.id}/delete/`, { method: "DELETE" });
       const data = await res.json();
       if (data.success) {
         showToast(type === "adoptions" ? "Adoption request deleted" : `Rehoming request for ${deleteTarget.pet_name || "pet"} deleted`);
@@ -1120,8 +1023,8 @@ export default function RequestsPanel({ type, show, onStatsChange }) {
     } catch { showToast("Network error", "err"); }
   };
 
-  const label = type === "adoptions" ? "Adoption Requests" : "Rehome Requests";
-  const tabs = ["all", "Pending", "Approved", "Rejected"];
+  const label  = type === "adoptions" ? "Adoption Requests" : "Rehome Requests";
+  const tabs   = ["all", "Pending", "Approved", "Rejected"];
   const counts = tabs.reduce((acc, t) => ({
     ...acc,
     [t]: t === "all" ? records.length : records.filter(r => r.status === t).length,
@@ -1129,7 +1032,6 @@ export default function RequestsPanel({ type, show, onStatsChange }) {
 
   return (
     <div className="flex flex-col gap-5">
-
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="font-black text-lg" style={{ color: "#1a4a08", fontFamily: "'Playfair Display',serif" }}>
@@ -1139,7 +1041,7 @@ export default function RequestsPanel({ type, show, onStatsChange }) {
             Review and process applications — {records.filter(r => r.status === "Pending").length} pending
             {type === "rehoming" && (
               <span style={{ marginLeft: "0.5rem", color: "#5aaa30" }}>
-                · Approved rehomes auto-post to pet listings (with photo &amp; vaccination info)
+                · Approved rehomes auto-post to pet listings
               </span>
             )}
           </div>
@@ -1147,12 +1049,14 @@ export default function RequestsPanel({ type, show, onStatsChange }) {
         <div className="flex gap-2 flex-wrap">
           {tabs.map(t => (
             <button key={t} onClick={() => setFilter(t)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-black border transition-all flex items-center gap-1.5 ${filter === t ? "bg-green-600 border-green-600 text-white" : "border-[#ddd0a8] text-[#7a9060] hover:bg-green-50"
-                }`}>
+              className={`px-3 py-1.5 rounded-xl text-xs font-black border transition-all flex items-center gap-1.5 ${
+                filter === t ? "bg-green-600 border-green-600 text-white" : "border-[#ddd0a8] text-[#7a9060] hover:bg-green-50"
+              }`}>
               {t === "all" ? "All" : t}
               {counts[t] > 0 && (
-                <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${filter === t ? "bg-white/20 text-white" : "bg-amber-100 text-amber-700"
-                  }`}>{counts[t]}</span>
+                <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
+                  filter === t ? "bg-white/20 text-white" : "bg-amber-100 text-amber-700"
+                }`}>{counts[t]}</span>
               )}
             </button>
           ))}
@@ -1187,45 +1091,20 @@ export default function RequestsPanel({ type, show, onStatsChange }) {
         </div>
       )}
 
-      <RejectModal
-        open={!!rejectId}
-        onClose={() => setRejectId(null)}
-        onConfirm={doReject}
-      />
+      <RejectModal open={!!rejectId} onClose={() => setRejectId(null)} onConfirm={doReject} />
       <DetailModal
-        r={viewTarget}
-        type={type}
-        open={!!viewTarget}
+        r={viewTarget} type={type} open={!!viewTarget}
         onClose={() => setViewTarget(null)}
         onApprove={approve}
         onReject={id => { setViewTarget(null); setRejectId(id); }}
         onEdit={r => { setViewTarget(null); setEditTarget(r); }}
         onDelete={r => { setViewTarget(null); setDeleteTarget(r); }}
       />
-      <EditModal
-        open={!!editTarget}
-        record={editTarget}
-        type={type}
-        onClose={() => setEditTarget(null)}
-        onSave={doUpdate}
-      />
-      <DeleteModal
-        open={!!deleteTarget}
-        record={deleteTarget}
-        type={type}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={doDelete}
-      />
+      <EditModal open={!!editTarget} record={editTarget} type={type} onClose={() => setEditTarget(null)} onSave={doUpdate} />
+      <DeleteModal open={!!deleteTarget} record={deleteTarget} type={type} onClose={() => setDeleteTarget(null)} onConfirm={doDelete} />
 
       {toast && (
-        <div style={{
-          position: "fixed", bottom: "1.5rem", left: "50%", transform: "translateX(-50%)",
-          zIndex: 9999, padding: "0.7rem 1.25rem", borderRadius: 12, fontWeight: 800,
-          fontSize: "0.84rem", background: toast.kind === "err" ? "#c03030" : "#1c4f09",
-          color: "#fff", boxShadow: "0 8px 32px rgba(0,0,0,0.22)",
-          fontFamily: "'Nunito',sans-serif", display: "flex", alignItems: "center", gap: "0.5rem",
-          whiteSpace: "nowrap",
-        }}>
+        <div style={{ position: "fixed", bottom: "1.5rem", left: "50%", transform: "translateX(-50%)", zIndex: 9999, padding: "0.7rem 1.25rem", borderRadius: 12, fontWeight: 800, fontSize: "0.84rem", background: toast.kind === "err" ? "#c03030" : "#1c4f09", color: "#fff", boxShadow: "0 8px 32px rgba(0,0,0,0.22)", fontFamily: "'Nunito',sans-serif", display: "flex", alignItems: "center", gap: "0.5rem", whiteSpace: "nowrap" }}>
           <span>{toast.kind === "err" ? "✕" : "✓"}</span>
           {toast.msg}
         </div>

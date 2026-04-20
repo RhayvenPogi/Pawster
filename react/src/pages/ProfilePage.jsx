@@ -1,25 +1,22 @@
 /**
  * ProfilePage.jsx  (Account Settings — full standalone page at /account)
  *
- * FIX SUMMARY — why data wasn't showing after login/register:
- *  1. useAuth now persists the user to localStorage on login, so it's
- *     available on the next render even before the /api/auth/me call completes.
- *  2. This page initialises its form from `user` in the auth context
- *     immediately (no waiting), then refreshes from the backend in the
- *     background.
- *  3. setUser is called after a successful save so the navbar and every
- *     other page reflects changes without a refresh.
+ * ADDED: "My History" tab showing all adoption & rehoming requests
+ *        with a 📄 Download Receipt button per row (jsPDF).
+ *        Install: npm install jspdf
  */
 
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import Navbar from './Navbar';  
-import api from '../config/axios'; // adjust path to match your project
+import Navbar from './Navbar';
+import api from '../config/axios';
+import { downloadAppointmentPDF } from '../utils/downloadAppointmentPDF';
 
 import logo from "../images/logo.png";
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8000';
+const API_BASE    = import.meta.env.VITE_API_BASE    ?? 'http://localhost:8000';
+const DJANGO_BASE = import.meta.env.VITE_DJANGO_API  ?? 'http://localhost:8000';
 
 /* ── tiny helpers ── */
 function inp(extra = {}) {
@@ -57,10 +54,8 @@ function pwStrength(p) {
   return             { label: 'Strong', color: '#276010', w: '100%' };
 }
 
-/* ─── Empty form shape ─── */
 const EMPTY = { firstName: '', lastName: '', email: '', phone: '', address: '', city: '', province: '', zip: '' };
 
-/* ─── Seed form from user object (works even if fields are missing) ─── */
 function seedForm(u) {
   if (!u) return EMPTY;
   return {
@@ -75,77 +70,270 @@ function seedForm(u) {
   };
 }
 
+function getTokenLocal() {
+  return (
+    localStorage.getItem('pawster_token') ||
+    localStorage.getItem('token') ||
+    localStorage.getItem('authToken') ||
+    sessionStorage.getItem('token') ||
+    ''
+  );
+}
+
+// ── History tab sub-components ────────────────────────────────────────────────
+
+const HISTORY_STATUS = {
+  Approved: { bg: 'rgba(28,79,9,0.10)',   color: '#1c4f09', dot: '#5aaa30'  },
+  Rejected: { bg: 'rgba(192,48,48,0.08)', color: '#c03030', dot: '#ef4444' },
+  Pending:  { bg: 'rgba(180,120,10,0.10)',color: '#7a6010', dot: '#d4880a' },
+};
+
+function HistoryStatusPill({ status }) {
+  const s = HISTORY_STATUS[status] || HISTORY_STATUS.Pending;
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '0.22rem 0.65rem', borderRadius: 50, fontSize: '0.62rem', fontWeight: 900, background: s.bg, color: s.color }}>
+      <span style={{ width: 6, height: 6, borderRadius: '50%', background: s.dot, display: 'inline-block' }} />
+      {status}
+    </span>
+  );
+}
+
+function DownloadReceiptBtn({ record }) {
+  const [busy, setBusy] = useState(false);
+
+  const handle = async () => {
+    setBusy(true);
+    await new Promise(r => setTimeout(r, 180));
+    downloadAppointmentPDF(record, 'user');
+    setBusy(false);
+  };
+
+  return (
+    <button
+      onClick={handle}
+      disabled={busy}
+      style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.5rem 0.9rem', borderRadius: 10, border: '1px solid rgba(90,170,48,0.40)', background: busy ? 'rgba(28,79,9,0.04)' : 'rgba(28,79,9,0.08)', color: '#1c4f09', fontSize: '0.75rem', fontWeight: 900, cursor: busy ? 'not-allowed' : 'pointer', fontFamily: "'Nunito',sans-serif", transition: 'background 0.15s', opacity: busy ? 0.7 : 1, whiteSpace: 'nowrap' }}
+      title="Download PDF receipt"
+    >
+      {busy
+        ? <><span style={{ display: 'inline-block', width: 11, height: 11, borderRadius: '50%', border: '2px solid rgba(28,79,9,0.3)', borderTopColor: '#1c4f09', animation: 'spin 0.7s linear infinite' }} /> Generating…</>
+        : <>📄 Download Receipt</>
+      }
+    </button>
+  );
+}
+
+function AppointmentHistoryTab({ userId }) {
+  const [records, setRecords] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter,  setFilter]  = useState('All');
+  const [error,   setError]   = useState(null);
+
+  useEffect(() => {
+    if (!userId) return;
+    setLoading(true);
+    setError(null);
+
+    const token = getTokenLocal();
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+
+    Promise.all([
+      fetch(`${DJANGO_BASE}/api/approvals/adoptions/user/`, { headers }).then(r => r.json()),
+      fetch(`${DJANGO_BASE}/api/approvals/rehoming/user/`,  { headers }).then(r => r.json()),
+    ])
+      .then(([adoptions, rehoming]) => {
+        const a = (adoptions?.data ?? adoptions ?? []).map(r => ({ ...r, _type: 'Adoption' }));
+        const h = (rehoming?.data  ?? rehoming  ?? []).map(r => ({ ...r, _type: 'Rehoming' }));
+        const all = [...a, ...h].sort((x, y) => new Date(y.created_at || 0) - new Date(x.created_at || 0));
+        setRecords(all);
+      })
+      .catch(() => setError('Could not load your request history. Please try again.'))
+      .finally(() => setLoading(false));
+  }, [userId]);
+
+  const statuses = ['All', 'Approved', 'Pending', 'Rejected'];
+  const filtered = filter === 'All' ? records : records.filter(r => r.status === filter);
+
+  const counts = {
+    total:    records.length,
+    approved: records.filter(r => r.status === 'Approved').length,
+    pending:  records.filter(r => r.status === 'Pending').length,
+    rejected: records.filter(r => r.status === 'Rejected').length,
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+      <div>
+        <div style={{ fontSize: '0.64rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6a7a50', marginBottom: '0.35rem' }}>
+          Request History
+        </div>
+        <p style={{ fontSize: '0.82rem', fontWeight: 700, color: '#3a5020', margin: 0 }}>
+          All your adoption and rehoming submissions. Download any receipt as a PDF.
+        </p>
+      </div>
+
+      {/* Summary cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '0.65rem' }}>
+        {[
+          { lbl: 'Total',    val: counts.total,    color: '#1c4f09' },
+          { lbl: 'Approved', val: counts.approved,  color: '#276010' },
+          { lbl: 'Pending',  val: counts.pending,   color: '#c87820' },
+          { lbl: 'Rejected', val: counts.rejected,  color: '#c03030' },
+        ].map(s => (
+          <div key={s.lbl} style={{ borderRadius: 14, border: `1px solid ${s.color}33`, background: `${s.color}0d`, padding: '0.75rem' }}>
+            <div style={{ fontSize: '1.5rem', fontWeight: 900, color: s.color }}>{s.val}</div>
+            <div style={{ fontSize: '0.60rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#9aaa80', marginTop: 2 }}>{s.lbl}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Filter chips */}
+      <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+        {statuses.map(s => (
+          <button key={s} onClick={() => setFilter(s)}
+            style={{ padding: '0.4rem 0.9rem', borderRadius: 20, border: filter === s ? 'none' : '1px solid rgba(180,140,60,0.28)', background: filter === s ? '#1c4f09' : 'rgba(255,248,218,0.7)', color: filter === s ? '#fff' : '#7a9060', fontSize: '0.75rem', fontWeight: 900, cursor: 'pointer', fontFamily: "'Nunito',sans-serif", transition: 'all 0.15s' }}>
+            {s}
+          </button>
+        ))}
+      </div>
+
+      {/* Content */}
+      {loading ? (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '3rem 0', gap: '0.6rem', color: '#9aaa80', fontSize: '0.84rem', fontWeight: 700 }}>
+          <span style={{ display: 'inline-block', width: 16, height: 16, borderRadius: '50%', border: '2px solid rgba(28,79,9,0.2)', borderTopColor: '#1c4f09', animation: 'spin 0.7s linear infinite' }} />
+          Loading your requests…
+        </div>
+      ) : error ? (
+        <div style={{ padding: '1rem', borderRadius: 12, background: 'rgba(192,48,48,0.06)', border: '1px solid rgba(192,48,48,0.2)', fontSize: '0.82rem', fontWeight: 700, color: '#c03030', textAlign: 'center' }}>
+          {error}
+        </div>
+      ) : filtered.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '3rem 0', color: '#9aaa80' }}>
+          <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>🐾</div>
+          <div style={{ fontSize: '0.88rem', fontWeight: 700 }}>
+            No {filter !== 'All' ? filter.toLowerCase() + ' ' : ''}requests found.
+          </div>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+          {filtered.map((r, i) => (
+            <div key={r.id ?? i}
+              style={{ display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', gap: '0.75rem', padding: '0.9rem 1rem', borderRadius: 14, background: 'rgba(255,252,238,0.80)', border: '1px solid rgba(180,140,60,0.22)', boxShadow: '0 1px 6px rgba(100,70,20,0.07)' }}>
+
+              {/* Left: info */}
+              <div style={{ minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.3rem', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '0.60rem', fontWeight: 900, padding: '0.15rem 0.55rem', borderRadius: 50, background: r._type === 'Adoption' ? 'rgba(28,79,9,0.10)' : 'rgba(180,90,34,0.10)', color: r._type === 'Adoption' ? '#1c4f09' : '#b45a22', border: `1px solid ${r._type === 'Adoption' ? 'rgba(90,170,48,0.3)' : 'rgba(180,90,34,0.3)'}`, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    {r._type === 'Adoption' ? '🐾 Adoption' : '🏠 Rehoming'}
+                  </span>
+                  <HistoryStatusPill status={r.status || 'Pending'} />
+                </div>
+
+                <div style={{ fontWeight: 900, fontSize: '0.92rem', color: '#1a4a08', marginBottom: '0.15rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {r._type === 'Adoption' ? (r.animal_name || 'Animal') : (r.pet_name || 'Pet')}
+                </div>
+
+                <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#6a7a50' }}>
+                    📅 {r.created_at ? new Date(r.created_at).toLocaleDateString('en-PH', { dateStyle: 'medium' }) : '—'}
+                  </span>
+                  {r._type === 'Adoption' && r.housing && (
+                    <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#6a7a50' }}>🏠 {r.housing}</span>
+                  )}
+                  {r._type === 'Rehoming' && r.species && (
+                    <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#6a7a50' }}>🐾 {r.species}</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Right: download */}
+              <DownloadReceiptBtn record={r} />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!loading && filtered.length > 0 && (
+        <p style={{ fontSize: '0.68rem', fontWeight: 700, color: '#9aaa80', textAlign: 'center', margin: 0 }}>
+          Each downloaded PDF is your official Pawster receipt. Keep it for your records.
+        </p>
+      )}
+    </div>
+  );
+}
+
 /* ═════════════════════════════════════════════════════════════
    Main component
 ═══════════════════════════════════════════════════════════════ */
 export default function ProfilePage() {
   const { user, setUser, logout } = useAuth();
-  const fileRef = useRef(null);
+  const fileRef   = useRef(null);
   const idFileRef = useRef(null);
+
+  // ── TABS — "My History" added as 4th tab ──────────────────────────────────
+  const TABS = [
+    { id: 'info',     icon: 'fas fa-user',              label: 'Profile Info' },
+    { id: 'password', icon: 'fas fa-lock',               label: 'Password'     },
+    { id: 'id',       icon: 'fas fa-id-card',            label: 'Verification' },
+    { id: 'history',  icon: 'fas fa-clock-rotate-left',  label: 'My History'   },
+  ];
 
   const [tab,       setTab]       = useState('info');
   const [photoUrl,  setPhotoUrl]  = useState(user?.photoUrl ?? null);
   const [photoFile, setPhotoFile] = useState(null);
   const [toast,     setToast]     = useState(null);
   const [saving,    setSaving]    = useState(false);
-  const [bgLoading, setBgLoading] = useState(false); // background refresh only
+  const [bgLoading, setBgLoading] = useState(false);
 
-  /* ── form is seeded immediately from auth context — no waiting ── */
   const [form, setForm] = useState(() => seedForm(user));
-
   const [pw,     setPw]     = useState({ current: '', newPw: '', confirm: '' });
   const [showPw, setShowPw] = useState({ current: false, newPw: false, confirm: false });
 
-  /* ── Background-refresh from backend (non-blocking) ── */
   useEffect(() => {
     if (!user?.id) return;
     setBgLoading(true);
     api.get(`/api/users/${user.id}`)
-        .then(({ data }) => {
-            // Always take fresh data from backend, don't merge-block it
-            setForm({
-                firstName: data.firstName || '',
-                lastName:  data.lastName  || '',
-                email:     data.email     || '',
-                phone:     data.phone     || '',
-                address:   data.address   || '',
-                city:      data.city      || '',
-                province:  data.province  || '',
-                zip:       data.zip       || '',
-            });
-            if (data.photoUrl) {
-                const url = data.photoUrl.startsWith('http')
-                    ? data.photoUrl
-                    : `${API_BASE}${data.photoUrl}`;
-                setPhotoUrl(url);
-                // Keep localStorage in sync with the latest photoUrl
-                setUser(prev => {
-                    const updated = { ...(prev ?? {}), photoUrl: url };
-                    localStorage.setItem('pawster_user', JSON.stringify(updated));
-                    return updated;
-                });
-            }
-        })
-        .catch(() => {})
-        .finally(() => setBgLoading(false));
-// eslint-disable-next-line react-hooks/exhaustive-deps
-}, [user?.id]);
-  /* ── Re-seed if auth context user changes (e.g. after login redirect) ── */
+      .then(({ data }) => {
+        setForm({
+          firstName: data.firstName || '',
+          lastName:  data.lastName  || '',
+          email:     data.email     || '',
+          phone:     data.phone     || '',
+          address:   data.address   || '',
+          city:      data.city      || '',
+          province:  data.province  || '',
+          zip:       data.zip       || '',
+        });
+        if (data.photoUrl) {
+          const url = data.photoUrl.startsWith('http') ? data.photoUrl : `${API_BASE}${data.photoUrl}`;
+          setPhotoUrl(url);
+          setUser(prev => {
+            const updated = { ...(prev ?? {}), photoUrl: url };
+            localStorage.setItem('pawster_user', JSON.stringify(updated));
+            return updated;
+          });
+        }
+      })
+      .catch(() => {})
+      .finally(() => setBgLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
   useEffect(() => {
     if (!user) return;
-    setForm(f => {
-      // Only fill in blank fields — don't overwrite what the user typed
-      return {
-        firstName: f.firstName || user.firstName || '',
-        lastName:  f.lastName  || user.lastName  || '',
-        email:     f.email     || user.email     || '',
-        phone:     f.phone     || user.phone     || '',
-        address:   f.address   || user.address   || '',
-        city:      f.city      || user.city      || '',
-        province:  f.province  || user.province  || '',
-        zip:       f.zip       || user.zip       || '',
-      };
-    });
+    setForm(f => ({
+      firstName: f.firstName || user.firstName || '',
+      lastName:  f.lastName  || user.lastName  || '',
+      email:     f.email     || user.email     || '',
+      phone:     f.phone     || user.phone     || '',
+      address:   f.address   || user.address   || '',
+      city:      f.city      || user.city      || '',
+      province:  f.province  || user.province  || '',
+      zip:       f.zip       || user.zip       || '',
+    }));
     if (user.photoUrl && !photoUrl) setPhotoUrl(user.photoUrl);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
@@ -155,7 +343,6 @@ export default function ProfilePage() {
   const setPwF   = (k) => (e) => setPw(p => ({ ...p, [k]: e.target.value }));
   const strength = pwStrength(pw.newPw);
 
-  /* ── Photo pick ── */
   const handlePhoto = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -164,7 +351,6 @@ export default function ProfilePage() {
     setPhotoUrl(URL.createObjectURL(file));
   };
 
-  /* ── Save profile info ── */
   const saveInfo = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -172,20 +358,16 @@ export default function ProfilePage() {
       const fd = new FormData();
       Object.entries(form).forEach(([k, v]) => fd.append(k, v));
       if (photoFile) fd.append('photo', photoFile);
-
       const { data: updated } = await api.put(`/api/users/${user?.id ?? 'me'}`, fd);
-
       const finalPhoto = updated.photoUrl
         ? (updated.photoUrl.startsWith('http') ? updated.photoUrl : `${API_BASE}${updated.photoUrl}`)
         : photoUrl;
-
       setUser(prev => ({ ...(prev ?? {}), ...form, ...updated, photoUrl: finalPhoto }));
       localStorage.setItem('pawster_user', JSON.stringify({ ...(user ?? {}), ...form, ...updated, photoUrl: finalPhoto }));
       window.dispatchEvent(new CustomEvent('pawster:photoUpdated', { detail: { photoUrl: finalPhoto } }));
       setPhotoUrl(finalPhoto);
       setPhotoFile(null);
       setToast({ msg: 'Profile updated!', type: 'ok' });
-
     } catch (_) {
       setUser(prev => ({ ...(prev ?? {}), ...form, photoUrl }));
       localStorage.setItem('pawster_user', JSON.stringify({ ...(user ?? {}), ...form, photoUrl }));
@@ -196,31 +378,20 @@ export default function ProfilePage() {
     setSaving(false);
   };
 
-  /* ── Change password ── */
   const savePw = async (e) => {
     e.preventDefault();
-    if (pw.newPw.length < 8)       { setToast({ msg: 'Password must be at least 8 characters.', type: 'err' }); return; }
-    if (pw.newPw !== pw.confirm)    { setToast({ msg: 'Passwords do not match.', type: 'err' }); return; }
+    if (pw.newPw.length < 8)    { setToast({ msg: 'Password must be at least 8 characters.', type: 'err' }); return; }
+    if (pw.newPw !== pw.confirm) { setToast({ msg: 'Passwords do not match.', type: 'err' }); return; }
     setSaving(true);
     try {
-      await api.put(`/api/users/${user?.id ?? 'me'}/password`, {
-        currentPassword: pw.current,
-        newPassword: pw.newPw,
-      });
+      await api.put(`/api/users/${user?.id ?? 'me'}/password`, { currentPassword: pw.current, newPassword: pw.newPw });
       setPw({ current: '', newPw: '', confirm: '' });
       setToast({ msg: 'Password changed successfully!', type: 'ok' });
     } catch (err) {
-      const msg = err.response?.data?.message || err.message || 'Failed to change password.';
-      setToast({ msg, type: 'err' });
+      setToast({ msg: err.response?.data?.message || err.message || 'Failed to change password.', type: 'err' });
     }
     setSaving(false);
   };
-
-  const TABS = [
-    { id: 'info',     icon: 'fas fa-user',    label: 'Profile Info'  },
-    { id: 'password', icon: 'fas fa-lock',     label: 'Password'      },
-    { id: 'id',       icon: 'fas fa-id-card',  label: 'Verification'  },
-  ];
 
   return (
     <div style={{ minHeight: '100vh', background: '#EDDABB', fontFamily: "'Nunito',sans-serif" }}>
@@ -259,7 +430,6 @@ export default function ProfilePage() {
         <div style={{ position: 'absolute', width: 800, height: 800, bottom: '-15%', right: '-15%', borderRadius: '50%', background: 'radial-gradient(circle,#B45A22,transparent 70%)', filter: 'blur(120px)', opacity: 0.35, animation: 'fl2 11s ease-in-out infinite' }} />
       </div>
 
-      {/* Shared navbar — pass photoUrl so avatar updates instantly after upload */}
       <Navbar photoUrl={photoUrl} activeLink="/account" />
 
       <div className="prof-pad" style={{ position: 'relative', zIndex: 10, maxWidth: 880, margin: '0 auto', padding: '3rem 1.5rem 5rem' }}>
@@ -273,7 +443,7 @@ export default function ProfilePage() {
             Account <em style={{ fontStyle: 'italic', color: '#e07820' }}>Settings</em>
           </h1>
           <p style={{ fontSize: '0.88rem', fontWeight: 700, color: '#3a5020', marginTop: '0.35rem' }}>
-            Manage your personal info, password, and verification documents.
+            Manage your personal info, password, verification, and request history.
             {bgLoading && <span style={{ marginLeft: '0.75rem', fontSize: '0.72rem', color: '#9aaa80' }}><i className="fas fa-spinner" style={{ animation: 'spin 0.8s linear infinite', marginRight: '0.3rem' }} />Syncing…</span>}
           </p>
         </div>
@@ -283,12 +453,8 @@ export default function ProfilePage() {
           {/* ── Left: Avatar card ── */}
           <div>
             <div style={{ background: 'rgba(255,248,225,0.88)', border: '1px solid rgba(180,140,60,0.28)', borderRadius: 22, overflow: 'hidden', boxShadow: '0 4px 24px rgba(100,70,20,0.11)' }}>
-
-              {/* Green banner */}
               <div style={{ background: 'linear-gradient(135deg,#1c4f09 0%,#3a8a18 55%,#5aaa30 100%)', padding: '1.75rem 1.25rem 2.5rem', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
                 <div style={{ position: 'absolute', width: 180, height: 180, top: '-70px', right: '-50px', borderRadius: '50%', background: 'rgba(255,255,255,0.06)', pointerEvents: 'none' }} />
-
-                {/* Avatar */}
                 <div style={{ position: 'relative', display: 'inline-block', marginBottom: '0.9rem' }}>
                   <div style={{ width: 88, height: 88, borderRadius: '50%', border: '3px solid rgba(255,255,255,0.60)', overflow: 'hidden', background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto' }}>
                     {photoUrl
@@ -324,7 +490,6 @@ export default function ProfilePage() {
                 )}
               </div>
 
-              {/* Side nav links */}
               <div style={{ padding: '0.75rem' }}>
                 <Link to="/profile" className="side-link" style={{ color: '#3a5020', background: 'rgba(28,79,9,0.06)', marginBottom: '0.35rem' }}
                   onMouseEnter={e => e.currentTarget.style.background = 'rgba(28,79,9,0.11)'}
@@ -341,7 +506,6 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* Member since */}
             {user?.createdAt && (
               <div style={{ marginTop: '0.85rem', padding: '0.8rem 1rem', background: 'rgba(255,248,225,0.82)', border: '1px solid rgba(180,140,60,0.28)', borderRadius: 14, boxShadow: '0 2px 10px rgba(100,70,20,0.08)' }}>
                 <div style={{ fontSize: '0.64rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#6a7a50', marginBottom: '0.22rem' }}>Member Since</div>
@@ -370,7 +534,6 @@ export default function ProfilePage() {
               {/* ══ TAB: Profile Info ══ */}
               {tab === 'info' && (
                 <form onSubmit={saveInfo}>
-                  {/* Photo upload zone */}
                   <div style={{ marginBottom: '1.5rem' }}>
                     <div style={{ fontSize: '0.64rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6a7a50', marginBottom: '0.7rem' }}>Profile Photo</div>
                     <div className="upload-zone" onClick={() => fileRef.current?.click()}>
@@ -444,7 +607,6 @@ export default function ProfilePage() {
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                    {/* Current */}
                     <div>
                       <FieldLabel>Current Password</FieldLabel>
                       <div style={{ position: 'relative' }}>
@@ -454,8 +616,6 @@ export default function ProfilePage() {
                         </button>
                       </div>
                     </div>
-
-                    {/* New */}
                     <div>
                       <FieldLabel>New Password</FieldLabel>
                       <div style={{ position: 'relative' }}>
@@ -473,8 +633,6 @@ export default function ProfilePage() {
                         </div>
                       )}
                     </div>
-
-                    {/* Confirm */}
                     <div>
                       <FieldLabel>Confirm New Password</FieldLabel>
                       <div style={{ position: 'relative' }}>
@@ -523,7 +681,6 @@ export default function ProfilePage() {
 
                   <div style={{ fontSize: '0.64rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#6a7a50', marginBottom: '0.75rem' }}>Government-Issued ID</div>
 
-                  {/* Current file status */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', padding: '0.85rem 1rem', background: 'rgba(255,252,238,0.7)', border: '1px solid rgba(200,170,100,0.28)', borderRadius: 12, marginBottom: '1.25rem' }}>
                     <div style={{ width: 36, height: 36, borderRadius: 10, background: user?.idFileName ? 'rgba(28,79,9,0.12)' : 'rgba(180,140,60,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       <i className={`fas ${user?.idFileName ? 'fa-file-circle-check' : 'fa-file-circle-question'}`} style={{ color: user?.idFileName ? '#1c4f09' : '#6a7a50', fontSize: '0.9rem' }} />
@@ -550,13 +707,19 @@ export default function ProfilePage() {
                   />
                 </div>
               )}
+
+              {/* ══ TAB: My History (NEW) ══ */}
+              {tab === 'history' && (
+                <AppointmentHistoryTab userId={user?.id} />
+              )}
+
             </div>
           </div>
         </div>
       </div>
 
       {/* Footer */}
-       <footer className="relative z-10 border-t border-[rgba(90,170,48,0.45)] bg-[rgba(255,248,218,0.85)] backdrop-blur-md px-10 py-12">
+      <footer className="relative z-10 border-t border-[rgba(90,170,48,0.45)] bg-[rgba(255,248,218,0.85)] backdrop-blur-md px-10 py-12">
         <div className="max-w-[1200px] mx-auto grid gap-12 mb-10 grid-cols-[repeat(auto-fit,minmax(160px,1fr))]">
           <div>
             <div className="mb-2">

@@ -266,8 +266,13 @@ const MSecTitle = ({ icon, title }) => (
 // ─── Step content ─────────────────────────────────────────────────────────────
 function AdoptStepContent({ step, form, set, setV, animal, errs }) {
   const pf = {
-    name: !!form._prefill_name, phone: !!form._prefill_phone,
-    email: !!form._prefill_email, address: !!form._prefill_address,
+    name:     !!form._prefill_name,
+    phone:    !!form._prefill_phone,
+    email:    !!form._prefill_email,
+    address:  !!form._prefill_address,
+    city:     !!form._prefill_city,
+    province: !!form._prefill_province,
+    zip:      !!form._prefill_zip,
   };
   return (
     <>
@@ -289,8 +294,22 @@ function AdoptStepContent({ step, form, set, setV, animal, errs }) {
               style={fieldStyle(!!errs.email, { borderLeft: pf.email ? "4px solid rgba(90,170,48,0.6)" : undefined })} />
           </MField>
           <MField label="Address *" prefill={pf.address} col="full" err={errs.address}>
-            <input type="text" value={form.address} onChange={set("address")} placeholder="Complete home address"
+            <input type="text" value={form.address} onChange={set("address")} placeholder="Street / House No. / Barangay"
               style={fieldStyle(!!errs.address, { borderLeft: pf.address ? "4px solid rgba(90,170,48,0.6)" : undefined })} />
+          </MField>
+          <div style={mg2}>
+            <MField label="City / Municipality" prefill={pf.city} err={errs.city}>
+              <input type="text" value={form.city} onChange={set("city")} placeholder="e.g. Laoag City"
+                style={fieldStyle(!!errs.city, { borderLeft: pf.city ? "4px solid rgba(90,170,48,0.6)" : undefined })} />
+            </MField>
+            <MField label="Province" prefill={pf.province} err={errs.province}>
+              <input type="text" value={form.province} onChange={set("province")} placeholder="e.g. Ilocos Norte"
+                style={fieldStyle(!!errs.province, { borderLeft: pf.province ? "4px solid rgba(90,170,48,0.6)" : undefined })} />
+            </MField>
+          </div>
+          <MField label="Zip / Postal Code" prefill={pf.zip} err={errs.zip}>
+            <input type="text" value={form.zip} onChange={set("zip")} placeholder="e.g. 2900"
+              style={fieldStyle(!!errs.zip, { borderLeft: pf.zip ? "4px solid rgba(90,170,48,0.6)" : undefined })} />
           </MField>
           <MSecTitle icon="heart" title={`Why ${animal.name}?`} />
           <MField label={`Why do you want to adopt ${animal.name}? *`} col="full" err={errs.reason}>
@@ -460,55 +479,159 @@ function AdoptStepContent({ step, form, set, setV, animal, errs }) {
 
 // ─── Review Details Modal ──────────────────────────────────────────────────────
 function ReviewDetailsModal({ animal, user, onContinue, onClose }) {
+  const [editableUser, setEditableUser] = useState({
+    firstName: user?.firstName || "",
+    lastName:  user?.lastName  || "",
+    email:     user?.email     || "",
+    phone:     user?.phone     || "",
+    address:   user?.address   || "",
+    city:      user?.city      || "",
+    province:  user?.province  || "",
+    zip:       user?.zip       || "",
+  });
+  const [editingField, setEditingField] = useState(null);
+
+  const setField = (key) => (e) =>
+    setEditableUser(u => ({ ...u, [key]: e.target.value }));
+
+  const fullName = `${editableUser.firstName} ${editableUser.lastName}`.trim();
+
   const fields = [
-    ["user",           "Full Name", `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim(), !!(user?.firstName || user?.lastName)],
-    ["envelope",       "Email",     user?.email,   !!user?.email],
-    ["phone",          "Phone",     user?.phone,   !!user?.phone],
-    ["map-marker-alt", "Address",   user?.address, !!user?.address],
+    { key: "name",     icon: "user",          label: "Full Name",        value: fullName,               ok: !!(editableUser.firstName || editableUser.lastName) },
+    { key: "email",    icon: "envelope",       label: "Email",            value: editableUser.email,     ok: !!editableUser.email },
+    { key: "phone",    icon: "phone",          label: "Phone",            value: editableUser.phone,     ok: !!editableUser.phone },
+    { key: "address",  icon: "map-marker-alt", label: "Address",          value: editableUser.address,   ok: !!editableUser.address },
+    { key: "city",     icon: "city",           label: "City / Municipality", value: editableUser.city,   ok: !!editableUser.city },
+    { key: "province", icon: "map",            label: "Province",         value: editableUser.province,  ok: !!editableUser.province },
+    { key: "zip",      icon: "hashtag",        label: "Zip / Postal Code",value: editableUser.zip,       ok: !!editableUser.zip },
   ];
+
+  const editInp = {
+    width: "100%",
+    fontSize: "0.82rem",
+    fontWeight: 700,
+    color: "#1a4a08",
+    border: "1px solid rgba(90,170,48,0.45)",
+    borderRadius: 8,
+    padding: "0.35rem 0.6rem",
+    fontFamily: "'Nunito',sans-serif",
+    background: "rgba(255,253,242,0.9)",
+    outline: "none",
+    boxShadow: "0 0 0 3px rgba(90,170,48,0.10)",
+  };
+
+  const renderEditContent = (key) => {
+    if (key === "name") {
+      return (
+        <div style={{ display: "flex", gap: "0.4rem", flex: 1 }}>
+          <input autoFocus type="text" value={editableUser.firstName}
+            onChange={setField("firstName")} placeholder="First name"
+            style={{ ...editInp, flex: 1 }}
+            onKeyDown={(e) => e.key === "Enter" && setEditingField(null)} />
+          <input type="text" value={editableUser.lastName}
+            onChange={setField("lastName")} placeholder="Last name"
+            style={{ ...editInp, flex: 1 }}
+            onKeyDown={(e) => e.key === "Enter" && setEditingField(null)} />
+        </div>
+      );
+    }
+    return (
+      <input autoFocus
+        type={key === "email" ? "email" : key === "phone" ? "tel" : "text"}
+        value={editableUser[key]}
+        onChange={setField(key)}
+        placeholder={fields.find(f => f.key === key)?.label || key}
+        style={{ ...editInp, flex: 1 }}
+        onKeyDown={(e) => e.key === "Enter" && setEditingField(null)} />
+    );
+  };
+
   return (
-    <div style={{ position:"fixed", inset:0, zIndex:500, display:"flex", alignItems:"center", justifyContent:"center", padding:"1rem", background:"rgba(10,6,2,0.65)", backdropFilter:"blur(8px)" }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div style={{ width:"100%", maxWidth:480, borderRadius:20, overflow:"hidden", border:"1px solid rgba(180,140,60,0.28)", background:"rgba(255,252,235,0.98)", boxShadow:"0 24px 64px rgba(40,20,5,0.45)", animation:"modalIn .28s cubic-bezier(.22,.68,0,1.15) both" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:"0.75rem", padding:"1.25rem 1.5rem", borderBottom:"1px solid rgba(180,140,60,0.22)", background:"linear-gradient(135deg,rgba(28,79,9,0.08),rgba(90,170,48,0.05))" }}>
+    <div
+      style={{ position:"fixed", inset:0, zIndex:500, display:"flex", alignItems:"center", justifyContent:"center", padding:"1rem", background:"rgba(10,6,2,0.65)", backdropFilter:"blur(8px)" }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div style={{ width:"100%", maxWidth:500, borderRadius:20, overflow:"hidden", border:"1px solid rgba(180,140,60,0.28)", background:"rgba(255,252,235,0.98)", boxShadow:"0 24px 64px rgba(40,20,5,0.45)", animation:"modalIn .28s cubic-bezier(.22,.68,0,1.15) both", display:"flex", flexDirection:"column", maxHeight:"90vh" }}>
+
+        {/* Header */}
+        <div style={{ display:"flex", alignItems:"center", gap:"0.75rem", padding:"1.25rem 1.5rem", borderBottom:"1px solid rgba(180,140,60,0.22)", background:"linear-gradient(135deg,rgba(28,79,9,0.08),rgba(90,170,48,0.05))", flexShrink:0 }}>
           <div style={{ width:40, height:40, borderRadius:12, background:"linear-gradient(135deg,#e07820,#c05010)", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff" }}>
             <i className="fas fa-clipboard-check" />
           </div>
           <div>
             <div style={{ fontFamily:"'Playfair Display',serif", fontWeight:900, fontSize:"1rem", color:"#1a4a08" }}>Review Your Details</div>
-            <div style={{ fontSize:"0.72rem", fontWeight:700, color:"#6a7a50" }}>Before adopting {animal.name}</div>
+            <div style={{ fontSize:"0.72rem", fontWeight:700, color:"#6a7a50" }}>Before adopting {animal.name} · Click any field to edit</div>
           </div>
           <button onClick={onClose} style={{ marginLeft:"auto", width:32, height:32, borderRadius:8, border:"1px solid rgba(192,48,48,0.2)", background:"rgba(192,48,48,0.08)", color:"#c03030", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
             <i className="fas fa-times" />
           </button>
         </div>
-        <div style={{ padding:"1.25rem 1.5rem" }}>
+
+        {/* Body — scrollable */}
+        <div style={{ padding:"1.25rem 1.5rem", overflowY:"auto", flex:1 }}>
           <div style={{ padding:"0.75rem 1rem", borderRadius:12, background:"rgba(224,120,32,0.08)", border:"1px solid rgba(224,120,32,0.25)", marginBottom:"1rem", display:"flex", gap:"0.625rem" }}>
             <i className="fas fa-info-circle" style={{ color:"#e07820", flexShrink:0, marginTop:"0.1rem" }} />
             <p style={{ fontSize:"0.82rem", fontWeight:700, lineHeight:1.6, color:"#6a3a10", margin:0 }}>
               Your registered details will be pre-filled in the adoption form. The shelter uses this to contact you.
             </p>
           </div>
-          <div style={{ display:"flex", flexDirection:"column", gap:"0.5rem", marginBottom:"1.25rem" }}>
-            {fields.map(([icon, label, value, ok]) => (
-              <div key={label} style={{ display:"flex", alignItems:"center", gap:"0.75rem", padding:"0.6rem 0.875rem", borderRadius:10, background:ok?"rgba(28,79,9,0.06)":"rgba(192,48,48,0.06)", border:`1px solid ${ok?"rgba(90,170,48,0.25)":"rgba(192,48,48,0.2)"}` }}>
-                <i className={`fas fa-${icon}`} style={{ color:ok?"#5aaa30":"#c03030", width:16, textAlign:"center" }} />
-                <div style={{ flex:1 }}>
-                  <div style={{ fontSize:"0.67rem", fontWeight:900, textTransform:"uppercase", letterSpacing:"0.07em", color:"#6a7a50" }}>{label}</div>
-                  <div style={{ fontSize:"0.84rem", fontWeight:700, color:ok?"#1a4a08":"#c03030", marginTop:1 }}>{ok ? value : "Not set — you can fill this in the form"}</div>
+
+          <div style={{ display:"flex", flexDirection:"column", gap:"0.45rem", marginBottom:"1.25rem" }}>
+            {fields.map(({ key, icon, label, value, ok }) => {
+              const isEditing = editingField === key;
+              return (
+                <div
+                  key={key}
+                  onClick={() => !isEditing && setEditingField(key)}
+                  style={{
+                    display:"flex", alignItems:"center", gap:"0.75rem",
+                    padding:"0.6rem 0.875rem", borderRadius:10,
+                    background: isEditing ? "rgba(255,253,242,0.95)" : ok ? "rgba(28,79,9,0.06)" : "rgba(192,48,48,0.06)",
+                    border:`1px solid ${isEditing ? "rgba(90,170,48,0.45)" : ok ? "rgba(90,170,48,0.25)" : "rgba(192,48,48,0.2)"}`,
+                    cursor: isEditing ? "default" : "pointer",
+                    transition:"all 0.15s",
+                    boxShadow: isEditing ? "0 0 0 3px rgba(90,170,48,0.08)" : "none",
+                  }}
+                >
+                  <i className={`fas fa-${icon}`} style={{ color: isEditing ? "#5aaa30" : ok ? "#5aaa30" : "#c03030", width:16, textAlign:"center", fontSize:"0.8rem", flexShrink:0 }} />
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontSize:"0.67rem", fontWeight:900, textTransform:"uppercase", letterSpacing:"0.07em", color:"#6a7a50", marginBottom: isEditing ? "0.3rem" : 0 }}>{label}</div>
+                    {isEditing ? (
+                      <div style={{ display:"flex", flex:1 }}>{renderEditContent(key)}</div>
+                    ) : (
+                      <div style={{ fontSize:"0.84rem", fontWeight:700, color: ok ? "#1a4a08" : "#c03030", marginTop:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                        {ok ? value : <span style={{ fontStyle:"italic", opacity:0.75 }}>Not set — click to add</span>}
+                      </div>
+                    )}
+                  </div>
+                  {isEditing ? (
+                    <button type="button" onClick={(e) => { e.stopPropagation(); setEditingField(null); }}
+                      style={{ flexShrink:0, width:24, height:24, borderRadius:6, border:"none", background:"#5aaa30", color:"#fff", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"0.65rem" }}>
+                      <i className="fas fa-check" />
+                    </button>
+                  ) : (
+                    <div style={{ display:"flex", alignItems:"center", gap:"0.3rem", flexShrink:0 }}>
+                      <i className="fas fa-pen" style={{ color:"#9aaa80", fontSize:"0.62rem", opacity:0.6 }} />
+                      <i className={`fas fa-${ok ? "check-circle" : "exclamation-circle"}`} style={{ color: ok ? "#5aaa30" : "#c03030", fontSize:"0.85rem" }} />
+                    </div>
+                  )}
                 </div>
-                <i className={`fas fa-${ok?"check-circle":"exclamation-circle"}`} style={{ color:ok?"#5aaa30":"#c03030" }} />
-              </div>
-            ))}
+              );
+            })}
           </div>
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0.625rem" }}>
-            <button onClick={onClose} style={{ padding:"0.75rem", borderRadius:12, fontWeight:900, fontSize:"0.86rem", background:"rgba(255,248,220,0.75)", border:"1px solid rgba(180,140,60,0.28)", color:"#3a5020", cursor:"pointer", fontFamily:"'Nunito',sans-serif", display:"flex", alignItems:"center", justifyContent:"center", gap:"0.4rem" }}>
-              <i className="fas fa-arrow-left" /> Go Back
-            </button>
-            <button onClick={onContinue} style={{ padding:"0.75rem", borderRadius:12, fontWeight:900, fontSize:"0.86rem", color:"#fff", background:"#1c4f09", border:"none", cursor:"pointer", fontFamily:"'Nunito',sans-serif", boxShadow:"0 5px 20px rgba(28,79,9,0.32)", display:"flex", alignItems:"center", justifyContent:"center", gap:"0.4rem" }}>
-              <i className="fas fa-arrow-right" /> Continue
-            </button>
-          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding:"1rem 1.5rem", borderTop:"1px solid rgba(180,140,60,0.18)", display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0.625rem", flexShrink:0, background:"rgba(255,252,235,0.97)" }}>
+          <button onClick={onClose}
+            style={{ padding:"0.75rem", borderRadius:12, fontWeight:900, fontSize:"0.86rem", background:"rgba(255,248,220,0.75)", border:"1px solid rgba(180,140,60,0.28)", color:"#3a5020", cursor:"pointer", fontFamily:"'Nunito',sans-serif", display:"flex", alignItems:"center", justifyContent:"center", gap:"0.4rem" }}>
+            <i className="fas fa-arrow-left" /> Go Back
+          </button>
+          <button
+            onClick={() => onContinue(editableUser)}
+            style={{ padding:"0.75rem", borderRadius:12, fontWeight:900, fontSize:"0.86rem", color:"#fff", background:"#1c4f09", border:"none", cursor:"pointer", fontFamily:"'Nunito',sans-serif", boxShadow:"0 5px 20px rgba(28,79,9,0.32)", display:"flex", alignItems:"center", justifyContent:"center", gap:"0.4rem" }}>
+            <i className="fas fa-arrow-right" /> Continue
+          </button>
         </div>
       </div>
       <style>{`@keyframes modalIn{from{opacity:0;transform:scale(0.94) translateY(12px)}to{opacity:1;transform:scale(1) translateY(0)}}`}</style>
@@ -529,10 +652,16 @@ function AdoptModal({ animal, user, onClose, onSuccess }) {
     _prefill_phone:   !!user?.phone,
     _prefill_email:   !!user?.email,
     _prefill_address: !!user?.address,
+    _prefill_city:    !!user?.city,
+    _prefill_province:!!user?.province,
+    _prefill_zip:     !!user?.zip,
     name:    [user?.firstName, user?.lastName].filter(Boolean).join(" ") || "",
     phone:   user?.phone    || "",
     email:   user?.email    || "",
     address: user?.address  || "",
+    city:     user?.city     || "",
+    province: user?.province || "",
+    zip:      user?.zip      || "",
     reason: "", previousPet: "", previousPetDetails: "", primaryCaregiver: "",
     housing: user?.housing || "", ownsHome: "", petPermission: "", petSpace: "",
     householdSize: "", hasChildren: "", childrenAges: "",
@@ -595,6 +724,9 @@ function AdoptModal({ animal, user, onClose, onSuccess }) {
         body: JSON.stringify({
           animal_id: animalId, animal_name: animal.name,
           name: form.name, phone: form.phone, email: form.email, address: form.address,
+          city:     form.city,
+          province: form.province,
+          zip:      form.zip,
           reason: form.reason, previous_pet: form.previousPet === "yes",
           previous_pet_details: form.previousPetDetails, primary_caregiver: form.primaryCaregiver,
           housing: form.housing, owns_home: form.ownsHome === "own",
@@ -828,7 +960,12 @@ export default function FindAPet() {
 
   const showToast        = (msg, kind = "ok") => setToast({ message: msg, type: kind });
   const handleAdoptClick = (animal) => { setAdopt(animal); setReview(true); setShowForm(false); };
-  const handleContinue   = () => { setReview(false); setShowForm(true); };
+  const [reviewedUser, setReviewedUser] = useState(null);
+  const handleContinue = (updatedUser) => {
+    setReviewedUser(updatedUser);
+    setReview(false);
+    setShowForm(true);
+  };
   const handleCloseAll   = () => { setAdopt(null); setReview(false); setShowForm(false); };
 
   const handleFilterSubmit = useCallback((q, t, s) => {
@@ -992,12 +1129,17 @@ export default function FindAPet() {
       </footer>
 
       {showReview && adoptTarget && (
-        <ReviewDetailsModal animal={adoptTarget} user={user} onContinue={handleContinue} onClose={handleCloseAll} />
+        <ReviewDetailsModal
+          animal={adoptTarget}
+          user={user}
+          onContinue={handleContinue}
+          onClose={handleCloseAll}
+        />
       )}
       {showForm && adoptTarget && (
         <AdoptModal
           animal={adoptTarget}
-          user={user}
+          user={reviewedUser || user}
           onClose={handleCloseAll}
           onSuccess={(msg, kind) => {
             showToast(msg, kind);

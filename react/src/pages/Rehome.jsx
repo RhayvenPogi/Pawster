@@ -448,6 +448,9 @@ function RehomeReviewModal({ user, onContinue, onClose }) {
     email:     user?.email     || "",
     phone:     user?.phone     || "",
     address:   user?.address   || "",
+    city:      user?.city      || "",
+    province:  user?.province  || "",
+    zip:       user?.zip       || "",
   });
   const [editingField, setEditingField] = useState(null);
 
@@ -457,10 +460,13 @@ function RehomeReviewModal({ user, onContinue, onClose }) {
   const fullName = `${editableUser.firstName} ${editableUser.lastName}`.trim();
 
   const fields = [
-    { key: "name",    icon: "user",           label: "Full name",    value: fullName,              ok: !!(editableUser.firstName || editableUser.lastName) },
-    { key: "email",   icon: "envelope",        label: "Email",        value: editableUser.email,    ok: !!editableUser.email },
-    { key: "phone",   icon: "phone",           label: "Phone",        value: editableUser.phone,    ok: !!editableUser.phone },
-    { key: "address", icon: "map-marker-alt",  label: "Address",      value: editableUser.address,  ok: !!editableUser.address },
+    { key: "name",     icon: "user",           label: "Full name",  value: fullName,                ok: !!(editableUser.firstName || editableUser.lastName) },
+    { key: "email",    icon: "envelope",        label: "Email",      value: editableUser.email,      ok: !!editableUser.email },
+    { key: "phone",    icon: "phone",           label: "Phone",      value: editableUser.phone,      ok: !!editableUser.phone },
+    { key: "address",  icon: "map-marker-alt",  label: "Address",    value: editableUser.address,    ok: !!editableUser.address },
+    { key: "city",     icon: "city",            label: "City",       value: editableUser.city,       ok: !!editableUser.city },
+    { key: "province", icon: "map",             label: "Province",   value: editableUser.province,   ok: !!editableUser.province },
+    { key: "zip",      icon: "hashtag",         label: "Zip Code",   value: editableUser.zip,        ok: !!editableUser.zip },
   ];
 
   const editInp = {
@@ -681,6 +687,9 @@ export default function Rehome() {
   // Store contact + owner name resolved from the Review Modal
   const [resolvedContact, setResolvedContact] = useState("");
   const [resolvedOwnerName, setResolvedOwnerName] = useState("");
+  const [resolvedCity,     setResolvedCity]     = useState("");
+  const [resolvedProvince, setResolvedProvince] = useState("");
+  const [resolvedZip,      setResolvedZip]      = useState("");
 
   const [photoPreview, setPhotoPreview] = useState(null);
   const [photoBase64, setPhotoBase64] = useState(null);
@@ -808,8 +817,12 @@ export default function Rehome() {
           good_with_pets:     form.goodWithPets === "yes",
           ideal_home_desc:    form.idealHomeDesc,
           // ── FIX: send both owner name and contact from Review Modal ──
-          owner_name:         resolvedOwnerName || user?.name || user?.username || "",
-          contact:            resolvedContact || user?.phone || "",
+          owner_name:          resolvedOwnerName || user?.name || user?.username || "",
+          contact:             resolvedContact   || user?.phone || "",
+          city:                resolvedCity     || "",
+          province:            resolvedProvince || "",
+          zip:                 resolvedZip      || "",
+          address:             user?.address    || "",
           // ────────────────────────────────────────────────────────────
           reason:             form.reason,
           details:            form.details,
@@ -1040,14 +1053,14 @@ export default function Rehome() {
         <RehomeReviewModal
           user={user}
           onContinue={(updatedUser) => {
-            // FIX: store both phone (contact) and full name (owner_name)
-            setResolvedContact(updatedUser.phone || user?.phone || "");
+            setResolvedContact(updatedUser.phone    || user?.phone    || "");
             setResolvedOwnerName(
               `${updatedUser.firstName || ""} ${updatedUser.lastName || ""}`.trim() ||
-              user?.name ||
-              user?.username ||
-              ""
+              user?.name || user?.username || ""
             );
+            setResolvedCity(updatedUser.city         || user?.city         || "");
+            setResolvedProvince(updatedUser.province || user?.province     || "");
+            setResolvedZip(updatedUser.zip           || user?.zip          || "");
             setShowReview(false);
             setFormStarted(true);
           }}

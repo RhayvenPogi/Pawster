@@ -463,3 +463,18 @@ def delete_rehoming(request, pk):
     pet_name = obj.pet_name
     obj.delete()
     return Response({"success": True, "message": f"Rehoming request for '{pet_name}' deleted."})
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def user_adoptions(request):
+    """GET /api/approvals/adoptions/user/  — logged-in user's own adoption requests"""
+    qs = AdoptionRequest.objects.filter(user=request.user).order_by("-created_at")
+    return Response({"success": True, "data": AdoptionRequestSerializer(qs, many=True).data})
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def user_rehoming(request):
+    """GET /api/approvals/rehoming/user/  — logged-in user's own rehoming requests"""
+    qs = RehomingRequest.objects.filter(user=request.user).order_by("-created_at")
+    return Response({"success": True, "data": RehomingRequestSerializer(qs, many=True).data})
