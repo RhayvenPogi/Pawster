@@ -13,7 +13,8 @@ import GeoMapPanel      from "./admin/GeoMapPanel";
 import ActivityPanel    from "./admin/ActivityPanel";
 import ProfilePanel     from "./admin/ProfilePanel";
 import MissingPetsPanel from "./admin/MissingPetsPanel";
-import AnalyticsPanel from "./admin/AnalyticsPanel";
+import AnalyticsPanel   from "./admin/AnalyticsPanel";
+import AdminMessagingPanel from "./admin/AdminMessagingPanel";
 
 const NAV = [
   {
@@ -39,14 +40,21 @@ const NAV = [
     ],
   },
   {
-  group: "Analytics",
-  items: [
-    { id: "analytics", label: "Analytics",      ico: "ico-teal",  faIcon: "chart-line",
-      badge: "total_records", badgeWarn: false },
-    { id: "map",       label: "Geographic Map", ico: "ico-blue",  faIcon: "globe-asia",
-      badge: "users",         badgeWarn: false },
-  ],
-},
+    group: "Communication",
+    items: [
+      { id: "messaging", label: "Messages", ico: "ico-teal", faIcon: "comments",
+        badge: "unread_messages", badgeWarn: true },
+    ],
+  },
+  {
+    group: "Analytics",
+    items: [
+      { id: "analytics", label: "Analytics",      ico: "ico-teal",  faIcon: "chart-line",
+        badge: "total_records", badgeWarn: false },
+      { id: "map",       label: "Geographic Map", ico: "ico-blue",  faIcon: "globe-asia",
+        badge: "users",         badgeWarn: false },
+    ],
+  },
   {
     group: "System",
     items: [
@@ -81,6 +89,18 @@ function isDeleted(item) {
 function filterActive(arr) {
   if (!Array.isArray(arr)) return [];
   return arr.filter(item => !isDeleted(item));
+}
+
+// ── NORMALIZE AUTH USER ────────────────────────────────────────────────────────
+function normalizeUser(authUser) {
+  if (!authUser) return null;
+  if (authUser.id) return authUser;
+  try {
+    const payload = JSON.parse(atob(authUser.token.split(".")[1]));
+    return { ...authUser, id: payload.sub ?? authUser.email };
+  } catch {
+    return { ...authUser, id: authUser.email };
+  }
 }
 
 // ── MESH BACKGROUND ────────────────────────────────────────────────────────────
@@ -132,6 +152,7 @@ function FaIcon({ name, size = 14, color = "currentColor" }) {
     "shield-alt":        "M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z",
     "times":             "M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z",
     "search":            "M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z",
+    "comments":          "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z",
   };
   const d = paths[name];
   if (!d) return null;
@@ -221,11 +242,7 @@ function ProfileModal({ user, onClose, onUserUpdate, defaultTab = "profile" }) {
     fd.append("action", "upload_photo");
     fd.append("photo", pendingFile);
     try {
-      const res = await fetch("/php/admin/dashboard", {
-        method: "POST",
-        body: fd,
-        credentials: "include"
-      });
+      const res = await fetch("/php/admin/dashboard", { method: "POST", body: fd, credentials: "include" });
       const r = await res.json();
       if (r.success) {
         setPendingFile(null);
@@ -402,12 +419,8 @@ function Sidebar({ active, onNav, stats, user, collapsed, onToggle, onLogout }) 
                   {!collapsed && <span className="flex-1 text-left">{item.label}</span>}
                   {!collapsed && count > 0 && (
                     <div className="text-[0.63rem] font-black px-2 py-0.5 rounded-full" style={{
-                      background: item.badgeWarn
-                        ? "rgba(180,90,34,0.15)"
-                        : (isActive ? "rgba(90,170,48,0.20)" : "rgba(180,140,60,0.14)"),
-                      color: item.badgeWarn
-                        ? "#B45A22"
-                        : (isActive ? "#1c4f09" : "#6a7a50"),
+                      background: item.badgeWarn ? "rgba(180,90,34,0.15)" : (isActive ? "rgba(90,170,48,0.20)" : "rgba(180,140,60,0.14)"),
+                      color: item.badgeWarn ? "#B45A22" : (isActive ? "#1c4f09" : "#6a7a50"),
                     }}>
                       {count}
                     </div>
@@ -485,10 +498,14 @@ function Topbar({ panel, user, onRefresh, onToggle, collapsed, onNav, onOpenProf
 // ── ADMIN DASHBOARD ────────────────────────────────────────────────────────────
 export default function AdminDashboard() {
   const { user: authUser, logout } = useAuth();
-  const [user, setUser]       = useState(null);
-  const [panel, setPanel]     = useState("overview");
+
+  // Normalize: inject id from JWT since login response has no id field
+  const normalizedAuthUser = normalizeUser(authUser);
+
+  const [user, setUser]           = useState(normalizedAuthUser ?? null);
+  const [panel, setPanel]         = useState("overview");
   const [collapsed, setCollapsed] = useState(false);
-  const [stats, setStats]     = useState({
+  const [stats, setStats]         = useState({
     animals:           0,
     adoptions:         0,
     rehome:            0,
@@ -502,80 +519,76 @@ export default function AdminDashboard() {
     missing_pets:      0,
     activity_today:    0,
     total_records:     0,
+    unread_messages:   0,
   });
-  const [refreshKey, setRefreshKey] = useState(0);
-  const { toasts, show: toast }     = useToast();
+  const [refreshKey, setRefreshKey]     = useState(0);
+  const { toasts, show: toast }         = useToast();
   const [profileModal, setProfileModal] = useState({ open: false, tab: "profile" });
 
-  useEffect(() => { if (authUser) setUser(authUser); }, [authUser]);
+  useEffect(() => {
+    if (authUser) setUser(normalizeUser(authUser));
+  }, [authUser]);
 
-const fetchStats = useCallback(async () => {
-  try {
-    const DJANGO = import.meta.env.VITE_DJANGO_API ?? "http://localhost:8000";
+  const fetchStats = useCallback(async () => {
+    try {
+      const DJANGO = import.meta.env.VITE_DJANGO_API ?? "http://localhost:8000";
+      const token = localStorage.getItem("pawster_token") ||
+                    localStorage.getItem("token") ||
+                    localStorage.getItem("authToken") ||
+                    sessionStorage.getItem("token") || "";
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
-    const token = localStorage.getItem("pawster_token") ||
-                  localStorage.getItem("token") ||
-                  localStorage.getItem("authToken") ||
-                  sessionStorage.getItem("token") || "";
+      const [phpRes, mpRes, adoptionRes, rehomeRes] = await Promise.all([
+        phpApi("stats"),
+        fetch("/api/missing-pets"),
+        fetch(`${DJANGO}/api/approvals/adoptions/admin/`, { headers }),
+        fetch(`${DJANGO}/api/approvals/rehoming/admin/`,  { headers }),
+      ]);
 
-    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const phpData = phpRes.success ? (phpRes.data || {}) : {};
 
-    const [phpRes, mpRes, adoptionRes, rehomeRes] = await Promise.all([
-      phpApi("stats"),
-      fetch("/api/missing-pets"),
-      fetch(`${DJANGO}/api/approvals/adoptions/admin/`, { headers }),
-      fetch(`${DJANGO}/api/approvals/rehoming/admin/`,  { headers }),
-    ]);
-
-    const phpData = phpRes.success ? (phpRes.data || {}) : {};
-
-    // Missing Pets
-    let missingCount = phpData.missing_pets ?? 0;
-    if (mpRes.ok) {
-      const mpData = await mpRes.json();
-      if (Array.isArray(mpData)) {
-        missingCount = filterActive(mpData).length;
+      let missingCount = phpData.missing_pets ?? 0;
+      if (mpRes.ok) {
+        const mpData = await mpRes.json();
+        if (Array.isArray(mpData)) missingCount = filterActive(mpData).length;
       }
-    }
 
-    // Adoptions — pending only
-    let adoptionCount = phpData.pending_adoptions ?? 0;
-    if (adoptionRes.ok) {
-      const adoptionData = await adoptionRes.json();
-      const arr = adoptionData?.data || adoptionData || [];
-      if (Array.isArray(arr)) {
-        adoptionCount = filterActive(arr).filter(r => r.status === "Pending").length;
+      let adoptionCount = phpData.pending_adoptions ?? 0;
+      if (adoptionRes.ok) {
+        const adoptionData = await adoptionRes.json();
+        const arr = adoptionData?.data || adoptionData || [];
+        if (Array.isArray(arr)) adoptionCount = filterActive(arr).filter(r => r.status === "Pending").length;
+      } else {
+        console.warn("adoptions fetch failed:", adoptionRes.status, adoptionRes.url);
       }
-    } else {
-      console.warn("adoptions fetch failed:", adoptionRes.status, adoptionRes.url);
-    }
 
-    // Rehoming — pending only
-    let rehomeCount = phpData.pending_rehome ?? 0;
-    if (rehomeRes.ok) {
-      const rehomeData = await rehomeRes.json();
-      const arr = rehomeData?.data || rehomeData || [];
-      if (Array.isArray(arr)) {
-        rehomeCount = filterActive(arr).filter(r => r.status === "Pending").length;
+      let rehomeCount = phpData.pending_rehome ?? 0;
+      if (rehomeRes.ok) {
+        const rehomeData = await rehomeRes.json();
+        const arr = rehomeData?.data || rehomeData || [];
+        if (Array.isArray(arr)) rehomeCount = filterActive(arr).filter(r => r.status === "Pending").length;
+      } else {
+        console.warn("rehoming fetch failed:", rehomeRes.status, rehomeRes.url);
       }
-    } else {
-      console.warn("rehoming fetch failed:", rehomeRes.status, rehomeRes.url);
+
+      setStats(prev => ({
+        ...prev,
+        ...phpData,
+        missing_pets:      missingCount,
+        pending_adoptions: adoptionCount,
+        pending_rehome:    rehomeCount,
+      }));
+    } catch (err) {
+      console.error("Failed to fetch stats:", err);
     }
-
-    setStats({
-      ...phpData,
-      missing_pets:      missingCount,
-      pending_adoptions: adoptionCount,
-      pending_rehome:    rehomeCount,
-    });
-
-  } catch (err) {
-    console.error("Failed to fetch stats:", err);
-  }
-}, []);
+  }, []);
 
   useEffect(() => { fetchStats(); }, [fetchStats, refreshKey]);
   useEffect(() => { const interval = setInterval(fetchStats, 5_000); return () => clearInterval(interval); }, [fetchStats]);
+
+  const handleUnreadChange = useCallback((count) => {
+    setStats(prev => ({ ...prev, unread_messages: count }));
+  }, []);
 
   if (!user) return null;
 
@@ -597,16 +610,22 @@ const fetchStats = useCallback(async () => {
       <main className="min-h-screen relative z-10 overflow-auto transition-all duration-300" style={{ marginLeft: sidebarWidth, paddingTop: 64, transitionTimingFunction: "cubic-bezier(0.4,0,0.2,1)" }}>
         <div className="p-6">
           {panel === "overview"    && <DashboardPanel   stats={stats} onNav={setPanel} user={user} onStatsChange={fetchStats} />}
-          {panel === "analytics" && <AnalyticsPanel show={panel === "analytics"} />}
+          {panel === "analytics"   && <AnalyticsPanel   show={panel === "analytics"} />}
           {panel === "animals"     && <AnimalsPanel     show onStatsChange={fetchStats} />}
           {panel === "adoptions"   && <RequestsPanel    type="adoptions" show onStatsChange={fetchStats} />}
           {panel === "rehome"      && <RequestsPanel    type="rehome"    show onStatsChange={fetchStats} />}
           {panel === "surveys"     && <SurveysPanel     show onStatsChange={fetchStats} />}
           {panel === "missingpets" && <MissingPetsPanel show onStatsChange={fetchStats} />}
-          {panel === "users"       && <UsersPanel       show onStatsChange={fetchStats} />}
-          {panel === "activity"    && <ActivityPanel    show onStatsChange={fetchStats} />}
-          {panel === "map"         && <GeoMapPanel      show user={user} onStatsChange={fetchStats} />}
-          {panel === "profile"     && <ProfilePanel     user={user} onUserUpdate={updateUser} onStatsChange={fetchStats} />}
+
+          {/* ── Always mounted so WebSocket stays connected ── */}
+          <div style={{ display: panel === "messaging" ? "block" : "none" }}>
+            <AdminMessagingPanel user={normalizedAuthUser} onUnreadChange={handleUnreadChange} />
+          </div>
+
+          {panel === "users"    && <UsersPanel    show onStatsChange={fetchStats} />}
+          {panel === "activity" && <ActivityPanel show onStatsChange={fetchStats} />}
+          {panel === "map"      && <GeoMapPanel   show user={user} onStatsChange={fetchStats} />}
+          {panel === "profile"  && <ProfilePanel  user={user} onUserUpdate={updateUser} onStatsChange={fetchStats} />}
         </div>
       </main>
       {profileModal.open && <ProfileModal user={user} defaultTab={profileModal.tab} onClose={() => setProfileModal({ open: false, tab: "profile" })} onUserUpdate={updateUser} />}

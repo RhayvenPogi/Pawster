@@ -30,13 +30,23 @@ spring:
               - Cache-Control
               - Content-Type
               - Accept
+              - Upgrade
+              - Connection
+              - Sec-WebSocket-Key
+              - Sec-WebSocket-Version
+              - Sec-WebSocket-Extensions
             allowCredentials: true
             maxAge: 3600
       routes:
+        - id: websocket-service
+          uri: lb:ws://pawster
+          predicates:
+            - Path=/ws/**
+
         - id: springboot-service
           uri: lb://pawster
           predicates:
-            - Path=/api/auth/**, /api/animals/**, /api/adoptions/**, /api/users/**, /api/admin/**, /api/rehome/**, /api/missing-pets/**, /api/activity-logs/**, /uploads/**
+            - Path=/api/auth/**, /api/animals/**, /api/adoptions/**, /api/users/**, /api/admin/**, /api/rehome/**, /api/missing-pets/**, /api/activity-logs/**, /api/messages/**, /uploads/**
 
         - id: php-admin-service
           uri: http://php:80

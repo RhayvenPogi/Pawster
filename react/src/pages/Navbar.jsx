@@ -1,6 +1,11 @@
+// pages/Navbar.jsx — updated with messaging icon and unread badge
+// Only the additions are highlighted with ← NEW comments.
+// Replace your existing Navbar.jsx with this file.
+
 import { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
+import { useMessaging } from "../hooks/useMessaging";      // ← NEW
 import logo from "../images/logo.png";
 import NotificationBell from "./NotificationBell";
 
@@ -13,11 +18,23 @@ const NAV_LINKS = [
   { to: "/about",         icon: "fas fa-info-circle",     label: "About" },
 ];
 
+// ── Messaging icon SVG ────────────────────────────────────────────────────────
+function ChatIcon({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12z" />
+    </svg>
+  );
+}
+
 export default function Navbar({ photoUrl: externalPhotoUrl }) {
   const { user, logout } = useAuth();
   const location = useLocation();
   const [dropOpen, setDropOpen] = useState(false);
   const dropRef = useRef(null);
+
+  // ← NEW: unread message count for the badge
+  const { unreadCount } = useMessaging(user);
 
   const photoUrl = externalPhotoUrl ?? user?.photoUrl ?? null;
   const initials = (
@@ -105,6 +122,27 @@ export default function Navbar({ photoUrl: externalPhotoUrl }) {
       {/* RIGHT SIDE */}
       <div className="ml-auto flex items-center gap-2 shrink-0">
         {user && <NotificationBell token={localStorage.getItem("pawster_token")} />}
+
+        {/* ← NEW: Messaging icon with unread badge — only for logged-in non-admin users */}
+        {user && user.role !== "admin" && (
+          <Link
+            to="/messages"
+            className="relative w-9 h-9 flex items-center justify-center rounded-full hover:bg-[rgba(28,79,9,0.08)] transition-all"
+            style={{ color: location.pathname === "/messages" ? "#1c4f09" : "#5a7a50" }}
+            title="Messages"
+          >
+            <ChatIcon size={20} />
+            {unreadCount > 0 && (
+              <span
+                className="absolute top-0.5 right-0.5 min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center text-[9px] font-black text-white"
+                style={{ background: "#B45A22", lineHeight: 1 }}
+              >
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </span>
+            )}
+          </Link>
+        )}
+
         {user ? (
           <div ref={dropRef} className="relative">
             <button
@@ -177,7 +215,6 @@ export default function Navbar({ photoUrl: externalPhotoUrl }) {
                   My Profile
                 </Link>
 
-                {/* Follow-Up Surveys in dropdown too */}
                 <Link
                   to="/follow-up-surveys"
                   className={`flex items-center gap-2 px-3 py-2 text-sm font-bold hover:bg-black/5 rounded-md
@@ -187,6 +224,32 @@ export default function Navbar({ photoUrl: externalPhotoUrl }) {
                   <i className="fas fa-clipboard-list text-xs" />
                   Follow-Up Surveys
                 </Link>
+
+                {/* ← NEW: Messages link in dropdown */}
+                {user.role !== "admin" && (
+                  <Link
+                    to="/messages"
+                    className={`flex items-center gap-2 px-3 py-2 text-sm font-bold hover:bg-black/5 rounded-md
+                      ${location.pathname === "/messages" ? "text-[#1a4a08]" : "text-[#1c4f09]"}
+                    `}
+                  >
+                    <span className="relative">
+                      <ChatIcon size={13} />
+                      {unreadCount > 0 && (
+                        <span
+                          className="absolute -top-1.5 -right-1.5 w-3 h-3 rounded-full"
+                          style={{ background: "#B45A22" }}
+                        />
+                      )}
+                    </span>
+                    Messages
+                    {unreadCount > 0 && (
+                      <span className="ml-auto text-[10px] font-black px-1.5 py-0.5 rounded-full text-white" style={{ background: "#B45A22" }}>
+                        {unreadCount}
+                      </span>
+                    )}
+                  </Link>
+                )}
 
                 <div className="h-px bg-[rgba(180,140,60,0.22)] my-1" />
 

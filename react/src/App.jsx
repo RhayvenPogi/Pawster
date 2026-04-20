@@ -18,6 +18,7 @@ import About            from './pages/About';
 import AdminDashboard   from './pages/AdminDashboard';
 import ProfilePage      from './pages/ProfilePage';
 import FollowUpSurveys  from './pages/FollowUpSurveys';
+import MessagingPage from "./pages/MessagingPage";
 
 function App() {
     return (
@@ -28,7 +29,7 @@ function App() {
                 {/* Landing is public — no GuestRoute or ProtectedRoute */}
                 <Route path="/"             element={<Navigate to="/landing" replace />} />
                 <Route path="/landing"      element={<LandingPage />} />
-
+                <Route path="/messages" element={<ProtectedRoute><MessagingPage /></ProtectedRoute>} />
                 <Route path="/login"        element={<GuestRoute><LoginPage /></GuestRoute>} />
                 <Route path="/register"     element={<GuestRoute><RegisterPage /></GuestRoute>} />
                 <Route path="/forgot-password" element={<GuestRoute><ForgotPasswordPage /></GuestRoute>} />

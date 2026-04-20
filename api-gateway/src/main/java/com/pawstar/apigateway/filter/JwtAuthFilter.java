@@ -33,9 +33,13 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             "/api/auth/forgot-password",
             "/api/auth/verify-otp",
             "/api/auth/reset-password",
-            "/api/animals/from-rehoming", // ← ADD THIS
-            "/api/animals/mark-adopted", // ← ADD THIS (already permitAll in SB but needs gateway too)
-            "/api/animals/mark-pending");
+            "/api/animals/from-rehoming",
+            "/api/animals/mark-adopted",
+            "/api/animals/mark-pending",
+            "/api/missing-pets",
+            "/api/users",
+            "/uploads",
+            "/ws");
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
@@ -47,12 +51,17 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             return chain.filter(exchange);
         }
 
-        // ── 2. Pass public paths through without JWT ──────────────────────────
+        // ── 2. Skip WebSocket / SockJS — auth handled by STOMP interceptor ────
+        if (path.startsWith("/ws")) {
+            return chain.filter(exchange);
+        }
+
+        // ── 3. Pass public paths through without JWT ──────────────────────────
         if (PUBLIC_PATHS.stream().anyMatch(path::contains)) {
             return chain.filter(exchange);
         }
 
-        // ── 3. Extract JWT: cookie first, then Authorization header ───────────
+        // ── 4. Extract JWT: cookie first, then Authorization header ───────────
         String jwt = null;
 
         HttpCookie jwtCookie = request.getCookies().getFirst("jwt");
@@ -70,7 +79,7 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             return exchange.getResponse().setComplete();
         }
 
-        // ── 4. Validate JWT and forward user info downstream ──────────────────
+        // ── 5. Validate JWT and forward user info downstream ──────────────────
         try {
             Claims claims = Jwts.parserBuilder()
                     .setSigningKey(getSigningKey())

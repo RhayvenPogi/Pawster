@@ -58,13 +58,14 @@ public class SecurityConfig {
                                                                 "/error")
                                                 .permitAll()
 
+                                                // ── WebSocket handshake endpoints (SockJS + raw WS) ────────
+                                                // SockJS uses HTTP for /ws/chat/info, /ws/chat/{server}/{session}/...
+                                                .requestMatchers("/ws/**").permitAll()
+
                                                 // ── Animals: anyone can browse ─────────────────────────────
                                                 .requestMatchers(HttpMethod.GET, "/api/animals/**").permitAll()
 
                                                 // ── Animals: specific POST routes that must be permitAll ───
-                                                // IMPORTANT: these MUST come BEFORE the wildcard POST rule
-                                                // below, as Spring Security evaluates top-to-bottom and
-                                                // POST /api/animals/** would otherwise shadow them.
                                                 .requestMatchers(HttpMethod.POST, "/api/animals/from-rehoming").permitAll()
                                                 .requestMatchers(HttpMethod.POST, "/api/animals/mark-adopted").permitAll()
                                                 .requestMatchers(HttpMethod.POST, "/api/animals/mark-pending").permitAll()
@@ -78,7 +79,7 @@ public class SecurityConfig {
                                                 .requestMatchers(HttpMethod.DELETE, "/api/animals/**")
                                                 .hasAnyAuthority("admin", "ADMIN")
 
-                                                // ── Adoption: authenticated users submit, admin manages ────
+                                                // ── Adoption ──────────────────────────────────────────────
                                                 .requestMatchers(HttpMethod.POST, "/api/adoption").authenticated()
                                                 .requestMatchers(HttpMethod.GET, "/api/adoption/my-requests")
                                                 .authenticated()
@@ -88,7 +89,7 @@ public class SecurityConfig {
                                                 .requestMatchers(HttpMethod.PATCH, "/api/adoption/**")
                                                 .hasAnyAuthority("admin", "ADMIN")
 
-                                                // ── Rehome: authenticated users submit, admin manages ──────
+                                                // ── Rehome ────────────────────────────────────────────────
                                                 .requestMatchers(HttpMethod.POST, "/api/rehome").authenticated()
                                                 .requestMatchers(HttpMethod.GET, "/api/rehome/my-requests")
                                                 .authenticated()
@@ -98,7 +99,7 @@ public class SecurityConfig {
                                                 .requestMatchers(HttpMethod.PATCH, "/api/rehome/**")
                                                 .hasAnyAuthority("admin", "ADMIN")
 
-                                                // ── Surveys: authenticated users submit, admin reads all ───
+                                                // ── Surveys ───────────────────────────────────────────────
                                                 .requestMatchers(HttpMethod.POST, "/api/surveys").authenticated()
                                                 .requestMatchers(HttpMethod.GET, "/api/surveys/my-surveys")
                                                 .authenticated()
@@ -109,7 +110,10 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/admin/**").hasAnyAuthority("admin", "ADMIN")
                                                 .requestMatchers("/uploads/**").permitAll()
 
-                                                // ── Missing Pets: anyone can view, report & comment ────────
+                                                // ── Messages REST endpoints ────────────────────────────────
+                                                .requestMatchers("/api/messages/**").authenticated()
+
+                                                // ── Missing Pets ──────────────────────────────────────────
                                                 .requestMatchers(HttpMethod.GET, "/api/missing-pets/**").permitAll()
                                                 .requestMatchers(HttpMethod.POST, "/api/missing-pets").permitAll()
                                                 .requestMatchers(HttpMethod.POST, "/api/missing-pets/*/comments").permitAll()
