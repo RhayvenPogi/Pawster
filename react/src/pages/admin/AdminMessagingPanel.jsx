@@ -14,6 +14,11 @@ const PH_TZ     = "Asia/Manila";
 const MAX_IMAGE_BYTES = 5  * 1024 * 1024;
 const MAX_VIDEO_BYTES = 100 * 1024 * 1024;
 
+function userPhotoSrc(userId, fallback) {
+  if (!userId) return fallback ?? null;
+  return `/api/users/${userId}/photo/public`;
+}
+
 function timeAgo(dt) {
   if (!dt) return "";
   const diff = (Date.now() - new Date(dt).getTime()) / 1000;
@@ -231,7 +236,7 @@ export default function AdminMessagingPanel({ user, onUnreadChange }) {
   const [uploadFileName,     setUploadFileName]      = useState("");
   const [lightboxSrc,        setLightboxSrc]         = useState(null);
   const [toast,              setToast]               = useState(null);
-
+  const [pendingAttachment, setPendingAttachment] = useState(null);
   const bottomRef   = useRef(null);
   const textareaRef = useRef(null);
 
@@ -246,7 +251,7 @@ export default function AdminMessagingPanel({ user, onUnreadChange }) {
     setMessages([]);
     setActiveUserId(uid);
     setActiveUserName(name);
-    setActiveUserPhotoUrl(photoUrl && photoUrl.trim() !== "" ? photoUrl : null);
+    setActiveUserPhotoUrl(userPhotoSrc(uid, photoUrl));
     setInput("");
     await loadHistory(uid);
     await markRead(uid);
@@ -274,11 +279,27 @@ export default function AdminMessagingPanel({ user, onUnreadChange }) {
 
   const handleSend = () => {
     const text = input.trim();
-    if (!text || !activeUserId) return;
-    addOptimistic(text);
-    sendMessage(text, activeUserId);
+    if (!text && !pendingAttachment) return;
+    if (!activeUserId) return;
+
+    addOptimistic(text, pendingAttachment ? {
+      url:      pendingAttachment.url,
+      type:     pendingAttachment.type,
+      fileName: pendingAttachment.fileName,
+      fileSize: pendingAttachment.fileSize,
+    } : null);
+
+    sendMessage(text, activeUserId, pendingAttachment ? {
+      url:  pendingAttachment.url,
+      type: pendingAttachment.type,
+    } : undefined);
+
     setInput("");
-    if (textareaRef.current) { textareaRef.current.style.height = "auto"; textareaRef.current.focus(); }
+    setPendingAttachment(null);
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.focus();
+    }
   };
 
   const handleFilePicked = async (file, kind) => {
@@ -295,8 +316,7 @@ export default function AdminMessagingPanel({ user, onUnreadChange }) {
     setUploadFileName(file.name);
     try {
       const attachment = await uploadFile(file, activeUserId);
-      addOptimistic("", { ...attachment, type: kind });
-      sendMessage("", activeUserId, { url: attachment.url, type: kind });
+      setPendingAttachment({ ...attachment, type: kind, fileName: file.name });
     } catch (err) {
       console.error("[upload] failed", err);
       const status = err?.response?.status;
@@ -382,7 +402,7 @@ export default function AdminMessagingPanel({ user, onUnreadChange }) {
           ) : (
             filtered.map(conv => {
               const isActive = activeUserId === conv.userId;
-              const convPhotoUrl = conv.userPhotoUrl ?? null;
+              const convPhotoUrl = userPhotoSrc(conv.userId, conv.userPhotoUrl);
               return (
                 <button key={conv.userId}
                   onClick={() => openConversation(conv.userId, conv.userName, convPhotoUrl)}
@@ -437,7 +457,7 @@ export default function AdminMessagingPanel({ user, onUnreadChange }) {
                     <DateDivider key={item.key} label={item.label} />
                   ) : (
                     <Bubble key={item.msg.id} msg={item.msg} isFirst={item.isFirst} isLast={item.isLast}
-                      adminPhotoUrl={user?.photoUrl ?? user?.avatarUrl ?? null}
+                      adminPhotoUrl={userPhotoSrc(user?.id, user?.photoUrl ?? user?.avatarUrl ?? null)}
                       userPhotoUrl={activeUserPhotoUrl}
                       onImageClick={src => setLightboxSrc(src)}
                     />
@@ -448,7 +468,17 @@ export default function AdminMessagingPanel({ user, onUnreadChange }) {
             </div>
 
             <div style={{ flexShrink:0, padding:"12px 16px 14px", borderTop:"1px solid rgba(170,135,55,0.22)", background:"rgba(255,252,238,0.92)" }}>
-              {uploading && <UploadingIndicator fileName={uploadFileName} />}
+              {pendingAttachment && (
+  <div style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 10px", marginBottom:6, borderRadius:10, background:"rgba(90,160,50,0.1)", border:"1px solid rgba(90,160,50,0.25)" }}>
+    <span style={{ fontSize:12, fontWeight:700, color:"#3a5820", flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+      📎 {pendingAttachment.fileName}
+    </span>
+    <button onClick={() => setPendingAttachment(null)}
+      style={{ fontSize:11, fontWeight:800, color:"#c2581e", background:"none", border:"none", cursor:"pointer", padding:"0 2px" }}>
+      ✕
+    </button>
+  </div>
+)}
               <div
                 style={{ display:"flex", alignItems:"flex-end", gap:8, borderRadius:14, padding:"8px 8px 8px 10px", background:"rgba(255,253,242,0.95)", border:"1px solid rgba(170,135,55,0.28)", boxShadow:"0 1px 4px rgba(0,0,0,0.04)", transition:"border-color 0.15s" }}
                 onFocusCapture={e=>(e.currentTarget.style.borderColor="rgba(74,143,32,0.5)")}
@@ -467,8 +497,8 @@ export default function AdminMessagingPanel({ user, onUnreadChange }) {
                   placeholder={`Message ${activeUserName}…`}
                   style={{ flex:1, background:"transparent", border:"none", outline:"none", resize:"none", fontSize:13.5, fontWeight:500, lineHeight:1.55, color:"#1a2e0a", minHeight:26, maxHeight:100, fontFamily:"'Nunito', sans-serif", overflowY:"auto" }}
                 />
-                <button onClick={handleSend} disabled={!input.trim() || !connected}
-                  style={{ width:34, height:34, borderRadius:10, border:"none", cursor: input.trim() && connected ? "pointer" : "not-allowed", background: input.trim() && connected ? "#1e5c0a" : "rgba(170,135,55,0.12)", color: input.trim() && connected ? "#d4f0b0" : "#8a9e70", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"background 0.15s, transform 0.1s" }}
+                <button onClick={handleSend} disabled={(!input.trim() && !pendingAttachment) || !connected}
+                  style={{ width:34, height:34, borderRadius:10, border:"none", cursor: (input.trim() || pendingAttachment) && connected ? "pointer" : "not-allowed", background: (input.trim() || pendingAttachment) && connected ? "#1e5c0a" : "rgba(170,135,55,0.12)", color: (input.trim() || pendingAttachment) && connected ? "#d4f0b0" : "#8a9e70", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"background 0.15s, transform 0.1s" }}
                   onMouseDown={e=>{ if(input.trim()&&connected) e.currentTarget.style.transform="scale(0.93)"; }}
                   onMouseUp={e=>(e.currentTarget.style.transform="scale(1)")}
                 >

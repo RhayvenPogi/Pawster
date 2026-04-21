@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
-import Navbar from "./Navbar";
+
 import logo from "../images/logo.png";
 const API_BASE = import.meta.env.VITE_API_BASE   ?? "http://localhost:8000";
 const DJANGO   = import.meta.env.VITE_DJANGO_API ?? "http://localhost:8000";
@@ -1035,7 +1035,7 @@ export default function FindAPet() {
         <div style={{ position:"absolute", inset:0, backgroundImage:"linear-gradient(rgba(100,70,30,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(100,70,30,.03) 1px,transparent 1px)", backgroundSize:"60px 60px" }} />
       </div>
 
-      <Navbar />
+      
 
       <div style={{ position:"relative", zIndex:10, paddingTop:"4rem", paddingBottom:"3rem", textAlign:"center", animation:"fadeUp .6s ease both" }}>
         <div style={{ display:"inline-flex", alignItems:"center", gap:"0.5rem", borderRadius:50, padding:"0.375rem 1rem", fontSize:"0.72rem", fontWeight:900, textTransform:"uppercase", letterSpacing:"0.1em", fontStyle:"italic", marginBottom:"1rem", background:"rgba(28,79,9,0.09)", border:"1px solid rgba(90,170,48,0.32)", color:"#1c4f09" }}>

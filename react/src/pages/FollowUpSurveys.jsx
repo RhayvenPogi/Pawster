@@ -561,7 +561,7 @@ export default function FollowUpReports() {
         <div style={{ position: "absolute", inset: 0, backgroundImage: "linear-gradient(rgba(100,70,30,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(100,70,30,.03) 1px,transparent 1px)", backgroundSize: "60px 60px" }} />
       </div>
 
-      <Navbar />
+    
 
       {/* Hero */}
       <div style={{ position: "relative", zIndex: 10, paddingTop: "4rem", paddingBottom: "2.5rem", textAlign: "center", animation: "fadeUp .6s ease both" }}>

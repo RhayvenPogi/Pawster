@@ -9,7 +9,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import Navbar from './Navbar';
+
 import api from '../config/axios';
 import { downloadAppointmentPDF } from '../utils/downloadAppointmentPDF';
 
@@ -430,7 +430,7 @@ export default function ProfilePage() {
         <div style={{ position: 'absolute', width: 800, height: 800, bottom: '-15%', right: '-15%', borderRadius: '50%', background: 'radial-gradient(circle,#B45A22,transparent 70%)', filter: 'blur(120px)', opacity: 0.35, animation: 'fl2 11s ease-in-out infinite' }} />
       </div>
 
-      <Navbar photoUrl={photoUrl} activeLink="/account" />
+    
 
       <div className="prof-pad" style={{ position: 'relative', zIndex: 10, maxWidth: 880, margin: '0 auto', padding: '3rem 1.5rem 5rem' }}>
 

@@ -217,6 +217,7 @@ export default function MessagingModal({ user, isOpen, onClose, onUnreadChange }
   const [uploadFile_name, setUploadFileName]  = useState("");
   const [lightboxSrc,     setLightboxSrc]     = useState(null);
   const [toast,           setToast]           = useState(null);
+  const [pendingAttachment, setPendingAttachment] = useState(null);
 
   const bottomRef   = useRef(null);
   const textareaRef = useRef(null);
@@ -257,11 +258,27 @@ export default function MessagingModal({ user, isOpen, onClose, onUnreadChange }
 
   const handleSend = () => {
     const text = input.trim();
-    if (!text || !connected) return;
-    addOptimistic(text);
-    sendMessage(text);
+    if (!text && !pendingAttachment) return;
+    if (!connected) return;
+
+    addOptimistic(text, pendingAttachment ? {
+      url:      pendingAttachment.url,
+      type:     pendingAttachment.type,
+      fileName: pendingAttachment.fileName,
+      fileSize: pendingAttachment.fileSize,
+    } : null);
+
+    sendMessage(text, undefined, pendingAttachment ? {
+      url:  pendingAttachment.url,
+      type: pendingAttachment.type,
+    } : undefined);
+
     setInput("");
-    if (textareaRef.current) { textareaRef.current.style.height = "auto"; textareaRef.current.focus(); }
+    setPendingAttachment(null);
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.focus();
+    }
   };
 
   const handleFilePicked = async (file, kind) => {
@@ -278,8 +295,7 @@ export default function MessagingModal({ user, isOpen, onClose, onUnreadChange }
     setUploadFileName(file.name);
     try {
       const attachment = await uploadFile(file);
-      addOptimistic("", { ...attachment, type: kind });
-      sendMessage("", undefined, { url: attachment.url, type: kind });
+      setPendingAttachment({ ...attachment, type: kind, fileName: file.name });
     } catch (err) {
       console.error("[upload] failed", err);
       const status = err?.response?.status;
@@ -322,7 +338,7 @@ export default function MessagingModal({ user, isOpen, onClose, onUnreadChange }
   return (
     <>
       <style>{`
-        @keyframes _modal_slide_up { from{opacity:0;transform:translateY(24px) scale(0.97)} to{opacity:1;transform:translateY(0) scale(1)} }
+        @keyframes _modal_slide_up { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
         ._msg_scroll::-webkit-scrollbar{width:4px}
         ._msg_scroll::-webkit-scrollbar-track{background:transparent}
         ._msg_scroll::-webkit-scrollbar-thumb{background:rgba(180,140,60,0.25);border-radius:4px}
@@ -330,21 +346,19 @@ export default function MessagingModal({ user, isOpen, onClose, onUnreadChange }
 
       {lightboxSrc && <Lightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />}
 
-      {isOpen && (
-        <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 998, background: "transparent", pointerEvents: "all" }} />
-      )}
+     
 
       <div
         style={{
-          position: "fixed", bottom: 24, right: 24, zIndex: 999,
-          width: 360, height: isOpen ? 560 : 0,
+          position: "fixed", bottom: 24, right: 28, zIndex: 999,
+          width: 360, height: 560,
           borderRadius: 20, overflow: "hidden",
-          boxShadow: isOpen ? "0 24px 64px rgba(20,50,10,0.22), 0 4px 16px rgba(20,50,10,0.12), 0 0 0 1px rgba(90,160,50,0.22)" : "none",
+          boxShadow: "0 24px 64px rgba(20,50,10,0.22), 0 4px 16px rgba(20,50,10,0.12), 0 0 0 1px rgba(90,160,50,0.22)",
           background: "#f5f0dc", fontFamily: "'Nunito', sans-serif",
-          display: "flex", flexDirection: "column",
-          animation: isOpen ? "_modal_slide_up 0.22s cubic-bezier(0.34,1.56,0.64,1) both" : "none",
-          pointerEvents: isOpen ? "all" : "none",
-          opacity: isOpen ? 1 : 0,
+          display: isOpen ? "flex" : "none", flexDirection: "column",
+          animation: "none",
+          pointerEvents: "all",
+          opacity: 1,
         }}
         onClick={e => e.stopPropagation()}
       >
@@ -400,7 +414,17 @@ export default function MessagingModal({ user, isOpen, onClose, onUnreadChange }
 
         {/* Input */}
         <div style={{ flexShrink:0, padding:"10px 12px 12px", background:"rgba(255,250,220,0.97)", borderTop:"1.5px solid rgba(180,140,60,0.22)" }}>
-          {uploading && <UploadingIndicator fileName={uploadFile_name} />}
+          {pendingAttachment && (
+  <div style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 10px", marginBottom:6, borderRadius:10, background:"rgba(90,160,50,0.1)", border:"1px solid rgba(90,160,50,0.25)" }}>
+    <span style={{ fontSize:12, fontWeight:700, color:"#3a5820", flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+      📎 {pendingAttachment.fileName}
+    </span>
+    <button onClick={() => setPendingAttachment(null)}
+      style={{ fontSize:11, fontWeight:800, color:"#c2581e", background:"none", border:"none", cursor:"pointer", padding:"0 2px" }}>
+      ✕
+    </button>
+  </div>
+)}
           <div
             style={{ display:"flex", alignItems:"flex-end", gap:6, borderRadius:14, padding:"7px 7px 7px 10px", background:"rgba(255,253,240,0.95)", border:"1.5px solid rgba(180,140,60,0.32)", transition:"border-color 0.15s" }}
             onFocusCapture={e=>(e.currentTarget.style.borderColor="rgba(74,143,32,0.55)")}
@@ -420,8 +444,8 @@ export default function MessagingModal({ user, isOpen, onClose, onUnreadChange }
               placeholder="Type a message…"
               style={{ flex:1, background:"transparent", border:"none", outline:"none", resize:"none", fontSize:13, fontWeight:600, lineHeight:1.5, color:"#1a2e0a", minHeight:24, maxHeight:96, fontFamily:"'Nunito', sans-serif" }}
             />
-            <button onClick={handleSend} disabled={!input.trim() || !connected}
-              style={{ width:32, height:32, borderRadius:10, border:"none", cursor: input.trim() && connected ? "pointer" : "not-allowed", background: input.trim() && connected ? "linear-gradient(135deg,#1c4f09,#2a7010)" : "rgba(180,140,60,0.15)", color: input.trim() && connected ? "#fff" : "#9aaa80", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"background 0.15s, transform 0.1s" }}
+            <button onClick={handleSend} disabled={(!input.trim() && !pendingAttachment) || !connected}
+  style={{ width:32, height:32, borderRadius:10, border:"none", cursor: (input.trim() || pendingAttachment) && connected ? "pointer" : "not-allowed", background: (input.trim() || pendingAttachment) && connected ? "linear-gradient(135deg,#1c4f09,#2a7010)" : "rgba(180,140,60,0.15)", color: (input.trim() || pendingAttachment) && connected ? "#fff" : "#9aaa80", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"background 0.15s, transform 0.1s" }}
               onMouseDown={e=>{ if(input.trim()&&connected) e.currentTarget.style.transform="scale(0.91)"; }}
               onMouseUp={e=>(e.currentTarget.style.transform="scale(1)")}
             >

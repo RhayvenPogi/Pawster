@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
-import Navbar from "./Navbar";
 import logo from "../images/logo.png";
 
 /* ─────────────────────────────────────────────
@@ -599,7 +598,7 @@ export default function HomePage() {
         <div style={{ position: "absolute", inset: 0, backgroundImage: "linear-gradient(rgba(100,70,30,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(100,70,30,.03) 1px,transparent 1px)", backgroundSize: "60px 60px" }} />
       </div>
 
-      <Navbar />
+      
 
       {/* HERO */}
       <section className="relative z-10 flex items-center flex-wrap gap-14 px-10 py-[5rem] max-w-[1440px] mx-auto min-h-[calc(100vh-70px)]">

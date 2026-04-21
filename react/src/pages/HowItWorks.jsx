@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import Navbar from './Navbar';
 import logo from "../images/logo.png";
 
 function useReveal() {
@@ -70,7 +69,7 @@ export default function HowItWorks() {
         <div style={{ position: 'absolute', width: 800, height: 800, top: '10%', right: '-18%', borderRadius: '50%', background: 'radial-gradient(circle,#B45A22,transparent 70%)', filter: 'blur(120px)', opacity: 0.40, animation: 'fl2 11s ease-in-out infinite' }} />
       </div>
 
-      <Navbar />
+      
 
       <div style={{ position: 'relative', zIndex: 10, maxWidth: 1100, margin: '0 auto', padding: '4rem 2.5rem 6rem' }}>
 

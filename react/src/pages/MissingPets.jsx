@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import Navbar from './Navbar';
 import logo from "../images/logo.png";
 
 
@@ -333,7 +332,6 @@ export default function MissingPets() {
         <div style={{ position: 'absolute', width: 800, height: 800, bottom: '-15%', right: '-15%', borderRadius: '50%', background: 'radial-gradient(circle,#588B41,transparent 70%)', filter: 'blur(120px)', opacity: 0.38, animation: 'fl2 11s ease-in-out infinite' }} />
       </div>
 
-      <Navbar />
 
       <div style={{ position: 'relative', zIndex: 10, maxWidth: 1100, margin: '0 auto', padding: '4rem 2.5rem 6rem' }}>
         <Reveal>

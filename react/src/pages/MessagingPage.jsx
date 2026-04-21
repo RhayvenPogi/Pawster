@@ -203,6 +203,7 @@ export default function MessagingPage() {
   const [uploadFileName, setUploadFileName] = useState("");
   const [lightboxSrc,    setLightboxSrc]    = useState(null);
   const [toast,          setToast]          = useState(null);
+  const [pendingAttachment, setPendingAttachment] = useState(null);
 
   const bottomRef   = useRef(null);
   const textareaRef = useRef(null);
@@ -236,11 +237,27 @@ export default function MessagingPage() {
 
   const handleSend = () => {
     const text = input.trim();
-    if (!text || !connected) return;
-    addOptimistic(text);
-    sendMessage(text);
+    if (!text && !pendingAttachment) return;
+    if (!connected) return;
+
+    addOptimistic(text, pendingAttachment ? {
+      url:      pendingAttachment.url,
+      type:     pendingAttachment.type,
+      fileName: pendingAttachment.fileName,
+      fileSize: pendingAttachment.fileSize,
+    } : null);
+
+    sendMessage(text, undefined, pendingAttachment ? {
+      url:  pendingAttachment.url,
+      type: pendingAttachment.type,
+    } : undefined);
+
     setInput("");
-    if (textareaRef.current) { textareaRef.current.style.height = "auto"; textareaRef.current.focus(); }
+    setPendingAttachment(null);
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.focus();
+    }
   };
 
   const handleFilePicked = async (file, kind) => {
@@ -257,8 +274,7 @@ export default function MessagingPage() {
     setUploadFileName(file.name);
     try {
       const attachment = await uploadFile(file);
-      addOptimistic("", { ...attachment, type: kind });
-      sendMessage("", undefined, { url: attachment.url, type: kind });
+      setPendingAttachment({ ...attachment, type: kind, fileName: file.name });
     } catch (err) {
       console.error("[upload] failed", err);
       const status = err?.response?.status;
@@ -350,7 +366,17 @@ export default function MessagingPage() {
 
       <footer className="sticky bottom-0 z-20 px-4 py-3"
         style={{ background:"rgba(255,248,218,0.96)", backdropFilter:"blur(16px)", borderTop:"1.5px solid rgba(180,140,60,0.28)" }}>
-        {uploading && <div className="max-w-[720px] mx-auto mb-2"><UploadingIndicator fileName={uploadFileName} /></div>}
+        {pendingAttachment && (
+  <div className="max-w-[720px] mx-auto mb-2" style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 10px", borderRadius:10, background:"rgba(90,160,50,0.1)", border:"1px solid rgba(90,160,50,0.25)" }}>
+    <span style={{ fontSize:12, fontWeight:700, color:"#3a5820", flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+      📎 {pendingAttachment.fileName}
+    </span>
+    <button onClick={() => setPendingAttachment(null)}
+      style={{ fontSize:11, fontWeight:800, color:"#c2581e", background:"none", border:"none", cursor:"pointer", padding:"0 2px" }}>
+      ✕
+    </button>
+  </div>
+)}
         <div className="flex items-end gap-2 rounded-2xl px-3 py-2 max-w-[720px] mx-auto"
           style={{ background:"rgba(255,252,238,0.85)", border:"1.5px solid rgba(180,140,60,0.35)" }}>
           <AttachmentToolbar
@@ -366,11 +392,10 @@ export default function MessagingPage() {
             className="flex-1 bg-transparent border-none outline-none resize-none text-sm font-semibold leading-relaxed"
             style={{ color:"#1a2e0a", minHeight:28, maxHeight:120, fontFamily:"'Nunito', sans-serif" }}
           />
-          <button onClick={handleSend} disabled={!input.trim() || !connected}
-            className="w-9 h-9 rounded-xl flex items-center justify-center transition-all flex-shrink-0"
-            style={{ background: input.trim() && connected ? "linear-gradient(135deg,#1c4f09,#2a7010)" : "rgba(180,140,60,0.18)", color: input.trim() && connected ? "#fff" : "#9aaa80" }}
-            onMouseDown={e => { if (input.trim() && connected) e.currentTarget.style.transform="scale(0.93)"; }}
-            onMouseUp={e => (e.currentTarget.style.transform="scale(1)")}
+          <button onClick={handleSend} disabled={(!input.trim() && !pendingAttachment) || !connected}
+  className="w-9 h-9 rounded-xl flex items-center justify-center transition-all flex-shrink-0"
+  style={{ background: (input.trim() || pendingAttachment) && connected ? "linear-gradient(135deg,#1c4f09,#2a7010)" : "rgba(180,140,60,0.18)", color: (input.trim() || pendingAttachment) && connected ? "#fff" : "#9aaa80" }}
+  onMouseDown={e => { if ((input.trim() || pendingAttachment) && connected) e.currentTarget.style.transform="scale(0.93)"; }}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
               <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />

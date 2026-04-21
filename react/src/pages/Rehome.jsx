@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
-import Navbar from "./Navbar";
 import logo from "../images/logo.png";
 
 const DJANGO = import.meta.env.VITE_DJANGO_API ?? "http://localhost:8000";
@@ -883,7 +882,7 @@ export default function Rehome() {
         <div style={{ position: "absolute", width: 800, height: 800, bottom: "-15%", right: "-15%", borderRadius: "50%", background: "radial-gradient(circle,#588B41,transparent 70%)", filter: "blur(120px)", opacity: 0.35, animation: "fl2 11s ease-in-out infinite" }} />
       </div>
 
-      <Navbar />
+    
 
       <div className="rehome-grid" style={{ position: "relative", zIndex: 10, maxWidth: 1100, margin: "0 auto", padding: "4rem 2.5rem 6rem", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "3rem", alignItems: "start" }}>
 
