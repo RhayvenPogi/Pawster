@@ -1,6 +1,5 @@
 package com.pawstar.pawster.dto;
 
-import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 
 public class MessageDto {
@@ -14,10 +13,21 @@ public class MessageDto {
          */
         private Integer targetUserId;
 
+        /** Set by server after a file upload — not sent directly by client over WS */
+        private String attachmentUrl;
+        private String attachmentType;
+
         public String getContent() { return content; }
         public void setContent(String content) { this.content = content; }
+
         public Integer getTargetUserId() { return targetUserId; }
         public void setTargetUserId(Integer targetUserId) { this.targetUserId = targetUserId; }
+
+        public String getAttachmentUrl() { return attachmentUrl; }
+        public void setAttachmentUrl(String attachmentUrl) { this.attachmentUrl = attachmentUrl; }
+
+        public String getAttachmentType() { return attachmentType; }
+        public void setAttachmentType(String attachmentType) { this.attachmentType = attachmentType; }
     }
 
     // ── Outbound payload pushed to WebSocket subscribers ─────────────────────
@@ -26,10 +36,12 @@ public class MessageDto {
         private Integer userId;
         private Integer senderId;
         private String senderRole;
-        private String senderName;   // firstName + " " + lastName
+        private String senderName;
         private String content;
         private boolean isRead;
-        private OffsetDateTime createdAt;;
+        private OffsetDateTime createdAt;
+        private String attachmentUrl;
+        private String attachmentType;
 
         public Long getId() { return id; }
         public void setId(Long id) { this.id = id; }
@@ -53,7 +65,13 @@ public class MessageDto {
         public void setRead(boolean read) { isRead = read; }
 
         public OffsetDateTime getCreatedAt() { return createdAt; }
-public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
+        public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
+
+        public String getAttachmentUrl() { return attachmentUrl; }
+        public void setAttachmentUrl(String attachmentUrl) { this.attachmentUrl = attachmentUrl; }
+
+        public String getAttachmentType() { return attachmentType; }
+        public void setAttachmentType(String attachmentType) { this.attachmentType = attachmentType; }
     }
 
     // ── Conversation thread summary (used in admin inbox list) ────────────────
@@ -62,7 +80,7 @@ public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt;
         private String userName;
         private String lastMessage;
         private OffsetDateTime lastMessageAt;
-        private long unreadCount;   // messages FROM user not yet read by admin
+        private long unreadCount;
 
         public Integer getUserId() { return userId; }
         public void setUserId(Integer userId) { this.userId = userId; }

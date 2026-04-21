@@ -22,32 +22,41 @@ public class MessageService {
     @Autowired
     private UserRepository userRepository;
 
-    // ── Send a message ────────────────────────────────────────────────────────
-
-    /**
-     * Persists a message and returns the enriched response DTO.
-     *
-     * @param senderId   ID of the authenticated sender
-     * @param senderRole "user" or "admin"
-     * @param userId     The non-admin user in the conversation
-     * @param content    Message text
-     */
+    // ── Send a message (text only, backward-compatible) ───────────────────────
     public MessageDto.MessageResponse save(Integer senderId,
                                            String senderRole,
                                            Integer userId,
                                            String content) {
+        return save(senderId, senderRole, userId, content, null, null);
+    }
+
+    // ── Send a message (text + optional attachment) ───────────────────────────
+    /**
+     * @param senderId       ID of the authenticated sender
+     * @param senderRole     "user" or "admin"
+     * @param userId         The non-admin user in the conversation
+     * @param content        Message text (may be null if attachment-only)
+     * @param attachmentUrl  Relative URL of the uploaded file (nullable)
+     * @param attachmentType "image" | "video" | "file" (nullable)
+     */
+    public MessageDto.MessageResponse save(Integer senderId,
+                                           String senderRole,
+                                           Integer userId,
+                                           String content,
+                                           String attachmentUrl,
+                                           String attachmentType) {
         Message msg = new Message();
         msg.setSenderId(senderId);
         msg.setSenderRole(senderRole);
         msg.setUserId(userId);
         msg.setContent(content);
+        msg.setAttachmentUrl(attachmentUrl);
+        msg.setAttachmentType(attachmentType);
         Message saved = messageRepository.save(msg);
-
         return toResponse(saved);
     }
 
     // ── History ───────────────────────────────────────────────────────────────
-
     public List<MessageDto.MessageResponse> getConversation(Integer userId) {
         return messageRepository.findByUserIdOrderByCreatedAtAsc(userId)
                 .stream()
@@ -55,8 +64,7 @@ public class MessageService {
                 .toList();
     }
 
-    // ── Unread counts (for badge notifications) ───────────────────────────────
-
+    // ── Unread counts ─────────────────────────────────────────────────────────
     public long countUnreadForUser(Integer userId) {
         return messageRepository.countUnreadForUser(userId);
     }
@@ -66,7 +74,6 @@ public class MessageService {
     }
 
     // ── Mark as read ──────────────────────────────────────────────────────────
-
     public void markReadForUser(Integer userId) {
         messageRepository.markAdminMessagesReadForUser(userId);
     }
@@ -76,7 +83,6 @@ public class MessageService {
     }
 
     // ── Admin conversation list ───────────────────────────────────────────────
-
     public List<MessageDto.ConversationSummary> getConversationSummaries() {
         List<Object[]> rows = messageRepository.findConversationSummariesRaw();
         List<MessageDto.ConversationSummary> result = new ArrayList<>();
@@ -84,11 +90,9 @@ public class MessageService {
         for (Object[] row : rows) {
             MessageDto.ConversationSummary summary = new MessageDto.ConversationSummary();
 
-            // row[0] = user_id (Integer)
             Integer uid = ((Number) row[0]).intValue();
             summary.setUserId(uid);
 
-            // Resolve user name
             Optional<User> userOpt = userRepository.findById(uid);
             if (userOpt.isPresent()) {
                 User u = userOpt.get();
@@ -97,24 +101,19 @@ public class MessageService {
                 summary.setUserName("Unknown User");
             }
 
-            // row[1] = last message content
             summary.setLastMessage(row[1] != null ? row[1].toString() : "");
 
-            // row[2] = last message created_at (Timestamp → LocalDateTime)
             if (row[2] instanceof java.sql.Timestamp ts) {
-    summary.setLastMessageAt(ts.toInstant().atOffset(ZoneOffset.UTC));
-}
+                summary.setLastMessageAt(ts.toInstant().atOffset(ZoneOffset.UTC));
+            }
 
-            // row[3] = unread count (BigInteger from native query)
             summary.setUnreadCount(row[3] != null ? ((Number) row[3]).longValue() : 0L);
-
             result.add(summary);
         }
         return result;
     }
 
     // ── Mapper ────────────────────────────────────────────────────────────────
-
     private MessageDto.MessageResponse toResponse(Message msg) {
         MessageDto.MessageResponse r = new MessageDto.MessageResponse();
         r.setId(msg.getId());
@@ -124,8 +123,9 @@ public class MessageService {
         r.setRead(msg.isRead());
         r.setCreatedAt(msg.getCreatedAt());
         r.setContent(msg.getContent());
+        r.setAttachmentUrl(msg.getAttachmentUrl());
+        r.setAttachmentType(msg.getAttachmentType());
 
-        // Resolve sender name
         userRepository.findById(msg.getSenderId()).ifPresent(u ->
                 r.setSenderName(u.getFirstName() + " " + u.getLastName()));
 

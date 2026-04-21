@@ -4,8 +4,12 @@ server:
 spring:
   application:
     name: api-gateway
+  codec:
+    max-in-memory-size: 110MB          # ← add this
   cloud:
     gateway:
+      httpclient:
+        max-response-size: 110MB       # ← add this
       discovery:
         locator:
           enabled: true

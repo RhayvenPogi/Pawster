@@ -58,8 +58,7 @@ public class SecurityConfig {
                                                                 "/error")
                                                 .permitAll()
 
-                                                // ── WebSocket handshake endpoints (SockJS + raw WS) ────────
-                                                // SockJS uses HTTP for /ws/chat/info, /ws/chat/{server}/{session}/...
+                                                // ── WebSocket handshake endpoints ──────────────────────────
                                                 .requestMatchers("/ws/**").permitAll()
 
                                                 // ── Animals: anyone can browse ─────────────────────────────
@@ -108,9 +107,11 @@ public class SecurityConfig {
 
                                                 // ── Admin-only routes ──────────────────────────────────────
                                                 .requestMatchers("/api/admin/**").hasAnyAuthority("admin", "ADMIN")
+
+                                                // ── Static uploads (public) ────────────────────────────────
                                                 .requestMatchers("/uploads/**").permitAll()
 
-                                                // ── Messages REST endpoints ────────────────────────────────
+                                                // ── Messages REST endpoints (all authenticated) ────────────
                                                 .requestMatchers("/api/messages/**").authenticated()
 
                                                 // ── Missing Pets ──────────────────────────────────────────

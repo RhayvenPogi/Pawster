@@ -1,20 +1,19 @@
 // components/MessagingModal.jsx
-// Floating chat widget — drop this anywhere above your routes (e.g. in App.jsx)
-// and it will render as a fixed bottom-right panel.
-//
-// Props:
-//   user        — from useAuth()
-//   isOpen      — boolean, controlled by parent (Navbar)
-//   onClose     — () => void
-//   onUnreadChange — optional (count) => void
-
 import { useState, useEffect, useRef } from "react";
 import { useMessaging } from "../hooks/useMessaging";
+import {
+  AttachmentToolbar,
+  AttachmentPreview,
+  UploadingIndicator,
+  Lightbox,
+} from "./MessageShared";
 
 const PH_LOCALE = "en-PH";
 const PH_TZ     = "Asia/Manila";
 
-/* ─── helpers ─────────────────────────────────────────────────────────────── */
+const MAX_IMAGE_BYTES = 5  * 1024 * 1024;
+const MAX_VIDEO_BYTES = 100 * 1024 * 1024;
+
 function formatTime(dt) {
   if (!dt) return "";
   const d   = new Date(dt);
@@ -55,14 +54,13 @@ function bubbleRadius(isMine, isFirst, isLast) {
     : `${isFirst ? "4px" : "16px"} 16px 16px ${isLast ? "4px" : "16px"}`;
 }
 
-/* ─── tiny sub-components ──────────────────────────────────────────────────── */
 function AvatarCircle({ name, photoUrl, size = 28, bg, color }) {
   const [imgFailed, setImgFailed] = useState(false);
   const initials = name
     ? name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()
     : "?";
   useEffect(() => { setImgFailed(false); }, [photoUrl]);
-
+  const safePhotoUrl = photoUrl && photoUrl.trim() !== "" ? photoUrl : null;
   return (
     <div style={{
       width: size, height: size, borderRadius: "50%",
@@ -74,8 +72,8 @@ function AvatarCircle({ name, photoUrl, size = 28, bg, color }) {
       <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", userSelect: "none" }}>
         {initials}
       </span>
-      {photoUrl && !imgFailed && (
-        <img src={photoUrl} alt={initials}
+      {safePhotoUrl && !imgFailed && (
+        <img src={safePhotoUrl} alt={initials}
           style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", zIndex: 1 }}
           onError={() => setImgFailed(true)}
         />
@@ -119,7 +117,7 @@ function DateDivider({ label }) {
   );
 }
 
-function Bubble({ msg, userId, user, isFirst, isLast }) {
+function Bubble({ msg, userId, user, isFirst, isLast, onImageClick }) {
   const isMine =
     (msg.senderId != null && String(msg.senderId) === String(userId)) ||
     (msg.senderId == null && msg.senderRole !== "admin");
@@ -130,11 +128,13 @@ function Bubble({ msg, userId, user, isFirst, isLast }) {
   const avatarPhoto = isMine ? (user?.photoUrl ?? user?.avatarUrl ?? null) : null;
   const avatarBg    = "linear-gradient(135deg,#1c4f09,#3a8a18)";
 
+  const hasAttachment = !!msg.attachmentUrl;
+  const isImageOnly   = hasAttachment && msg.attachmentType === "image" && !msg.content;
+
   return (
     <div style={{
       display: "flex", flexDirection: isMine ? "row-reverse" : "row",
-      alignItems: "flex-end", gap: 6,
-      marginBottom: isLast ? 8 : 2,
+      alignItems: "flex-end", gap: 6, marginBottom: isLast ? 8 : 2,
     }}>
       {isLast
         ? <AvatarCircle name={avatarName} photoUrl={avatarPhoto} size={24} bg={avatarBg} color="#fff" />
@@ -142,24 +142,36 @@ function Bubble({ msg, userId, user, isFirst, isLast }) {
       }
 
       <div style={{ maxWidth: "74%", display: "flex", flexDirection: "column", gap: 2, alignItems: isMine ? "flex-end" : "flex-start" }}>
-        <div style={{
-          padding: "8px 12px",
-          borderRadius: bubbleRadius(isMine, isFirst, isLast),
-          fontSize: 13, fontWeight: 600, lineHeight: 1.5,
-          background: isMine
-            ? "linear-gradient(135deg,rgba(28,79,9,0.92),rgba(58,138,24,0.88))"
-            : "rgba(255,250,232,0.97)",
-          color: isMine ? "#fff" : "#1a2e0a",
-          border: isMine ? "none" : "1.5px solid rgba(180,140,60,0.28)",
-          wordBreak: "break-word",
-          opacity: msg.pending ? 0.55 : 1,
-          transition: "opacity 0.25s",
-          boxShadow: isMine
-            ? "inset 0 1px 0 rgba(255,255,255,0.08)"
-            : "inset 0 1px 0 rgba(255,255,255,0.7), 0 1px 3px rgba(0,0,0,0.04)",
-        }}>
-          {msg.content}
-        </div>
+        {isImageOnly ? (
+          <div onClick={() => onImageClick?.(msg.attachmentUrl)} style={{ cursor: "pointer" }}>
+            <AttachmentPreview msg={msg} isMine={isMine} />
+          </div>
+        ) : (
+          <div style={{
+            padding: hasAttachment ? "8px 10px" : "8px 12px",
+            borderRadius: bubbleRadius(isMine, isFirst, isLast),
+            fontSize: 13, fontWeight: 600, lineHeight: 1.5,
+            background: isMine
+              ? "linear-gradient(135deg,rgba(28,79,9,0.92),rgba(58,138,24,0.88))"
+              : "rgba(255,250,232,0.97)",
+            color: isMine ? "#fff" : "#1a2e0a",
+            border: isMine ? "none" : "1.5px solid rgba(180,140,60,0.28)",
+            wordBreak: "break-word",
+            opacity: msg.pending ? 0.55 : 1,
+            transition: "opacity 0.25s",
+            boxShadow: isMine
+              ? "inset 0 1px 0 rgba(255,255,255,0.08)"
+              : "inset 0 1px 0 rgba(255,255,255,0.7), 0 1px 3px rgba(0,0,0,0.04)",
+          }}>
+            {hasAttachment && (
+              <div onClick={msg.attachmentType === "image" ? () => onImageClick?.(msg.attachmentUrl) : undefined}
+                style={{ cursor: msg.attachmentType === "image" ? "pointer" : "default" }}>
+                <AttachmentPreview msg={msg} isMine={isMine} />
+              </div>
+            )}
+            {msg.content && <span>{msg.content}</span>}
+          </div>
+        )}
 
         {isLast && (
           <div style={{ display: "flex", alignItems: "center", gap: 4, paddingInline: 2, justifyContent: isMine ? "flex-end" : "flex-start" }}>
@@ -181,64 +193,116 @@ function Bubble({ msg, userId, user, isFirst, isLast }) {
   );
 }
 
-/* ─── main component ───────────────────────────────────────────────────────── */
+function Toast({ message, onDone }) {
+  useEffect(() => {
+    const t = setTimeout(onDone, 3500);
+    return () => clearTimeout(t);
+  }, [onDone]);
+  return (
+    <div style={{
+      position: "absolute", bottom: 80, left: "50%", transform: "translateX(-50%)",
+      background: "rgba(180,44,22,0.94)", color: "#fff", borderRadius: 10,
+      padding: "8px 16px", fontSize: 11.5, fontWeight: 700, zIndex: 9999,
+      boxShadow: "0 4px 16px rgba(0,0,0,0.22)", pointerEvents: "none",
+      whiteSpace: "nowrap", fontFamily: "'Nunito', sans-serif",
+    }}>
+      {message}
+    </div>
+  );
+}
+
 export default function MessagingModal({ user, isOpen, onClose, onUnreadChange }) {
-  const [input, setInput] = useState("");
+  const [input,           setInput]           = useState("");
+  const [uploading,       setUploading]       = useState(false);
+  const [uploadFile_name, setUploadFileName]  = useState("");
+  const [lightboxSrc,     setLightboxSrc]     = useState(null);
+  const [toast,           setToast]           = useState(null);
+
   const bottomRef   = useRef(null);
   const textareaRef = useRef(null);
 
-  const { messages, setMessages, connected, unreadCount, loadHistory, sendMessage, markRead } =
+  const { messages, setMessages, connected, unreadCount, loadHistory, sendMessage, uploadFile, markRead } =
     useMessaging(user);
 
-  // report unread count upward (for Navbar badge)
-  useEffect(() => {
-    onUnreadChange?.(unreadCount);
-  }, [unreadCount, onUnreadChange]);
+  useEffect(() => { onUnreadChange?.(unreadCount); }, [unreadCount, onUnreadChange]);
 
-  // load history + mark read when modal opens
   useEffect(() => {
-    if (isOpen && user?.id) {
-      loadHistory();
-      markRead();
-    }
+    if (isOpen && user?.id) { loadHistory(); markRead(); }
   }, [isOpen, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // scroll to bottom on new messages
   useEffect(() => {
     if (isOpen) bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isOpen]);
 
-  // close on Escape
   useEffect(() => {
-    const handler = (e) => { if (e.key === "Escape") onClose(); };
+    const handler = (e) => { if (e.key === "Escape" && !lightboxSrc) onClose(); };
     if (isOpen) document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, lightboxSrc]);
+
+  const addOptimistic = (text, attachment = null) => {
+    const tempId = `pending-${Date.now()}`;
+    setMessages(prev => [...prev, {
+      id: tempId, content: text || "", senderId: user.id,
+      senderRole: "user", createdAt: new Date().toISOString(), pending: true, read: false,
+      attachmentUrl:      attachment?.url      ?? null,
+      attachmentType:     attachment?.type     ?? null,
+      attachmentFileName: attachment?.fileName ?? null,
+      attachmentFileSize: attachment?.fileSize ?? null,
+    }]);
+    setTimeout(() => {
+      setMessages(prev => prev.map(m => m.id === tempId ? { ...m, pending: false } : m));
+    }, 3000);
+  };
 
   const handleSend = () => {
     const text = input.trim();
     if (!text || !connected) return;
-    const tempId = `pending-${Date.now()}`;
-    setMessages(prev => [...prev, {
-      id: tempId, content: text, senderId: user.id,
-      senderRole: "user", createdAt: new Date().toISOString(), pending: true, read: false,
-    }]);
+    addOptimistic(text);
     sendMessage(text);
     setInput("");
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto";
-      textareaRef.current.focus();
+    if (textareaRef.current) { textareaRef.current.style.height = "auto"; textareaRef.current.focus(); }
+  };
+
+  const handleFilePicked = async (file, kind) => {
+    if (!connected) return;
+
+    const limit = kind === "video" ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
+    if (file.size > limit) {
+      const limitMB = (limit / 1048576).toFixed(0);
+      setToast(`File too large — max ${limitMB} MB (yours: ${(file.size / 1048576).toFixed(1)} MB)`);
+      return;
     }
-    setTimeout(() => {
-      setMessages(prev => prev.map(m => m.id === tempId ? { ...m, pending: false } : m));
-    }, 3000);
+
+    setUploading(true);
+    setUploadFileName(file.name);
+    try {
+      const attachment = await uploadFile(file);
+      addOptimistic("", { ...attachment, type: kind });
+      sendMessage("", undefined, { url: attachment.url, type: kind });
+    } catch (err) {
+      console.error("[upload] failed", err);
+      const status = err?.response?.status;
+      if (status === 413) {
+        setToast("File too large — the server rejected it. Try a smaller file.");
+      } else {
+        setToast("Upload failed. Please try again.");
+      }
+    } finally {
+      setUploading(false);
+      setUploadFileName("");
+    }
+  };
+
+  const handleEmojiSelect = (emoji) => {
+    setInput(prev => prev + emoji);
+    textareaRef.current?.focus();
   };
 
   const handleKey = (e) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
 
-  // build enriched list with date dividers
   const enriched = [];
   messages.forEach((msg, i) => {
     const prev = messages[i - 1];
@@ -257,104 +321,51 @@ export default function MessagingModal({ user, isOpen, onClose, onUnreadChange }
 
   return (
     <>
-      {/* keyframe animations injected once */}
       <style>{`
-        @keyframes _modal_slide_up {
-          from { opacity: 0; transform: translateY(24px) scale(0.97); }
-          to   { opacity: 1; transform: translateY(0)    scale(1);    }
-        }
-        @keyframes _modal_slide_down {
-          from { opacity: 1; transform: translateY(0)    scale(1);    }
-          to   { opacity: 0; transform: translateY(24px) scale(0.97); }
-        }
-        ._msg_scroll::-webkit-scrollbar { width: 4px; }
-        ._msg_scroll::-webkit-scrollbar-track { background: transparent; }
-        ._msg_scroll::-webkit-scrollbar-thumb { background: rgba(180,140,60,0.25); border-radius: 4px; }
+        @keyframes _modal_slide_up { from{opacity:0;transform:translateY(24px) scale(0.97)} to{opacity:1;transform:translateY(0) scale(1)} }
+        ._msg_scroll::-webkit-scrollbar{width:4px}
+        ._msg_scroll::-webkit-scrollbar-track{background:transparent}
+        ._msg_scroll::-webkit-scrollbar-thumb{background:rgba(180,140,60,0.25);border-radius:4px}
       `}</style>
 
-      {/* Backdrop — subtle, doesn't block the whole page */}
+      {lightboxSrc && <Lightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />}
+
       {isOpen && (
-        <div
-          onClick={onClose}
-          style={{
-            position: "fixed", inset: 0, zIndex: 998,
-            background: "transparent",
-            pointerEvents: "all",
-          }}
-        />
+        <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 998, background: "transparent", pointerEvents: "all" }} />
       )}
 
-      {/* Floating panel */}
       <div
         style={{
-          position: "fixed",
-          bottom: 24,
-          right: 24,
-          zIndex: 999,
-          width: 360,
-          maxHeight: isOpen ? 560 : 0,
-          height: isOpen ? 560 : 0,
-          borderRadius: 20,
-          overflow: "hidden",
-          boxShadow: isOpen
-            ? "0 24px 64px rgba(20,50,10,0.22), 0 4px 16px rgba(20,50,10,0.12), 0 0 0 1px rgba(90,160,50,0.22)"
-            : "none",
-          background: "#f5f0dc",
-          fontFamily: "'Nunito', sans-serif",
-          display: "flex",
-          flexDirection: "column",
+          position: "fixed", bottom: 24, right: 24, zIndex: 999,
+          width: 360, height: isOpen ? 560 : 0,
+          borderRadius: 20, overflow: "hidden",
+          boxShadow: isOpen ? "0 24px 64px rgba(20,50,10,0.22), 0 4px 16px rgba(20,50,10,0.12), 0 0 0 1px rgba(90,160,50,0.22)" : "none",
+          background: "#f5f0dc", fontFamily: "'Nunito', sans-serif",
+          display: "flex", flexDirection: "column",
           animation: isOpen ? "_modal_slide_up 0.22s cubic-bezier(0.34,1.56,0.64,1) both" : "none",
           pointerEvents: isOpen ? "all" : "none",
           opacity: isOpen ? 1 : 0,
-          transition: "box-shadow 0.2s",
         }}
-        // prevent backdrop click from firing when clicking inside panel
         onClick={e => e.stopPropagation()}
       >
-        {/* ── Header ── */}
-        <div style={{
-          display: "flex", alignItems: "center", gap: 10,
-          padding: "12px 14px 11px",
-          background: "rgba(255,250,220,0.97)",
-          borderBottom: "1.5px solid rgba(90,170,48,0.28)",
-          flexShrink: 0,
-        }}>
-          <AvatarCircle
-            name="Pawster Support"
-            photoUrl={null}
-            size={36}
-            bg="linear-gradient(135deg,#1c4f09,#3a8a18)"
-            color="#fff"
-          />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontWeight: 900, fontSize: 13.5, color: "#1a4a08", letterSpacing: "-0.01em" }}>
-              Pawster Support
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 1 }}>
-              <span style={{
-                width: 7, height: 7, borderRadius: "50%", display: "inline-block",
-                background: connected ? "#4ccc20" : "#ccc",
-                boxShadow: connected ? "0 0 0 2px rgba(76,204,32,0.2)" : "none",
-              }} />
-              <span style={{ fontSize: 10.5, fontWeight: 700, color: connected ? "#3a8a18" : "#9aaa80" }}>
+        {toast && <Toast message={toast} onDone={() => setToast(null)} />}
+
+        {/* Header */}
+        <div style={{ display:"flex", alignItems:"center", gap:10, padding:"12px 14px 11px", background:"rgba(255,250,220,0.97)", borderBottom:"1.5px solid rgba(90,170,48,0.28)", flexShrink:0 }}>
+          <AvatarCircle name="Pawster Support" photoUrl={null} size={36} bg="linear-gradient(135deg,#1c4f09,#3a8a18)" color="#fff" />
+          <div style={{ flex:1, minWidth:0 }}>
+            <div style={{ fontWeight:900, fontSize:13.5, color:"#1a4a08" }}>Pawster Support</div>
+            <div style={{ display:"flex", alignItems:"center", gap:5, marginTop:1 }}>
+              <span style={{ width:7, height:7, borderRadius:"50%", display:"inline-block", background: connected ? "#4ccc20" : "#ccc" }} />
+              <span style={{ fontSize:10.5, fontWeight:700, color: connected ? "#3a8a18" : "#9aaa80" }}>
                 {connected ? "Online" : "Connecting…"}
               </span>
             </div>
           </div>
-
-          {/* close button */}
-          <button
-            onClick={onClose}
-            style={{
-              width: 28, height: 28, borderRadius: "50%", border: "none",
-              background: "rgba(28,79,9,0.07)", cursor: "pointer",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              color: "#3a5820", transition: "background 0.15s",
-              flexShrink: 0,
-            }}
-            onMouseEnter={e => (e.currentTarget.style.background = "rgba(28,79,9,0.14)")}
-            onMouseLeave={e => (e.currentTarget.style.background = "rgba(28,79,9,0.07)")}
-            title="Close"
+          <button onClick={onClose}
+            style={{ width:28, height:28, borderRadius:"50%", border:"none", background:"rgba(28,79,9,0.07)", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"#3a5820" }}
+            onMouseEnter={e=>(e.currentTarget.style.background="rgba(28,79,9,0.14)")}
+            onMouseLeave={e=>(e.currentTarget.style.background="rgba(28,79,9,0.07)")}
           >
             <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
               <path d="M1 1l10 10M11 1L1 11" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
@@ -362,105 +373,64 @@ export default function MessagingModal({ user, isOpen, onClose, onUnreadChange }
           </button>
         </div>
 
-        {/* ── Messages ── */}
-        <div
-          className="_msg_scroll"
-          style={{
-            flex: 1, overflowY: "auto",
-            padding: "12px 14px 6px",
-            display: "flex", flexDirection: "column",
-          }}
-        >
+        {/* Messages */}
+        <div className="_msg_scroll" style={{ flex:1, overflowY:"auto", padding:"12px 14px 6px", display:"flex", flexDirection:"column" }}>
           {enriched.length === 0 ? (
-            <div style={{
-              display: "flex", flexDirection: "column",
-              alignItems: "center", justifyContent: "center",
-              flex: 1, gap: 8, textAlign: "center", padding: "0 20px",
-            }}>
-              {/* paw icon */}
+            <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", flex:1, gap:8, textAlign:"center", padding:"0 20px" }}>
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="rgba(58,138,24,0.35)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
               </svg>
-              <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: "#6a8a50" }}>No messages yet</p>
-              <p style={{ margin: 0, fontSize: 11.5, fontWeight: 600, color: "#9aaa80", lineHeight: 1.5 }}>
-                Send us a message — we're here to help with adoptions, rehoming, and more.
+              <p style={{ margin:0, fontSize:13, fontWeight:800, color:"#6a8a50" }}>No messages yet</p>
+              <p style={{ margin:0, fontSize:11.5, fontWeight:600, color:"#9aaa80", lineHeight:1.5 }}>
+                Send us a message — we're here to help!
               </p>
             </div>
           ) : (
             enriched.map(item =>
               item.type === "divider"
                 ? <DateDivider key={item.key} label={item.label} />
-                : <Bubble
-                    key={item.msg.id}
-                    msg={item.msg}
-                    userId={user.id}
-                    user={user}
-                    isFirst={item.isFirst}
-                    isLast={item.isLast}
+                : <Bubble key={item.msg.id} msg={item.msg} userId={user.id} user={user}
+                    isFirst={item.isFirst} isLast={item.isLast}
+                    onImageClick={src => setLightboxSrc(src)}
                   />
             )
           )}
           <div ref={bottomRef} />
         </div>
 
-        {/* ── Input ── */}
-        <div style={{
-          flexShrink: 0,
-          padding: "10px 12px 12px",
-          background: "rgba(255,250,220,0.97)",
-          borderTop: "1.5px solid rgba(180,140,60,0.22)",
-        }}>
+        {/* Input */}
+        <div style={{ flexShrink:0, padding:"10px 12px 12px", background:"rgba(255,250,220,0.97)", borderTop:"1.5px solid rgba(180,140,60,0.22)" }}>
+          {uploading && <UploadingIndicator fileName={uploadFile_name} />}
           <div
-            style={{
-              display: "flex", alignItems: "flex-end", gap: 8,
-              borderRadius: 14, padding: "7px 7px 7px 13px",
-              background: "rgba(255,253,240,0.95)",
-              border: "1.5px solid rgba(180,140,60,0.32)",
-              transition: "border-color 0.15s",
-            }}
-            onFocusCapture={e => (e.currentTarget.style.borderColor = "rgba(74,143,32,0.55)")}
-            onBlurCapture={e => (e.currentTarget.style.borderColor = "rgba(180,140,60,0.32)")}
+            style={{ display:"flex", alignItems:"flex-end", gap:6, borderRadius:14, padding:"7px 7px 7px 10px", background:"rgba(255,253,240,0.95)", border:"1.5px solid rgba(180,140,60,0.32)", transition:"border-color 0.15s" }}
+            onFocusCapture={e=>(e.currentTarget.style.borderColor="rgba(74,143,32,0.55)")}
+            onBlurCapture={e=>(e.currentTarget.style.borderColor="rgba(180,140,60,0.32)")}
           >
+            <AttachmentToolbar
+              onEmojiSelect={handleEmojiSelect}
+              onFilePicked={handleFilePicked}
+              disabled={!connected || uploading}
+              size={28}
+              emojiPickerPlacement="above-left"
+            />
             <textarea
-              ref={textareaRef}
-              rows={1}
-              value={input}
-              onChange={e => {
-                setInput(e.target.value);
-                e.target.style.height = "auto";
-                e.target.style.height = Math.min(e.target.scrollHeight, 96) + "px";
-              }}
+              ref={textareaRef} rows={1} value={input}
+              onChange={e => { setInput(e.target.value); e.target.style.height="auto"; e.target.style.height=Math.min(e.target.scrollHeight,96)+"px"; }}
               onKeyDown={handleKey}
               placeholder="Type a message…"
-              style={{
-                flex: 1, background: "transparent", border: "none", outline: "none",
-                resize: "none", fontSize: 13, fontWeight: 600, lineHeight: 1.5,
-                color: "#1a2e0a", minHeight: 24, maxHeight: 96,
-                fontFamily: "'Nunito', sans-serif",
-              }}
+              style={{ flex:1, background:"transparent", border:"none", outline:"none", resize:"none", fontSize:13, fontWeight:600, lineHeight:1.5, color:"#1a2e0a", minHeight:24, maxHeight:96, fontFamily:"'Nunito', sans-serif" }}
             />
-            <button
-              onClick={handleSend}
-              disabled={!input.trim() || !connected}
-              style={{
-                width: 32, height: 32, borderRadius: 10, border: "none",
-                cursor: input.trim() && connected ? "pointer" : "not-allowed",
-                background: input.trim() && connected
-                  ? "linear-gradient(135deg,#1c4f09,#2a7010)"
-                  : "rgba(180,140,60,0.15)",
-                color: input.trim() && connected ? "#fff" : "#9aaa80",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                flexShrink: 0, transition: "background 0.15s, transform 0.1s",
-              }}
-              onMouseDown={e => { if (input.trim() && connected) e.currentTarget.style.transform = "scale(0.91)"; }}
-              onMouseUp={e => (e.currentTarget.style.transform = "scale(1)")}
+            <button onClick={handleSend} disabled={!input.trim() || !connected}
+              style={{ width:32, height:32, borderRadius:10, border:"none", cursor: input.trim() && connected ? "pointer" : "not-allowed", background: input.trim() && connected ? "linear-gradient(135deg,#1c4f09,#2a7010)" : "rgba(180,140,60,0.15)", color: input.trim() && connected ? "#fff" : "#9aaa80", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"background 0.15s, transform 0.1s" }}
+              onMouseDown={e=>{ if(input.trim()&&connected) e.currentTarget.style.transform="scale(0.91)"; }}
+              onMouseUp={e=>(e.currentTarget.style.transform="scale(1)")}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
               </svg>
             </button>
           </div>
-          <p style={{ margin: "5px 0 0 3px", fontSize: 9.5, fontWeight: 600, color: "#b0a07a", userSelect: "none" }}>
+          <p style={{ margin:"5px 0 0 3px", fontSize:9.5, fontWeight:600, color:"#b0a07a", userSelect:"none" }}>
             Enter to send · Shift+Enter for new line
           </p>
         </div>

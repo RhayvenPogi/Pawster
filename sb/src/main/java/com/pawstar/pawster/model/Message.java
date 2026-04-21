@@ -1,7 +1,6 @@
 package com.pawstar.pawster.model;
 
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 
@@ -28,14 +27,22 @@ public class Message {
     @Column(name = "sender_role", nullable = false, length = 20)
     private String senderRole;
 
-    @Column(name = "content", nullable = false, columnDefinition = "TEXT")
+    @Column(name = "content", columnDefinition = "TEXT")
     private String content;
 
     @Column(name = "is_read", nullable = false)
     private boolean isRead = false;
 
-   @Column(name = "created_at", nullable = false)
-private OffsetDateTime createdAt = OffsetDateTime.now(ZoneOffset.UTC);
+    @Column(name = "created_at", nullable = false)
+    private OffsetDateTime createdAt = OffsetDateTime.now(ZoneOffset.UTC);
+
+    /** Relative URL of the uploaded file, e.g. /uploads/messages/uuid_filename.jpg */
+    @Column(name = "attachment_url")
+    private String attachmentUrl;
+
+    /** One of: "image", "video", "file" */
+    @Column(name = "attachment_type", length = 20)
+    private String attachmentType;
 
     public Message() {}
 
@@ -59,5 +66,11 @@ private OffsetDateTime createdAt = OffsetDateTime.now(ZoneOffset.UTC);
     public void setRead(boolean read) { isRead = read; }
 
     public OffsetDateTime getCreatedAt() { return createdAt; }
-public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
+    public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
+
+    public String getAttachmentUrl() { return attachmentUrl; }
+    public void setAttachmentUrl(String attachmentUrl) { this.attachmentUrl = attachmentUrl; }
+
+    public String getAttachmentType() { return attachmentType; }
+    public void setAttachmentType(String attachmentType) { this.attachmentType = attachmentType; }
 }

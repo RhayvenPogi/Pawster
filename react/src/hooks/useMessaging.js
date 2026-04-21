@@ -5,7 +5,6 @@ import api from "../config/axios";
 
 const WS_URL = "/ws/chat";
 
-// Case-insensitive admin check — handles "admin", "ADMIN", "Admin", etc.
 const checkIsAdmin = (user) => user?.role?.toLowerCase() === "admin";
 
 export function useMessaging(user, targetUserId = null) {
@@ -22,7 +21,6 @@ export function useMessaging(user, targetUserId = null) {
 
   const isAdmin = checkIsAdmin(user);
 
-  // Sync refs inline on every render — no useEffect lag
   targetRef.current  = targetUserId;
   userRef.current    = user;
   isAdminRef.current = isAdmin;
@@ -69,25 +67,66 @@ export function useMessaging(user, targetUserId = null) {
     }
   }, []);
 
-  const sendMessage = useCallback((content, targetUserIdOverride) => {
-    if (!stompRef.current?.connected || !content.trim()) {
-      console.warn("[STOMP] not connected or empty content");
+  // ── Upload file and return { url, type, fileName, fileSize } ─────────────
+  const uploadFile = useCallback(async (file, targetUserIdOverride) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    if (isAdminRef.current) {
+      const tid = targetUserIdOverride ?? targetRef.current;
+      if (tid) formData.append("targetUserId", tid);
+    }
+    const { data } = await api.post("/api/messages/upload", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return data; // { url, type, fileName, fileSize }
+  }, []);
+
+  // ── Send message (text + optional attachment) ─────────────────────────────
+  const sendMessage = useCallback((content, targetUserIdOverride, attachment = null) => {
+    if (!stompRef.current?.connected) {
+      console.warn("[STOMP] not connected");
       return;
     }
+    // Must have either content or an attachment
+    if (!content?.trim() && !attachment) return;
+
+    const payload = {
+      content:        content ?? "",
+      attachmentUrl:  attachment?.url  ?? null,
+      attachmentType: attachment?.type ?? null,
+    };
+
     if (isAdminRef.current) {
       const tid = targetUserIdOverride ?? targetRef.current;
       if (!tid) return;
       stompRef.current.publish({
         destination: "/app/chat.admin.send",
-        body: JSON.stringify({ content, targetUserId: tid }),
+        body: JSON.stringify({ ...payload, targetUserId: tid }),
       });
     } else {
       stompRef.current.publish({
         destination: "/app/chat.send",
-        body: JSON.stringify({ content }),
+        body: JSON.stringify(payload),
       });
     }
   }, []);
+
+  // ── Dedup helper ──────────────────────────────────────────────────────────
+  const mergeMessage = (prev, msg) => {
+    if (prev.some(m => m.id === msg.id)) return prev;
+    const index = prev.findIndex(m =>
+      m.id?.toString().startsWith("pending") &&
+      m.content === msg.content &&
+      m.senderRole === msg.senderRole &&
+      m.attachmentUrl === msg.attachmentUrl
+    );
+    if (index !== -1) {
+      const updated = [...prev];
+      updated[index] = msg;
+      return updated;
+    }
+    return [...prev, msg];
+  };
 
   // ── WebSocket connect ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -110,79 +149,27 @@ export function useMessaging(user, targetUserId = null) {
         if (!mountedRef.current) return;
         setConnected(true);
 
-        // These logs will appear in your browser console — check them
-        // even from Docker by opening the app in a browser with DevTools
         console.log("[STOMP] connected");
         console.log("[STOMP] user.id:", userRef.current?.id);
-        console.log("[STOMP] user.role (raw):", userRef.current?.role);
         console.log("[STOMP] isAdmin:", isAdminRef.current);
 
         if (isAdminRef.current) {
-          console.log("[STOMP] admin subscribing to /topic/admin/inbox");
           client.subscribe("/topic/admin/inbox", (frame) => {
             if (!mountedRef.current) return;
             const msg = JSON.parse(frame.body);
-            console.log("[STOMP] admin inbox received:", msg);
-
-            // Always refresh sidebar
             fetchUnreadCount();
             fetchConversations();
-
-            // msg.userId is always the non-admin participant on every message
             const activeId = targetRef.current;
             if (!activeId) return;
             if (String(msg.userId) !== String(activeId)) return;
-
-            setMessages((prev) => {
-  // 1. If already exists by real ID → skip
-  if (prev.some(m => m.id === msg.id)) return prev;
-
-  // 2. Try to replace optimistic message
-  const index = prev.findIndex(m =>
-    m.id?.toString().startsWith("pending") &&
-    m.content === msg.content &&
-    m.senderRole === msg.senderRole
-  );
-
-  if (index !== -1) {
-    const updated = [...prev];
-    updated[index] = msg; // 🔥 replace pending with real
-    return updated;
-  }
-
-  // 3. Otherwise add normally
-  return [...prev, msg];
-});
+            setMessages(prev => mergeMessage(prev, msg));
           });
-
         } else {
           const topic = `/topic/user/${userRef.current?.id}`;
-          console.log("[STOMP] user subscribing to:", topic);
-
           client.subscribe(topic, (frame) => {
             if (!mountedRef.current) return;
             const msg = JSON.parse(frame.body);
-            console.log("[STOMP] user received:", msg);
-            setMessages((prev) => {
-  // 1. If already exists by real ID → skip
-  if (prev.some(m => m.id === msg.id)) return prev;
-
-  // 2. Try to replace optimistic message
-  const index = prev.findIndex(m =>
-    m.id?.toString().startsWith("pending") &&
-    m.content === msg.content &&
-    m.senderRole === msg.senderRole
-  );
-
-  if (index !== -1) {
-    const updated = [...prev];
-    updated[index] = msg; // 🔥 replace pending with real
-    return updated;
-  }
-
-  // 3. Otherwise add normally
-  return [...prev, msg];
-});
+            setMessages(prev => mergeMessage(prev, msg));
             fetchUnreadCount();
           });
         }
@@ -190,7 +177,6 @@ export function useMessaging(user, targetUserId = null) {
 
       onDisconnect: () => {
         if (!mountedRef.current) return;
-        console.log("[STOMP] disconnected");
         setConnected(false);
       },
 
@@ -225,6 +211,7 @@ export function useMessaging(user, targetUserId = null) {
     conversations,
     loadHistory,
     sendMessage,
+    uploadFile,
     markRead,
     fetchUnreadCount,
     fetchConversations,
