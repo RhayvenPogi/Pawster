@@ -505,50 +505,39 @@ export default function LandingPage() {
         </RevealSection>
       </section>
 
-      {/* ── FOOTER ── */}
-      <footer style={{ position:"relative", zIndex:10, borderTop:"1px solid rgba(90,170,48,0.38)", background:"rgba(255,248,215,0.90)", backdropFilter:"blur(18px)", padding:"3.5rem clamp(1.5rem,5vw,4rem) 2rem" }}>
-        <div style={{ maxWidth:1200, margin:"0 auto" }}>
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))", gap:"3rem", marginBottom:"2.75rem" }}>
-            <div>
-              <img src={logo} alt="Pawster" style={{ width:38, height:38, objectFit:"contain", marginBottom:"0.6rem", borderRadius:"50%" }} onError={e => e.target.style.display="none"} />
-              <div style={{ fontFamily:"'Playfair Display',serif", fontWeight:900, fontSize:"1.25rem", color:"#192e08", marginBottom:"0.65rem" }}>
-                Paw<em className="em-orange">ster</em>
-              </div>
-              <p style={{ fontSize:"0.82rem", fontWeight:600, lineHeight:1.72, color:"#7a8a5a", maxWidth:260 }}>
-                Connecting loving homes with animals in need across the Ilocos Region since 2023.
-              </p>
+      {/* Footer */}
+      <footer className="relative z-10 border-t border-[rgba(90,170,48,0.45)] bg-[rgba(255,248,218,0.85)] backdrop-blur-md px-10 py-12">
+        <div className="max-w-[1200px] mx-auto grid gap-12 mb-10 grid-cols-[repeat(auto-fit,minmax(160px,1fr))]">
+          <div>
+            <div className="mb-2">
+              <img src={logo} alt="Pawster" className="w-8 h-8 object-contain" onError={(e) => (e.target.style.display = "none")} />
             </div>
-            {[
-              { title:"Adopt",    links:[["Browse Animals","/pets"],["How It Works","/how-it-works"],["Log In","/login"],["Register","/register"]] },
-              { title:"Services", links:[["Rehome a Pet","/rehome"],["Missing Pets","/missing-pets"],["Follow-Up Surveys","/followup-surveys"],["About Us","/about"]] },
-              { title:"Regions",  links:[["Ilocos Norte","/pets"],["Ilocos Sur","/pets"],["La Union","/pets"],["Pangasinan","/pets"]] },
-            ].map(({ title, links }) => (
-              <div key={title}>
-                <div style={{ fontSize:"0.7rem", fontWeight:900, textTransform:"uppercase", letterSpacing:"0.1em", color:"#1c4f09", marginBottom:"1rem" }}>{title}</div>
-                {links.map(([label, href]) => (
-                  <a key={label} href={href} className="nav-link"
-                    style={{ display:"block", fontSize:"0.83rem", fontWeight:700, color:"#3a5020", marginBottom:"0.6rem" }}>
-                    {label}
-                  </a>
-                ))}
-              </div>
-            ))}
+            <div className="font-black text-[1.2rem] text-[#1a4a08]">Paw<em className="italic text-[#e07820]">ster</em></div>
+            <p className="text-[0.82rem] font-bold leading-7 text-[#6a7a50] max-w-[260px] mt-2">
+              Screening, placing, and supporting animal adoptions across Baguio City and the Cordillera Administrative Region with care and accountability.
+            </p>
           </div>
-
-          <div style={{ paddingTop:"1.5rem", borderTop:"1px solid rgba(180,140,60,0.26)", display:"flex", alignItems:"center", justifyContent:"space-between", gap:"1rem", flexWrap:"wrap" }}>
-            <div style={{ fontSize:"0.75rem", fontWeight:700, color:"#8a9a70" }}>
-              © 2025 Pawster. All rights reserved. Made with 🐾 in the Ilocos Region.
-            </div>
-            <div style={{ display:"flex", gap:"0.5rem" }}>
-              {["fab fa-facebook-f","fab fa-instagram","fab fa-twitter"].map(icon => (
-                <a key={icon} href="#"
-                  style={{ width:32, height:32, display:"flex", alignItems:"center", justifyContent:"center", borderRadius:8, fontSize:"0.78rem", color:"#7a8a5a", background:"rgba(255,250,232,0.65)", border:"1px solid rgba(180,140,60,0.26)", textDecoration:"none", transition:"background 0.2s" }}
-                  onMouseEnter={e => e.currentTarget.style.background="rgba(28,79,9,0.10)"}
-                  onMouseLeave={e => e.currentTarget.style.background="rgba(255,250,232,0.65)"}>
-                  <i className={icon} />
-                </a>
+          {[
+            { title: "Adopt", links: [["Browse animals", "/pets"], ["My profile", "/profile"], ["Log in", "/login"], ["Register", "/register"]] },
+            { title: "Services", links: [["How it works", "/how-it-works"], ["Rehome & Rescue", "/rehome"], ["Missing pets", "/missing-pets"], ["About us", "/about"]] },
+            { title: "Regions", links: [["Baguio City", "/pets"], ["Benguet", "/pets"], ["Mountain Province", "/pets"], ["Ifugao", "/pets"]] },
+          ].map(({ title, links }) => (
+            <div key={title}>
+              <div className="text-[0.72rem] font-black uppercase tracking-wider text-[#1c4f09] mb-4">{title}</div>
+              {links.map(([label, to]) => (
+                <Link key={label} to={to} className="block text-[0.83rem] font-bold text-[#3a5020] mb-2 hover:underline">{label}</Link>
               ))}
             </div>
+          ))}
+        </div>
+        <div className="max-w-[1200px] mx-auto pt-6 border-t border-[rgba(180,140,60,0.28)] flex flex-wrap items-center justify-between gap-4">
+          <div className="text-[0.75rem] font-bold text-[#6a7a50]">© 2025 Pawster. All rights reserved. Made with 🐾 in Baguio City.</div>
+          <div className="flex gap-2">
+            {["fab fa-facebook-f", "fab fa-instagram", "fab fa-twitter"].map(icon => (
+              <a key={icon} href="#" className="w-8 h-8 flex items-center justify-center rounded-md text-[0.8rem] text-[#6a7a50] bg-[rgba(255,250,232,0.7)] border border-[rgba(180,140,60,0.28)] hover:bg-black/5 transition">
+                <i className={icon} />
+              </a>
+            ))}
           </div>
         </div>
       </footer>

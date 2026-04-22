@@ -58,7 +58,6 @@ function AppInner() {
 
       {!hideNavbar && <Navbar />}
 
-      {/* ── Floating chat modal — persists across all pages ── */}
       {user && user.role !== "admin" && (
         <MessagingModal
           user={user}
@@ -68,7 +67,6 @@ function AppInner() {
         />
       )}
 
-      {/* ── Floating sticky chat button — bottom right ── */}
       {user && user.role !== "admin" && (
         <div style={{ position: "fixed", bottom: 28, right: 28, zIndex: 997 }}>
           <button

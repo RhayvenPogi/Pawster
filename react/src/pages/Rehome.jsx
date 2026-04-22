@@ -87,7 +87,7 @@ function validateStep(step, form) {
 }
 
 const REASONS = [
-  { icon: "fas fa-plane-departure", label: "Moving abroad or relocating" },
+  { icon: "fas fa-plane-departure", label: "Moving or relocating within CAR" },
   { icon: "fas fa-allergies", label: "Allergies in the household" },
   { icon: "fas fa-baby", label: "New baby or family changes" },
   { icon: "fas fa-briefcase-medical", label: "Medical or financial hardship" },
@@ -309,7 +309,7 @@ function RehomeStepContent({ step, form, set, setV, photoPreview, onPhotoChange,
                 </RField>
               </div>
               <RField label="Vet / clinic name">
-                <input type="text" value={form.vaccClinic} onChange={set("vaccClinic")} placeholder="e.g. PetCare Clinic" style={inp} onFocus={focIn} onBlur={focOut} />
+                <input type="text" value={form.vaccClinic} onChange={set("vaccClinic")} placeholder="e.g. PetMedico Baguio" style={inp} onFocus={focIn} onBlur={focOut} />
               </RField>
               <RField label="Vaccination notes">
                 <textarea value={form.vaccNotes} onChange={set("vaccNotes")} rows={2} placeholder="Boosters due, additional info…" style={{ ...inp, resize: "vertical", minHeight: 56 }} onFocus={focIn} onBlur={focOut} />
@@ -496,7 +496,7 @@ function RehomeReviewModal({ user, onContinue, onClose }) {
           </div>
           <div>
             <div style={{ fontFamily: "'Playfair Display',serif", fontWeight: 900, fontSize: "0.95rem", color: "#1a4a08" }}>Review your contact details</div>
-            <div style={{ fontSize: "0.7rem", fontWeight: 700, color: "#6a7a50", marginTop: 1 }}>Used to reach you about your rehome request · Click any field to edit</div>
+            <div style={{ fontSize: "0.7rem", fontWeight: 700, color: "#6a7a50", marginTop: 1 }}>Used to reach you about your rehome & rescue request · Click any field to edit</div>
           </div>
           <button onClick={onClose} style={{ marginLeft: "auto", width: 30, height: 30, borderRadius: 8, border: "1px solid rgba(192,48,48,0.18)", background: "rgba(192,48,48,0.07)", color: "#c03030", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.75rem" }}>
             <i className="fas fa-times" />
@@ -520,73 +520,30 @@ function RehomeReviewModal({ user, onContinue, onClose }) {
                 if (key === "name") {
                   return (
                     <div style={{ display: "flex", gap: "0.4rem", flex: 1 }}>
-                      <input
-                        autoFocus
-                        type="text"
-                        value={editableUser.firstName}
-                        onChange={setField("firstName")}
-                        placeholder="First name"
-                        style={{ ...editInp, flex: 1 }}
-                        onKeyDown={(e) => e.key === "Enter" && setEditingField(null)}
-                      />
-                      <input
-                        type="text"
-                        value={editableUser.lastName}
-                        onChange={setField("lastName")}
-                        placeholder="Last name"
-                        style={{ ...editInp, flex: 1 }}
-                        onKeyDown={(e) => e.key === "Enter" && setEditingField(null)}
-                      />
+                      <input autoFocus type="text" value={editableUser.firstName} onChange={setField("firstName")} placeholder="First name" style={{ ...editInp, flex: 1 }} onKeyDown={(e) => e.key === "Enter" && setEditingField(null)} />
+                      <input type="text" value={editableUser.lastName} onChange={setField("lastName")} placeholder="Last name" style={{ ...editInp, flex: 1 }} onKeyDown={(e) => e.key === "Enter" && setEditingField(null)} />
                     </div>
                   );
                 }
                 return (
-                  <input
-                    autoFocus
-                    type={key === "email" ? "email" : key === "phone" ? "tel" : "text"}
-                    value={editableUser[key]}
-                    onChange={setField(key)}
-                    placeholder={label}
-                    style={{ ...editInp, flex: 1 }}
-                    onKeyDown={(e) => e.key === "Enter" && setEditingField(null)}
-                  />
+                  <input autoFocus type={key === "email" ? "email" : key === "phone" ? "tel" : "text"} value={editableUser[key]} onChange={setField(key)} placeholder={label} style={{ ...editInp, flex: 1 }} onKeyDown={(e) => e.key === "Enter" && setEditingField(null)} />
                 );
               };
 
               return (
-                <div
-                  key={key}
-                  onClick={() => !isEditing && setEditingField(key)}
-                  style={{
-                    display: "flex", alignItems: "center", gap: "0.75rem",
-                    padding: "0.55rem 0.875rem", borderRadius: 10,
-                    background: isEditing ? "rgba(255,253,242,0.95)" : ok ? "rgba(28,79,9,0.05)" : "rgba(192,48,48,0.05)",
-                    border: `1px solid ${isEditing ? "rgba(90,170,48,0.45)" : ok ? "rgba(90,170,48,0.22)" : "rgba(192,48,48,0.18)"}`,
-                    cursor: isEditing ? "default" : "pointer",
-                    transition: "all 0.15s",
-                    boxShadow: isEditing ? "0 0 0 3px rgba(90,170,48,0.08)" : "none",
-                  }}
-                >
-                  <i
-                    className={`fas fa-${icon}`}
-                    style={{ color: isEditing ? "#5aaa30" : ok ? "#5aaa30" : "#c03030", width: 14, textAlign: "center", fontSize: "0.8rem", flexShrink: 0 }}
-                  />
+                <div key={key} onClick={() => !isEditing && setEditingField(key)}
+                  style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.55rem 0.875rem", borderRadius: 10, background: isEditing ? "rgba(255,253,242,0.95)" : ok ? "rgba(28,79,9,0.05)" : "rgba(192,48,48,0.05)", border: `1px solid ${isEditing ? "rgba(90,170,48,0.45)" : ok ? "rgba(90,170,48,0.22)" : "rgba(192,48,48,0.18)"}`, cursor: isEditing ? "default" : "pointer", transition: "all 0.15s", boxShadow: isEditing ? "0 0 0 3px rgba(90,170,48,0.08)" : "none" }}>
+                  <i className={`fas fa-${icon}`} style={{ color: isEditing ? "#5aaa30" : ok ? "#5aaa30" : "#c03030", width: 14, textAlign: "center", fontSize: "0.8rem", flexShrink: 0 }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: "0.65rem", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.07em", color: "#6a7a50", marginBottom: isEditing ? "0.3rem" : 0 }}>{label}</div>
-                    {isEditing ? (
-                      renderEditContent()
-                    ) : (
+                    {isEditing ? renderEditContent() : (
                       <div style={{ fontSize: "0.82rem", fontWeight: 700, color: ok ? "#1a4a08" : "#c03030", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {ok ? value : <span style={{ fontStyle: "italic", opacity: 0.75 }}>Not set — click to add</span>}
                       </div>
                     )}
                   </div>
                   {isEditing ? (
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); setEditingField(null); }}
-                      style={{ flexShrink: 0, width: 24, height: 24, borderRadius: 6, border: "none", background: "#5aaa30", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.65rem" }}
-                    >
+                    <button type="button" onClick={(e) => { e.stopPropagation(); setEditingField(null); }} style={{ flexShrink: 0, width: 24, height: 24, borderRadius: 6, border: "none", background: "#5aaa30", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.65rem" }}>
                       <i className="fas fa-check" />
                     </button>
                   ) : (
@@ -600,7 +557,6 @@ function RehomeReviewModal({ user, onContinue, onClose }) {
             })}
           </div>
 
-          {/* Phone reminder banner */}
           <div style={{ padding: "0.5rem 0.75rem", borderRadius: 9, background: "rgba(28,79,9,0.06)", border: "1px solid rgba(90,170,48,0.2)", marginBottom: "0.875rem", display: "flex", gap: "0.4rem", alignItems: "center" }}>
             <i className="fas fa-phone" style={{ color: "#5aaa30", fontSize: "0.75rem", flexShrink: 0 }} />
             <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "#3a5020" }}>
@@ -615,9 +571,7 @@ function RehomeReviewModal({ user, onContinue, onClose }) {
             <button onClick={onClose} style={{ padding: "0.7rem", borderRadius: 11, fontWeight: 900, fontSize: "0.84rem", background: "rgba(255,248,220,0.7)", border: "1px solid rgba(180,140,60,0.25)", color: "#3a5020", cursor: "pointer", fontFamily: "'Nunito',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.4rem" }}>
               <i className="fas fa-arrow-left" style={{ fontSize: "0.75rem" }} /> Go back
             </button>
-            <button
-              onClick={() => onContinue(editableUser)}
-              disabled={!editableUser.phone.trim()}
+            <button onClick={() => onContinue(editableUser)} disabled={!editableUser.phone.trim()}
               style={{ padding: "0.7rem", borderRadius: 11, fontWeight: 900, fontSize: "0.84rem", color: "#fff", background: editableUser.phone.trim() ? "#B45A22" : "#cca080", border: "none", cursor: editableUser.phone.trim() ? "pointer" : "not-allowed", fontFamily: "'Nunito',sans-serif", boxShadow: editableUser.phone.trim() ? "0 4px 16px rgba(180,90,34,0.28)" : "none", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.4rem", transition: "all 0.15s" }}>
               Continue <i className="fas fa-arrow-right" style={{ fontSize: "0.75rem" }} />
             </button>
@@ -640,12 +594,12 @@ function PreFormCard({ onStart }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", padding: "2.5rem 1.5rem", gap: "1.25rem" }}>
       <div style={{ width: 64, height: 64, borderRadius: 18, background: "rgba(180,90,34,0.10)", border: "1px solid rgba(180,90,34,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <i className="fas fa-home" style={{ fontSize: "1.5rem", color: "#B45A22" }} />
+        <i className="fas fa-hands-holding-heart" style={{ fontSize: "1.5rem", color: "#B45A22" }} />
       </div>
       <div>
-        <div style={{ fontFamily: "'Playfair Display',serif", fontSize: "1.2rem", fontWeight: 900, color: "#1a4a08", marginBottom: "0.4rem" }}>Rehome a pet</div>
+        <div style={{ fontFamily: "'Playfair Display',serif", fontSize: "1.2rem", fontWeight: 900, color: "#1a4a08", marginBottom: "0.4rem" }}>Rehome & Rescue a pet</div>
         <p style={{ fontSize: "0.84rem", fontWeight: 700, color: "#6a7a50", lineHeight: 1.7, maxWidth: 280, margin: "0 auto" }}>
-          Fill out a short form and we'll find your pet a safe, verified new home — with full care and discretion.
+          Fill out a short form and we'll find your pet a safe, verified new home — with full care and discretion. Whether you're rehoming or surrendering a rescued animal, we're here to help.
         </p>
       </div>
       <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", justifyContent: "center" }}>
@@ -656,13 +610,11 @@ function PreFormCard({ onStart }) {
           </div>
         ))}
       </div>
-      <button
-        onClick={onStart}
+      <button onClick={onStart}
         style={{ padding: "0.8rem 2rem", borderRadius: 13, fontWeight: 900, fontSize: "0.9rem", color: "#fff", background: "#B45A22", border: "none", cursor: "pointer", fontFamily: "'Nunito',sans-serif", boxShadow: "0 4px 18px rgba(180,90,34,0.28)", display: "flex", alignItems: "center", gap: "0.5rem", transition: "opacity 0.15s" }}
         onMouseOver={e => e.currentTarget.style.opacity = "0.9"}
-        onMouseOut={e => e.currentTarget.style.opacity = "1"}
-      >
-        <i className="fas fa-home" /> Start rehome request
+        onMouseOut={e => e.currentTarget.style.opacity = "1"}>
+        <i className="fas fa-hands-holding-heart" /> Start rehome & rescue request
       </button>
       <p style={{ fontSize: "0.72rem", fontWeight: 700, color: "#9aaa80", margin: 0 }}>
         <i className="fas fa-lock" style={{ marginRight: "0.3rem" }} />Confidential · Takes about 5 minutes
@@ -683,7 +635,6 @@ export default function Rehome() {
   const [showReview, setShowReview] = useState(false);
   const [formStarted, setFormStarted] = useState(false);
 
-  // Store contact + owner name resolved from the Review Modal
   const [resolvedContact, setResolvedContact] = useState("");
   const [resolvedOwnerName, setResolvedOwnerName] = useState("");
   const [resolvedCity, setResolvedCity] = useState("");
@@ -700,19 +651,12 @@ export default function Rehome() {
     if (file.size > 5 * 1024 * 1024) { setSubmitError("Photo must be under 5 MB."); return; }
     try {
       const dataUrl = await fileToBase64(file);
-      setPhotoPreview(dataUrl);
-      setPhotoBase64(dataUrl);
-      setSubmitError(null);
-    } catch {
-      setSubmitError("Could not read the image. Please try another file.");
-    }
+      setPhotoPreview(dataUrl); setPhotoBase64(dataUrl); setSubmitError(null);
+    } catch { setSubmitError("Could not read the image. Please try another file."); }
     e.target.value = "";
   }, []);
 
-  const handlePhotoClear = useCallback(() => {
-    setPhotoPreview(null);
-    setPhotoBase64(null);
-  }, []);
+  const handlePhotoClear = useCallback(() => { setPhotoPreview(null); setPhotoBase64(null); }, []);
 
   const handleVaccPhotoAdd = useCallback(async (e) => {
     const file = e.target.files?.[0];
@@ -720,11 +664,8 @@ export default function Rehome() {
     if (file.size > 5 * 1024 * 1024) { setSubmitError("Photo must be under 5 MB."); return; }
     try {
       const dataUrl = await fileToBase64(file);
-      setVaccPhotos(prev => [...prev.slice(0, 4), dataUrl]);
-      setSubmitError(null);
-    } catch {
-      setSubmitError("Could not read the image. Please try another file.");
-    }
+      setVaccPhotos(prev => [...prev.slice(0, 4), dataUrl]); setSubmitError(null);
+    } catch { setSubmitError("Could not read the image. Please try another file."); }
     e.target.value = "";
   }, []);
 
@@ -753,29 +694,19 @@ export default function Rehome() {
     setTouched(t => ({ ...t, [k]: true }));
   }, []);
 
-  const resetStepState = () => {
-    setTouched({});
-    setFieldErrors({});
-  };
+  const resetStepState = () => { setTouched({}); setFieldErrors({}); };
 
   const handleContinue = () => {
     const errs = validateStep(step, form);
     if (Object.keys(errs).length > 0) {
       const stepTouched = {};
       Object.keys(errs).forEach(k => stepTouched[k] = true);
-      setTouched(stepTouched);
-      setFieldErrors(errs);
-      return;
+      setTouched(stepTouched); setFieldErrors(errs); return;
     }
-    resetStepState();
-    setStep(s => s + 1);
+    resetStepState(); setStep(s => s + 1);
   };
 
-  const handleBack = () => {
-    resetStepState();
-    setSubmitError(null);
-    setStep(s => s - 1);
-  };
+  const handleBack = () => { resetStepState(); setSubmitError(null); setStep(s => s - 1); };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -783,81 +714,39 @@ export default function Rehome() {
     if (Object.keys(errs).length > 0) {
       const allTouched = {};
       Object.keys(form).forEach(k => allTouched[k] = true);
-      setTouched(allTouched);
-      setFieldErrors(errs);
-      return;
+      setTouched(allTouched); setFieldErrors(errs); return;
     }
-    setSubmitError(null);
-    setLoading(true);
+    setSubmitError(null); setLoading(true);
     try {
       const res = await djFetch("/api/approvals/rehoming/", {
         method: "POST",
         body: JSON.stringify({
-          // pet info
-          pet_name: form.petName,
-          species: form.species,
-          breed: form.breed,
-          age: form.age,
-          gender: form.gender,
-          duration_owned: form.durationOwned,
-
-          // health
-          is_vaccinated: form.isVaccinated === "yes",
-          is_neutered: form.isNeutered === "yes",
-          medical_notes: form.medicalNotes,
-          vaccine_type: form.vaccineType || "",
-          last_vacc_date: form.lastVaccDate || null,
-          vacc_clinic: form.vaccClinic || "",
-          vacc_notes: form.vaccNotes || "",
-          vacc_photos: vaccPhotos.length > 0 ? vaccPhotos : [],
-
-          // behavior
-          behavior: form.behavior,
-          behavior_other: form.behaviorOther,
-          has_aggression: form.hasAggression === "yes",
-          is_house_trained: form.isHouseTrained === "yes",
-          is_leash_trained: form.isLeashTrained === "yes",
-          good_with_children: form.goodWithChildren === "yes",
-          good_with_pets: form.goodWithPets === "yes",
-          ideal_home_desc: form.idealHomeDesc,
-
-          // owner / contact
+          pet_name: form.petName, species: form.species, breed: form.breed, age: form.age,
+          gender: form.gender, duration_owned: form.durationOwned,
+          is_vaccinated: form.isVaccinated === "yes", is_neutered: form.isNeutered === "yes",
+          medical_notes: form.medicalNotes, vaccine_type: form.vaccineType || "",
+          last_vacc_date: form.lastVaccDate || null, vacc_clinic: form.vaccClinic || "",
+          vacc_notes: form.vaccNotes || "", vacc_photos: vaccPhotos.length > 0 ? vaccPhotos : [],
+          behavior: form.behavior, behavior_other: form.behaviorOther,
+          has_aggression: form.hasAggression === "yes", is_house_trained: form.isHouseTrained === "yes",
+          is_leash_trained: form.isLeashTrained === "yes", good_with_children: form.goodWithChildren === "yes",
+          good_with_pets: form.goodWithPets === "yes", ideal_home_desc: form.idealHomeDesc,
           owner_name: resolvedOwnerName || user?.name || user?.username || "",
           contact: resolvedContact || user?.phone || "",
-
-          // ── address (4 fields from registration form) ──────────────────────────
-          street_address: user?.address || "",    // registration "Street address" field
-          city: resolvedCity || user?.city || "",
-          province: resolvedProvince || user?.province || "",
-          zip_code: resolvedZip || user?.zip || "",
-          // raw fallback
-          address: user?.address || "",
-
-          // reason / transition
-          reason: form.reason,
-          details: form.details,
-          tried_alternatives: form.triedAlternatives,
-          can_provide_food: form.canProvideFood,
-          can_provide_carrier: form.canProvideCarrier,
-          can_provide_records: form.canProvideRecords,
-          understands_permanent: form.understandsPermanent,
-          open_to_followup: form.openToFollowup,
-
-          // photo
+          street_address: user?.address || "", city: resolvedCity || user?.city || "",
+          province: resolvedProvince || user?.province || "", zip_code: resolvedZip || user?.zip || "",
+          address: user?.address || "", reason: form.reason, details: form.details,
+          tried_alternatives: form.triedAlternatives, can_provide_food: form.canProvideFood,
+          can_provide_carrier: form.canProvideCarrier, can_provide_records: form.canProvideRecords,
+          understands_permanent: form.understandsPermanent, open_to_followup: form.openToFollowup,
           photo_base64: photoBase64 ?? null,
         }),
       });
-
       let data = {};
       try { data = await res.json(); } catch { }
-      if (res.ok && data.success !== false) {
-        setSubmitted(true);
-      } else {
-        setSubmitError(data.message || `Error (${res.status}). Please try again.`);
-      }
-    } catch {
-      setSubmitError("Network error. Please try again.");
-    }
+      if (res.ok && data.success !== false) { setSubmitted(true); }
+      else { setSubmitError(data.message || `Error (${res.status}). Please try again.`); }
+    } catch { setSubmitError("Network error. Please try again."); }
     setLoading(false);
   };
 
@@ -882,21 +771,22 @@ export default function Rehome() {
         <div style={{ position: "absolute", width: 800, height: 800, bottom: "-15%", right: "-15%", borderRadius: "50%", background: "radial-gradient(circle,#588B41,transparent 70%)", filter: "blur(120px)", opacity: 0.35, animation: "fl2 11s ease-in-out infinite" }} />
       </div>
 
-    
-
       <div className="rehome-grid" style={{ position: "relative", zIndex: 10, maxWidth: 1100, margin: "0 auto", padding: "4rem 2.5rem 6rem", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "3rem", alignItems: "start" }}>
 
         {/* Left column */}
         <div>
           <Reveal>
             <div style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", borderRadius: 50, padding: "0.3rem 1rem", fontSize: "0.67rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", fontStyle: "italic", marginBottom: "1rem", background: "rgba(180,90,34,0.10)", border: "1px solid rgba(180,90,34,0.25)", color: "#B45A22" }}>
-              <i className="fas fa-home" style={{ fontSize: "0.65rem" }} /> Rehoming service
+              <i className="fas fa-hands-holding-heart" style={{ fontSize: "0.65rem" }} /> Rehome & Rescue service
             </div>
             <h1 style={{ fontFamily: "'Playfair Display',serif", fontSize: "clamp(2rem,3.5vw,3rem)", fontWeight: 900, color: "#1a4a08", lineHeight: 1.1, marginBottom: "1rem" }}>
-              Need to <em style={{ fontStyle: "italic", color: "#B45A22" }}>Rehome</em> Your Pet?
+              Need to <em style={{ fontStyle: "italic", color: "#B45A22" }}>Rehome & Rescue</em> Your Pet?
             </h1>
-            <p style={{ fontSize: "0.95rem", fontWeight: 700, color: "#3a5020", lineHeight: 1.7, marginBottom: "2rem" }}>
-              Life circumstances change. If you're unable to care for your pet, Pawster will help find them a safe, loving new home — with full discretion and care.
+            <p style={{ fontSize: "0.95rem", fontWeight: 700, color: "#3a5020", lineHeight: 1.7, marginBottom: "0.75rem" }}>
+              Life circumstances change. If you're unable to care for your pet — or have rescued an animal in need — Pawster will help find them a safe, loving new home in Baguio City and the Cordillera Administrative Region.
+            </p>
+            <p style={{ fontSize: "0.88rem", fontWeight: 700, color: "#6a7a50", lineHeight: 1.7, marginBottom: "2rem" }}>
+              Whether you're a family rehoming a beloved companion or a rescuer surrendering a stray found on the mountain roads of Baguio, our process is the same: full discretion, verified adopters, and post-placement support.
             </p>
           </Reveal>
 
@@ -917,7 +807,9 @@ export default function Rehome() {
           <Reveal delay={150}>
             <div style={{ background: "rgba(28,79,9,0.07)", border: "1px solid rgba(90,170,48,0.28)", borderRadius: 18, padding: "1.5rem" }}>
               <div style={{ fontWeight: 900, fontSize: "0.95rem", color: "#1a4a08", marginBottom: "0.5rem" }}>🐾 Our promise</div>
-              <p style={{ fontSize: "0.85rem", fontWeight: 700, color: "#3a5020", lineHeight: 1.7, margin: 0 }}>We never abandon animals. Every pet submitted through Pawster is screened, cared for, and matched only with verified, loving adopters.</p>
+              <p style={{ fontSize: "0.85rem", fontWeight: 700, color: "#3a5020", lineHeight: 1.7, margin: 0 }}>
+                We never abandon animals. Every pet submitted through Pawster — whether rehomed or rescued from the streets of Baguio — is screened, cared for, and matched only with verified, loving adopters in the City of Pines and across CAR.
+              </p>
             </div>
           </Reveal>
         </div>
@@ -932,7 +824,7 @@ export default function Rehome() {
                 <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>🏡</div>
                 <div style={{ fontFamily: "'Playfair Display',serif", fontSize: "1.6rem", fontWeight: 900, color: "#1a4a08", marginBottom: "0.5rem" }}>Thank you!</div>
                 <p style={{ fontSize: "0.9rem", fontWeight: 700, color: "#3a5020", lineHeight: 1.7, marginBottom: "1.5rem" }}>
-                  Your rehoming request has been received. Our team will contact you at your email within 24–48 hours.
+                  Your rehome & rescue request has been received. Our team in Baguio City will contact you within 24–48 hours.
                 </p>
                 <Link to="/home" style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", padding: "0.75rem 1.75rem", borderRadius: 12, fontWeight: 900, fontSize: "0.9rem", color: "#fff", background: "#1c4f09", textDecoration: "none" }}>
                   Back to home
@@ -946,7 +838,7 @@ export default function Rehome() {
               /* ── Multi-step form ── */
               <div style={{ padding: "1.75rem" }}>
                 <div style={{ marginBottom: "1.25rem" }}>
-                  <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: "1.3rem", fontWeight: 900, color: "#1a4a08", margin: 0 }}>Rehome request</h2>
+                  <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: "1.3rem", fontWeight: 900, color: "#1a4a08", margin: 0 }}>Rehome & Rescue request</h2>
                   <p style={{ fontSize: "0.75rem", fontWeight: 700, color: "#7a8a60", marginTop: "0.2rem" }}>
                     Confidential · Step {step} of {STEPS.length} — {STEPS[step - 1]}
                   </p>
@@ -957,14 +849,7 @@ export default function Rehome() {
                   {STEPS.map((label, i) => (
                     <div key={i} style={{ display: "flex", alignItems: "center", flex: i < STEPS.length - 1 ? 1 : "none" }}>
                       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.3rem" }}>
-                        <div style={{
-                          width: 26, height: 26, borderRadius: "50%",
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                          fontSize: "0.72rem", fontWeight: 900, flexShrink: 0, transition: "all 0.2s",
-                          background: step > i + 1 ? "#1c4f09" : step === i + 1 ? "#B45A22" : "rgba(180,140,60,0.15)",
-                          color: step >= i + 1 ? "#fff" : "#8a9a70",
-                          border: step === i + 1 ? "2px solid rgba(180,90,34,0.3)" : "none",
-                        }}>
+                        <div style={{ width: 26, height: 26, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.72rem", fontWeight: 900, flexShrink: 0, transition: "all 0.2s", background: step > i + 1 ? "#1c4f09" : step === i + 1 ? "#B45A22" : "rgba(180,140,60,0.15)", color: step >= i + 1 ? "#fff" : "#8a9a70", border: step === i + 1 ? "2px solid rgba(180,90,34,0.3)" : "none" }}>
                           {step > i + 1 ? <i className="fas fa-check" style={{ fontSize: "0.6rem" }} /> : i + 1}
                         </div>
                         <span style={{ fontSize: "0.62rem", fontWeight: 800, color: step === i + 1 ? "#B45A22" : "#9aaa70", whiteSpace: "nowrap" }}>{label}</span>
@@ -980,14 +865,9 @@ export default function Rehome() {
                   <div style={{ maxHeight: "50vh", overflowY: "auto", paddingRight: "0.25rem" }}>
                     <RehomeStepContent
                       step={step} form={form} set={set} setV={setV}
-                      photoPreview={photoPreview}
-                      onPhotoChange={handlePhotoChange}
-                      onPhotoClear={handlePhotoClear}
-                      vaccPhotos={vaccPhotos}
-                      onVaccPhotoAdd={handleVaccPhotoAdd}
-                      onVaccPhotoRemove={handleVaccPhotoRemove}
-                      touched={touched}
-                      fieldErrors={fieldErrors}
+                      photoPreview={photoPreview} onPhotoChange={handlePhotoChange} onPhotoClear={handlePhotoClear}
+                      vaccPhotos={vaccPhotos} onVaccPhotoAdd={handleVaccPhotoAdd} onVaccPhotoRemove={handleVaccPhotoRemove}
+                      touched={touched} fieldErrors={fieldErrors}
                     />
                   </div>
 
@@ -1034,13 +914,13 @@ export default function Rehome() {
             </div>
             <div className="font-black text-[1.2rem] text-[#1a4a08]">Paw<em className="italic text-[#e07820]">ster</em></div>
             <p className="text-[0.82rem] font-bold leading-7 text-[#6a7a50] max-w-[260px] mt-2">
-              Screening, placing, and supporting animal adoptions across the Ilocos Region with care and accountability.
+              Screening, placing, and supporting animal adoptions across Baguio City and the Cordillera Administrative Region with care and accountability.
             </p>
           </div>
           {[
             { title: "Adopt", links: [["Browse animals", "/pets"], ["My profile", "/profile"], ["Log in", "/login"], ["Register", "/register"]] },
-            { title: "Services", links: [["How it works", "/how-it-works"], ["Rehome a pet", "/rehome"], ["Missing pets", "/missing-pets"], ["About us", "/about"]] },
-            { title: "Regions", links: [["Ilocos Norte", "/pets"], ["Ilocos Sur", "/pets"], ["La Union", "/pets"], ["Pangasinan", "/pets"]] },
+            { title: "Services", links: [["How it works", "/how-it-works"], ["Rehome & Rescue", "/rehome"], ["Missing pets", "/missing-pets"], ["About us", "/about"]] },
+            { title: "Regions", links: [["Baguio City", "/pets"], ["Benguet", "/pets"], ["Mountain Province", "/pets"], ["Ifugao", "/pets"]] },
           ].map(({ title, links }) => (
             <div key={title}>
               <div className="text-[0.72rem] font-black uppercase tracking-wider text-[#1c4f09] mb-4">{title}</div>
@@ -1051,7 +931,7 @@ export default function Rehome() {
           ))}
         </div>
         <div className="max-w-[1200px] mx-auto pt-6 border-t border-[rgba(180,140,60,0.28)] flex flex-wrap items-center justify-between gap-4">
-          <div className="text-[0.75rem] font-bold text-[#6a7a50]">© 2025 Pawster. All rights reserved. Made with 🐾 in the Ilocos Region.</div>
+          <div className="text-[0.75rem] font-bold text-[#6a7a50]">© 2025 Pawster. All rights reserved. Made with 🐾 in Baguio City.</div>
           <div className="flex gap-2">
             {["fab fa-facebook-f", "fab fa-instagram", "fab fa-twitter"].map(icon => (
               <a key={icon} href="#" className="w-8 h-8 flex items-center justify-center rounded-md text-[0.8rem] text-[#6a7a50] bg-[rgba(255,250,232,0.7)] border border-[rgba(180,140,60,0.28)] hover:bg-black/5 transition">
@@ -1067,15 +947,11 @@ export default function Rehome() {
           user={user}
           onContinue={(updatedUser) => {
             setResolvedContact(updatedUser.phone || user?.phone || "");
-            setResolvedOwnerName(
-              `${updatedUser.firstName || ""} ${updatedUser.lastName || ""}`.trim() ||
-              user?.name || user?.username || ""
-            );
+            setResolvedOwnerName(`${updatedUser.firstName || ""} ${updatedUser.lastName || ""}`.trim() || user?.name || user?.username || "");
             setResolvedCity(updatedUser.city || user?.city || "");
             setResolvedProvince(updatedUser.province || user?.province || "");
             setResolvedZip(updatedUser.zip || user?.zip || "");
-            setShowReview(false);
-            setFormStarted(true);
+            setShowReview(false); setFormStarted(true);
           }}
           onClose={() => setShowReview(false)}
         />

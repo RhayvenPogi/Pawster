@@ -1,5 +1,9 @@
 package com.pawstar.pawster.controller;
 
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
@@ -26,9 +30,11 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -43,6 +49,9 @@ public class AuthController {
 
     @Value("${jwt.expiration}")
     private int jwtExpirationMs;
+
+    @Value("${google.client.id:placeholder}")
+    private String googleClientId;
 
     @Autowired private AuthenticationManager authenticationManager;
     @Autowired private UserRepository        userRepository;
@@ -196,6 +205,73 @@ public class AuthController {
         dto.put("message", "Registration successful!");
         dto.put("token",   jwt);
         return ResponseEntity.ok(dto);
+    }
+
+    // =========================================================================
+    // POST /api/auth/google
+    // =========================================================================
+    @PostMapping("/google")
+    public ResponseEntity<?> googleLogin(
+            @RequestBody Map<String, String> request,
+            HttpServletResponse response) {
+
+        String idTokenString = request.get("token");
+        if (isBlank(idTokenString))
+            return bad("Google ID token is required.");
+
+        GoogleIdToken idToken;
+        try {
+            GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(
+                    new NetHttpTransport(), new GsonFactory())
+                    .setAudience(Collections.singletonList(googleClientId))
+                    .build();
+            idToken = verifier.verify(idTokenString);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("success", false, "message", "Token verification failed."));
+        }
+
+        if (idToken == null)
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("success", false, "message", "Invalid Google ID token."));
+
+        GoogleIdToken.Payload payload = idToken.getPayload();
+        String email     = payload.getEmail();
+        String firstName = (String) payload.get("given_name");
+        String lastName  = (String) payload.get("family_name");
+
+        // Normalise nulls — payload fields may be absent for some Google accounts
+        if (isBlank(firstName)) firstName = email.split("@")[0];
+        if (isBlank(lastName))  lastName  = "";
+
+        User user = userRepository.findByEmail(email).orElse(null);
+
+        if (user == null) {
+            // New social-login user — randomise password so local login is blocked
+            user = new User(
+                    firstName, lastName, email,
+                    /*phone*/      "",
+                    /*password*/   encoder.encode(UUID.randomUUID().toString()),
+                    /*address*/    "",
+                    /*city*/       "",
+                    /*province*/   "",
+                    /*zip*/        "",
+                    /*idFile*/     null,
+                    /*idFileType*/ null,
+                    /*idFileName*/ null);
+            userRepository.save(user);
+        }
+
+        user.setLastLogin(LocalDateTime.now());
+        userRepository.save(user);
+
+        String jwt      = jwtUtils.generateToken(user.getEmail(), user.getRole());
+        String redirect = "admin".equals(user.getRole())
+                ? "php/admin_dashboard.php"
+                : "php/index.php";
+
+        addJwtCookie(response, jwt);
+        return ResponseEntity.ok(toDtoNoToken(user, redirect, jwt));
     }
 
     // =========================================================================

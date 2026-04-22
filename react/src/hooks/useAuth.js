@@ -19,10 +19,9 @@ export const useAuth = () => {
     // ── Session check on mount ────────────────────────────────────────────────
     useEffect(() => {
         const checkSession = async () => {
-            const token       = localStorage.getItem('pawster_token');
-            const storedUser  = localStorage.getItem('pawster_user');
+            const token      = localStorage.getItem('pawster_token');
+            const storedUser = localStorage.getItem('pawster_user');
 
-            // Nothing stored — skip the network call entirely
             if (!token && !storedUser) {
                 setIsLoading(false);
                 return;
@@ -34,7 +33,6 @@ export const useAuth = () => {
                 setUser(merged);
                 localStorage.setItem('pawster_user', JSON.stringify(merged));
             } catch {
-                // Token expired or invalid — clear everything
                 setUser(null);
                 localStorage.removeItem('pawster_user');
                 localStorage.removeItem('pawster_token');
@@ -70,7 +68,6 @@ export const useAuth = () => {
             headers: { 'Content-Type': 'multipart/form-data' },
         });
 
-        // Clear session so checkSession can't restore a stale user
         setUser(null);
         localStorage.removeItem('pawster_token');
         localStorage.removeItem('pawster_user');
@@ -91,6 +88,22 @@ export const useAuth = () => {
         }
     }, [navigate]);
 
+    // ── Google Login ──────────────────────────────────────────────────────────
+    const googleLogin = useCallback(async (credentialResponse) => {
+        const { data } = await api.post('/api/auth/google', {
+            token: credentialResponse.credential,
+        });
+
+        if (data.token) localStorage.setItem('pawster_token', data.token);
+        setUser(data);
+        localStorage.setItem('pawster_user', JSON.stringify(data));
+
+        if (data.role === 'admin') navigate('/admin');
+        else navigate('/home');
+
+        return data;
+    }, [navigate]);
+
     return {
         user,
         setUser,
@@ -100,5 +113,6 @@ export const useAuth = () => {
         login,
         register,
         logout,
+        googleLogin,
     };
 };

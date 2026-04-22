@@ -26,20 +26,21 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
     private String jwtSecret;
 
     private static final List<String> PUBLIC_PATHS = List.of(
-            "/api/auth/login",
-            "/api/auth/register",
-            "/api/auth/logout",
-            "/api/auth/me",
-            "/api/auth/forgot-password",
-            "/api/auth/verify-otp",
-            "/api/auth/reset-password",
-            "/api/animals/from-rehoming",
-            "/api/animals/mark-adopted",
-            "/api/animals/mark-pending",
-            "/api/missing-pets",
-            "/api/users",
-            "/uploads",
-            "/ws");
+        "/api/auth/login",
+        "/api/auth/register",
+        "/api/auth/logout",
+        "/api/auth/me",
+        "/api/auth/forgot-password",
+        "/api/auth/verify-otp",
+        "/api/auth/reset-password",
+        "/api/auth/google",        // ← add this
+        "/api/animals/from-rehoming",
+        "/api/animals/mark-adopted",
+        "/api/animals/mark-pending",
+        "/api/missing-pets",
+        "/api/users",
+        "/uploads",
+        "/ws");
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {

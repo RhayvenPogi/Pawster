@@ -35,21 +35,21 @@ const VALUES = [
     color: '#2060a0',
     bg: 'rgba(32,96,160,0.11)',
     title: 'Animal Welfare First',
-    desc: 'We fight against overcrowded shelters and poorly matched adoptions. Every decision prioritizes the long-term safety and happiness of the animal.'
+    desc: 'We fight against poorly matched adoptions and animals left without a home. Every decision on the platform prioritizes the long-term safety and happiness of the animal.'
   },
   {
     icon: 'fas fa-comments',
     color: '#1c4f09',
     bg: 'rgba(28,79,9,0.12)',
     title: 'Post-Adoption Support',
-    desc: 'Adoption doesn\'t end at signing. We schedule check-ins at 7, 30, and 90 days and maintain an open messaging channel between adopters and rescue staff.'
+    desc: 'Adoption doesn\'t end at signing. We schedule check-ins at 7, 30, and 90 days and maintain an open messaging channel between adopters and rescue coordinators.'
   },
   {
     icon: 'fas fa-map-marker-alt',
     color: '#d4880a',
     bg: 'rgba(212,136,10,0.12)',
     title: 'Locally Rooted',
-    desc: 'We serve the Ilocos Region — Ilocos Norte, Ilocos Sur, La Union, and Pangasinan — with location-verified shelter listings and distance-aware matching.'
+    desc: 'We serve Baguio City and the Cordillera Administrative Region — with location-aware matching that connects adopters to rescuers and coordinators nearby.'
   },
 ];
 
@@ -70,13 +70,13 @@ const HOW_IT_WORKS = [
     step: '03',
     icon: 'fas fa-paw',
     title: 'Submit Your Adoption Request',
-    desc: 'Browse available animals and submit a formal request. Our rescue coordinators review and approve or follow up directly through the platform.'
+    desc: 'Browse available animals and submit a formal request. Rescue coordinators connected to the platform review and respond directly through Pawster.'
   },
   {
     step: '04',
     icon: 'fas fa-heart',
     title: 'Adopt & Stay Connected',
-    desc: 'After adoption, scheduled check-ins keep communication open. Submit photo updates, vet visit confirmations, and message your rescue coordinator anytime.'
+    desc: 'After adoption, scheduled check-ins keep communication open. Submit photo updates, vet visit confirmations, and message your coordinator anytime.'
   },
 ];
 
@@ -91,19 +91,19 @@ const USER_TYPES = [
       'Submit pre-screened adoption requests',
       'Track adoption application status',
       'Complete scheduled post-adoption check-ins',
-      'Request to rehome an animal through the platform',
-      'Communicate with rescue staff via in-app messaging',
+      'Submit a rehome & rescue request through the platform',
+      'Communicate with rescue coordinators via in-app messaging',
     ]
   },
   {
-    icon: 'fas fa-house-chimney-medical',
+    icon: 'fas fa-hands-holding-heart',
     color: '#B45A22',
     bg: 'rgba(180,90,34,0.10)',
-    title: 'Rescue Organizations',
+    title: 'Rescue Coordinators',
     items: [
       'Post and manage animal listings',
       'Review and approve adoption applications',
-      'Review user-submitted rehoming requests',
+      'Review user-submitted rehome & rescue requests',
       'Conduct and track post-adoption check-ins',
       'Communicate with adopters via secure messaging',
       'Access full adoption history and feedback records',
@@ -113,9 +113,9 @@ const USER_TYPES = [
 
 const STATS = [
   ['100%', 'Screened adoptions'],
-  ['4', 'Provinces served'],
+  ['CAR', 'Region served'],
   ['3×', 'Post-adoption check-ins'],
-  ['2064', 'Platform launched'],
+  ['2025', 'Platform launched'],
 ];
 
 export default function About() {
@@ -140,8 +140,6 @@ export default function About() {
         <div style={{ position: 'absolute', width: 800, height: 800, bottom: '-15%', right: '-15%', borderRadius: '50%', background: 'radial-gradient(circle,#B45A22,transparent 70%)', filter: 'blur(120px)', opacity: 0.35, animation: 'fl2 11s ease-in-out infinite' }} />
       </div>
 
-      
-
       <div style={{ position: 'relative', zIndex: 10, maxWidth: 1100, margin: '0 auto', padding: '4rem 2.5rem 6rem' }}>
 
         {/* ── Hero ── */}
@@ -155,10 +153,13 @@ export default function About() {
                 About <em style={{ fontStyle: 'italic', color: '#e07820' }}>Pawster</em>
               </h1>
               <p style={{ fontSize: '0.95rem', fontWeight: 700, color: '#3a5020', lineHeight: 1.8, marginBottom: '1rem' }}>
-                Pawster was built to solve a real problem: animals in shelters go unadopted for too long — or get returned — because adopters aren't properly screened or supported.
+                Pawster is a digital platform that connects adopters, rescuers, and rescue coordinators across Baguio City and the Cordillera Administrative Region — making animal adoption more organized, transparent, and accountable.
+              </p>
+              <p style={{ fontSize: '0.92rem', fontWeight: 700, color: '#3a5020', lineHeight: 1.8, marginBottom: '1rem' }}>
+                We are not a shelter. We are a middleman — a structured system that bridges the gap between people who want to give animals a home and the coordinators who facilitate those placements responsibly.
               </p>
               <p style={{ fontSize: '0.92rem', fontWeight: 700, color: '#3a5020', lineHeight: 1.8 }}>
-                We're a dedicated digital platform for animal rescue organizations and adopters across the Ilocos Region. We guide, evaluate, and track every adoption — from the first questionnaire to the 90-day check-in — so that rescued animals find safe, permanent homes.
+                From the first questionnaire to the 90-day check-in, Pawster guides and tracks every adoption so rescued animals find safe, permanent homes in the City of Pines and beyond.
               </p>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', alignItems: 'stretch' }}>
@@ -166,6 +167,50 @@ export default function About() {
                 <div key={lbl} style={{ background: 'rgba(255,248,225,0.80)', border: '1px solid rgba(180,140,60,0.28)', borderRadius: 18, padding: '1.5rem', textAlign: 'center', boxShadow: '0 3px 14px rgba(100,70,20,0.10)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                   <div style={{ fontFamily: "'Playfair Display',serif", fontSize: '2.2rem', fontWeight: 900, color: '#1a4a08', lineHeight: 1 }}>{val}</div>
                   <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#6a7a50', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: '0.4rem' }}>{lbl}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Reveal>
+
+        {/* ── What Pawster Is (and Isn't) ── */}
+        <Reveal delay={60}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', borderRadius: 50, padding: '0.3rem 1rem', fontSize: '0.67rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', fontStyle: 'italic', marginBottom: '1rem', background: 'rgba(32,96,160,0.08)', border: '1px solid rgba(32,96,160,0.28)', color: '#2060a0' }}>
+            <i className="fas fa-sitemap" style={{ fontSize: '0.65rem' }} /> Platform Role
+          </div>
+          <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: '2rem', fontWeight: 900, color: '#1a4a08', marginBottom: '1rem' }}>What Pawster Is — and Isn't</h2>
+          <div style={{ background: 'rgba(255,248,225,0.80)', border: '1px solid rgba(180,140,60,0.28)', borderRadius: 20, padding: '2.25rem', boxShadow: '0 3px 14px rgba(100,70,20,0.10)', marginBottom: '5rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+              {[
+                {
+                  icon: 'fas fa-check-circle', color: '#1c7a09',
+                  title: 'A digital adoption platform',
+                  desc: 'Pawster is an online system that organizes, screens, and tracks the full adoption process — from application to post-adoption check-ins.'
+                },
+                {
+                  icon: 'fas fa-check-circle', color: '#1c7a09',
+                  title: 'A bridge between people and coordinators',
+                  desc: 'We connect adopters and rehomers to rescue coordinators who manage listings and facilitate placements — all through one structured platform.'
+                },
+                {
+                  icon: 'fas fa-times-circle', color: '#c03060',
+                  title: 'Not a shelter or rescue organization',
+                  desc: 'Pawster does not house, physically care for, or rescue animals directly. We provide the digital infrastructure for those who do.'
+                },
+                {
+                  icon: 'fas fa-times-circle', color: '#c03060',
+                  title: 'Not affiliated with any specific shelter',
+                  desc: 'Pawster is an independent platform. Rescue coordinators who use our system operate independently and are responsible for their own animal care.'
+                },
+              ].map(({ icon, color, title, desc }) => (
+                <div key={title} style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+                  <div style={{ width: 42, height: 42, borderRadius: 11, background: `${color}18`, color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', flexShrink: 0 }}>
+                    <i className={icon} />
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 900, fontSize: '0.95rem', color: '#1a4a08', marginBottom: '0.3rem' }}>{title}</div>
+                    <p style={{ fontSize: '0.83rem', fontWeight: 700, color: '#6a7a50', lineHeight: 1.65, margin: 0 }}>{desc}</p>
+                  </div>
                 </div>
               ))}
             </div>
@@ -181,10 +226,10 @@ export default function About() {
           <div style={{ background: 'rgba(255,248,225,0.80)', border: '1px solid rgba(180,140,60,0.28)', borderRadius: 20, padding: '2.25rem', boxShadow: '0 3px 14px rgba(100,70,20,0.10)', marginBottom: '5rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
               {[
-                { icon: 'fas fa-undo', color: '#c03060', title: 'High Return Rates', desc: 'Animals are returned to shelters when adopters realize they weren\'t ready — often due to a lack of proper pre-adoption screening.' },
-                { icon: 'fas fa-boxes-stacked', color: '#B45A22', title: 'Overcrowded Shelters', desc: 'Without an efficient digital system, animals stay in shelters longer, increasing stress on rescue volunteers and the animals themselves.' },
-                { icon: 'fas fa-clipboard-question', color: '#2060a0', title: 'Manual & Inconsistent Screening', desc: 'Shelters relying on paper-based or informal screening can\'t reliably evaluate adopter readiness or commitment.' },
-                { icon: 'fas fa-eye-slash', color: '#6a3090', title: 'No Follow-Up After Adoption', desc: 'Once an animal leaves the shelter, most platforms offer no mechanism to monitor welfare or support the adopter through challenges.' },
+                { icon: 'fas fa-undo', color: '#c03060', title: 'High Return Rates', desc: 'Animals are returned when adopters realize they weren\'t ready — often because there was no proper pre-adoption screening in place.' },
+                { icon: 'fas fa-clipboard-question', color: '#B45A22', title: 'Manual & Inconsistent Screening', desc: 'Coordinators relying on paper-based or informal processes can\'t reliably evaluate adopter readiness, leading to mismatched placements.' },
+                { icon: 'fas fa-unlink', color: '#2060a0', title: 'No Centralized System', desc: 'Without a shared platform, rescuers, coordinators, and adopters in Baguio and CAR work in silos — making the process slow and hard to track.' },
+                { icon: 'fas fa-eye-slash', color: '#6a3090', title: 'No Follow-Up After Adoption', desc: 'Once an animal is placed, most informal processes offer no way to monitor welfare or support the adopter through challenges.' },
               ].map(({ icon, color, title, desc }) => (
                 <div key={title} style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
                   <div style={{ width: 42, height: 42, borderRadius: 11, background: `${color}18`, color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', flexShrink: 0 }}>
@@ -196,6 +241,31 @@ export default function About() {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        </Reveal>
+
+        {/* ── Reference Partner ── */}
+        <Reveal delay={60}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', borderRadius: 50, padding: '0.3rem 1rem', fontSize: '0.67rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', fontStyle: 'italic', marginBottom: '1rem', background: 'rgba(180,90,34,0.08)', border: '1px solid rgba(180,90,34,0.28)', color: '#B45A22' }}>
+            <i className="fas fa-handshake" style={{ fontSize: '0.65rem' }} /> Reference Partner
+          </div>
+          <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: '2rem', fontWeight: 900, color: '#1a4a08', marginBottom: '1rem' }}>Built with Real-World Guidance</h2>
+          <div style={{ background: 'rgba(255,248,225,0.80)', border: '1px solid rgba(180,140,60,0.28)', borderRadius: 20, padding: '2.25rem', boxShadow: '0 3px 14px rgba(100,70,20,0.10)', marginBottom: '5rem' }}>
+            <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+              <div style={{ width: 56, height: 56, borderRadius: 14, background: 'rgba(180,90,34,0.12)', color: '#B45A22', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', flexShrink: 0 }}>
+                <i className="fas fa-clinic-medical" />
+              </div>
+              <div style={{ flex: 1, minWidth: 260 }}>
+                <div style={{ fontWeight: 900, fontSize: '1.1rem', color: '#1a4a08', marginBottom: '0.3rem' }}>PetMedico Baguio</div>
+                <div style={{ fontSize: '0.82rem', fontWeight: 800, color: '#B45A22', marginBottom: '0.75rem' }}>
+                  <i className="fas fa-map-marker-alt" style={{ marginRight: '0.35rem' }} />
+                  Unit 3 Townhouse, Asin Road, Shangrila Village, Baguio City, CAR 2600
+                </div>
+                <p style={{ fontSize: '0.88rem', fontWeight: 700, color: '#3a5020', lineHeight: 1.75, margin: 0 }}>
+                  Pawster was developed using <strong>PetMedico Baguio</strong> as our reference partner. After visiting their organization and observing their day-to-day animal care processes, their real-world workflows directly shaped the features, screening criteria, and post-adoption tracking built into this platform. PetMedico is not connected to or managed through Pawster — they served as a guide to help us build a system that reflects genuine, responsible rescue practices in Baguio City.
+                </p>
+              </div>
             </div>
           </div>
         </Reveal>
@@ -224,7 +294,7 @@ export default function About() {
           </div>
         </Reveal>
 
-        {/* ── Post-Adoption Check-Ins Highlight ── */}
+        {/* ── Post-Adoption Check-Ins ── */}
         <Reveal delay={80}>
           <div style={{ background: 'linear-gradient(135deg,rgba(28,79,9,0.10),rgba(90,170,48,0.07))', border: '1px solid rgba(90,170,48,0.35)', borderRadius: 24, padding: '2.75rem', marginBottom: '5rem', boxShadow: '0 6px 30px rgba(28,79,9,0.10)' }}>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', borderRadius: 50, padding: '0.3rem 1rem', fontSize: '0.67rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', fontStyle: 'italic', marginBottom: '1rem', background: 'rgba(28,79,9,0.10)', border: '1px solid rgba(90,170,48,0.28)', color: '#1c4f09' }}>
@@ -232,7 +302,7 @@ export default function About() {
             </div>
             <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: '1.8rem', fontWeight: 900, color: '#1a4a08', marginBottom: '0.75rem' }}>We Don't Stop at Adoption Day</h2>
             <p style={{ fontSize: '0.92rem', fontWeight: 700, color: '#3a5020', lineHeight: 1.8, marginBottom: '2rem', maxWidth: 620 }}>
-              Pawster schedules structured check-ins to make sure every animal is truly thriving — not just placed. Each check-in opens a private communication channel between the adopter and the rescue team.
+              Pawster schedules structured check-ins to make sure every animal is truly thriving after placement. Each check-in opens a private communication channel between the adopter and their rescue coordinator through the platform.
             </p>
             <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
               {[
@@ -307,13 +377,42 @@ export default function About() {
           </div>
         </Reveal>
 
+        {/* ── The Team ── */}
+        <Reveal delay={80}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', borderRadius: 50, padding: '0.3rem 1rem', fontSize: '0.67rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', fontStyle: 'italic', marginBottom: '1rem', background: 'rgba(32,96,160,0.08)', border: '1px solid rgba(32,96,160,0.28)', color: '#2060a0' }}>
+            <i className="fas fa-graduation-cap" style={{ fontSize: '0.65rem' }} /> The Team
+          </div>
+          <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: '2rem', fontWeight: 900, color: '#1a4a08', marginBottom: '1rem' }}>Meet the Developers</h2>
+          <div style={{ background: 'rgba(255,248,225,0.80)', border: '1px solid rgba(180,140,60,0.28)', borderRadius: 20, padding: '2.25rem', boxShadow: '0 3px 14px rgba(100,70,20,0.10)', marginBottom: '5rem' }}>
+            <p style={{ fontSize: '0.88rem', fontWeight: 700, color: '#3a5020', lineHeight: 1.75, marginBottom: '1.5rem' }}>
+              Pawster was created by second-year BS Information Technology students from <strong>Lorma Colleges</strong> as a capstone project for Information Management 2, Application Development and Emerging Technologies, Integrative Programming Technologies, and IT Elective 1.
+            </p>
+            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+              {[
+                { name: 'Rhayven Jonas Alano', icon: 'fas fa-user-graduate', color: '#1c4f09', bg: 'rgba(28,79,9,0.10)' },
+                { name: 'Roineill Genove', icon: 'fas fa-user-graduate', color: '#2060a0', bg: 'rgba(32,96,160,0.10)' },
+              ].map(({ name, icon, color, bg }) => (
+                <div key={name} style={{ flex: '1 1 200px', display: 'flex', alignItems: 'center', gap: '0.85rem', background: 'rgba(255,252,235,0.70)', border: '1px solid rgba(180,140,60,0.22)', borderRadius: 14, padding: '1rem 1.25rem' }}>
+                  <div style={{ width: 42, height: 42, borderRadius: 11, background: bg, color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', flexShrink: 0 }}>
+                    <i className={icon} />
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 900, fontSize: '0.95rem', color: '#1a4a08' }}>{name}</div>
+                    <div style={{ fontSize: '0.77rem', fontWeight: 700, color: '#6a7a50' }}>BS Information Technology · Lorma Colleges</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Reveal>
+
         {/* ── Contact band ── */}
         <Reveal>
           <div style={{ background: 'linear-gradient(135deg,rgba(28,79,9,0.10),rgba(90,170,48,0.07))', border: '1px solid rgba(90,170,48,0.35)', borderRadius: 24, padding: '3rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '2rem', flexWrap: 'wrap', boxShadow: '0 6px 30px rgba(28,79,9,0.10)' }}>
             <div>
               <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: '1.8rem', fontWeight: 900, color: '#1a4a08', marginBottom: '0.5rem' }}>Get in Touch</h2>
               <p style={{ fontSize: '0.9rem', fontWeight: 700, color: '#3a5020', lineHeight: 1.7, margin: 0 }}>
-                Questions about adopting, rehoming, or partnering with us?<br />
+                Questions about adopting, rehoming, or how the platform works?<br />
                 Reach us at <strong>hello@pawster.ph</strong> or on Facebook.
               </p>
             </div>
@@ -330,7 +429,7 @@ export default function About() {
       </div>
 
       {/* ── Footer ── */}
-       <footer className="relative z-10 border-t border-[rgba(90,170,48,0.45)] bg-[rgba(255,248,218,0.85)] backdrop-blur-md px-10 py-12">
+      <footer className="relative z-10 border-t border-[rgba(90,170,48,0.45)] bg-[rgba(255,248,218,0.85)] backdrop-blur-md px-10 py-12">
         <div className="max-w-[1200px] mx-auto grid gap-12 mb-10 grid-cols-[repeat(auto-fit,minmax(160px,1fr))]">
           <div>
             <div className="mb-2">
@@ -340,13 +439,13 @@ export default function About() {
               Paw<em className="italic text-[#e07820]">ster</em>
             </div>
             <p className="text-[0.82rem] font-bold leading-7 text-[#6a7a50] max-w-[260px] mt-2">
-              Screening, placing, and supporting animal adoptions across the Ilocos Region with care and accountability.
+              A digital platform connecting adopters and rescue coordinators across Baguio City and the Cordillera Administrative Region.
             </p>
           </div>
           {[
             { title: "Adopt",    links: [["Browse Animals", "/pets"], ["My Profile", "/profile"], ["Log In", "/login"], ["Register", "/register"]] },
-            { title: "Services", links: [["How It Works", "/how-it-works"], ["Rehome a Pet", "/rehome"], ["Missing Pets", "/missing-pets"], ["About Us", "/about"]] },
-            { title: "Regions",  links: [["Ilocos Norte", "/pets"], ["Ilocos Sur", "/pets"], ["La Union", "/pets"], ["Pangasinan", "/pets"]] },
+            { title: "Services", links: [["How It Works", "/how-it-works"], ["Rehome & Rescue", "/rehome"], ["Missing Pets", "/missing-pets"], ["About Us", "/about"]] },
+            { title: "Regions",  links: [["Baguio City", "/pets"], ["Benguet", "/pets"], ["Mountain Province", "/pets"], ["Ifugao", "/pets"]] },
           ].map(({ title, links }) => (
             <div key={title}>
               <div className="text-[0.72rem] font-black uppercase tracking-wider text-[#1c4f09] mb-4">{title}</div>
@@ -357,7 +456,7 @@ export default function About() {
           ))}
         </div>
         <div className="max-w-[1200px] mx-auto pt-6 border-t border-[rgba(180,140,60,0.28)] flex flex-wrap items-center justify-between gap-4">
-          <div className="text-[0.75rem] font-bold text-[#6a7a50]">© 2025 Pawster. All rights reserved. Made with 🐾 in the Ilocos Region.</div>
+          <div className="text-[0.75rem] font-bold text-[#6a7a50]">© 2025 Pawster. All rights reserved. Made with 🐾 in Baguio City.</div>
           <div className="flex gap-2">
             {["fab fa-facebook-f", "fab fa-instagram", "fab fa-twitter"].map(icon => (
               <a key={icon} href="#" className="w-8 h-8 flex items-center justify-center rounded-md text-[0.8rem] text-[#6a7a50] bg-[rgba(255,250,232,0.7)] border border-[rgba(180,140,60,0.28)] hover:bg-black/5 transition">

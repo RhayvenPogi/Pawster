@@ -9,7 +9,7 @@ const NAV_LINKS = [
   { to: "/home",          icon: "fas fa-house",           label: "Home" },
   { to: "/pets",          icon: "fas fa-search",          label: "Find a Pet" },
   { to: "/how-it-works",  icon: "fas fa-list-ol",         label: "How It Works" },
-  { to: "/rehome",        icon: "fas fa-home",            label: "Rehome" },
+  { to: "/rehome",        icon: "fas fa-home",            label: "Rehome/Rescue" },
   { to: "/missing-pets",  icon: "fas fa-search-location", label: "Missing Pets" },
   { to: "/about",         icon: "fas fa-info-circle",     label: "About" },
 ];

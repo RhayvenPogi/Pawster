@@ -234,6 +234,7 @@ services:
       - VITE_API_BASE_URL=http://localhost:8000
       - VITE_DJANGO_API_URL=http://localhost:8000
       - VITE_PHP_API_URL=http://localhost:8000
+      - VITE_GOOGLE_CLIENT_ID=764828654585-2mus78u3vsj13nma0259bb35t5ghloob.apps.googleusercontent.com
       - CHOKIDAR_USEPOLLING=true
     volumes:
       - ./react:/app
