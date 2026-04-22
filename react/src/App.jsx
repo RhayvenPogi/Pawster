@@ -22,7 +22,7 @@ import MissingPets      from './pages/MissingPets';
 import About            from './pages/About';
 import AdminDashboard   from './pages/AdminDashboard';
 import ProfilePage      from './pages/ProfilePage';
-import FollowUpSurveys  from './pages/FollowUpSurveys';
+import FollowUpFeedback  from './pages/FollowUpFeedback';
 import MessagingPage    from './pages/MessagingPage';
 
 function ChatIcon({ size = 24 }) {
@@ -144,7 +144,7 @@ function AppInner() {
         <Route path="/missing-pets" element={<ProtectedRoute><MissingPets /></ProtectedRoute>} />
         <Route path="/about"        element={<ProtectedRoute><About /></ProtectedRoute>} />
         <Route path="/admin"        element={<ProtectedRoute requiredRole="admin"><AdminDashboard /></ProtectedRoute>} />
-        <Route path="/follow-up-surveys" element={<ProtectedRoute><FollowUpSurveys /></ProtectedRoute>} />
+        <Route path="/follow-up-surveys" element={<ProtectedRoute><FollowUpFeedback /></ProtectedRoute>} />
         <Route path="*"             element={<Navigate to="/landing" replace />} />
       </Routes>
     </>
