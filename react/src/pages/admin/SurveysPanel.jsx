@@ -6,7 +6,7 @@
  * Fixed: defensive photo normalization — handles url, thumbnail_url, image, file_url shapes
  */
 import { useState, useEffect } from "react";
-
+import { usePageTitle } from "../../hooks/usePageTitle";
 const DJANGO = import.meta.env.VITE_DJANGO_API ?? "http://localhost:8000";
 
 function getToken() {
@@ -377,6 +377,7 @@ export default function SurveyPanel({ show }) {
   const [loading,    setLoading]    = useState(false);
   const [filter,     setFilter]     = useState("all");
   const [viewTarget, setViewTarget] = useState(null);
+  usePageTitle("Feedback Reports");
 
   const load = async (f) => {
     setLoading(true);

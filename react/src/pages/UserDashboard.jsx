@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-
+import { usePageTitle } from '../hooks/usePageTitle';
 import logo from "../images/logo.png";
 
 const API_BASE   = import.meta.env.VITE_API_BASE   ?? 'http://localhost:8000';
@@ -409,6 +409,8 @@ export default function UserDashboard() {
       }
     } catch { /* use mock */ }
   }, [user?.id]);
+
+  usePageTitle('Dashboard');
 
   // ── Initial load ──────────────────────────────────────────────────────────
   useEffect(() => {

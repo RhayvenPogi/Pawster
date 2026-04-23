@@ -1,6 +1,6 @@
 // ── DASHBOARD OVERVIEW PANEL — formal design, Pawster color scheme
 import { useState, useEffect, useRef, useCallback } from "react";
-
+import { usePageTitle } from "../../hooks/usePageTitle";
 const DJANGO = import.meta.env.VITE_DJANGO_API_URL ?? "http://localhost:8000";
 const POLL_INTERVAL = 30_000;
 
@@ -217,6 +217,8 @@ export default function DashboardPanel({ stats = {}, onNav, user }) {
   const [recentUsers, setRecentUsers] = useState([]);
   const [polling,     setPolling]     = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
+
+  usePageTitle("Admin Dashboard");
 
   const healthy   = stats.health_healthy   || 0;
   const care      = stats.health_care      || 0;

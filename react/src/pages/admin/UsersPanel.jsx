@@ -5,6 +5,7 @@ import {
   Badge, Table, Tr, Td, BtnCancel, BtnConfirm,
   PageHeader, SearchBar, roleBadge
 } from "../../shared";
+import { usePageTitle } from "../../hooks/usePageTitle";
 
 // ─── Inline field error ───────────────────────────────────────────────────────
 function FieldErr({ msg }) {
@@ -47,6 +48,7 @@ export default function UsersPanel({ show: isVisible }) {
   const [step, setStep]           = useState(1);
   const { show: toast }           = useToast();
 
+  usePageTitle("User Management");
   // ── Load users ────────────────────────────────────────────────────────────
   const load = useCallback(async () => {
     setLoading(true);

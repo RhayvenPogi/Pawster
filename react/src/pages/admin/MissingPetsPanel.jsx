@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
-
+import { useState, useEffect, useCallback, use } from "react";
+import { usePageTitle } from "../../hooks/usePageTitle";
 const STATUS_STYLE = {
   approved: { bg: "bg-green-100",  text: "text-green-800",  border: "border-green-300",  dot: "bg-green-400",  label: "Approved"     },
   pending:  { bg: "bg-amber-100",  text: "text-amber-700",  border: "border-amber-300",  dot: "bg-amber-400",  label: "Pending"      },
@@ -361,6 +361,8 @@ export default function MissingPetsPanel({ show, onStatsChange }) {
   const [toast, setToast]           = useState(null);
   const [editPet, setEditPet]       = useState(null);
   const [saving, setSaving]         = useState(false);
+
+  usePageTitle("Missing Pets Management");
 
   const showToast = (msg, type = "success") => {
     setToast({ msg, type });

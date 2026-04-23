@@ -3,7 +3,7 @@ import { useAuth } from "../hooks/useAuth";
 import Navbar from "./Navbar";
 import logo from "../images/logo.png";
 import { Link } from 'react-router-dom';
-
+import { usePageTitle } from "../hooks/usePageTitle";
 const DJANGO      = import.meta.env.VITE_DJANGO_API ?? "http://localhost:8000";
 const POLL_7DAY   = 30_000;
 const POLL_30DAY  = 60_000;
@@ -516,6 +516,8 @@ export default function FollowUpReports() {
       }
     } catch { /* silent */ }
   }, [token]);
+
+  usePageTitle('Feedback Reports');
 
   useEffect(() => {
     if (!token) return;

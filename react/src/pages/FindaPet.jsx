@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
+import { usePageTitle } from "../hooks/usePageTitle";
 
 import logo from "../images/logo.png";
 const API_BASE = import.meta.env.VITE_API_BASE   ?? "http://localhost:8000";
@@ -48,6 +49,7 @@ function validateStep(step, form) {
     if (!form.behaviorResponse) errs.behaviorResponse = "Please select a behavior response option.";
     if (!form.openToGuidance)   errs.openToGuidance   = "Please select yes or no.";
   }
+  // Step 5: no hard validation errors — agreement state is handled via allAgreed in the UI
   return errs;
 }
 
@@ -77,21 +79,18 @@ function djFetch(path, opts = {}) {
 
 // ─── Resolve photo URL for any animal source ──────────────────────────────────
 function resolvePhotoUrl(a) {
-  // Spring Boot: photoData + photoType → inline base64
   if (a.photoData && a.photoType) {
     return `data:${a.photoType};base64,${a.photoData}`;
   }
-  // Generic URL fields
   const raw =
     a.photoUrl || a.photo_url || a.photo ||
     a.imageUrl || a.image_url || a.imgUrl || null;
   if (!raw) return null;
   if (raw.startsWith("data:") || raw.startsWith("http://") || raw.startsWith("https://")) return raw;
-  // Relative paths come from PHP
   return `${PHP_BASE}${raw.startsWith("/") ? "" : "/"}${raw}`;
 }
 
-// ─── Fetch PHP animals via the PHP endpoint ───────────────────────────────────
+// ─── Fetch PHP animals ────────────────────────────────────────────────────────
 async function fetchPhpAnimals() {
   try {
     const form = new FormData();
@@ -442,7 +441,39 @@ function AdoptStepContent({ step, form, set, setV, animal, errs }) {
       )}
       {step === 5 && (
         <div style={mcol}>
-          <MSecTitle icon="file-signature" title="Commitment Agreement" />
+          <MSecTitle icon="file-signature" title="Adoption Contract" />
+
+          <div style={{ borderRadius:12, border:"1px solid rgba(180,140,60,0.35)", background:"rgba(255,250,232,0.7)", overflow:"hidden" }}>
+            <div style={{ padding:"0.6rem 1rem", background:"rgba(28,79,9,0.07)", borderBottom:"1px solid rgba(180,140,60,0.28)", display:"flex", alignItems:"center", gap:"0.5rem" }}>
+              <i className="fas fa-scroll" style={{ color:"#1c4f09", fontSize:"0.8rem" }} />
+              <span style={{ fontSize:"0.72rem", fontWeight:900, textTransform:"uppercase", letterSpacing:"0.07em", color:"#1c4f09" }}>
+                Terms of the Adoption Contract
+              </span>
+            </div>
+            <div style={{ maxHeight:220, overflowY:"auto", padding:"1rem", display:"flex", flexDirection:"column", gap:"0.65rem" }}>
+              {[
+                ["gavel",       "Care Requirements",    `The Adopter agrees to provide ${animal.name} with a safe home, high-quality food, and fresh water. ${animal.name} shall be treated as a family member.`],
+                ["stethoscope", "Medical Commitment",   `The Adopter agrees to provide annual veterinary checkups and keep vaccinations/deworming current. If ${animal.name} is sick, it is the responsibility of the adopter to bring ${animal.name} to the nearest veterinary clinic at their own expense.`],
+                ["camera",      "Update Commitment",    `The Adopter agrees to send the rescuer an update 2–4× a year with a photo of ${animal.name}. If ${animal.name} is sick or has passed, the Adopter agrees to inform the rescuer right away.`],
+                ["ban",         "No Declawing",         `The Adopter agrees never to declaw ${animal.name}, as it is a painful surgical mutilation.`],
+                ["undo",        "Return Policy",        `If at any point the Adopter can no longer keep ${animal.name}, they must return ${animal.name} to the Rescuer. ${animal.name} shall not be sold, given away, or abandoned at a shelter.`],
+                ["shield-alt",  "Right to Reclaim",     `The Rescuer reserves the right to check on ${animal.name}. If the terms of this contract are breached or neglect is found, the Rescuer may reclaim ${animal.name} immediately.`],
+                ["share-alt",   "Social Media Consent", `I give Pawster permission to share photos of my adopted ${animal.name} on their social media pages.`],
+              ].map(([icon, title, text]) => (
+                <div key={title} style={{ display:"flex", gap:"0.65rem", alignItems:"flex-start" }}>
+                  <div style={{ width:26, height:26, borderRadius:7, background:"rgba(28,79,9,0.10)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, marginTop:1 }}>
+                    <i className={`fas fa-${icon}`} style={{ color:"#1c4f09", fontSize:"0.72rem" }} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize:"0.72rem", fontWeight:900, color:"#1c4f09", textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"0.15rem" }}>{title}</div>
+                    <p style={{ fontSize:"0.81rem", fontWeight:700, color:"#3a5020", lineHeight:1.6, margin:0 }}>{text}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <MSecTitle icon="check-double" title="Commitment Agreement" />
           <p style={{ fontSize:"0.82rem", fontWeight:700, color:"#6a7a50", lineHeight:1.65, margin:"0 0 0.25rem" }}>
             All four boxes must be checked before you can submit.
           </p>
@@ -497,26 +528,20 @@ function ReviewDetailsModal({ animal, user, onContinue, onClose }) {
   const fullName = `${editableUser.firstName} ${editableUser.lastName}`.trim();
 
   const fields = [
-    { key: "name",     icon: "user",          label: "Full Name",        value: fullName,               ok: !!(editableUser.firstName || editableUser.lastName) },
-    { key: "email",    icon: "envelope",       label: "Email",            value: editableUser.email,     ok: !!editableUser.email },
-    { key: "phone",    icon: "phone",          label: "Phone",            value: editableUser.phone,     ok: !!editableUser.phone },
-    { key: "address",  icon: "map-marker-alt", label: "Address",          value: editableUser.address,   ok: !!editableUser.address },
-    { key: "city",     icon: "city",           label: "City / Municipality", value: editableUser.city,   ok: !!editableUser.city },
-    { key: "province", icon: "map",            label: "Province",         value: editableUser.province,  ok: !!editableUser.province },
-    { key: "zip",      icon: "hashtag",        label: "Zip / Postal Code",value: editableUser.zip,       ok: !!editableUser.zip },
+    { key: "name",     icon: "user",          label: "Full Name",           value: fullName,              ok: !!(editableUser.firstName || editableUser.lastName) },
+    { key: "email",    icon: "envelope",       label: "Email",               value: editableUser.email,    ok: !!editableUser.email },
+    { key: "phone",    icon: "phone",          label: "Phone",               value: editableUser.phone,    ok: !!editableUser.phone },
+    { key: "address",  icon: "map-marker-alt", label: "Address",             value: editableUser.address,  ok: !!editableUser.address },
+    { key: "city",     icon: "city",           label: "City / Municipality", value: editableUser.city,     ok: !!editableUser.city },
+    { key: "province", icon: "map",            label: "Province",            value: editableUser.province, ok: !!editableUser.province },
+    { key: "zip",      icon: "hashtag",        label: "Zip / Postal Code",   value: editableUser.zip,      ok: !!editableUser.zip },
   ];
 
   const editInp = {
-    width: "100%",
-    fontSize: "0.82rem",
-    fontWeight: 700,
-    color: "#1a4a08",
-    border: "1px solid rgba(90,170,48,0.45)",
-    borderRadius: 8,
-    padding: "0.35rem 0.6rem",
-    fontFamily: "'Nunito',sans-serif",
-    background: "rgba(255,253,242,0.9)",
-    outline: "none",
+    width: "100%", fontSize: "0.82rem", fontWeight: 700, color: "#1a4a08",
+    border: "1px solid rgba(90,170,48,0.45)", borderRadius: 8,
+    padding: "0.35rem 0.6rem", fontFamily: "'Nunito',sans-serif",
+    background: "rgba(255,253,242,0.9)", outline: "none",
     boxShadow: "0 0 0 3px rgba(90,170,48,0.10)",
   };
 
@@ -553,7 +578,6 @@ function ReviewDetailsModal({ animal, user, onContinue, onClose }) {
     >
       <div style={{ width:"100%", maxWidth:500, borderRadius:20, overflow:"hidden", border:"1px solid rgba(180,140,60,0.28)", background:"rgba(255,252,235,0.98)", boxShadow:"0 24px 64px rgba(40,20,5,0.45)", animation:"modalIn .28s cubic-bezier(.22,.68,0,1.15) both", display:"flex", flexDirection:"column", maxHeight:"90vh" }}>
 
-        {/* Header */}
         <div style={{ display:"flex", alignItems:"center", gap:"0.75rem", padding:"1.25rem 1.5rem", borderBottom:"1px solid rgba(180,140,60,0.22)", background:"linear-gradient(135deg,rgba(28,79,9,0.08),rgba(90,170,48,0.05))", flexShrink:0 }}>
           <div style={{ width:40, height:40, borderRadius:12, background:"linear-gradient(135deg,#e07820,#c05010)", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff" }}>
             <i className="fas fa-clipboard-check" />
@@ -567,7 +591,6 @@ function ReviewDetailsModal({ animal, user, onContinue, onClose }) {
           </button>
         </div>
 
-        {/* Body — scrollable */}
         <div style={{ padding:"1.25rem 1.5rem", overflowY:"auto", flex:1 }}>
           <div style={{ padding:"0.75rem 1rem", borderRadius:12, background:"rgba(224,120,32,0.08)", border:"1px solid rgba(224,120,32,0.25)", marginBottom:"1rem", display:"flex", gap:"0.625rem" }}>
             <i className="fas fa-info-circle" style={{ color:"#e07820", flexShrink:0, marginTop:"0.1rem" }} />
@@ -621,7 +644,6 @@ function ReviewDetailsModal({ animal, user, onContinue, onClose }) {
           </div>
         </div>
 
-        {/* Footer */}
         <div style={{ padding:"1rem 1.5rem", borderTop:"1px solid rgba(180,140,60,0.18)", display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0.625rem", flexShrink:0, background:"rgba(255,252,235,0.97)" }}>
           <button onClick={onClose}
             style={{ padding:"0.75rem", borderRadius:12, fontWeight:900, fontSize:"0.86rem", background:"rgba(255,248,220,0.75)", border:"1px solid rgba(180,140,60,0.28)", color:"#3a5020", cursor:"pointer", fontFamily:"'Nunito',sans-serif", display:"flex", alignItems:"center", justifyContent:"center", gap:"0.4rem" }}>
@@ -648,20 +670,20 @@ function AdoptModal({ animal, user, onClose, onSuccess }) {
   const scrollRef                 = useRef(null);
 
   const [form, setForm] = useState({
-    _prefill_name:    !![user?.firstName, user?.lastName].filter(Boolean).join(" "),
-    _prefill_phone:   !!user?.phone,
-    _prefill_email:   !!user?.email,
-    _prefill_address: !!user?.address,
-    _prefill_city:    !!user?.city,
-    _prefill_province:!!user?.province,
-    _prefill_zip:     !!user?.zip,
+    _prefill_name:     !![user?.firstName, user?.lastName].filter(Boolean).join(" "),
+    _prefill_phone:    !!user?.phone,
+    _prefill_email:    !!user?.email,
+    _prefill_address:  !!user?.address,
+    _prefill_city:     !!user?.city,
+    _prefill_province: !!user?.province,
+    _prefill_zip:      !!user?.zip,
     name:    [user?.firstName, user?.lastName].filter(Boolean).join(" ") || "",
     phone:   user?.phone    || "",
     email:   user?.email    || "",
     address: user?.address  || "",
-    city:     user?.city     || "",
-    province: user?.province || "",
-    zip:      user?.zip      || "",
+    city:    user?.city     || "",
+    province:user?.province || "",
+    zip:     user?.zip      || "",
     reason: "", previousPet: "", previousPetDetails: "", primaryCaregiver: "",
     housing: user?.housing || "", ownsHome: "", petPermission: "", petSpace: "",
     householdSize: "", hasChildren: "", childrenAges: "",
@@ -712,82 +734,82 @@ function AdoptModal({ animal, user, onClose, onSuccess }) {
     setTimeout(() => scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" }), 30);
   };
 
-const submit = async () => {
-  if (!allAgreed) { onSuccess("Please check all agreement boxes.", "err"); return; }
-  setLoading(true);
-  try {
-    const animalId = animal._source === "php" ? animal.id : (animal.id ?? animal._id);
-    const res = await djFetch("/api/approvals/adoptions/", {
-      method: "POST",
-      body: JSON.stringify({
-        animal_id:   animalId,
-        animal_name: animal.name,
- 
-        // contact
-        name:  form.name,
-        phone: form.phone,
-        email: form.email,
- 
-        // ── address (4 fields from registration form) ──────────────────────
-        street_address: form.address  || user?.address  || "",   // "Street address" field
-        city:           form.city     || user?.city     || "",
-        province:       form.province || user?.province || "",
-        zip_code:       form.zip      || user?.zip      || "",
-        // keep raw address as fallback for older records
-        address:        form.address  || user?.address  || "",
- 
-        // ── everything else — unchanged ────────────────────────────────────
-        reason:                form.reason,
-        previous_pet:          form.previousPet === "yes",
-        previous_pet_details:  form.previousPetDetails,
-        primary_caregiver:     form.primaryCaregiver,
-        housing:               form.housing,
-        owns_home:             form.ownsHome === "own",
-        pet_permission:        form.petPermission === "yes",
-        pet_space:             form.petSpace,
-        household_size:        form.householdSize,
-        has_children:          form.hasChildren === "yes",
-        children_ages:         form.childrenAges,
-        has_other_pets:        form.hasOtherPets === "yes",
-        other_pets_detail:     form.otherPetsDetail,
-        other_pets_vaccinated: form.otherPetsVaccinated === "yes",
-        introduction_plan:     form.introductionPlan,
-        exp:                   form.exp,
-        alone_hours:           form.aloneHours,
-        backup_care:           form.backupCare,
-        budget:                form.budget,
-        vet_plan:              form.vetPlan,
-        behavior_response:     form.behaviorResponse,
-        open_to_guidance:      form.openToGuidance === "yes",
-        agree_proper_care:     form.agreeProperCare,
-        agree_long_term:       form.agreeLongTerm,
-        agree_no_abandon:      form.agreeNoAbandon,
-        agree_followup:        form.agreeFollowup,
-      }),
-    });
- 
-    let data = {};
-    try { data = await res.json(); } catch { /**/ }
-    if (res.ok && data.success !== false) {
-      onSuccess("Request submitted! We'll be in touch soon 🐾");
-      onClose();
-    } else if (res.status === 401) {
-      onSuccess("Session expired — please log in again.", "err");
-    } else {
-      onSuccess(data.message || `Error submitting (${res.status})`, "err");
+  const submit = async () => {
+    if (!allAgreed) {
+      onSuccess("Please check all four agreement boxes before submitting.", "err");
+      return;
     }
-  } catch {
-    onSuccess("Server error. Please try again.", "err");
-  }
-  setLoading(false);
-};
- 
- 
+    setLoading(true);
+    try {
+      const animalId = animal._source === "php" ? animal.id : (animal.id ?? animal._id);
+      const res = await djFetch("/api/approvals/adoptions/", {
+        method: "POST",
+        body: JSON.stringify({
+          animal_id:   animalId,
+          animal_name: animal.name,
+          name:  form.name,
+          phone: form.phone,
+          email: form.email,
+          street_address: form.address  || user?.address  || "",
+          city:           form.city     || user?.city     || "",
+          province:       form.province || user?.province || "",
+          zip_code:       form.zip      || user?.zip      || "",
+          address:        form.address  || user?.address  || "",
+          reason:                form.reason,
+          previous_pet:          form.previousPet === "yes",
+          previous_pet_details:  form.previousPetDetails,
+          primary_caregiver:     form.primaryCaregiver,
+          housing:               form.housing,
+          owns_home:             form.ownsHome === "own",
+          pet_permission:        form.petPermission === "yes",
+          pet_space:             form.petSpace,
+          household_size:        form.householdSize,
+          has_children:          form.hasChildren === "yes",
+          children_ages:         form.childrenAges,
+          has_other_pets:        form.hasOtherPets === "yes",
+          other_pets_detail:     form.otherPetsDetail,
+          other_pets_vaccinated: form.otherPetsVaccinated === "yes",
+          introduction_plan:     form.introductionPlan,
+          exp:                   form.exp,
+          alone_hours:           form.aloneHours,
+          backup_care:           form.backupCare,
+          budget:                form.budget,
+          vet_plan:              form.vetPlan,
+          behavior_response:     form.behaviorResponse,
+          open_to_guidance:      form.openToGuidance === "yes",
+          agree_proper_care:     form.agreeProperCare,
+          agree_long_term:       form.agreeLongTerm,
+          agree_no_abandon:      form.agreeNoAbandon,
+          agree_followup:        form.agreeFollowup,
+        }),
+      });
+
+      let data = {};
+      try { data = await res.json(); } catch { /**/ }
+      if (res.ok && data.success !== false) {
+        onSuccess("Request submitted! We'll be in touch soon 🐾");
+        onClose();
+      } else if (res.status === 401) {
+        onSuccess("Session expired — please log in again.", "err");
+      } else {
+        onSuccess(data.message || `Error submitting (${res.status})`, "err");
+      }
+    } catch {
+      onSuccess("Server error. Please try again.", "err");
+    }
+    setLoading(false);
+  };
+
+  // ── Determine footer button label/state for step 5 ──
+  const isLastStep = step === STEPS.length;
+  const submitDisabled = loading;
 
   return (
     <div style={{ position:"fixed", inset:0, zIndex:600, display:"flex", alignItems:"center", justifyContent:"center", padding:"1rem", background:"rgba(10,6,2,0.65)", backdropFilter:"blur(8px)" }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div style={{ width:"100%", maxWidth:580, borderRadius:20, overflow:"hidden", border:"1px solid rgba(180,140,60,0.28)", background:"rgba(255,252,235,0.98)", boxShadow:"0 24px 64px rgba(40,20,5,0.45)", animation:"modalIn .28s cubic-bezier(.22,.68,0,1.15) both", display:"flex", flexDirection:"column", maxHeight:"90vh" }}>
+
+        {/* ── Header ── */}
         <div style={{ display:"flex", alignItems:"center", gap:"0.75rem", padding:"1rem 1.25rem", borderBottom:"1px solid rgba(180,140,60,0.22)", background:"linear-gradient(135deg,rgba(28,79,9,0.08),rgba(90,170,48,0.05))", flexShrink:0 }}>
           <div style={{ width:38, height:38, borderRadius:10, background:"#1c4f09", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff" }}>
             <i className="fas fa-heart" />
@@ -800,11 +822,15 @@ const submit = async () => {
             <i className="fas fa-times" />
           </button>
         </div>
+
+        {/* ── Progress bar ── */}
         <div style={{ display:"flex", flexShrink:0 }}>
           {STEPS.map((_, i) => (
             <div key={i} style={{ flex:1, height:4, background: i < step-1 ? "#1c4f09" : i === step-1 ? "rgba(28,79,9,0.4)" : "rgba(180,140,60,0.20)", transition:"background 0.3s" }} />
           ))}
         </div>
+
+        {/* ── Validation error banner (steps 1–4 only) ── */}
         <div style={{ flexShrink:0, overflow:"hidden", maxHeight: errCount > 0 ? "80px" : "0px", padding: errCount > 0 ? "0.75rem 1.25rem 0" : "0 1.25rem", transition:"max-height 0.25s ease, padding 0.25s ease" }}>
           <div style={{ display:"flex", alignItems:"center", gap:"0.55rem", padding:"0.6rem 0.875rem", borderRadius:10, background:"rgba(192,48,48,0.10)", border:"1px solid rgba(192,48,48,0.35)" }}>
             <i className="fas fa-exclamation-triangle" style={{ color:"#c03030", fontSize:"0.85rem", flexShrink:0 }} />
@@ -813,9 +839,13 @@ const submit = async () => {
             </span>
           </div>
         </div>
+
+        {/* ── Body ── */}
         <div ref={scrollRef} style={{ padding:"1rem 1.25rem", overflowY:"auto", flex:1 }}>
           <AdoptStepContent step={step} form={form} set={set} setV={setV} animal={animal} errs={errs} />
         </div>
+
+        {/* ── Footer ── */}
         <div style={{ padding:"0.875rem 1.25rem", borderTop:"1px solid rgba(180,140,60,0.18)", display:"flex", gap:"0.625rem", flexShrink:0, background:"rgba(255,252,235,0.95)" }}>
           {step > 1 && (
             <button type="button" onClick={handleBack}
@@ -823,17 +853,43 @@ const submit = async () => {
               <i className="fas fa-arrow-left" /> Back
             </button>
           )}
-          {step < STEPS.length ? (
+
+          {/* Steps 1–4: Next button */}
+          {!isLastStep && (
             <button type="button" onClick={handleNext}
               style={{ flex:1, padding:"0.7rem", borderRadius:11, fontWeight:900, fontSize:"0.88rem", color:"#fff", background:"#1c4f09", border:"none", cursor:"pointer", fontFamily:"'Nunito',sans-serif", boxShadow:"0 4px 16px rgba(28,79,9,0.28)", display:"flex", alignItems:"center", justifyContent:"center", gap:"0.4rem" }}>
               Next — {STEPS[step]} <i className="fas fa-arrow-right" />
             </button>
-          ) : (
-            <button type="button" onClick={submit} disabled={loading || !allAgreed}
-              style={{ flex:1, padding:"0.7rem", borderRadius:11, fontWeight:900, fontSize:"0.88rem", color:"#fff", background:loading||!allAgreed?"#5a8a40":"#1c4f09", border:"none", cursor:loading||!allAgreed?"not-allowed":"pointer", fontFamily:"'Nunito',sans-serif", boxShadow:"0 4px 16px rgba(28,79,9,0.28)", display:"flex", alignItems:"center", justifyContent:"center", gap:"0.5rem" }}>
+          )}
+
+          {/* Step 5: Submit button — always clickable; shows toast if not all agreed */}
+          {isLastStep && (
+            <button
+              type="button"
+              onClick={submit}
+              disabled={submitDisabled}
+              style={{
+                flex:1, padding:"0.7rem", borderRadius:11, fontWeight:900, fontSize:"0.88rem",
+                color:"#fff",
+                background: submitDisabled
+                  ? "#9aaa80"
+                  : allAgreed
+                    ? "#1c4f09"
+                    : "rgba(28,79,9,0.45)",
+                border:"none",
+                cursor: submitDisabled ? "not-allowed" : "pointer",
+                fontFamily:"'Nunito',sans-serif",
+                boxShadow: allAgreed && !submitDisabled ? "0 4px 16px rgba(28,79,9,0.28)" : "none",
+                display:"flex", alignItems:"center", justifyContent:"center", gap:"0.5rem",
+                transition:"all 0.2s",
+              }}
+            >
               {loading
                 ? <><i className="fas fa-spinner" style={{ animation:"spin .8s linear infinite" }} /> Submitting…</>
-                : <><i className="fas fa-paper-plane" /> Submit Adoption Request</>}
+                : allAgreed
+                  ? <><i className="fas fa-paper-plane" /> Submit Adoption Request</>
+                  : <><i className="fas fa-lock" /> Check All Boxes to Submit</>
+              }
             </button>
           )}
         </div>
@@ -944,18 +1000,17 @@ export default function FindAPet() {
   const [toast,       setToast]    = useState(null);
   const [totalCount,  setTotal]    = useState(0);
 
-  // ── fetchAnimals: merges PHP + Spring Boot, same logic as AnimalsPanel ─────
+  usePageTitle('Find a Pet');
+
   const fetchAnimals = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      // Fetch both sources in parallel for speed
       const [phpAnimals, sbAnimals] = await Promise.all([
         fetchPhpAnimals(),
         fetchSbAnimals(),
       ]);
 
-      // De-duplicate: skip SB animals already present in PHP by name+type
       const dedupedSb = sbAnimals.filter(sb =>
         !phpAnimals.some(
           p => p.name?.toLowerCase() === sb.name?.toLowerCase() &&
@@ -964,7 +1019,7 @@ export default function FindAPet() {
       );
 
       const merged = [...phpAnimals, ...dedupedSb]
-        .sort((a, b) => (a.name ?? "").localeCompare(b.name ?? "")); // A-Z
+        .sort((a, b) => (a.name ?? "").localeCompare(b.name ?? ""));
 
       allAnimalsRef.current = merged;
       setTotal(merged.length);
@@ -981,7 +1036,7 @@ export default function FindAPet() {
       setAnimals([]);
     }
     setLoading(false);
-  }, []); // intentionally empty — always fetches everything fresh
+  }, []);
 
   useEffect(() => { fetchAnimals(); }, []);
 
@@ -993,7 +1048,7 @@ export default function FindAPet() {
     setReview(false);
     setShowForm(true);
   };
-  const handleCloseAll   = () => { setAdopt(null); setReview(false); setShowForm(false); };
+  const handleCloseAll = () => { setAdopt(null); setReview(false); setShowForm(false); };
 
   const handleFilterSubmit = useCallback((q, t, s) => {
     const resolvedQ = q !== undefined ? q : search;
@@ -1035,8 +1090,6 @@ export default function FindAPet() {
         <div style={{ position:"absolute", inset:0, backgroundImage:"linear-gradient(rgba(100,70,30,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(100,70,30,.03) 1px,transparent 1px)", backgroundSize:"60px 60px" }} />
       </div>
 
-      
-
       <div style={{ position:"relative", zIndex:10, paddingTop:"4rem", paddingBottom:"3rem", textAlign:"center", animation:"fadeUp .6s ease both" }}>
         <div style={{ display:"inline-flex", alignItems:"center", gap:"0.5rem", borderRadius:50, padding:"0.375rem 1rem", fontSize:"0.72rem", fontWeight:900, textTransform:"uppercase", letterSpacing:"0.1em", fontStyle:"italic", marginBottom:"1rem", background:"rgba(28,79,9,0.09)", border:"1px solid rgba(90,170,48,0.32)", color:"#1c4f09" }}>
           <span style={{ width:7, height:7, borderRadius:"50%", background:"#5aaa30", display:"inline-block", animation:"pulse-dot 2s ease infinite" }} />
@@ -1046,7 +1099,7 @@ export default function FindAPet() {
           Find Your <em style={{ fontStyle:"italic", color:"#e07820" }}>Forever</em> Friend
         </h1>
         <p style={{ fontWeight:700, fontSize:"1rem", maxWidth:520, margin:"0 auto", lineHeight:1.7, color:"#3a5020" }}>
-          All animals are health-checked, vaccinated, and ready for a loving home across the  Baguio City and the Cordillera Administrative Region.
+          All animals are health-checked, vaccinated, and ready for a loving home across Baguio City and the Cordillera Administrative Region.
         </p>
       </div>
 
@@ -1118,7 +1171,7 @@ export default function FindAPet() {
           </div>
         )}
       </div>
- {/* Footer */}
+
       <footer className="relative z-10 border-t border-[rgba(90,170,48,0.45)] bg-[rgba(255,248,218,0.85)] backdrop-blur-md px-10 py-12">
         <div className="max-w-[1200px] mx-auto grid gap-12 mb-10 grid-cols-[repeat(auto-fit,minmax(160px,1fr))]">
           <div>
@@ -1131,9 +1184,9 @@ export default function FindAPet() {
             </p>
           </div>
           {[
-            { title: "Adopt", links: [["Browse animals", "/pets"], ["My profile", "/profile"], ["Log in", "/login"], ["Register", "/register"]] },
+            { title: "Adopt",    links: [["Browse animals", "/pets"], ["My profile", "/profile"], ["Log in", "/login"], ["Register", "/register"]] },
             { title: "Services", links: [["How it works", "/how-it-works"], ["Rehome & Rescue", "/rehome"], ["Missing pets", "/missing-pets"], ["About us", "/about"]] },
-            { title: "Regions", links: [["Baguio City", "/pets"], ["Benguet", "/pets"], ["Mountain Province", "/pets"], ["Ifugao", "/pets"]] },
+            { title: "Regions",  links: [["Baguio City", "/pets"], ["Benguet", "/pets"], ["Mountain Province", "/pets"], ["Ifugao", "/pets"]] },
           ].map(({ title, links }) => (
             <div key={title}>
               <div className="text-[0.72rem] font-black uppercase tracking-wider text-[#1c4f09] mb-4">{title}</div>

@@ -14,6 +14,7 @@ import api from '../config/axios';
 import { downloadAppointmentPDF } from '../utils/downloadAppointmentPDF';
 
 import logo from "../images/logo.png";
+import { usePageTitle } from '../hooks/usePageTitle';
 
 const API_BASE    = import.meta.env.VITE_API_BASE    ?? 'http://localhost:8000';
 const DJANGO_BASE = import.meta.env.VITE_DJANGO_API  ?? 'http://localhost:8000';
@@ -291,6 +292,8 @@ export default function ProfilePage() {
   const [form, setForm] = useState(() => seedForm(user));
   const [pw,     setPw]     = useState({ current: '', newPw: '', confirm: '' });
   const [showPw, setShowPw] = useState({ current: false, newPw: false, confirm: false });
+
+  usePageTitle('My Profile');
 
   useEffect(() => {
     if (!user?.id) return;

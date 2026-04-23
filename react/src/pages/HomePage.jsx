@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import logo from "../images/logo.png";
+import { usePageTitle } from "../hooks/usePageTitle";
 
 /* ─────────────────────────────────────────────
    API CONFIG
@@ -513,6 +514,8 @@ export default function HomePage() {
   const [animals, setAnimals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [adopted, setAdopted] = useState(null);
+
+  usePageTitle('Home')
 
   useEffect(() => {
     const token   = getToken();

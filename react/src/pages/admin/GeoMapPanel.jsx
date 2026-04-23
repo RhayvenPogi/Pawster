@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useGeoMap, PROVINCES, SB, pColor, phpApi } from "../../hooks/useGeoMap";
 import LeafletMap from "./LeafletMap";
+import { usePageTitle } from "../../hooks/usePageTitle";
 
 // ─── CAR PROVINCES & BAGUIO CITY ──────────────────────────────────────────────
 // Override PROVINCES with Cordillera Administrative Region areas.
@@ -284,6 +285,8 @@ export default function GeoMapPanel({ show }) {
   const [liveRehome,    setLiveRehome]    = useState(null);
   const [lastUpdated,   setLastUpdated]   = useState(null);
   const pollRef = useRef(null);
+
+  usePageTitle("Geo Map Dashboard");
 
   useEffect(() => {
     if (!show) return;

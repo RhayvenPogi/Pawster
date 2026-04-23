@@ -1,6 +1,7 @@
 // ── PROFILE SETTINGS PANEL ────────────────────────────────────────────────────
 import { useState, useRef } from "react";
 import { phpApi, PHP_BASE, useToast, Field, Input, Select, Badge, PageHeader, roleBadge } from "../../shared";
+import { usePageTitle } from "../../hooks/usePageTitle";
 
 export default function ProfilePanel({ user, onUserUpdate }) {
   const [tab,  setTab]  = useState("info");
@@ -12,6 +13,8 @@ export default function ProfilePanel({ user, onUserUpdate }) {
   const [saving, setSaving] = useState(false);
   const fileRef = useRef();
   const { show: toast } = useToast();
+
+  usePageTitle("Profile Settings");
 
   const saveProfile = async () => {
     if (!form.first_name?.trim()) { setErrs({ first_name: "Required" }); return; }

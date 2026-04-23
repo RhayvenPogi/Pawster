@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useAuth } from "../hooks/useAuth";
 import logo from "../images/logo.png";
 import Dogs from "../images/Dogs.png";
+import { usePageTitle } from "../hooks/usePageTitle";
 
 // ── Philippine Zip Code Database (PHLPost) ─────────────────────────────────
 const PHL_ZIP_DB = [
@@ -965,6 +966,8 @@ export default function RegisterPage() {
     }));
     setErrors(v => ({...v, zip:"", city:"", province:""}));
   };
+
+  usePageTitle("Register");
 
   function validateStep1() {
     const e = {};

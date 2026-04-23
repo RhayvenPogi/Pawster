@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import logo from "../images/logo.png";
+import { usePageTitle } from '../hooks/usePageTitle';
 
 function useReveal() {
   const ref = useRef(null);
@@ -50,6 +51,7 @@ const FAQS = [
 export default function HowItWorks() {
   const { user, logout } = useAuth();
   const [openFaq, setOpenFaq] = useState(null);
+  usePageTitle('How It Works')
 
   return (
     <div style={{ minHeight: '100vh', background: '#EDDABB', fontFamily: "'Nunito',sans-serif" }}>

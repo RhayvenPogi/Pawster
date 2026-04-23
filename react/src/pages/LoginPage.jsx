@@ -3,6 +3,7 @@ import { useAuth } from "../hooks/useAuth";
 import { GoogleLogin } from "@react-oauth/google";
 import logo from "../images/logo.png";
 import dog from "../images/dog.png";
+import { usePageTitle } from "../hooks/usePageTitle";
 
 function MeshBackground() {
   const orbRefs = useRef([]);
@@ -208,6 +209,8 @@ export default function LoginPage() {
   const [errors, setErrors]     = useState({});
   const [alert, setAlert]       = useState({ type: "", msg: "" });
   const [loading, setLoading]   = useState(false);
+
+  usePageTitle('Sign in');
 
   useEffect(() => {
     const saved = localStorage.getItem("pawster_email");

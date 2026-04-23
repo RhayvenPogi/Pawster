@@ -10,6 +10,7 @@
  */
 import { useState, useEffect, useCallback } from "react";
 import { downloadAppointmentPDF } from "../../utils/downloadAppointmentPDF";
+import { usePageTitle } from "../../hooks/usePageTitle";
 
 const DJANGO = import.meta.env.VITE_DJANGO_API ?? "http://localhost:8000";
 const SPRING = import.meta.env.VITE_API_BASE ?? "http://localhost:8000";
@@ -951,6 +952,7 @@ export default function RequestsPanel({ type, show, onStatsChange }) {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [toast,        setToast]        = useState(null);
 
+  usePageTitle(type === "adoptions" ? "Adoption Requests" : "Rehome Requests");
   const apiBase = type === "adoptions"
     ? "/api/approvals/adoptions"
     : "/api/approvals/rehoming";

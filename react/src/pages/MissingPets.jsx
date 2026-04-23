@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import logo from "../images/logo.png";
+import { usePageTitle } from '../hooks/usePageTitle';
 
 
 const SB = import.meta.env.VITE_API_BASE ?? 'http://localhost:8000';
@@ -301,6 +302,8 @@ export default function MissingPets() {
   };
 
   const errCount = Object.keys(formErrs).length;
+
+  usePageTitle('Missing Pets');
 
   return (
     <div style={{ minHeight: '100vh', background: '#EDDABB', fontFamily: "'Nunito',sans-serif" }}>

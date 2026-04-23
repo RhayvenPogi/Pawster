@@ -6,6 +6,7 @@ import {
   PageHeader, SearchBar, healthBadge, statusBadge
 } from "../../shared";
 import api from "../../config/axios";
+import { usePageTitle } from "../../hooks/usePageTitle";
 
 const TYPE_ICONS  = { Dog: "🐶", Cat: "🐱", Bird: "🐦", Rabbit: "🐰", Other: "🐾" };
 const TYPE_COLORS = { Dog: "#2a7010", Cat: "#7a3dc0", Bird: "#0a7ab4", Rabbit: "#c87820", Other: "#6a7a50" };
@@ -130,6 +131,8 @@ export default function AnimalsPanel({ show }) {
   const [saving,       setSaving]       = useState(false);
   const [delModal,     setDel]          = useState(null);
   const { show: toast } = useToast();
+
+  usePageTitle("Animals Management");
 
   // ── Load ────────────────────────────────────────────────────────────────────
   const load = useCallback(async () => {

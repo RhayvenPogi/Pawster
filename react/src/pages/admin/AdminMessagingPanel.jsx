@@ -240,6 +240,7 @@ export default function AdminMessagingPanel({ user, onUnreadChange }) {
   const bottomRef   = useRef(null);
   const textareaRef = useRef(null);
 
+  
   const {
     messages, setMessages, connected, unreadCount,
     conversations, loadHistory, sendMessage, uploadFile, markRead, fetchConversations,

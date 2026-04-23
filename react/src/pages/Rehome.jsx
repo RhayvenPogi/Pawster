@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import logo from "../images/logo.png";
+import { usePageTitle } from "../hooks/usePageTitle";
 
 const DJANGO = import.meta.env.VITE_DJANGO_API ?? "http://localhost:8000";
 function getToken() {
@@ -60,12 +61,22 @@ function fileToBase64(file) {
   });
 }
 
+// ── Fields optional for rescue (rescuer may not know these about a stray) ──
+const RESCUE_OPTIONAL = new Set([
+  "durationOwned",   // Step 1
+  "isLeashTrained",  // Step 3
+  "isHouseTrained",  // Step 3
+  "goodWithChildren",// Step 3
+  "goodWithPets",    // Step 3
+]);
+
 function validateStep(step, form) {
+  const isRescue = form.requestType === "rescue";
   const errs = {};
   if (step === 1) {
     if (!form.petName.trim()) errs.petName = "Pet's name is required.";
     if (!form.age.trim()) errs.age = "Pet's age is required.";
-    if (!form.durationOwned) errs.durationOwned = "Please select how long you've had this pet.";
+    if (!isRescue && !form.durationOwned) errs.durationOwned = "Please select how long you've had this pet.";
   }
   if (step === 2) {
     if (!form.isVaccinated) errs.isVaccinated = "Please indicate if the pet is vaccinated.";
@@ -74,10 +85,10 @@ function validateStep(step, form) {
   if (step === 3) {
     if (!form.behavior) errs.behavior = "Please select a behavior that best describes your pet.";
     if (!form.hasAggression) errs.hasAggression = "Please indicate if the pet has shown aggression.";
-    if (!form.isHouseTrained) errs.isHouseTrained = "Please indicate if the pet is house-trained.";
-    if (!form.isLeashTrained) errs.isLeashTrained = "Please indicate if the pet is leash-trained.";
-    if (!form.goodWithChildren) errs.goodWithChildren = "Please indicate if the pet is good with children.";
-    if (!form.goodWithPets) errs.goodWithPets = "Please indicate if the pet is good with other pets.";
+    if (!isRescue && !form.isHouseTrained) errs.isHouseTrained = "Please indicate if the pet is house-trained.";
+    if (!isRescue && !form.isLeashTrained) errs.isLeashTrained = "Please indicate if the pet is leash-trained.";
+    if (!isRescue && !form.goodWithChildren) errs.goodWithChildren = "Please indicate if the pet is good with children.";
+    if (!isRescue && !form.goodWithPets) errs.goodWithPets = "Please indicate if the pet is good with other pets.";
   }
   if (step === 4) {
     if (!form.reason) errs.reason = "Please select a primary reason for rehoming.";
@@ -139,6 +150,25 @@ const RYN = ({ value, onChange, invalid }) => (
   </div>
 );
 
+// Yes / No / Unknown toggle — used for rescue-optional behavioral fields
+const RYNUnknown = ({ value, onChange, invalid }) => (
+  <div style={{ display: "flex", gap: "0.4rem" }}>
+    {[["yes", "Yes"], ["no", "No"], ["unknown", "Unknown"]].map(([v, l]) => (
+      <button key={v} type="button" onClick={() => onChange(v)}
+        style={{
+          flex: 1, padding: "0.5rem 0.25rem", borderRadius: 9, fontWeight: 800, fontSize: "0.75rem",
+          cursor: "pointer", fontFamily: "'Nunito',sans-serif",
+          border: `1px solid ${value === v ? "#1c4f09" : invalid ? "rgba(192,48,48,0.5)" : "rgba(180,140,60,0.25)"}`,
+          background: value === v ? (v === "unknown" ? "rgba(120,100,60,0.18)" : "#1c4f09") : "rgba(255,253,242,0.8)",
+          color: value === v ? (v === "unknown" ? "#5a4010" : "#fff") : "#3a5020",
+          transition: "all 0.15s",
+        }}>
+        {l}
+      </button>
+    ))}
+  </div>
+);
+
 const RSecTitle = ({ icon, title }) => (
   <div style={{
     display: "flex", alignItems: "center", gap: "0.5rem",
@@ -156,6 +186,19 @@ const InlineErr = ({ msg }) => msg ? (
     <i className="fas fa-times-circle" style={{ fontSize: "0.7rem" }} /> {msg}
   </div>
 ) : null;
+
+// Soft "optional for rescue" badge shown next to field labels
+const OptionalBadge = () => (
+  <span style={{
+    display: "inline-flex", alignItems: "center", gap: "0.2rem",
+    marginLeft: "0.45rem", padding: "0.1rem 0.45rem", borderRadius: 99,
+    fontSize: "0.6rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em",
+    background: "rgba(120,100,40,0.10)", color: "#7a6020", border: "1px solid rgba(160,130,40,0.2)",
+    verticalAlign: "middle",
+  }}>
+    optional for rescue
+  </span>
+);
 
 function PhotoUpload({ photoPreview, onPhotoChange, onPhotoClear }) {
   const fileRef = useRef(null);
@@ -231,18 +274,106 @@ function VaccinationPhotos({ photos, onAdd, onRemove }) {
   );
 }
 
+/* ─── Request type selector shown at the top of Step 1 ───────────────────── */
+function RequestTypeToggle({ value, onChange }) {
+  const options = [
+    {
+      v: "rehome",
+      icon: "fas fa-home",
+      title: "Rehoming",
+      desc: "I own this pet and need to find them a new home.",
+    },
+    {
+      v: "rescue",
+      icon: "fas fa-hand-holding-heart",
+      title: "Rescue / Surrender",
+      desc: "I found or rescued this animal and am surrendering them.",
+    },
+  ];
+  return (
+    <div>
+      <RLabel>What type of request is this? *</RLabel>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
+        {options.map(({ v, icon, title, desc }) => (
+          <button
+            key={v}
+            type="button"
+            onClick={() => onChange(v)}
+            style={{
+              padding: "0.75rem 0.875rem",
+              borderRadius: 12,
+              border: `1.5px solid ${value === v
+                ? v === "rescue" ? "rgba(90,150,170,0.55)" : "rgba(90,170,48,0.55)"
+                : "rgba(180,140,60,0.22)"}`,
+              background: value === v
+                ? v === "rescue" ? "rgba(60,120,150,0.07)" : "rgba(28,79,9,0.06)"
+                : "rgba(255,253,242,0.7)",
+              cursor: "pointer",
+              textAlign: "left",
+              fontFamily: "'Nunito',sans-serif",
+              transition: "all 0.15s",
+              boxShadow: value === v ? "0 0 0 3px rgba(90,170,48,0.08)" : "none",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", marginBottom: "0.25rem" }}>
+              <i className={icon} style={{
+                fontSize: "0.85rem",
+                color: value === v ? (v === "rescue" ? "#2a7a9a" : "#1c7a09") : "#9aaa70",
+              }} />
+              <span style={{
+                fontSize: "0.82rem", fontWeight: 900,
+                color: value === v ? (v === "rescue" ? "#1a4a5a" : "#1a4a08") : "#5a6a40",
+              }}>{title}</span>
+              {value === v && (
+                <i className="fas fa-check-circle" style={{
+                  marginLeft: "auto", fontSize: "0.75rem",
+                  color: v === "rescue" ? "#2a7a9a" : "#5aaa30",
+                }} />
+              )}
+            </div>
+            <p style={{ margin: 0, fontSize: "0.7rem", fontWeight: 700, color: "#7a8a60", lineHeight: 1.5 }}>{desc}</p>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Rescue context banner shown on Steps 1, 3 when in rescue mode ─────── */
+function RescueBanner() {
+  return (
+    <div style={{
+      display: "flex", gap: "0.5rem", alignItems: "flex-start",
+      padding: "0.625rem 0.875rem", borderRadius: 10,
+      background: "rgba(40,100,140,0.06)", border: "1px solid rgba(60,140,180,0.22)",
+    }}>
+      <i className="fas fa-info-circle" style={{ color: "#2a7a9a", flexShrink: 0, marginTop: "0.1rem", fontSize: "0.82rem" }} />
+      <p style={{ margin: 0, fontSize: "0.76rem", fontWeight: 700, color: "#1a4a5a", lineHeight: 1.6 }}>
+        Fields marked <strong>optional for rescue</strong> can be left blank or answered as "Unknown" — it's OK if you don't know the animal's full history.
+      </p>
+    </div>
+  );
+}
+
 function RehomeStepContent({ step, form, set, setV, photoPreview, onPhotoChange, onPhotoClear, vaccPhotos, onVaccPhotoAdd, onVaccPhotoRemove, touched, fieldErrors }) {
   const err = (field) => (touched?.[field] ? fieldErrors[field] : null);
+  const isRescue = form.requestType === "rescue";
 
   return (
     <>
       {step === 1 && (
         <div style={col}>
+          {/* Request type selector always first */}
+          <RequestTypeToggle value={form.requestType} onChange={(v) => setV("requestType", v)} />
+
           <RSecTitle icon="paw" title="Pet basics" />
+
+          {isRescue && <RescueBanner />}
+
           <RField label="Pet's name *">
             <input type="text" value={form.petName} onChange={set("petName")}
               style={{ ...inp, borderColor: err("petName") ? "rgba(192,48,48,0.5)" : undefined }}
-              onFocus={focIn} onBlur={focOut} placeholder="e.g. Coco" />
+              onFocus={focIn} onBlur={focOut} placeholder={isRescue ? "e.g. Unknown / Brownie" : "e.g. Coco"} />
             <InlineErr msg={err("petName")} />
           </RField>
           <div style={g2}>
@@ -253,30 +384,42 @@ function RehomeStepContent({ step, form, set, setV, photoPreview, onPhotoChange,
             </RField>
             <RField label="Gender *">
               <select value={form.gender} onChange={set("gender")} style={inp} onFocus={focIn} onBlur={focOut}>
-                {["Male", "Female"].map(s => <option key={s}>{s}</option>)}
+                {["Male", "Female", "Unknown"].map(s => <option key={s}>{s}</option>)}
               </select>
             </RField>
           </div>
           <div style={g2}>
             <RField label="Breed (if known)">
-              <input type="text" value={form.breed} onChange={set("breed")} placeholder="e.g. Aspin" style={inp} onFocus={focIn} onBlur={focOut} />
+              <input type="text" value={form.breed} onChange={set("breed")} placeholder="e.g. Aspin / Unknown" style={inp} onFocus={focIn} onBlur={focOut} />
             </RField>
             <RField label="Age *">
-              <input type="text" value={form.age} onChange={set("age")} placeholder="e.g. 2 years"
+              <input type="text" value={form.age} onChange={set("age")} placeholder={isRescue ? "e.g. ~1 year (est.)" : "e.g. 2 years"}
                 style={{ ...inp, borderColor: err("age") ? "rgba(192,48,48,0.5)" : undefined }}
                 onFocus={focIn} onBlur={focOut} />
               <InlineErr msg={err("age")} />
             </RField>
           </div>
-          <RField label="How long have you had this pet? *">
-            <select value={form.durationOwned} onChange={set("durationOwned")}
-              style={{ ...inp, borderColor: err("durationOwned") ? "rgba(192,48,48,0.5)" : undefined }}
-              onFocus={focIn} onBlur={focOut}>
-              <option value="">Select…</option>
-              {[["Less than 6 months", "Less than 6 months"], ["6 months-2 years", "6 months–2 years"], ["2+ years", "2+ years"]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-            </select>
-            <InlineErr msg={err("durationOwned")} />
-          </RField>
+
+          {/* Duration owned — required for rehome, hidden for rescue */}
+          {!isRescue && (
+            <RField label="How long have you had this pet? *">
+              <select value={form.durationOwned} onChange={set("durationOwned")}
+                style={{ ...inp, borderColor: err("durationOwned") ? "rgba(192,48,48,0.5)" : undefined }}
+                onFocus={focIn} onBlur={focOut}>
+                <option value="">Select…</option>
+                {[["Less than 6 months", "Less than 6 months"], ["6 months-2 years", "6 months–2 years"], ["2+ years", "2+ years"]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
+              <InlineErr msg={err("durationOwned")} />
+            </RField>
+          )}
+
+          {isRescue && (
+            <RField label={<>Where was the animal found? <OptionalBadge /></>}>
+              <input type="text" value={form.foundLocation} onChange={set("foundLocation")}
+                placeholder="e.g. Session Road, Baguio City" style={inp} onFocus={focIn} onBlur={focOut} />
+            </RField>
+          )}
+
           <PhotoUpload photoPreview={photoPreview} onPhotoChange={onPhotoChange} onPhotoClear={onPhotoClear} />
         </div>
       )}
@@ -338,13 +481,16 @@ function RehomeStepContent({ step, form, set, setV, photoPreview, onPhotoChange,
       {step === 3 && (
         <div style={col}>
           <RSecTitle icon="star" title="Behavior & personality" />
+
+          {isRescue && <RescueBanner />}
+
           <div style={g2}>
             <RField label="Best describes this pet *">
               <select value={form.behavior} onChange={set("behavior")}
                 style={{ ...inp, borderColor: err("behavior") ? "rgba(192,48,48,0.5)" : undefined }}
                 onFocus={focIn} onBlur={focOut}>
                 <option value="">Select…</option>
-                {["Friendly", "Shy", "Playful", "Aggressive", "Other"].map(v => <option key={v} value={v}>{v}</option>)}
+                {["Friendly", "Shy", "Playful", "Aggressive", "Unknown", "Other"].map(v => <option key={v} value={v}>{v}</option>)}
               </select>
               <InlineErr msg={err("behavior")} />
             </RField>
@@ -358,24 +504,55 @@ function RehomeStepContent({ step, form, set, setV, photoPreview, onPhotoChange,
               <input type="text" value={form.behaviorOther} onChange={set("behaviorOther")} style={inp} onFocus={focIn} onBlur={focOut} />
             </RField>
           )}
+
+          {/* House-trained & leash-trained: required for rehome, optional (with Unknown) for rescue */}
           <div style={g2}>
-            <RField label="House-trained? *">
-              <RYN value={form.isHouseTrained} onChange={(v) => setV("isHouseTrained", v)} invalid={!!err("isHouseTrained")} />
+            <RField label={
+              isRescue
+                ? <span>House-trained? <OptionalBadge /></span>
+                : "House-trained? *"
+            }>
+              {isRescue
+                ? <RYNUnknown value={form.isHouseTrained} onChange={(v) => setV("isHouseTrained", v)} invalid={!!err("isHouseTrained")} />
+                : <RYN value={form.isHouseTrained} onChange={(v) => setV("isHouseTrained", v)} invalid={!!err("isHouseTrained")} />
+              }
               <InlineErr msg={err("isHouseTrained")} />
             </RField>
-            <RField label="Leash-trained? *">
-              <RYN value={form.isLeashTrained} onChange={(v) => setV("isLeashTrained", v)} invalid={!!err("isLeashTrained")} />
+            <RField label={
+              isRescue
+                ? <span>Leash-trained? <OptionalBadge /></span>
+                : "Leash-trained? *"
+            }>
+              {isRescue
+                ? <RYNUnknown value={form.isLeashTrained} onChange={(v) => setV("isLeashTrained", v)} invalid={!!err("isLeashTrained")} />
+                : <RYN value={form.isLeashTrained} onChange={(v) => setV("isLeashTrained", v)} invalid={!!err("isLeashTrained")} />
+              }
               <InlineErr msg={err("isLeashTrained")} />
             </RField>
           </div>
+
           <RSecTitle icon="home" title="Ideal new home" />
           <div style={g2}>
-            <RField label="Good with children? *">
-              <RYN value={form.goodWithChildren} onChange={(v) => setV("goodWithChildren", v)} invalid={!!err("goodWithChildren")} />
+            <RField label={
+              isRescue
+                ? <span>Good with children? <OptionalBadge /></span>
+                : "Good with children? *"
+            }>
+              {isRescue
+                ? <RYNUnknown value={form.goodWithChildren} onChange={(v) => setV("goodWithChildren", v)} invalid={!!err("goodWithChildren")} />
+                : <RYN value={form.goodWithChildren} onChange={(v) => setV("goodWithChildren", v)} invalid={!!err("goodWithChildren")} />
+              }
               <InlineErr msg={err("goodWithChildren")} />
             </RField>
-            <RField label="Good with other pets? *">
-              <RYN value={form.goodWithPets} onChange={(v) => setV("goodWithPets", v)} invalid={!!err("goodWithPets")} />
+            <RField label={
+              isRescue
+                ? <span>Good with other pets? <OptionalBadge /></span>
+                : "Good with other pets? *"
+            }>
+              {isRescue
+                ? <RYNUnknown value={form.goodWithPets} onChange={(v) => setV("goodWithPets", v)} invalid={!!err("goodWithPets")} />
+                : <RYN value={form.goodWithPets} onChange={(v) => setV("goodWithPets", v)} invalid={!!err("goodWithPets")} />
+              }
               <InlineErr msg={err("goodWithPets")} />
             </RField>
           </div>
@@ -389,12 +566,20 @@ function RehomeStepContent({ step, form, set, setV, photoPreview, onPhotoChange,
         <div style={col}>
           <RSecTitle icon="phone" title="Reason & transition" />
 
-          <RField label="Primary reason for rehoming *">
+          <RField label={isRescue ? "Primary reason for surrendering *" : "Primary reason for rehoming *"}>
             <select value={form.reason} onChange={set("reason")}
               style={{ ...inp, borderColor: err("reason") ? "rgba(192,48,48,0.5)" : undefined }}
               onFocus={focIn} onBlur={focOut}>
               <option value="">Select…</option>
-              {[
+              {isRescue ? [
+                ["Found stray / abandoned", "Found stray / abandoned"],
+                ["Rescued from abuse or neglect", "Rescued from abuse or neglect"],
+                ["Owner surrender (other)", "Owner surrender (other)"],
+                ["Cannot care for long-term", "Cannot care for long-term"],
+                ["No resources for ongoing care", "No resources for ongoing care"],
+                ["Other", "Other"],
+              ].map(([v, l]) => <option key={v} value={v}>{l}</option>)
+              : [
                 ["Moving / Relocating", "Moving / Relocating"],
                 ["Allergies", "Allergies"],
                 ["New baby", "New baby"],
@@ -406,12 +591,19 @@ function RehomeStepContent({ step, form, set, setV, photoPreview, onPhotoChange,
             </select>
             <InlineErr msg={err("reason")} />
           </RField>
+
           <RField label="Additional details">
-            <textarea value={form.details} onChange={set("details")} rows={2} placeholder="Tell us more about your situation…" style={{ ...inp, resize: "vertical", minHeight: 56 }} onFocus={focIn} onBlur={focOut} />
+            <textarea value={form.details} onChange={set("details")} rows={2}
+              placeholder={isRescue ? "Tell us about how you found this animal…" : "Tell us more about your situation…"}
+              style={{ ...inp, resize: "vertical", minHeight: 56 }} onFocus={focIn} onBlur={focOut} />
           </RField>
-          <RField label="Have you tried other solutions?">
-            <textarea value={form.triedAlternatives} onChange={set("triedAlternatives")} rows={2} placeholder="e.g. Asked family, tried training…" style={{ ...inp, resize: "vertical", minHeight: 52 }} onFocus={focIn} onBlur={focOut} />
-          </RField>
+
+          {!isRescue && (
+            <RField label="Have you tried other solutions?">
+              <textarea value={form.triedAlternatives} onChange={set("triedAlternatives")} rows={2} placeholder="e.g. Asked family, tried training…" style={{ ...inp, resize: "vertical", minHeight: 52 }} onFocus={focIn} onBlur={focOut} />
+            </RField>
+          )}
+
           <RSecTitle icon="box-open" title="Transition details" />
           <RLabel>Can you provide the following?</RLabel>
           <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
@@ -425,7 +617,12 @@ function RehomeStepContent({ step, form, set, setV, photoPreview, onPhotoChange,
 
           <label style={{ display: "flex", alignItems: "flex-start", gap: "0.625rem", padding: "0.75rem 0.875rem", borderRadius: 10, background: form.understandsPermanent ? "rgba(180,90,34,0.07)" : "rgba(255,253,242,0.6)", border: `1.5px solid ${err("understandsPermanent") ? "rgba(192,48,48,0.5)" : form.understandsPermanent ? "rgba(180,90,34,0.35)" : "rgba(180,140,60,0.25)"}`, cursor: "pointer", transition: "all 0.15s", marginTop: "0.25rem" }}>
             <input type="checkbox" checked={form.understandsPermanent} onChange={set("understandsPermanent")} style={{ width: 15, height: 15, accentColor: "#B45A22", marginTop: 2, cursor: "pointer", flexShrink: 0 }} />
-            <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "#6a3a10", lineHeight: 1.6 }}>I understand that rehoming is a <strong>serious and permanent decision</strong>, and I confirm all information is accurate.</span>
+            <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "#6a3a10", lineHeight: 1.6 }}>
+              {isRescue
+                ? <>I confirm this animal needs placement and all information I've provided is <strong>accurate to the best of my knowledge</strong>.</>
+                : <>I understand that rehoming is a <strong>serious and permanent decision</strong>, and I confirm all information is accurate.</>
+              }
+            </span>
           </label>
           <InlineErr msg={err("understandsPermanent")} />
 
@@ -597,7 +794,7 @@ function PreFormCard({ onStart }) {
         <i className="fas fa-hands-holding-heart" style={{ fontSize: "1.5rem", color: "#B45A22" }} />
       </div>
       <div>
-        <div style={{ fontFamily: "'Playfair Display',serif", fontSize: "1.2rem", fontWeight: 900, color: "#1a4a08", marginBottom: "0.4rem" }}>Rehome & Rescue a pet</div>
+        <div style={{ fontFamily: "'Playfair Display',serif", fontSize: "1.2rem", fontWeight: 900, color: "#1a4a08", marginBottom: "0.4rem" }}>Rehome / Rescue a pet</div>
         <p style={{ fontSize: "0.84rem", fontWeight: 700, color: "#6a7a50", lineHeight: 1.7, maxWidth: 280, margin: "0 auto" }}>
           Fill out a short form and we'll find your pet a safe, verified new home — with full care and discretion. Whether you're rehoming or surrendering a rescued animal, we're here to help.
         </p>
@@ -674,7 +871,9 @@ export default function Rehome() {
   }, []);
 
   const [form, setForm] = useState({
+    requestType: "rehome",          // NEW — "rehome" | "rescue"
     petName: "", species: "Dog", breed: "", age: "", gender: "Male", durationOwned: "",
+    foundLocation: "",              // NEW — rescue only
     isVaccinated: "", isNeutered: "", medicalNotes: "",
     vaccineType: "", lastVaccDate: "", vaccClinic: "", vaccNotes: "",
     behavior: "", behaviorOther: "", hasAggression: "", isHouseTrained: "", isLeashTrained: "",
@@ -721,16 +920,21 @@ export default function Rehome() {
       const res = await djFetch("/api/approvals/rehoming/", {
         method: "POST",
         body: JSON.stringify({
+          request_type: form.requestType,
           pet_name: form.petName, species: form.species, breed: form.breed, age: form.age,
           gender: form.gender, duration_owned: form.durationOwned,
+          found_location: form.foundLocation || "",
           is_vaccinated: form.isVaccinated === "yes", is_neutered: form.isNeutered === "yes",
           medical_notes: form.medicalNotes, vaccine_type: form.vaccineType || "",
           last_vacc_date: form.lastVaccDate || null, vacc_clinic: form.vaccClinic || "",
           vacc_notes: form.vaccNotes || "", vacc_photos: vaccPhotos.length > 0 ? vaccPhotos : [],
           behavior: form.behavior, behavior_other: form.behaviorOther,
-          has_aggression: form.hasAggression === "yes", is_house_trained: form.isHouseTrained === "yes",
-          is_leash_trained: form.isLeashTrained === "yes", good_with_children: form.goodWithChildren === "yes",
-          good_with_pets: form.goodWithPets === "yes", ideal_home_desc: form.idealHomeDesc,
+          has_aggression: form.hasAggression === "yes",
+          is_house_trained: form.isHouseTrained === "yes" ? true : form.isHouseTrained === "no" ? false : null,
+          is_leash_trained: form.isLeashTrained === "yes" ? true : form.isLeashTrained === "no" ? false : null,
+          good_with_children: form.goodWithChildren === "yes" ? true : form.goodWithChildren === "no" ? false : null,
+          good_with_pets: form.goodWithPets === "yes" ? true : form.goodWithPets === "no" ? false : null,
+          ideal_home_desc: form.idealHomeDesc,
           owner_name: resolvedOwnerName || user?.name || user?.username || "",
           contact: resolvedContact || user?.phone || "",
           street_address: user?.address || "", city: resolvedCity || user?.city || "",
@@ -749,6 +953,8 @@ export default function Rehome() {
     } catch { setSubmitError("Network error. Please try again."); }
     setLoading(false);
   };
+
+  usePageTitle('Rehome / Rescue a Pet');
 
   return (
     <div style={{ minHeight: "100vh", background: "#EDDABB", fontFamily: "'Nunito',sans-serif" }}>
@@ -777,10 +983,10 @@ export default function Rehome() {
         <div>
           <Reveal>
             <div style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", borderRadius: 50, padding: "0.3rem 1rem", fontSize: "0.67rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", fontStyle: "italic", marginBottom: "1rem", background: "rgba(180,90,34,0.10)", border: "1px solid rgba(180,90,34,0.25)", color: "#B45A22" }}>
-              <i className="fas fa-hands-holding-heart" style={{ fontSize: "0.65rem" }} /> Rehome & Rescue service
+              <i className="fas fa-hands-holding-heart" style={{ fontSize: "0.65rem" }} /> Rehome / Rescue service
             </div>
             <h1 style={{ fontFamily: "'Playfair Display',serif", fontSize: "clamp(2rem,3.5vw,3rem)", fontWeight: 900, color: "#1a4a08", lineHeight: 1.1, marginBottom: "1rem" }}>
-              Need to <em style={{ fontStyle: "italic", color: "#B45A22" }}>Rehome & Rescue</em> Your Pet?
+              Need to <em style={{ fontStyle: "italic", color: "#B45A22" }}>Rehome / Rescue</em> Your Pet?
             </h1>
             <p style={{ fontSize: "0.95rem", fontWeight: 700, color: "#3a5020", lineHeight: 1.7, marginBottom: "0.75rem" }}>
               Life circumstances change. If you're unable to care for your pet — or have rescued an animal in need — Pawster will help find them a safe, loving new home in Baguio City and the Cordillera Administrative Region.
@@ -838,7 +1044,9 @@ export default function Rehome() {
               /* ── Multi-step form ── */
               <div style={{ padding: "1.75rem" }}>
                 <div style={{ marginBottom: "1.25rem" }}>
-                  <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: "1.3rem", fontWeight: 900, color: "#1a4a08", margin: 0 }}>Rehome & Rescue request</h2>
+                  <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: "1.3rem", fontWeight: 900, color: "#1a4a08", margin: 0 }}>
+                    {form.requestType === "rescue" ? "Rescue / Surrender request" : "Rehome / Rescue request"}
+                  </h2>
                   <p style={{ fontSize: "0.75rem", fontWeight: 700, color: "#7a8a60", marginTop: "0.2rem" }}>
                     Confidential · Step {step} of {STEPS.length} — {STEPS[step - 1]}
                   </p>
@@ -919,7 +1127,7 @@ export default function Rehome() {
           </div>
           {[
             { title: "Adopt", links: [["Browse animals", "/pets"], ["My profile", "/profile"], ["Log in", "/login"], ["Register", "/register"]] },
-            { title: "Services", links: [["How it works", "/how-it-works"], ["Rehome & Rescue", "/rehome"], ["Missing pets", "/missing-pets"], ["About us", "/about"]] },
+            { title: "Services", links: [["How it works", "/how-it-works"], ["Rehome / Rescue", "/rehome"], ["Missing pets", "/missing-pets"], ["About us", "/about"]] },
             { title: "Regions", links: [["Baguio City", "/pets"], ["Benguet", "/pets"], ["Mountain Province", "/pets"], ["Ifugao", "/pets"]] },
           ].map(({ title, links }) => (
             <div key={title}>

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import logo from "../images/logo.png";
 import dogMascot from "../images/forgot_dog.png";
 import api from "../config/axios";
+import { usePageTitle } from "../hooks/usePageTitle";
 
 // ─── Shared: Mesh background ──────────────────────────────────────────────────
 function MeshBackground() {
@@ -514,6 +515,8 @@ export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [showOtpSentModal, setShowOtpSentModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+
+  usePageTitle('Forgot Password')
 
   // FIX 5: return the promise so the child can catch/finally properly
   async function handleForgotSubmit(submittedEmail) {

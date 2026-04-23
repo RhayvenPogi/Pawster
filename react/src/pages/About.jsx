@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import logo from "../images/logo.png";
+import { usePageTitle } from "../hooks/usePageTitle";
 
 function useReveal() {
   const ref = useRef(null);
@@ -121,6 +122,7 @@ const STATS = [
 export default function About() {
   const { user, logout } = useAuth();
 
+  usePageTitle('About Us');
   return (
     <div style={{ minHeight: '100vh', background: '#EDDABB', fontFamily: "'Nunito',sans-serif" }}>
       <style>{`

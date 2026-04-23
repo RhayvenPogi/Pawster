@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import logo from "../images/logo.png";
-
+import { usePageTitle } from "../hooks/usePageTitle";
 function useReveal(threshold = 0.1) {
   const ref = useRef(null);
   const [vis, setVis] = useState(false);
@@ -60,6 +60,8 @@ const VIDEO_ID = "6P9GGITcRsQ";
 export default function LandingPage() {
   const [scrolled, setScrolled] = useState(false);
   const [vis,      setVis]      = useState(false);
+
+  usePageTitle('Landing Page');
 
   useEffect(() => {
     setTimeout(() => setVis(true), 80);

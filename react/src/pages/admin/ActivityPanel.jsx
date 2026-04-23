@@ -10,6 +10,7 @@
 import { useState, useEffect } from "react";
 import { phpApi, Badge, Table, Tr, Td, PageHeader } from "../../shared";
 import { downloadAppointmentPDF } from "../../utils/downloadAppointmentPDF";
+import { usePageTitle } from "../../hooks/usePageTitle";
 
 const ACTION_CONFIG = {
   Login:   { color: "green",  icon: "🔐" },
@@ -27,6 +28,7 @@ export default function ActivityPanel({ show }) {
   const [filter,      setFilter]      = useState("all");
   const [downloading, setDownloading] = useState(null); // tracks which log row is generating PDF
 
+  usePageTitle('Activity Log');
   const load = () => {
     setLoading(true);
     phpApi("get_activity")

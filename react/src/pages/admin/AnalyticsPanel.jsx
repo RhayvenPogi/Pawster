@@ -1,6 +1,7 @@
 // ── ANALYTICS PANEL — formal design, Pawster color scheme
 // Line charts + Scatter plots (separate), date filters
 import { useState, useEffect, useRef, useCallback } from "react";
+import { usePageTitle } from "../../hooks/usePageTitle";
 
 const DJANGO = import.meta.env.VITE_DJANGO_API_URL ?? "http://localhost:8000";
 const POLL_INTERVAL = 30_000;
@@ -504,6 +505,8 @@ export default function AnalyticsPanel({ show }) {
   const [rehomeView,  setRehomeView]  = useState("weekly");
   const [selectedYear, setSelectedYear] = useState("all");
   const [dateRange,    setDateRange]    = useState({ from: "", to: "" });
+
+  usePageTitle("Analytics Dashboard");
 
   const fetchData = useCallback(async () => {
     setPolling(true);

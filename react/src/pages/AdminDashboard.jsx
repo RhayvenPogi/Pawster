@@ -3,59 +3,79 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { phpApi, useToast, ToastContainer } from "../shared";
 import { useAuth } from "../hooks/useAuth";
 import logo from "../images/logo.png";
+import { usePageTitle } from "../hooks/usePageTitle";
 
-import DashboardPanel   from "./admin/DashboardPanel";
-import AnimalsPanel     from "./admin/AnimalsPanel";
-import RequestsPanel    from "./admin/RequestsPanel";
-import SurveysPanel     from "./admin/SurveysPanel";
-import UsersPanel       from "./admin/UsersPanel";
-import GeoMapPanel      from "./admin/GeoMapPanel";
-import ActivityPanel    from "./admin/ActivityPanel";
-import ProfilePanel     from "./admin/ProfilePanel";
+import DashboardPanel from "./admin/DashboardPanel";
+import AnimalsPanel from "./admin/AnimalsPanel";
+import RequestsPanel from "./admin/RequestsPanel";
+import SurveysPanel from "./admin/SurveysPanel";
+import UsersPanel from "./admin/UsersPanel";
+import GeoMapPanel from "./admin/GeoMapPanel";
+import ActivityPanel from "./admin/ActivityPanel";
+import ProfilePanel from "./admin/ProfilePanel";
 import MissingPetsPanel from "./admin/MissingPetsPanel";
-import AnalyticsPanel   from "./admin/AnalyticsPanel";
+import AnalyticsPanel from "./admin/AnalyticsPanel";
 import AdminMessagingPanel from "./admin/AdminMessagingPanel";
 
-// ── Messaging removed from NAV — it lives in the topbar now
 const NAV = [
   {
     group: "Overview",
     items: [
-      { id: "overview", label: "Dashboard", ico: "ico-blue", faIcon: "chart-line",
-        badge: "total_records", badgeWarn: false },
+      {
+        id: "overview", label: "Dashboard", ico: "ico-blue", faIcon: "chart-line",
+        badge: "total_records", badgeWarn: false
+      },
     ],
   },
   {
     group: "Management",
     items: [
-      { id: "animals",     label: "Animals",      ico: "ico-green",  faIcon: "paw",
-        badge: "animals",           badgeWarn: false },
-      { id: "adoptions",   label: "Adoptions",    ico: "ico-orange", faIcon: "heart",
-        badge: "pending_adoptions", badgeWarn: true  },
-      { id: "rehome",      label: "Rehoming",     ico: "ico-amber",  faIcon: "home",
-        badge: "pending_rehome",    badgeWarn: true  },
-      { id: "surveys",     label: "Feedbacks",    ico: "ico-teal",   faIcon: "clipboard-list",
-        badge: "surveys",           badgeWarn: false },
-      { id: "missingpets", label: "Missing Pets", ico: "ico-rose",   faIcon: "search",
-        badge: "missing_pets",      badgeWarn: true  },
+      {
+        id: "animals", label: "Animals", ico: "ico-green", faIcon: "paw",
+        badge: "animals", badgeWarn: false
+      },
+      {
+        id: "adoptions", label: "Adoptions", ico: "ico-orange", faIcon: "heart",
+        badge: "pending_adoptions", badgeWarn: true
+      },
+      {
+        id: "rehome", label: "Rehoming", ico: "ico-amber", faIcon: "home",
+        badge: "pending_rehome", badgeWarn: true
+      },
+      {
+        id: "surveys", label: "Feedbacks", ico: "ico-teal", faIcon: "clipboard-list",
+        badge: "surveys", badgeWarn: false
+      },
+      {
+        id: "missingpets", label: "Missing Pets", ico: "ico-rose", faIcon: "search",
+        badge: "missing_pets", badgeWarn: true
+      },
     ],
   },
   {
     group: "Analytics",
     items: [
-      { id: "analytics", label: "Analytics",      ico: "ico-teal",  faIcon: "chart-line",
-        badge: "total_records", badgeWarn: false },
-      { id: "map",       label: "Geographic Map", ico: "ico-blue",  faIcon: "globe-asia",
-        badge: "users",         badgeWarn: false },
+      {
+        id: "analytics", label: "Analytics", ico: "ico-teal", faIcon: "chart-bar",
+        badge: "total_records", badgeWarn: false
+      },
+      {
+        id: "map", label: "Geographic Map", ico: "ico-blue", faIcon: "globe-asia",
+        badge: "users", badgeWarn: false
+      },
     ],
   },
   {
     group: "System",
     items: [
-      { id: "users",    label: "User Management", ico: "ico-purple", faIcon: "users",
-        badge: "users",          badgeWarn: false },
-      { id: "activity", label: "Activity Log",    ico: "ico-rose",   faIcon: "history",
-        badge: "activity_today", badgeWarn: false },
+      {
+        id: "users", label: "User Management", ico: "ico-purple", faIcon: "users",
+        badge: "users", badgeWarn: false
+      },
+      {
+        id: "activity", label: "Activity Log", ico: "ico-rose", faIcon: "history",
+        badge: "activity_today", badgeWarn: false
+      },
     ],
   },
 ];
@@ -73,9 +93,9 @@ const ICO_COLORS = {
 function isDeleted(item) {
   if (!item) return false;
   if (item.deleted_at !== undefined && item.deleted_at !== null && item.deleted_at !== "") return true;
-  if (item.deletedAt  !== undefined && item.deletedAt  !== null && item.deletedAt  !== "") return true;
+  if (item.deletedAt !== undefined && item.deletedAt !== null && item.deletedAt !== "") return true;
   if (item.is_deleted !== undefined && (item.is_deleted === true || item.is_deleted === 1 || item.is_deleted === "1")) return true;
-  if (item.isDeleted  !== undefined && (item.isDeleted  === true || item.isDeleted  === 1 || item.isDeleted  === "1")) return true;
+  if (item.isDeleted !== undefined && (item.isDeleted === true || item.isDeleted === 1 || item.isDeleted === "1")) return true;
   if (typeof item.status === "string" && item.status.toLowerCase() === "deleted") return true;
   return false;
 }
@@ -123,78 +143,170 @@ function MeshBackground() {
   );
 }
 
-// ── FA ICON ────────────────────────────────────────────────────────────────────
+// ── SVG ICONS ──────────────────────────────────────────────────────────────────
 function FaIcon({ name, size = 14, color = "currentColor" }) {
-  const paths = {
-    "chart-line":        "M2 12 L6 7 L10 9 L14 4 L16 6 M2 12 L16 12",
-    "paw":               "M12 13.5c-1 1.5-3 1.5-4 0-1-1.5-.5-3.5 1-4.5s3.5-.5 4 1c.5 1.5 0 2-1 3.5zm-6-4c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm6-2c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zM5 5c0-.6.4-1 1-1s1 .4 1 1-.4 1-1 1-1-.4-1-1zm8 0c0-.6.4-1 1-1s1 .4 1 1-.4 1-1 1-1-.4-1-1z",
-    "heart":             "M12 21.593c-5.63-5.539-11-10.297-11-14.402 0-3.791 3.068-5.191 5.281-5.191 1.312 0 4.151.501 5.719 4.457 1.59-3.968 4.464-4.447 5.726-4.447 2.54 0 5.274 1.621 5.274 5.181 0 4.069-5.136 8.625-11 14.402z",
-    "home":              "M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z",
-    "clipboard-list":    "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01",
-    "globe-asia":        "M12 2a10 10 0 100 20A10 10 0 0012 2zm0 2c1.4 0 2.7.3 3.9.9L14 7h-2l-1 2-1-1H8l-1 2 1 1v2l2 2 1 3-1 1a8 8 0 01-5-13.3L6 7l2-1 2-2h2zm6.9 3.1A8 8 0 0120 12h-2l-1-1-1 1-2-2 1-2-1-1 1.3-1.7.6.8z",
-    "users":             "M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z",
-    "history":           "M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z",
-    "user-shield":       "M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 4a3 3 0 110 6 3 3 0 010-6zm0 8c-2 0-6 1-6 3v1h12v-1c0-2-4-3-6-3z",
-    "bars":              "M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z",
-    "rotate-right":      "M15.55 5.55L11 1v3.07C7.06 4.56 4 7.92 4 12s3.05 7.44 7 7.93v-2.02c-2.84-.48-5-2.94-5-5.91s2.16-5.43 5-5.91V10l4.55-4.45zM19.93 11c-.17-1.39-.72-2.73-1.62-3.89l-1.42 1.42c.54.75.88 1.6 1.02 2.47H19.93zm-3.01 6.32c1.17-.7 2.08-1.73 2.58-2.96l-1.86-.75c-.35.85-.93 1.54-1.64 2.05l.92 1.66zm-3.92 1.61v2.02c1.39-.17 2.73-.72 3.89-1.62l-1.42-1.42c-.75.54-1.6.87-2.47 1.02z",
-    "bell":              "M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z",
-    "sign-out-alt":      "M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z",
-    "arrow-left":        "M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z",
-    "external-link-alt": "M19 19H5V5h7V3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z",
-    "user-cog":          "M12 14c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0-6c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2zm-1 9.93V22h2v-4.07c3.62-.44 6.5-3.34 6.94-7H22v-2h-2.06C19.5 5.34 16.62 2.44 13 2V0h-2v2C7.38 2.44 4.5 5.34 4.06 9H2v2h2.06c.44 3.66 3.32 6.56 6.94 7z",
-    "shield-alt":        "M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z",
-    "times":             "M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z",
-    "search":            "M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z",
+  const icons = {
+    "chart-line": (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+      </svg>
+    ),
+    "chart-bar": (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="12" width="4" height="9" rx="1" />
+        <rect x="10" y="7" width="4" height="14" rx="1" />
+        <rect x="17" y="3" width="4" height="18" rx="1" />
+        <line x1="2" y1="21" x2="22" y2="21" />
+      </svg>
+    ),
+    "paw": (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+        <ellipse cx="6.5" cy="9.5" rx="2.2" ry="2.8" />
+        <ellipse cx="10.2" cy="7" rx="2.2" ry="2.8" />
+        <ellipse cx="13.8" cy="7" rx="2.2" ry="2.8" />
+        <ellipse cx="17.5" cy="9.5" rx="2.2" ry="2.8" />
+        <path d="M12 13.5c-2.2 0-5 1.5-5 3.8 0 1.5 1.2 2.7 3 2.7h4c1.8 0 3-1.2 3-2.7 0-2.3-2.8-3.8-5-3.8z" />
+      </svg>
+    ),
+    "heart": (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+      </svg>
+    ),
+    "home": (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z" />
+        <polyline points="9 22 9 12 15 12 15 22" />
+      </svg>
+    ),
+    "clipboard-list": (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="8" y="2" width="8" height="4" rx="1" />
+        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+        <line x1="9" y1="12" x2="15" y2="12" />
+        <line x1="9" y1="16" x2="13" y2="16" />
+      </svg>
+    ),
+    "search": (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="11" cy="11" r="7" />
+        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+      </svg>
+    ),
+    "globe-asia": (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10" />
+        <line x1="2" y1="12" x2="22" y2="12" />
+        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+        <path d="M9 4.5c1 1.5 1.5 3 1.5 7.5s-.5 6-1.5 7.5" />
+      </svg>
+    ),
+    "users": (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+      </svg>
+    ),
+    "history": (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="1 4 1 10 7 10" />
+        <path d="M3.51 15a9 9 0 1 0 .49-4.95" />
+        <polyline points="12 7 12 12 15 15" />
+      </svg>
+    ),
+    "comments": (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+      </svg>
+    ),
+    "bars": (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round">
+        <line x1="3" y1="6" x2="21" y2="6" />
+        <line x1="3" y1="12" x2="21" y2="12" />
+        <line x1="3" y1="18" x2="21" y2="18" />
+      </svg>
+    ),
+    "rotate-right": (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="23 4 23 10 17 10" />
+        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+      </svg>
+    ),
+    "external-link-alt": (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+        <polyline points="15 3 21 3 21 9" />
+        <line x1="10" y1="14" x2="21" y2="3" />
+      </svg>
+    ),
+    "user-shield": (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        <circle cx="12" cy="10" r="3" />
+      </svg>
+    ),
+    "user-cog": (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="9" cy="7" r="4" />
+        <path d="M3 21v-2a4 4 0 0 1 4-4h4" />
+        <circle cx="19" cy="19" r="2" />
+        <path d="M19 15v2M19 21v2M15 19h2M21 19h2M16.5 16.5l1.5 1.5M20.5 20.5l1.5 1.5M20.5 16.5l-1.5 1.5M16.5 20.5l-1.5 1.5" />
+      </svg>
+    ),
+    "shield-alt": (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        <polyline points="9 12 11 14 15 10" />
+      </svg>
+    ),
+    "sign-out-alt": (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+        <polyline points="16 17 21 12 16 7" />
+        <line x1="21" y1="12" x2="9" y2="12" />
+      </svg>
+    ),
+    "times": (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round">
+        <line x1="18" y1="6" x2="6" y2="18" />
+        <line x1="6" y1="6" x2="18" y2="18" />
+      </svg>
+    ),
+    "bell": (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+        <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+      </svg>
+    ),
+    "arrow-left": (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="19" y1="12" x2="5" y2="12" />
+        <polyline points="12 19 5 12 12 5" />
+      </svg>
+    ),
   };
 
-  // ── B-style stacked bubbles messaging icon ──────────────────────────────────
-  if (name === "comments") {
-    return (
-      <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
-        {/* Back bubble */}
-        <rect x="7" y="3" width="13" height="9" rx="2.5" opacity="0.4" />
-        {/* Front bubble */}
-        <path d="M2 8.5C2 7.4 2.9 6.5 4 6.5H14C15.1 6.5 16 7.4 16 8.5V15C16 16.1 15.1 17 14 17H8.5L5.5 19.5C5.2 19.8 4.7 19.6 4.7 19.2V17H4C2.9 17 2 16.1 2 15V8.5Z" />
-        {/* Lines on front bubble */}
-        <rect x="5" y="10.5" width="8" height="1.4" rx="0.7" fill="white" opacity="0.85" />
-        <rect x="5" y="13" width="5" height="1.4" rx="0.7" fill="white" opacity="0.85" />
-      </svg>
-    );
-  }
-
-  const d = paths[name];
-  if (!d) return null;
-  if (name === "chart-line") {
-    return (
-      <svg width={size} height={size} viewBox="0 0 18 14" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="2,12 6,7 10,9 14,4 16,6" />
-        <line x1="2" y1="12" x2="16" y2="12" />
-      </svg>
-    );
-  }
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
-      <path d={d} />
-    </svg>
-  );
+  return icons[name] ?? null;
 }
 
 // ── PROFILE MODAL ──────────────────────────────────────────────────────────────
 function ProfileModal({ user, onClose, onUserUpdate, defaultTab = "profile" }) {
-  const [tab, setTab]         = useState(defaultTab);
-  const [saving, setSaving]   = useState(false);
-  const [msg, setMsg]         = useState({ type: "", text: "" });
-  const [fname, setFname]     = useState(user?.firstName || "");
-  const [lname, setLname]     = useState(user?.lastName  || "");
-  const [email, setEmail]     = useState(user?.email     || "");
-  const [phone, setPhone]     = useState(user?.phone     || "");
+  const [tab, setTab] = useState(defaultTab);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState({ type: "", text: "" });
+  const [fname, setFname] = useState(user?.firstName || "");
+  const [lname, setLname] = useState(user?.lastName || "");
+  const [email, setEmail] = useState(user?.email || "");
+  const [phone, setPhone] = useState(user?.phone || "");
   const [current, setCurrent] = useState("");
   const [newPass, setNewPass] = useState("");
   const [confirm, setConfirm] = useState("");
   const [showCur, setShowCur] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showCon, setShowCon] = useState(false);
-  const [photoSrc, setPhotoSrc]       = useState(user?.avatar || "");
+  const [photoSrc, setPhotoSrc] = useState(user?.avatar || "");
   const [pendingFile, setPendingFile] = useState(null);
   const fileRef = useRef(null);
 
@@ -265,9 +377,9 @@ function ProfileModal({ user, onClose, onUserUpdate, defaultTab = "profile" }) {
   };
 
   const tabs = [
-    { id: "profile",  label: "Personal Info", icon: "👤" },
-    { id: "photo",    label: "Photo",          icon: "📷" },
-    { id: "security", label: "Security",       icon: "🔒" },
+    { id: "profile", label: "Personal Info", icon: "👤" },
+    { id: "photo", label: "Photo", icon: "📷" },
+    { id: "security", label: "Security", icon: "🔒" },
   ];
 
   const inputCls = "w-full px-3 py-2.5 rounded-lg text-sm font-semibold text-[#1a2e0a] outline-none transition-all duration-150 border border-[rgba(180,140,60,0.28)] bg-[rgba(255,250,232,0.78)] focus:border-[#5aaa30] focus:ring-2 focus:ring-[rgba(90,170,48,0.12)]";
@@ -338,9 +450,10 @@ function ProfileModal({ user, onClose, onUserUpdate, defaultTab = "profile" }) {
           )}
           {tab === "security" && (
             <div className="flex flex-col gap-4">
-              {[["Current Password *", showCur, setShowCur, current, setCurrent, "Enter current password"],
-                ["New Password *",     showNew, setShowNew, newPass, setNewPass, "Min 8 characters"],
-                ["Confirm New Password *", showCon, setShowCon, confirm, setConfirm, "Repeat new password"]
+              {[
+                ["Current Password *", showCur, setShowCur, current, setCurrent, "Enter current password"],
+                ["New Password *", showNew, setShowNew, newPass, setNewPass, "Min 8 characters"],
+                ["Confirm New Password *", showCon, setShowCon, confirm, setConfirm, "Repeat new password"],
               ].map(([label, show, setShow, val, setVal, ph]) => (
                 <div key={label}>
                   <label className={labelCls}>{label}</label>
@@ -383,9 +496,13 @@ function ProfileModal({ user, onClose, onUserUpdate, defaultTab = "profile" }) {
 // ── SIDEBAR ────────────────────────────────────────────────────────────────────
 function Sidebar({ active, onNav, stats, user, collapsed, onToggle, onLogout }) {
   const avatarSrc = user?.avatar || "";
+  const [hovered, setHovered] = useState(null);
+
   return (
     <aside className="fixed left-0 top-0 z-[200] h-screen flex flex-col overflow-hidden transition-all duration-300"
       style={{ width: collapsed ? 64 : 252, background: "rgba(255,248,220,0.90)", backdropFilter: "blur(22px)", borderRight: "1.5px solid rgba(90,170,48,0.45)", boxShadow: "4px 0 24px rgba(100,70,20,0.10)", transitionTimingFunction: "cubic-bezier(0.4,0,0.2,1)" }}>
+
+      {/* Logo */}
       <div className="flex items-center gap-2.5 px-3.5 shrink-0 overflow-hidden h-16" style={{ borderBottom: "1.5px solid rgba(180,140,60,0.28)" }}>
         <img src={logo} alt="Pawster" className="object-contain shrink-0" style={{ width: collapsed ? 36 : 50, height: collapsed ? 36 : 50 }} onError={e => { e.target.style.display = "none"; }} />
         {!collapsed && (
@@ -398,6 +515,8 @@ function Sidebar({ active, onNav, stats, user, collapsed, onToggle, onLogout }) 
           <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className={`transition-transform duration-300 ${collapsed ? "rotate-180" : ""}`}><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" /></svg>
         </button>
       </div>
+
+      {/* User info */}
       <div className={`flex items-center gap-2.5 px-3.5 py-3 shrink-0 ${collapsed ? "justify-center" : ""}`} style={{ background: "rgba(90,170,48,0.07)", borderBottom: "1.5px solid rgba(180,140,60,0.28)" }}>
         <div className="w-9 h-9 rounded-full shrink-0 flex items-center justify-center text-white overflow-hidden border-2 border-[#5aaa30]" style={{ background: "linear-gradient(135deg,#1c4f09,#2a7010)" }}>
           {avatarSrc ? <img src={avatarSrc} alt="avatar" className="w-full h-full object-cover rounded-full" /> : <FaIcon name="user-shield" size={18} color="#fff" />}
@@ -405,31 +524,54 @@ function Sidebar({ active, onNav, stats, user, collapsed, onToggle, onLogout }) 
         {!collapsed && (
           <div>
             <strong className="block text-[0.84rem] font-extrabold text-[#1a4a08] whitespace-nowrap overflow-hidden text-ellipsis max-w-[145px]">{user?.firstName}</strong>
-            <span className="flex items-center gap-1 text-[0.68rem] font-bold text-[#6a7a50]"><span className="dot-pulse inline-block w-2 h-2 rounded-full bg-[#4ccc20]" />Online</span>
+            <span className="flex items-center gap-1 text-[0.68rem] font-bold text-[#6a7a50]">
+              <span className="dot-pulse inline-block w-2 h-2 rounded-full bg-[#4ccc20]" />Online
+            </span>
           </div>
         )}
       </div>
+
+      {/* Nav items */}
       <nav className="flex-1 overflow-y-auto px-2.5 py-2" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(180,140,60,0.28) transparent" }}>
         {NAV.map(group => (
           <div key={group.group}>
-            {!collapsed && <div className="text-[0.61rem] font-black uppercase tracking-widest text-[#6a7a50] px-2 pt-3 pb-1">{group.group}</div>}
+            {!collapsed && (
+              <div className="text-[0.61rem] font-black uppercase tracking-widest text-[#6a7a50] px-2 pt-3 pb-1">{group.group}</div>
+            )}
             {group.items.map(item => {
-              const isActive = active === item.id;
-              const ico      = ICO_COLORS[item.ico] || ICO_COLORS["ico-blue"];
-              const count    = item.badge ? (stats[item.badge] ?? 0) : 0;
+              const isActive  = active === item.id;
+              const isHovered = hovered === item.id;
+              const ico       = ICO_COLORS[item.ico] || ICO_COLORS["ico-blue"];
+              const count     = item.badge ? (stats[item.badge] ?? 0) : 0;
+              const highlight = isActive || isHovered;
+
               return (
-                <button key={item.id} onClick={() => onNav(item.id)}
-                  className={`w-full flex items-center gap-2 mb-0.5 rounded-xl text-[0.855rem] font-bold whitespace-nowrap transition-all duration-150 cursor-pointer border-none bg-transparent ${collapsed ? "p-2.5 justify-center" : "py-2 px-2.5"} ${isActive ? "text-[#1a4a08]" : "text-[#3a5020] hover:bg-[rgba(90,170,48,0.10)] hover:text-[#1a4a08]"}`}
-                  style={{ background: isActive ? "rgba(90,170,48,0.17)" : "transparent", border: isActive ? "1.5px solid rgba(90,170,48,0.30)" : "1.5px solid transparent" }}>
-                  <div className="w-[30px] h-[30px] rounded-lg shrink-0 flex items-center justify-center" style={{ background: ico.bg }}>
-                    <FaIcon name={item.faIcon} size={14} color={ico.color} />
+                <button
+                  key={item.id}
+                  onClick={() => onNav(item.id)}
+                  onMouseEnter={() => setHovered(item.id)}
+                  onMouseLeave={() => setHovered(null)}
+                  className={`w-full flex items-center gap-2 mb-0.5 rounded-xl text-[0.855rem] font-bold whitespace-nowrap transition-all duration-150 cursor-pointer border-none ${collapsed ? "p-2.5 justify-center" : "py-2 px-2.5"} ${highlight ? "text-[#1a4a08]" : "text-[#3a5020]"}`}
+                  style={{
+                    background: highlight ? "rgba(90,170,48,0.17)" : "transparent",
+                    border:     highlight ? "1.5px solid rgba(90,170,48,0.30)" : "1.5px solid transparent",
+                  }}
+                >
+                  <div
+                    className="w-[30px] h-[30px] rounded-lg shrink-0 flex items-center justify-center"
+                    style={{ background: ico.bg }}
+                  >
+                    <FaIcon name={item.faIcon} size={15} color={ico.color} />
                   </div>
                   {!collapsed && <span className="flex-1 text-left">{item.label}</span>}
                   {!collapsed && count > 0 && (
-                    <div className="text-[0.63rem] font-black px-2 py-0.5 rounded-full" style={{
-                      background: item.badgeWarn ? "rgba(180,90,34,0.15)" : (isActive ? "rgba(90,170,48,0.20)" : "rgba(180,140,60,0.14)"),
-                      color: item.badgeWarn ? "#B45A22" : (isActive ? "#1c4f09" : "#6a7a50"),
-                    }}>
+                    <div
+                      className="text-[0.63rem] font-black px-2 py-0.5 rounded-full"
+                      style={{
+                        background: item.badgeWarn ? "rgba(180,90,34,0.15)" : (isActive ? "rgba(90,170,48,0.20)" : "rgba(180,140,60,0.14)"),
+                        color:      item.badgeWarn ? "#B45A22"               : (isActive ? "#1c4f09"              : "#6a7a50"),
+                      }}
+                    >
                       {count}
                     </div>
                   )}
@@ -455,8 +597,8 @@ function MessagingButton({ unreadCount, isActive, onClick }) {
       className="relative flex items-center justify-center w-9 h-9 rounded-xl transition-all duration-150 cursor-pointer border-none"
       style={{
         background: isActive ? "rgba(26,138,106,0.18)" : "rgba(255,250,232,0.78)",
-        border: isActive ? "1.5px solid rgba(26,138,106,0.45)" : "1.5px solid rgba(180,140,60,0.28)",
-        color: isActive ? "#1a8a6a" : "#6a7a50",
+        border:     isActive ? "1.5px solid rgba(26,138,106,0.45)" : "1.5px solid rgba(180,140,60,0.28)",
+        color:      isActive ? "#1a8a6a" : "#6a7a50",
       }}
     >
       <FaIcon name="comments" size={16} color="currentColor" />
@@ -476,25 +618,37 @@ function MessagingButton({ unreadCount, isActive, onClick }) {
 function Topbar({ panel, user, onRefresh, onToggle, collapsed, onNav, onOpenProfile, onLogout, unreadMessages }) {
   const [profileOpen, setProfileOpen] = useState(false);
   const avatarSrc = user?.avatar || "";
+
   return (
-    <header className="fixed top-0 right-0 z-[150] h-16 flex items-center justify-between px-5 gap-2.5 transition-all duration-300"
-      style={{ left: collapsed ? 64 : 252, background: "rgba(255,248,220,0.92)", backdropFilter: "blur(18px)", borderBottom: "1.5px solid rgba(180,140,60,0.28)", boxShadow: "0 2px 14px rgba(100,70,20,0.08)", transitionTimingFunction: "cubic-bezier(0.4,0,0.2,1)" }}>
+    <header
+      className="fixed top-0 right-0 z-[150] h-16 flex items-center justify-between px-5 gap-2.5 transition-all duration-300"
+      style={{ left: collapsed ? 64 : 252, background: "rgba(255,248,220,0.92)", backdropFilter: "blur(18px)", borderBottom: "1.5px solid rgba(180,140,60,0.28)", boxShadow: "0 2px 14px rgba(100,70,20,0.08)", transitionTimingFunction: "cubic-bezier(0.4,0,0.2,1)" }}
+    >
       <button onClick={onToggle} className="p-1.5 rounded-lg text-[#6a7a50] hover:bg-[rgba(90,170,48,0.12)] hover:text-[#1a4a08] transition-all duration-200 border-none bg-transparent cursor-pointer">
         <FaIcon name="bars" size={18} color="currentColor" />
       </button>
 
       <div className="flex items-center gap-2">
         {/* Refresh */}
-        <button onClick={onRefresh} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[#6a7a50] text-sm font-bold hover:text-[#1a4a08] hover:border-[#5aaa30] transition-all duration-150 cursor-pointer" style={{ background: "rgba(255,250,232,0.78)", border: "1.5px solid rgba(180,140,60,0.28)" }} title="Refresh">
+        <button
+          onClick={onRefresh}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[#6a7a50] text-sm font-bold hover:text-[#1a4a08] hover:border-[#5aaa30] transition-all duration-150 cursor-pointer"
+          style={{ background: "rgba(255,250,232,0.78)", border: "1.5px solid rgba(180,140,60,0.28)" }}
+          title="Refresh"
+        >
           <FaIcon name="rotate-right" size={14} color="currentColor" />
         </button>
 
         {/* View Site */}
-        <button onClick={() => window.open("/home", "_blank")} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold text-[#1c4f09] hover:bg-[#1c4f09] hover:text-white transition-all duration-150 cursor-pointer" style={{ background: "rgba(90,170,48,0.13)", border: "1.5px solid rgba(90,170,48,0.35)" }}>
+        <button
+          onClick={() => window.open("/home", "_blank")}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold text-[#1c4f09] hover:bg-[#1c4f09] hover:text-white transition-all duration-150 cursor-pointer"
+          style={{ background: "rgba(90,170,48,0.13)", border: "1.5px solid rgba(90,170,48,0.35)" }}
+        >
           <FaIcon name="external-link-alt" size={13} color="currentColor" /> View Site
         </button>
 
-        {/* ── Messages icon button ── */}
+        {/* Messages */}
         <MessagingButton
           unreadCount={unreadMessages}
           isActive={panel === "messaging"}
@@ -503,7 +657,11 @@ function Topbar({ panel, user, onRefresh, onToggle, collapsed, onNav, onOpenProf
 
         {/* Profile dropdown */}
         <div className="relative">
-          <div onClick={() => { setProfileOpen(o => !o); }} className="flex items-center gap-2 cursor-pointer px-3 py-1.5 rounded-xl transition-all duration-200 hover:border-[#5aaa30]" style={{ background: "rgba(255,250,232,0.78)", border: "1.5px solid rgba(180,140,60,0.28)" }}>
+          <div
+            onClick={() => setProfileOpen(o => !o)}
+            className="flex items-center gap-2 cursor-pointer px-3 py-1.5 rounded-xl transition-all duration-200 hover:border-[#5aaa30]"
+            style={{ background: "rgba(255,250,232,0.78)", border: "1.5px solid rgba(180,140,60,0.28)" }}
+          >
             <div className="w-7 h-7 rounded-full flex items-center justify-center text-white overflow-hidden border border-[#5aaa30]" style={{ background: "linear-gradient(135deg,#1c4f09,#2a7010)" }}>
               {avatarSrc ? <img src={avatarSrc} alt="avatar" className="w-full h-full object-cover rounded-full" /> : <FaIcon name="user-shield" size={14} color="#fff" />}
             </div>
@@ -513,6 +671,7 @@ function Topbar({ panel, user, onRefresh, onToggle, collapsed, onNav, onOpenProf
             </div>
             <svg width="10" height="10" viewBox="0 0 24 24" fill="#6a7a50" className={`transition-transform duration-200 ${profileOpen ? "rotate-180" : ""}`}><path d="M7 10l5 5 5-5z" /></svg>
           </div>
+
           {profileOpen && (
             <div className="fade-up absolute top-[calc(100%+8px)] right-0 z-[999] rounded-2xl p-2 min-w-[230px] shadow-2xl" style={{ background: "rgba(255,252,235,0.98)", border: "1.5px solid rgba(180,140,60,0.28)" }}>
               <div className="flex items-center gap-2.5 px-2 pt-2 pb-2">
@@ -525,13 +684,25 @@ function Topbar({ panel, user, onRefresh, onToggle, collapsed, onNav, onOpenProf
                 </div>
               </div>
               <div className="h-px my-1" style={{ background: "rgba(180,140,60,0.28)" }} />
-              {[{ label: "Profile Settings", icon: "user-cog", tab: "profile" }, { label: "Security", icon: "shield-alt", tab: "security" }].map(item => (
-                <a key={item.label} href="#" onClick={e => { e.preventDefault(); setProfileOpen(false); onOpenProfile(item.tab); }} className="flex items-center gap-2 px-2.5 py-2 rounded-lg text-[#3a5020] no-underline text-sm font-bold hover:bg-[rgba(90,170,48,0.10)] hover:text-[#1a4a08] transition-all duration-150">
+              {[
+                { label: "Profile Settings", icon: "user-cog",   tab: "profile"  },
+                { label: "Security",         icon: "shield-alt", tab: "security" },
+              ].map(item => (
+                <a
+                  key={item.label}
+                  href="#"
+                  onClick={e => { e.preventDefault(); setProfileOpen(false); onOpenProfile(item.tab); }}
+                  className="flex items-center gap-2 px-2.5 py-2 rounded-lg text-[#3a5020] no-underline text-sm font-bold hover:bg-[rgba(90,170,48,0.10)] hover:text-[#1a4a08] transition-all duration-150"
+                >
                   <FaIcon name={item.icon} size={14} color="#6a7a50" /> {item.label}
                 </a>
               ))}
               <div className="h-px my-1" style={{ background: "rgba(180,140,60,0.28)" }} />
-              <a onClick={e => { e.preventDefault(); setProfileOpen(false); onLogout(); }} href="#" className="flex items-center gap-2 px-2.5 py-2 rounded-lg text-[#c03030] no-underline text-sm font-bold hover:bg-[rgba(192,48,48,0.10)] transition-all duration-150 cursor-pointer">
+              <a
+                onClick={e => { e.preventDefault(); setProfileOpen(false); onLogout(); }}
+                href="#"
+                className="flex items-center gap-2 px-2.5 py-2 rounded-lg text-[#c03030] no-underline text-sm font-bold hover:bg-[rgba(192,48,48,0.10)] transition-all duration-150 cursor-pointer"
+              >
                 <FaIcon name="sign-out-alt" size={14} color="#c03030" /> Sign Out
               </a>
             </div>
@@ -570,6 +741,8 @@ export default function AdminDashboard() {
   const { toasts, show: toast }         = useToast();
   const [profileModal, setProfileModal] = useState({ open: false, tab: "profile" });
 
+  usePageTitle("Admin Dashboard");
+
   useEffect(() => {
     if (authUser) setUser(normalizeUser(authUser));
   }, [authUser]);
@@ -577,10 +750,11 @@ export default function AdminDashboard() {
   const fetchStats = useCallback(async () => {
     try {
       const DJANGO = import.meta.env.VITE_DJANGO_API ?? "http://localhost:8000";
-      const token = localStorage.getItem("pawster_token") ||
-                    localStorage.getItem("token") ||
-                    localStorage.getItem("authToken") ||
-                    sessionStorage.getItem("token") || "";
+      const token  =
+        localStorage.getItem("pawster_token") ||
+        localStorage.getItem("token")         ||
+        localStorage.getItem("authToken")     ||
+        sessionStorage.getItem("token")       || "";
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
       const [phpRes, mpRes, adoptionRes, rehomeRes] = await Promise.all([
@@ -625,7 +799,10 @@ export default function AdminDashboard() {
   }, []);
 
   useEffect(() => { fetchStats(); }, [fetchStats, refreshKey]);
-  useEffect(() => { const interval = setInterval(fetchStats, 5_000); return () => clearInterval(interval); }, [fetchStats]);
+  useEffect(() => {
+    const interval = setInterval(fetchStats, 5_000);
+    return () => clearInterval(interval);
+  }, [fetchStats]);
 
   const handleUnreadChange = useCallback((count) => {
     setStats(prev => ({ ...prev, unread_messages: count }));
@@ -633,7 +810,11 @@ export default function AdminDashboard() {
 
   if (!user) return null;
 
-  const refresh    = () => { setRefreshKey(k => k + 1); toast("Dashboard refreshed", "success"); };
+  const refresh = () => {
+    setRefreshKey(k => k + 1);
+    toast("Dashboard refreshed", "success");
+  };
+
   const updateUser = (updates) => {
     setUser(u => {
       const updated = { ...u, ...updates };
@@ -641,6 +822,7 @@ export default function AdminDashboard() {
       return updated;
     });
   };
+
   const sidebarWidth = collapsed ? 64 : 252;
 
   return (
@@ -666,7 +848,10 @@ export default function AdminDashboard() {
         onOpenProfile={(tab) => setProfileModal({ open: true, tab })}
         unreadMessages={stats.unread_messages}
       />
-      <main className="min-h-screen relative z-10 overflow-auto transition-all duration-300" style={{ marginLeft: sidebarWidth, paddingTop: 64, transitionTimingFunction: "cubic-bezier(0.4,0,0.2,1)" }}>
+      <main
+        className="min-h-screen relative z-10 overflow-auto transition-all duration-300"
+        style={{ marginLeft: sidebarWidth, paddingTop: 64, transitionTimingFunction: "cubic-bezier(0.4,0,0.2,1)" }}
+      >
         <div className="p-6">
           {panel === "overview"    && <DashboardPanel   stats={stats} onNav={setPanel} user={user} onStatsChange={fetchStats} />}
           {panel === "analytics"   && <AnalyticsPanel   show={panel === "analytics"} />}
@@ -687,6 +872,7 @@ export default function AdminDashboard() {
           {panel === "profile"  && <ProfilePanel  user={user} onUserUpdate={updateUser} onStatsChange={fetchStats} />}
         </div>
       </main>
+
       {profileModal.open && (
         <ProfileModal
           user={user}
