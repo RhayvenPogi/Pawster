@@ -552,8 +552,8 @@ export default function HomePage() {
   const stats = [
     adopted !== null   && { val: adopted,        suffix: "+", label: "Animals Adopted"   },
     animals.length > 0 && { val: animals.length,  suffix: "",  label: "Available Now"     },
-    { val: "4",    suffix: "",  label: "Ilocos Provinces" },
-    { val: "Free", suffix: "",  label: "To Apply"          },
+    { val: "CAR",  suffix: "",  label: "Region Served" },
+    { val: "Free", suffix: "",  label: "To Apply"       },
   ].filter(Boolean);
 
   return (
@@ -598,8 +598,6 @@ export default function HomePage() {
         <div style={{ position: "absolute", inset: 0, backgroundImage: "linear-gradient(rgba(100,70,30,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(100,70,30,.03) 1px,transparent 1px)", backgroundSize: "60px 60px" }} />
       </div>
 
-      
-
       {/* HERO */}
       <section className="relative z-10 flex items-center flex-wrap gap-14 px-10 py-[5rem] max-w-[1440px] mx-auto min-h-[calc(100vh-70px)]">
         <div className="flex-1 min-w-[300px]">
@@ -608,7 +606,7 @@ export default function HomePage() {
             style={{ background:"rgba(28,79,9,0.09)", borderColor:"rgba(90,170,48,0.32)", color:"#1c4f09", animation:"fadeUp .65s ease both" }}
           >
             <span className="w-[7px] h-[7px] rounded-full" style={{ background:"#5aaa30", animation:"dotPulse 2s ease infinite" }} />
-            Ilocos Region's Pet Adoption Platform
+            Baguio City &amp; Cordillera's Pet Adoption Platform
           </div>
 
           <h1
@@ -623,7 +621,7 @@ export default function HomePage() {
             className="font-semibold leading-[1.75] mt-[22px] max-w-[500px] text-[1.05rem]"
             style={{ color:"#3a5020", animation:"fadeUp .65s ease .2s both" }}
           >
-            Pawster connects loving homes with animals in need across the Ilocos Region.
+            Pawster connects loving homes with animals in need across Baguio City and the Cordillera Administrative Region.
             Browse adoptable pets, submit applications, and give a life a second chance.
           </p>
 
@@ -711,9 +709,9 @@ export default function HomePage() {
           </p>
         </Reveal>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Step num="01" icon="fas fa-search"   delay={80}  iconBg="rgba(28,79,9,0.12)"    iconColor="#1c4f09" title="Browse & Choose"   desc="Explore listings of dogs, cats, and small animals available across the Ilocos Region. Filter by type, age, and location to find the right match." />
-          <Step num="02" icon="fas fa-file-alt" delay={160} iconBg="rgba(180,90,34,0.12)"  iconColor="#B45A22" title="Submit Application" desc="Fill out a short adoption form online. Our team reviews every application carefully and responds within 2–3 business days." />
-          <Step num="03" icon="fas fa-heart"    delay={240} iconBg="rgba(212,136,10,0.13)" iconColor="#c07808" title="Welcome Home"       desc="Once approved, coordinate your meet & greet. We follow up at 7 and 30 days to make sure both you and your companion are thriving." />
+          <Step num="01" icon="fas fa-search"   delay={80}  iconBg="rgba(28,79,9,0.12)"    iconColor="#1c4f09" title="Browse & Choose"   desc="Explore listings of dogs, cats, and small animals available across Baguio City and the Cordillera Administrative Region. Filter by type, age, and location to find the right match." />
+          <Step num="02" icon="fas fa-file-alt" delay={160} iconBg="rgba(180,90,34,0.12)"  iconColor="#B45A22" title="Submit Application" desc="Fill out a short adoption questionnaire online. Our coordinators review every application carefully and respond within 2–3 business days." />
+          <Step num="03" icon="fas fa-heart"    delay={240} iconBg="rgba(212,136,10,0.13)" iconColor="#c07808" title="Welcome Home"       desc="Once approved, coordinate your meet & greet. We follow up at 7, 30, and 90 days to make sure both you and your companion are thriving." />
         </div>
         <Reveal className="mt-[36px] text-center">
           <Link to="/how-it-works"
@@ -754,7 +752,7 @@ export default function HomePage() {
         <div className="max-w-[1100px] mx-auto flex items-center gap-5 flex-wrap">
           <span className="text-[1.9rem] flex-shrink-0" style={{ animation:"floatY 4s ease-in-out infinite" }}>🔍</span>
           <div className="flex-1 min-w-[200px]">
-            <div className="text-[0.94rem] font-black" style={{ color:"#192e08" }}>Lost or Found a Pet in the Ilocos Region?</div>
+            <div className="text-[0.94rem] font-black" style={{ color:"#192e08" }}>Lost or Found a Pet in Baguio City or the Cordillera Region?</div>
             <div className="text-[0.79rem] font-semibold mt-[2px]" style={{ color:"#7a8a5a" }}>Our community-powered board helps reunite animals with their families.</div>
           </div>
           <Link to="/missing-pets"
@@ -820,10 +818,10 @@ export default function HomePage() {
             <div className="flex-1 relative z-10">
               <h2 className="font-black leading-tight mb-[14px]"
                 style={{ fontFamily:"'Playfair Display',serif", fontSize:"clamp(1.8rem,3.2vw,2.6rem)", color:"#192e08" }}>
-                Need to <em className="em-rust">Rehome</em> Your Pet?
+                Need to <em style={{ fontStyle:"italic", color:"#B45A22" }}>Rehome</em> Your Pet?
               </h2>
               <p className="font-semibold text-[0.95rem] leading-[1.75] max-w-[520px] mb-[24px]" style={{ color:"#4a6030" }}>
-                Life circumstances change. If you're unable to care for your pet, Pawster can help find them a safe, loving new home — with care and discretion.
+                Life circumstances change. If you're unable to care for your pet, Pawster can help find them a safe, loving new home in Baguio City or the Cordillera Administrative Region — with care and discretion.
               </p>
               <Link to="/rehome"
                 className="inline-flex items-center gap-2 px-7 py-[12px] rounded-[12px] font-black text-[0.90rem] text-white no-underline transition-all duration-200 hover:brightness-110 active:scale-95"
@@ -859,7 +857,7 @@ export default function HomePage() {
               Give a Pet a <em className="em-orange">Second Chance</em>
             </h2>
             <p className="font-semibold text-[0.95rem] leading-[1.75] mb-[36px] max-w-[560px] mx-auto" style={{ color:"#4a6030" }}>
-              Join families across the Ilocos Region who have opened their hearts and homes to a pet in need.
+              Join families across Baguio City and the Cordillera Administrative Region who have opened their hearts and homes to a pet in need.
             </p>
             <div className="flex items-center justify-center gap-4 flex-wrap">
               {loggedIn ? (
@@ -887,42 +885,42 @@ export default function HomePage() {
         </Reveal>
       </section>
 
-       {/* Footer */}
-            <footer className="relative z-10 border-t border-[rgba(90,170,48,0.45)] bg-[rgba(255,248,218,0.85)] backdrop-blur-md px-10 py-12">
-              <div className="max-w-[1200px] mx-auto grid gap-12 mb-10 grid-cols-[repeat(auto-fit,minmax(160px,1fr))]">
-                <div>
-                  <div className="mb-2">
-                    <img src={logo} alt="Pawster" className="w-8 h-8 object-contain" onError={(e) => (e.target.style.display = "none")} />
-                  </div>
-                  <div className="font-black text-[1.2rem] text-[#1a4a08]">Paw<em className="italic text-[#e07820]">ster</em></div>
-                  <p className="text-[0.82rem] font-bold leading-7 text-[#6a7a50] max-w-[260px] mt-2">
-                    Screening, placing, and supporting animal adoptions across Baguio City and the Cordillera Administrative Region with care and accountability.
-                  </p>
-                </div>
-                {[
-                  { title: "Adopt", links: [["Browse animals", "/pets"], ["My profile", "/profile"], ["Log in", "/login"], ["Register", "/register"]] },
-                  { title: "Services", links: [["How it works", "/how-it-works"], ["Rehome & Rescue", "/rehome"], ["Missing pets", "/missing-pets"], ["About us", "/about"]] },
-                  { title: "Regions", links: [["Baguio City", "/pets"], ["Benguet", "/pets"], ["Mountain Province", "/pets"], ["Ifugao", "/pets"]] },
-                ].map(({ title, links }) => (
-                  <div key={title}>
-                    <div className="text-[0.72rem] font-black uppercase tracking-wider text-[#1c4f09] mb-4">{title}</div>
-                    {links.map(([label, to]) => (
-                      <Link key={label} to={to} className="block text-[0.83rem] font-bold text-[#3a5020] mb-2 hover:underline">{label}</Link>
-                    ))}
-                  </div>
-                ))}
-              </div>
-              <div className="max-w-[1200px] mx-auto pt-6 border-t border-[rgba(180,140,60,0.28)] flex flex-wrap items-center justify-between gap-4">
-                <div className="text-[0.75rem] font-bold text-[#6a7a50]">© 2025 Pawster. All rights reserved. Made with 🐾 in Baguio City.</div>
-                <div className="flex gap-2">
-                  {["fab fa-facebook-f", "fab fa-instagram", "fab fa-twitter"].map(icon => (
-                    <a key={icon} href="#" className="w-8 h-8 flex items-center justify-center rounded-md text-[0.8rem] text-[#6a7a50] bg-[rgba(255,250,232,0.7)] border border-[rgba(180,140,60,0.28)] hover:bg-black/5 transition">
-                      <i className={icon} />
-                    </a>
-                  ))}
-                </div>
-              </div>
-            </footer>
+      {/* Footer */}
+      <footer className="relative z-10 border-t border-[rgba(90,170,48,0.45)] bg-[rgba(255,248,218,0.85)] backdrop-blur-md px-10 py-12">
+        <div className="max-w-[1200px] mx-auto grid gap-12 mb-10 grid-cols-[repeat(auto-fit,minmax(160px,1fr))]">
+          <div>
+            <div className="mb-2">
+              <img src={logo} alt="Pawster" className="w-8 h-8 object-contain" onError={(e) => (e.target.style.display = "none")} />
+            </div>
+            <div className="font-black text-[1.2rem] text-[#1a4a08]">Paw<em className="italic text-[#e07820]">ster</em></div>
+            <p className="text-[0.82rem] font-bold leading-7 text-[#6a7a50] max-w-[260px] mt-2">
+              Screening, placing, and supporting animal adoptions across Baguio City and the Cordillera Administrative Region with care and accountability.
+            </p>
+          </div>
+          {[
+            { title: "Adopt", links: [["Browse animals", "/pets"], ["My profile", "/profile"], ["Log in", "/login"], ["Register", "/register"]] },
+            { title: "Services", links: [["How it works", "/how-it-works"], ["Rehome & Rescue", "/rehome"], ["Missing pets", "/missing-pets"], ["About us", "/about"]] },
+            { title: "Regions", links: [["Baguio City", "/pets"], ["Benguet", "/pets"], ["Mountain Province", "/pets"], ["Ifugao", "/pets"]] },
+          ].map(({ title, links }) => (
+            <div key={title}>
+              <div className="text-[0.72rem] font-black uppercase tracking-wider text-[#1c4f09] mb-4">{title}</div>
+              {links.map(([label, to]) => (
+                <Link key={label} to={to} className="block text-[0.83rem] font-bold text-[#3a5020] mb-2 hover:underline">{label}</Link>
+              ))}
+            </div>
+          ))}
+        </div>
+        <div className="max-w-[1200px] mx-auto pt-6 border-t border-[rgba(180,140,60,0.28)] flex flex-wrap items-center justify-between gap-4">
+          <div className="text-[0.75rem] font-bold text-[#6a7a50]">© 2025 Pawster. All rights reserved. Made with 🐾 in Baguio City.</div>
+          <div className="flex gap-2">
+            {["fab fa-facebook-f", "fab fa-instagram", "fab fa-twitter"].map(icon => (
+              <a key={icon} href="#" className="w-8 h-8 flex items-center justify-center rounded-md text-[0.8rem] text-[#6a7a50] bg-[rgba(255,250,232,0.7)] border border-[rgba(180,140,60,0.28)] hover:bg-black/5 transition">
+                <i className={icon} />
+              </a>
+            ))}
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

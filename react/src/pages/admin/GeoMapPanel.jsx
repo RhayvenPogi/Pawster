@@ -1,7 +1,23 @@
-// ── GeoMapPanel.jsx — Region 1 Geo Map · Tailwind UI · Leaflet renderer ───────
+// ── GeoMapPanel.jsx — Baguio City & CAR Geo Map · Tailwind UI · Leaflet renderer ───────
 import { useState, useEffect, useRef } from "react";
 import { useGeoMap, PROVINCES, SB, pColor, phpApi } from "../../hooks/useGeoMap";
 import LeafletMap from "./LeafletMap";
+
+// ─── CAR PROVINCES & BAGUIO CITY ──────────────────────────────────────────────
+// Override PROVINCES with Cordillera Administrative Region areas.
+// If useGeoMap exports a mutable PROVINCES object you can redefine it here,
+// otherwise update useGeoMap.js to use the map below.
+//
+// CAR_AREAS is the source-of-truth used throughout this panel.
+const CAR_AREAS = {
+  "Baguio City":       { color: "#1a6b3c" },   // deep pine green  (chartered city)
+  "Benguet":           { color: "#2e86ab" },   // cool highland blue
+  "Abra":              { color: "#c05c1f" },   // warm terracotta
+  "Apayao":            { color: "#7b4f9e" },   // mountain violet
+  "Ifugao":            { color: "#d4a017" },   // rice-terrace gold
+  "Kalinga":           { color: "#b0303a" },   // warrior red
+  "Mountain Province": { color: "#3d6b50" },   // forest green
+};
 
 const REALTIME_INTERVAL_MS = 15000; // poll every 15 seconds
 
@@ -63,7 +79,7 @@ function GeocodingProgress({ done, total }) {
 }
 
 // ─── MINI BAR CHART (12 months) ───────────────────────────────────────────────
-function BarChart({ data, color = "#2a7010" }) {
+function BarChart({ data, color = "#1a6b3c" }) {
   const max = Math.max(...data.map(d => d.value), 1);
   return (
     <div className="flex items-end gap-0.5 h-14">
@@ -146,8 +162,6 @@ function PetDetailPanel({ pet, onClose }) {
             {pet.details.length > 90 ? pet.details.slice(0, 90) + "…" : pet.details}
           </p>
         )}
-
-        {/* ── Directions button ── */}
         <div className="pt-1">
           <DirectionsButton lat={pet._geo?.lat} lng={pet._geo?.lng} label="Get Directions" />
         </div>
@@ -160,7 +174,6 @@ function PetDetailPanel({ pet, onClose }) {
 function UserModal({ user, onClose, onFlyTo, adoptions, rehome, liveAdoptions, liveRehome }) {
   if (!user) return null;
 
-  // Prefer live polled data, fall back to initial load
   const allAdoptions = liveAdoptions ?? adoptions;
   const allRehome    = liveRehome    ?? rehome;
 
@@ -169,7 +182,6 @@ function UserModal({ user, onClose, onFlyTo, adoptions, rehome, liveAdoptions, l
   const addr = [user.address, user.city, user.province, user.zip_code].filter(Boolean).join(", ");
   const currentYear = new Date().getFullYear();
 
-  // Full 12 months of current year
   const monthly = Array.from({ length: 12 }, (_, i) => {
     const d = new Date(currentYear, i, 1);
     return {
@@ -223,7 +235,6 @@ function UserModal({ user, onClose, onFlyTo, adoptions, rehome, liveAdoptions, l
                   📍 Show on Map
                 </button>
               )}
-              {/* ── Directions button ── */}
               <DirectionsButton lat={user._geo?.lat} lng={user._geo?.lng} label="Get Directions via Google Maps" />
             </div>
           </div>
@@ -243,7 +254,7 @@ function UserModal({ user, onClose, onFlyTo, adoptions, rehome, liveAdoptions, l
             ))}
           </div>
 
-          {/* Activity chart — full year */}
+          {/* Activity chart */}
           <div className="rounded-xl p-4 bg-white ring-1 ring-amber-100">
             <div className="flex items-center justify-between mb-3">
               <p className="text-xs font-extrabold uppercase text-green-900">
@@ -253,7 +264,7 @@ function UserModal({ user, onClose, onFlyTo, adoptions, rehome, liveAdoptions, l
                 Live <RealtimeDot />
               </span>
             </div>
-            <BarChart data={monthly} color="#2a7010" />
+            <BarChart data={monthly} color="#1a6b3c" />
           </div>
         </div>
       </div>
@@ -297,7 +308,7 @@ export default function GeoMapPanel({ show }) {
   }, [show]);
 
   const [filter,      setFilter]      = useState("all");
-  const [provFilter,  setProvFilter]  = useState("all");
+  const [areaFilter,  setAreaFilter]  = useState("all");   // replaces provFilter
   const [search,      setSearch]      = useState("");
   const [showPets,    setShowPets]    = useState(true);
   const [mpType,      setMpType]      = useState("all");
@@ -310,7 +321,9 @@ export default function GeoMapPanel({ show }) {
   // ── Filtered data ─────────────────────────────────────────────────────────
   const fUsers = geocodedUsers.filter(u => {
     const mf = filter === "all" || (filter === "active" ? u.is_active : !u.is_active);
-    const mp = provFilter === "all" || u._geo?.province === provFilter;
+    // Match against both province and city fields to cover "Baguio City"
+    const userArea = u._geo?.province || u._geo?.city || u.city || u.province || "";
+    const mp = areaFilter === "all" || userArea === areaFilter;
     const ms = !search || `${u.first_name} ${u.last_name} ${u.city || ""} ${u.province || ""} ${u.address || ""}`.toLowerCase().includes(search.toLowerCase());
     return mf && mp && ms;
   });
@@ -326,18 +339,24 @@ export default function GeoMapPanel({ show }) {
     found: missingPets.filter(p => p.type === "found").length,
   };
 
-  const pStats = Object.keys(PROVINCES).map(p => ({
-    name:   p,
-    color:  PROVINCES[p].color,
-    count:  geocodedUsers.filter(u => u._geo?.province === p).length,
-    active: geocodedUsers.filter(u => u._geo?.province === p && u.is_active).length,
+  // ── Area stat cards (CAR areas) ───────────────────────────────────────────
+  const areaStats = Object.keys(CAR_AREAS).map(area => ({
+    name:   area,
+    color:  CAR_AREAS[area].color,
+    count:  geocodedUsers.filter(u => {
+      const userArea = u._geo?.province || u._geo?.city || u.city || u.province || "";
+      return userArea === area;
+    }).length,
+    active: geocodedUsers.filter(u => {
+      const userArea = u._geo?.province || u._geo?.city || u.city || u.province || "";
+      return userArea === area && u.is_active;
+    }).length,
   }));
 
   const brgCount = geocodedUsers.filter(u =>
     u._geo?.precision === "barangay" || u._geo?.precision === "street"
   ).length;
 
-  // Use live data where available, fall back to initial load
   const activeAdoptions = (liveAdoptions ?? adoptions).filter(a => a.status === "Pending").length;
   const activeRehome    = (liveRehome    ?? rehome).filter(r => r.status === "Pending").length;
 
@@ -347,8 +366,12 @@ export default function GeoMapPanel({ show }) {
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <h2 className="text-2xl font-black text-green-900">🗺 Region 1 — User &amp; Pet Map</h2>
-          <p className="text-xs text-gray-400 mt-0.5">Leaflet · Nominatim OSM · Street-level geocoding</p>
+          <h2 className="text-2xl font-black text-green-900">
+            🗺 Baguio City &amp; CAR — User &amp; Pet Map
+          </h2>
+          <p className="text-xs text-gray-400 mt-0.5">
+            Cordillera Administrative Region · Leaflet · Nominatim OSM · Street-level geocoding
+          </p>
           <div className="flex items-center gap-2 mt-2 flex-wrap">
             <SyncBadge status={syncStatus} />
             {lastUpdated && (
@@ -378,24 +401,35 @@ export default function GeoMapPanel({ show }) {
         </div>
       </div>
 
-      {/* ── Province stat cards ────────────────────────────────────────── */}
+      {/* ── CAR Area stat cards ────────────────────────────────────────── */}
+      {/* 
+        7 areas (Baguio City + 6 provinces) → 4 cols on md, wraps to 2 cols on sm.
+        Baguio City card is visually accented as the chartered city.
+      */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
-        {pStats.map(p => (
-          <button
-            key={p.name}
-            onClick={() => setProvFilter(provFilter === p.name ? "all" : p.name)}
-            className={`rounded-2xl p-3 md:p-4 text-left cursor-pointer transition-all border ${
-              provFilter === p.name
-                ? "shadow-md -translate-y-0.5"
-                : "border-amber-200 bg-amber-50 hover:border-amber-300"
-            }`}
-            style={provFilter === p.name ? { borderColor: p.color, background: `${p.color}15` } : {}}
-          >
-            <p className="text-xs font-extrabold text-green-900 truncate mb-1">{p.name}</p>
-            <p className="text-2xl md:text-3xl font-black leading-none" style={{ color: p.color }}>{p.count}</p>
-            <p className="text-xs mt-1 text-gray-400 font-semibold">{p.active} active</p>
-          </button>
-        ))}
+        {areaStats.map(a => {
+          const isBaguio = a.name === "Baguio City";
+          return (
+            <button
+              key={a.name}
+              onClick={() => setAreaFilter(areaFilter === a.name ? "all" : a.name)}
+              className={`rounded-2xl p-3 md:p-4 text-left cursor-pointer transition-all border ${
+                areaFilter === a.name
+                  ? "shadow-md -translate-y-0.5"
+                  : "border-amber-200 bg-amber-50 hover:border-amber-300"
+              } ${isBaguio ? "col-span-2 md:col-span-1" : ""}`}
+              style={areaFilter === a.name ? { borderColor: a.color, background: `${a.color}15` } : {}}
+            >
+              <p className="text-xs font-extrabold text-green-900 truncate mb-1">
+                {isBaguio ? "🏙 " : "⛰ "}{a.name}
+              </p>
+              <p className="text-2xl md:text-3xl font-black leading-none" style={{ color: a.color }}>
+                {a.count}
+              </p>
+              <p className="text-xs mt-1 text-gray-400 font-semibold">{a.active} active</p>
+            </button>
+          );
+        })}
       </div>
 
       {/* ── Summary stats ──────────────────────────────────────────────── */}
@@ -457,7 +491,6 @@ export default function GeoMapPanel({ show }) {
 
           {showPets && (
             <div className="flex items-center gap-2 flex-wrap">
-              {/* Type filter */}
               <div className="inline-flex gap-0.5 rounded-full p-0.5 bg-white ring-1 ring-amber-200">
                 {[["all", "All"], ["lost", "Lost"], ["found", "Found"]].map(([v, l]) => (
                   <button
@@ -465,7 +498,7 @@ export default function GeoMapPanel({ show }) {
                     onClick={() => setMpType(v)}
                     className="px-3 py-1 rounded-full text-xs font-extrabold border-none cursor-pointer transition-colors"
                     style={{
-                      background: mpType === v ? (v === "lost" ? "#c03030" : v === "found" ? "#1c4f09" : "#B45A22") : "transparent",
+                      background: mpType === v ? (v === "lost" ? "#c03030" : v === "found" ? "#1a6b3c" : "#B45A22") : "transparent",
                       color: mpType === v ? "#fff" : "#3a5020",
                     }}
                   >
@@ -473,7 +506,6 @@ export default function GeoMapPanel({ show }) {
                   </button>
                 ))}
               </div>
-              {/* Species filter */}
               <div className="inline-flex gap-0.5 rounded-full p-0.5 bg-white ring-1 ring-amber-200">
                 {[["all", "All"], ["Dog", "🐕"], ["Cat", "🐈"], ["Other", "Other"]].map(([v, l]) => (
                   <button
@@ -526,7 +558,7 @@ export default function GeoMapPanel({ show }) {
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Search name, city, address…"
+              placeholder="Search name, city, barangay, address…"
               className="flex-1 border-none bg-transparent outline-none text-sm font-semibold text-green-950 placeholder:text-gray-300"
             />
             {search && (
@@ -555,12 +587,12 @@ export default function GeoMapPanel({ show }) {
             {selPet && <PetDetailPanel pet={selPet} onClose={() => setSelPet(null)} />}
           </div>
 
-          {/* Legend footer */}
+          {/* Legend footer — CAR areas */}
           <div className="px-3 md:px-4 py-2.5 flex items-center gap-3 flex-wrap bg-amber-50 border-t border-amber-100">
-            {Object.entries(PROVINCES).map(([p, cfg]) => (
-              <div key={p} className="flex items-center gap-1.5">
+            {Object.entries(CAR_AREAS).map(([area, cfg]) => (
+              <div key={area} className="flex items-center gap-1.5">
                 <div className="w-2 h-2 rounded-full" style={{ background: cfg.color }} />
-                <span className="text-xs font-bold text-green-800">{p}</span>
+                <span className="text-xs font-bold text-green-800">{area}</span>
               </div>
             ))}
             <span className="text-xs text-gray-300 ml-auto hidden md:block">© OpenStreetMap · Leaflet</span>
@@ -585,50 +617,53 @@ export default function GeoMapPanel({ show }) {
           <div className="overflow-y-auto flex-1 max-h-[480px]">
             {fUsers.length === 0 ? (
               <div className="p-8 text-center text-sm font-semibold text-gray-400">No users match filters</div>
-            ) : fUsers.map(u => (
-              <div
-                key={u.id}
-                className="px-4 py-2.5 flex items-center gap-2 border-b border-amber-100/60 hover:bg-amber-100/40 transition-colors"
-              >
+            ) : fUsers.map(u => {
+              const userArea = u._geo?.province || u._geo?.city || u.city || u.province || "";
+              const areaColor = CAR_AREAS[userArea]?.color || "#ccc";
+              return (
                 <div
-                  className="w-2 h-2 rounded-full flex-shrink-0"
-                  style={{ background: u.is_active ? pColor(u._geo?.province) : "#ccc" }}
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-extrabold text-green-950 truncate">{u.first_name} {u.last_name}</p>
-                  <p className="text-xs font-semibold text-green-600">
-                    {u.city || "—"} ·{" "}
-                    <span className={
-                      u._geo?.precision === "street"   ? "text-cyan-600" :
-                      u._geo?.precision === "barangay" ? "text-green-600" :
-                      "text-amber-600"
-                    }>
-                      {u._geo?.precision}
-                    </span>
-                  </p>
+                  key={u.id}
+                  className="px-4 py-2.5 flex items-center gap-2 border-b border-amber-100/60 hover:bg-amber-100/40 transition-colors"
+                >
+                  <div
+                    className="w-2 h-2 rounded-full flex-shrink-0"
+                    style={{ background: u.is_active ? areaColor : "#ccc" }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-extrabold text-green-950 truncate">{u.first_name} {u.last_name}</p>
+                    <p className="text-xs font-semibold text-green-600">
+                      {u.city || "—"} ·{" "}
+                      <span className={
+                        u._geo?.precision === "street"   ? "text-cyan-600" :
+                        u._geo?.precision === "barangay" ? "text-green-600" :
+                        "text-amber-600"
+                      }>
+                        {u._geo?.precision}
+                      </span>
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setSelected(u)}
+                    className="w-7 h-7 rounded-lg flex items-center justify-center text-xs cursor-pointer bg-green-50 hover:bg-green-100 ring-1 ring-green-200 text-green-800 border-none transition-colors"
+                    title="View details"
+                  >👁</button>
+                  <button
+                    onClick={() => setFlyTgt({ lat: u._geo.lat, lng: u._geo.lng })}
+                    className="w-7 h-7 rounded-lg flex items-center justify-center text-xs cursor-pointer bg-green-900 hover:bg-green-800 text-white border-none transition-colors"
+                    title="Show on map"
+                  >📍</button>
+                  {u._geo?.lat && u._geo?.lng && (
+                    <a
+                      href={`https://www.google.com/maps/dir/?api=1&destination=${u._geo.lat},${u._geo.lng}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-7 h-7 rounded-lg flex items-center justify-center text-xs bg-blue-600 hover:bg-blue-700 text-white border-none transition-colors flex-shrink-0"
+                      title="Get Directions"
+                    >🗺</a>
+                  )}
                 </div>
-                <button
-                  onClick={() => setSelected(u)}
-                  className="w-7 h-7 rounded-lg flex items-center justify-center text-xs cursor-pointer bg-green-50 hover:bg-green-100 ring-1 ring-green-200 text-green-800 border-none transition-colors"
-                  title="View details"
-                >👁</button>
-                <button
-                  onClick={() => setFlyTgt({ lat: u._geo.lat, lng: u._geo.lng })}
-                  className="w-7 h-7 rounded-lg flex items-center justify-center text-xs cursor-pointer bg-green-900 hover:bg-green-800 text-white border-none transition-colors"
-                  title="Show on map"
-                >📍</button>
-                {/* ── Directions button in sidebar ── */}
-                {u._geo?.lat && u._geo?.lng && (
-                  <a
-                    href={`https://www.google.com/maps/dir/?api=1&destination=${u._geo.lat},${u._geo.lng}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-7 h-7 rounded-lg flex items-center justify-center text-xs bg-blue-600 hover:bg-blue-700 text-white border-none transition-colors flex-shrink-0"
-                    title="Get Directions"
-                  >🗺</a>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>

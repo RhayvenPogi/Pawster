@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { Link } from "react-router-dom";
 import logo from "../images/logo.png";
 
 function useReveal(threshold = 0.1) {
@@ -27,40 +28,38 @@ function RevealSection({ children, delay = 0, style = {} }) {
 }
 
 const STATS = [
-  { val: "500+", label: "Animals Rehomed" },
-  { val: "4",    label: "Ilocos Provinces" },
-  { val: "Free", label: "To Apply"         },
-  { val: "48h",  label: "Response Time"    },
+  { val: "500+", label: "Animals Rehomed"    },
+  { val: "CAR",  label: "Region Served"      },
+  { val: "Free", label: "To Apply"           },
+  { val: "48h",  label: "Response Time"      },
 ];
 
 const FEATURES = [
-  { icon: "🐾", bg: "rgba(28,79,9,0.12)",    color: "#1c4f09", title: "Find Your Match",  desc: "Browse dogs, cats, birds & rabbits from verified shelters across all four Ilocos provinces." },
-  { icon: "🏠", bg: "rgba(180,90,34,0.12)",  color: "#B45A22", title: "Local Shelters",   desc: "Every rescue organization is verified and committed to responsible animal welfare practices." },
-  { icon: "✅", bg: "rgba(26,95,191,0.12)",  color: "#1a5fbf", title: "Safe & Verified",  desc: "Identity-verified adopters only. Our team personally reviews every single application." },
-  { icon: "📋", bg: "rgba(176,128,16,0.12)", color: "#b08010", title: "Follow-Up Care",   desc: "7-day and 30-day check-ins after adoption to make sure your new companion is thriving." },
-  { icon: "🔍", bg: "rgba(138,58,138,0.12)", color: "#8a3a8a", title: "Missing Pets",     desc: "Community board reuniting lost animals with families across the Ilocos Region." },
-  { icon: "🏡", bg: "rgba(180,90,34,0.12)",  color: "#B45A22", title: "Rehome a Pet",    desc: "Can't keep your pet? We help find them a loving new home — with care and discretion." },
+  { icon: "🐾", bg: "rgba(28,79,9,0.12)",    color: "#1c4f09", title: "Find Your Match",  desc: "Browse dogs, cats, birds & rabbits from verified rescue coordinators across Baguio City and the Cordillera Administrative Region." },
+  { icon: "🏠", bg: "rgba(180,90,34,0.12)",  color: "#B45A22", title: "Local Coordinators", desc: "Every rescue coordinator on Pawster is verified and committed to responsible animal welfare practices in the City of Pines." },
+  { icon: "✅", bg: "rgba(26,95,191,0.12)",  color: "#1a5fbf", title: "Safe & Screened",  desc: "Identity-verified adopters only. Every application goes through a thorough questionnaire before being reviewed." },
+  { icon: "📋", bg: "rgba(176,128,16,0.12)", color: "#b08010", title: "Follow-Up Care",   desc: "Structured check-ins at 7, 30, and 90 days after adoption to make sure your new companion is truly thriving." },
+  { icon: "🔍", bg: "rgba(138,58,138,0.12)", color: "#8a3a8a", title: "Missing Pets",     desc: "Community board reuniting lost animals with families across Baguio City and the broader Cordillera region." },
+  { icon: "🏡", bg: "rgba(180,90,34,0.12)",  color: "#B45A22", title: "Rehome a Pet",    desc: "Can't keep your pet? We help find them a loving new home locally — with care and discretion." },
 ];
 
 const STEPS = [
-  { num: "01", icon: "fa-search",  bg: "rgba(28,79,9,0.12)",    color: "#1c4f09", title: "Browse & Choose",   desc: "Explore available animals filtered by type, age, and location across the region." },
-  { num: "02", icon: "fa-file-alt",bg: "rgba(180,90,34,0.12)",  color: "#B45A22", title: "Apply Online",       desc: "Fill out our short adoption form. We respond within 2–3 business days." },
-  { num: "03", icon: "fa-heart",   bg: "rgba(212,136,10,0.13)", color: "#c07808", title: "Welcome Home",       desc: "Meet your new companion and receive post-adoption support at 7 and 30 days." },
+  { num: "01", icon: "fa-search",   bg: "rgba(28,79,9,0.12)",    color: "#1c4f09", title: "Browse & Choose",    desc: "Explore available animals filtered by type, age, and location across Baguio City and CAR." },
+  { num: "02", icon: "fa-file-alt", bg: "rgba(180,90,34,0.12)",  color: "#B45A22", title: "Apply Online",        desc: "Fill out our adoption questionnaire. Rescue coordinators review and respond within 2–3 business days." },
+  { num: "03", icon: "fa-heart",    bg: "rgba(212,136,10,0.13)", color: "#c07808", title: "Welcome Home",        desc: "Meet your new companion and receive post-adoption support at 7, 30, and 90 days." },
 ];
 
 const TESTIMONIALS = [
-  { quote: "Pawster made the whole adoption process so smooth. Nag-adopt ako ng dog na si Coco at napakaganda ng experience!", name: "Maria Santos", loc: "Vigan, Ilocos Sur", emoji: "🐕" },
-  { quote: "Hindi ko inakala na ganito kadali mag-adopt. Ang team ay very responsive at caring talaga sa animals.", name: "Juan dela Cruz", loc: "Laoag, Ilocos Norte", emoji: "🐈" },
-  { quote: "Salamat Pawster! Si Mochi ay very happy na sa aming tahanan. The follow-up surveys showed they really care.", name: "Ana Reyes", loc: "San Fernando, La Union", emoji: "🐇" },
+  { quote: "Pawster made the whole adoption process so smooth. Nag-adopt ako ng dog na si Coco at napakaganda ng experience dito sa Baguio!", name: "Maria Santos", loc: "Baguio City, Benguet", emoji: "🐕" },
+  { quote: "Hindi ko inakala na ganito kadali mag-adopt. Ang team ay very responsive at caring talaga sa animals sa Cordillera.", name: "Juan dela Cruz", loc: "La Trinidad, Benguet", emoji: "🐈" },
+  { quote: "Salamat Pawster! Si Mochi ay very happy na sa aming tahanan. The follow-up check-ins showed they really care about the animals.", name: "Ana Reyes", loc: "Baguio City, CAR", emoji: "🐇" },
 ];
 
-// Working video — PAWS Philippines rescue documentary
 const VIDEO_ID = "6P9GGITcRsQ";
 
 export default function LandingPage() {
   const [scrolled, setScrolled] = useState(false);
   const [vis,      setVis]      = useState(false);
-
 
   useEffect(() => {
     setTimeout(() => setVis(true), 80);
@@ -68,8 +67,6 @@ export default function LandingPage() {
     window.addEventListener("scroll", onScroll);
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
-
-
 
   return (
     <div style={{ minHeight: "100vh", background: "#EDDABB", fontFamily: "'Nunito',sans-serif", color: "#1a2e0a", overflowX: "hidden" }}>
@@ -210,7 +207,7 @@ export default function LandingPage() {
           transition:"opacity 0.6s ease, transform 0.6s ease",
         }}>
           <span style={{ width:7, height:7, borderRadius:"50%", background:"#5aaa30", flexShrink:0, animation:"dotPulse 2s ease infinite" }} />
-          Ilocos Region's #1 Pet Adoption Platform
+          Baguio City &amp; Cordillera's Pet Adoption Platform
         </div>
 
         <h1 style={{
@@ -232,7 +229,7 @@ export default function LandingPage() {
           opacity: vis ? 1 : 0, transform: vis ? "translateY(0)" : "translateY(24px)",
           transition:"opacity 0.7s ease 0.2s, transform 0.7s ease 0.2s",
         }}>
-          Pawster connects loving homes with rescued animals across the Ilocos Region.
+          Pawster connects loving homes with rescued animals across Baguio City and the Cordillera Administrative Region.
           Browse, apply, and give a deserving animal a second chance at life.
         </p>
 
@@ -256,10 +253,10 @@ export default function LandingPage() {
           opacity: vis ? 1 : 0, transition:"opacity 0.7s ease 0.48s",
         }}>
           {[
-            { icon:"fa-shield-alt",       label:"Identity-Verified" },
-            { icon:"fa-map-marker-alt",   label:"All 4 Ilocos Provinces" },
-            { icon:"fa-check-circle",     label:"Free to Apply" },
-            { icon:"fa-clock",            label:"48h Response Time" },
+            { icon:"fa-shield-alt",       label:"Identity-Verified Adopters" },
+            { icon:"fa-map-marker-alt",   label:"Baguio City & CAR"          },
+            { icon:"fa-check-circle",     label:"Free to Apply"              },
+            { icon:"fa-clock",            label:"48h Response Time"          },
           ].map(({ icon, label }) => (
             <div key={label} style={{ display:"flex", alignItems:"center", gap:"0.4rem", fontSize:"0.78rem", fontWeight:700, color:"#6a8a50" }}>
               <i className={`fas ${icon}`} style={{ color:"#5aaa30", fontSize:"0.7rem" }} />
@@ -278,7 +275,7 @@ export default function LandingPage() {
       <div style={{ position:"relative", zIndex:10, overflow:"hidden", borderTop:"1px solid rgba(180,140,60,0.28)", borderBottom:"1px solid rgba(180,140,60,0.28)", background:"rgba(255,248,215,0.58)", backdropFilter:"blur(10px)", padding:"9px 0" }}>
         <div style={{ display:"flex", animation:"tickerMove 28s linear infinite", width:"max-content" }}>
           {[...Array(2)].map((_, gi) =>
-            ["Find Your Match 🐕","Local Shelters 🐈","Safe & Verified ✅","7 & 30-Day Follow-Ups 🐾","Free to Apply 🏠","Ilocos Region 🌿","Every Pet Deserves Love 🐇","Identity Verified 🛡️"].map((item, i) => (
+            ["Find Your Match 🐕","Verified Coordinators 🐈","Responsible Screening ✅","7, 30 & 90-Day Follow-Ups 🐾","Free to Apply 🏠","Baguio City & CAR 🌿","Every Pet Deserves Love 🐇","Identity Verified 🛡️"].map((item, i) => (
               <span key={`${gi}-${i}`} style={{ display:"inline-flex", alignItems:"center", margin:"0 2.25rem", fontSize:"0.68rem", fontWeight:900, textTransform:"uppercase", letterSpacing:"0.09em", color:"#4a6a20", whiteSpace:"nowrap" }}>
                 {item}
                 <span style={{ color:"rgba(180,140,60,.4)", marginLeft:"0.6rem" }}>·</span>
@@ -315,42 +312,41 @@ export default function LandingPage() {
               See the <em className="em-orange">Impact</em> We Make
             </h2>
             <p style={{ fontWeight:600, color:"#4a6030", fontSize:"0.95rem", lineHeight:1.75, maxWidth:520, marginBottom:"2.5rem" }}>
-              Watch how animal rescue organizations across the Philippines are giving strays a fighting chance — and how you can be part of the story.
+              Watch how animal rescue organizations across the Philippines are giving strays a fighting chance — and how you can be part of the story right here in Baguio City and the Cordillera.
             </p>
           </RevealSection>
 
-          {/* Video card — static thumbnail, click to open modal */}
           <RevealSection delay={100}>
-  <div
-    className="video-card"
-    style={{
-      position:"relative",
-      borderRadius:28,
-      overflow:"hidden",
-      border:"1px solid rgba(180,140,60,0.30)",
-      boxShadow:"0 24px 80px rgba(40,20,5,0.22)",
-      maxWidth:860,
-      margin:"0 auto"
-    }}
-  >
-    <div style={{ position:"relative", width:"100%", paddingBottom:"56.25%", background:"#000" }}>
-      <iframe
-        src={`https://www.youtube.com/embed/JK9YjOTUaGc?autoplay=1&mute=1&controls=1&loop=1&playlist=JK9YjOTUaGc`}
-        title="Philippine Animal Rescue"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        allowFullScreen
-        style={{ position:"absolute", inset:0, width:"100%", height:"100%", border:"none" }}
-      />
-    </div>
-  </div>
-</RevealSection>
+            <div
+              className="video-card"
+              style={{
+                position:"relative",
+                borderRadius:28,
+                overflow:"hidden",
+                border:"1px solid rgba(180,140,60,0.30)",
+                boxShadow:"0 24px 80px rgba(40,20,5,0.22)",
+                maxWidth:860,
+                margin:"0 auto"
+              }}
+            >
+              <div style={{ position:"relative", width:"100%", paddingBottom:"56.25%", background:"#000" }}>
+                <iframe
+                  src={`https://www.youtube.com/embed/JK9YjOTUaGc?autoplay=1&mute=1&controls=1&loop=1&playlist=JK9YjOTUaGc`}
+                  title="Philippine Animal Rescue"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  style={{ position:"absolute", inset:0, width:"100%", height:"100%", border:"none" }}
+                />
+              </div>
+            </div>
+          </RevealSection>
 
           <RevealSection delay={150}>
             <div style={{ display:"flex", gap:"1.5rem", flexWrap:"wrap", justifyContent:"center", marginTop:"1.75rem" }}>
               {[
-                { icon:"fa-dog",         label:"Thousands of strays rescued yearly" },
-                { icon:"fa-hands-heart", label:"Community-driven adoption drives"   },
-                { icon:"fa-map-pin",     label:"Nationwide rescue network"          },
+                { icon:"fa-dog",         label:"Thousands of strays rescued yearly"   },
+                { icon:"fa-hands-heart", label:"Community-driven adoption drives"      },
+                { icon:"fa-map-pin",     label:"Locally rooted in Baguio City & CAR"  },
               ].map(({ icon, label }) => (
                 <div key={label} style={{ display:"flex", alignItems:"center", gap:"0.5rem", fontSize:"0.82rem", fontWeight:700, color:"#5a7a40", padding:"0.5rem 1rem", borderRadius:50, background:"rgba(255,249,228,0.70)", border:"1px solid rgba(180,140,60,0.24)" }}>
                   <i className={`fas ${icon}`} style={{ color:"#1c4f09", fontSize:"0.78rem" }} /> {label}
@@ -371,7 +367,7 @@ export default function LandingPage() {
             Built for <em className="em-orange">Real Connections</em>
           </h2>
           <p style={{ fontWeight:600, color:"#4a6030", fontSize:"0.95rem", lineHeight:1.75, maxWidth:460, marginBottom:"3rem" }}>
-            Everything you need to find, adopt, and care for your new companion — all in one place.
+            Everything you need to find, adopt, and care for your new companion — all in one place, right here in the City of Pines.
           </p>
         </RevealSection>
 
@@ -401,7 +397,7 @@ export default function LandingPage() {
               How <em className="em-orange">Adoption</em> Works
             </h2>
             <p style={{ fontWeight:600, color:"#4a6030", fontSize:"0.95rem", maxWidth:420, marginBottom:"3rem", lineHeight:1.75 }}>
-              Three simple steps to bring a new companion home.
+              Three simple steps to bring a new companion home in Baguio City or CAR.
             </p>
           </RevealSection>
 
@@ -430,7 +426,7 @@ export default function LandingPage() {
               <i className="fas fa-quote-left" style={{ fontSize:"0.58rem" }} /> Adopter Stories
             </div>
             <h2 style={{ fontFamily:"'Playfair Display',serif", fontWeight:900, fontSize:"clamp(2rem,3.5vw,3rem)", color:"#192e08", marginBottom:"3rem", lineHeight:1.1 }}>
-              Happy <em className="em-rust">Families</em>
+              Happy <em style={{ fontStyle:"italic", color:"#B45A22" }}>Families</em>
             </h2>
           </RevealSection>
 
@@ -465,8 +461,8 @@ export default function LandingPage() {
         <div style={{ maxWidth:1100, margin:"0 auto", borderRadius:24, background:"linear-gradient(135deg,rgba(180,90,34,0.10),rgba(212,136,10,0.07))", border:"1px solid rgba(180,90,34,0.24)", padding:"2rem 2.5rem", display:"flex", alignItems:"center", gap:"1.5rem", flexWrap:"wrap" }}>
           <span style={{ fontSize:"2.5rem", flexShrink:0, animation:"floatY 4s ease-in-out infinite" }}>🔍</span>
           <div style={{ flex:1, minWidth:220 }}>
-            <div style={{ fontFamily:"'Playfair Display',serif", fontWeight:900, fontSize:"1.1rem", color:"#192e08", marginBottom:"0.3rem" }}>Lost or Found a Pet in the Ilocos Region?</div>
-            <div style={{ fontSize:"0.82rem", fontWeight:700, color:"#7a8a5a" }}>Our community board helps reunite animals with their families.</div>
+            <div style={{ fontFamily:"'Playfair Display',serif", fontWeight:900, fontSize:"1.1rem", color:"#192e08", marginBottom:"0.3rem" }}>Lost or Found a Pet in Baguio City or the Cordillera Region?</div>
+            <div style={{ fontSize:"0.82rem", fontWeight:700, color:"#7a8a5a" }}>Our community board helps reunite animals with their families across CAR.</div>
           </div>
           <a href="/missing-pets" className="cta-primary"
             style={{ fontWeight:900, fontSize:"0.88rem", color:"#fff", background:"#B45A22", padding:"0.75rem 1.5rem", borderRadius:12, boxShadow:"0 4px 18px rgba(180,90,34,0.30)", flexShrink:0, whiteSpace:"nowrap" }}>
@@ -489,7 +485,7 @@ export default function LandingPage() {
               Give a Pet a <em className="em-orange">Second Chance</em>
             </h2>
             <p style={{ fontWeight:600, fontSize:"0.95rem", lineHeight:1.8, color:"#4a6030", maxWidth:520, margin:"0 auto 2.75rem" }}>
-              Join families across the Ilocos Region who've opened their hearts and homes to animals in need.
+              Join families across Baguio City and the Cordillera Administrative Region who've opened their hearts and homes to animals in need.
             </p>
             <div style={{ display:"flex", gap:"1rem", justifyContent:"center", flexWrap:"wrap" }}>
               <a href="/register" className="cta-primary"
@@ -542,7 +538,6 @@ export default function LandingPage() {
         </div>
       </footer>
 
-    
     </div>
   );
 }

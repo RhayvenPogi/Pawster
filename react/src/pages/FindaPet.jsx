@@ -1046,7 +1046,7 @@ export default function FindAPet() {
           Find Your <em style={{ fontStyle:"italic", color:"#e07820" }}>Forever</em> Friend
         </h1>
         <p style={{ fontWeight:700, fontSize:"1rem", maxWidth:520, margin:"0 auto", lineHeight:1.7, color:"#3a5020" }}>
-          All animals are health-checked, vaccinated, and ready for a loving home across the Ilocos Region.
+          All animals are health-checked, vaccinated, and ready for a loving home across the  Baguio City and the Cordillera Administrative Region.
         </p>
       </div>
 

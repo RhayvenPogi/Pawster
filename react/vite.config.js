@@ -8,6 +8,10 @@ export default defineConfig({
   },
   server: {
     host: true,
+    headers: {
+      "Cross-Origin-Opener-Policy": "same-origin-allow-popups",
+      "Cross-Origin-Embedder-Policy": "unsafe-none",
+    },
     proxy: {
       '/ws': {
         target: 'http://api-gateway:8000',
