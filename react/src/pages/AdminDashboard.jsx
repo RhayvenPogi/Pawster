@@ -857,7 +857,7 @@ export default function AdminDashboard() {
           {panel === "analytics"   && <AnalyticsPanel   show={panel === "analytics"} />}
           {panel === "animals"     && <AnimalsPanel     show onStatsChange={fetchStats} />}
           {panel === "adoptions"   && <RequestsPanel    type="adoptions" show onStatsChange={fetchStats} />}
-          {panel === "rehome"      && <RequestsPanel    type="rehome"    show onStatsChange={fetchStats} />}
+          {panel === "rehome"      && <RequestsPanel    type="rehoming"    show onStatsChange={fetchStats} />}
           {panel === "surveys"     && <SurveysPanel     show onStatsChange={fetchStats} />}
           {panel === "missingpets" && <MissingPetsPanel show onStatsChange={fetchStats} />}
 

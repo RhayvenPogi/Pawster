@@ -14,7 +14,7 @@ export default defineConfig({
     },
     proxy: {
       '/ws': {
-        target: 'http://api-gateway:8000',
+        target: 'http://sb:8080',
         changeOrigin: true,
         ws: true,
       },

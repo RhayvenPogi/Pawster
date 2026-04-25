@@ -5,11 +5,11 @@ spring:
   application:
     name: api-gateway
   codec:
-    max-in-memory-size: 110MB          # ← add this
+    max-in-memory-size: 510MB          # ← add this
   cloud:
     gateway:
       httpclient:
-        max-response-size: 110MB       # ← add this
+        max-response-size: 510MB       # ← add this
       discovery:
         locator:
           enabled: true
@@ -43,9 +43,16 @@ spring:
             maxAge: 3600
       routes:
         - id: websocket-service
-          uri: lb:ws://pawster
+          uri: http://sb:8080
           predicates:
             - Path=/ws/**
+          filters:
+            - RewritePath=/ws(?<segment>/?.*), /ws$\{segment}
+        
+        - id: django-user-photo
+          uri: http://django:8001
+          predicates:
+            - Path=/api/users/*/photo/public/
 
         - id: springboot-service
           uri: lb://pawster

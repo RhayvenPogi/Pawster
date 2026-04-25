@@ -105,6 +105,14 @@ class RehomingRequest(models.Model):
     gender         = models.CharField(max_length=20)
     duration_owned = models.CharField(max_length=30, blank=True)
 
+    # Add after duration_owned
+    request_type  = models.CharField(
+        max_length=20,
+        choices=[("rehome", "Rehoming"), ("rescue", "Rescue / Surrender")],
+        default="rehome",
+    )
+    found_location = models.CharField(max_length=255, blank=True, default="")
+
     is_vaccinated = models.BooleanField(null=True, blank=True)
     is_neutered   = models.BooleanField(null=True, blank=True)
     medical_notes = models.TextField(blank=True)

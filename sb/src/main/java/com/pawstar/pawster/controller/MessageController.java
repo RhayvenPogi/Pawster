@@ -52,25 +52,35 @@ public class MessageController {
     }
 
     @MessageMapping("/chat.admin.send")
-    public void handleAdminMessage(
-            @Payload MessageDto.ChatMessage payload,
-            Principal principal) {
+public void handleAdminMessage(
+        @Payload MessageDto.ChatMessage payload,
+        Principal principal) {
 
-        User admin = resolveFromPrincipal(principal);
-        if (admin == null || !"admin".equalsIgnoreCase(admin.getRole())) return;
-        if (payload.getTargetUserId() == null) return;
+    User sender = resolveFromPrincipal(principal);
+    if (sender == null) return;
+    if (payload.getTargetUserId() == null) return;
 
-        MessageDto.MessageResponse response = messageService.save(
-                admin.getId(), "admin",
-                payload.getTargetUserId(),
-                payload.getContent(),
-                payload.getAttachmentUrl(),
-                payload.getAttachmentType()
-        );
+    boolean isBot    = Boolean.TRUE.equals(payload.getIsBot());
+    boolean isAdmin  = "admin".equalsIgnoreCase(sender.getRole());
 
-        messagingTemplate.convertAndSend("/topic/user/" + payload.getTargetUserId(), response);
-        messagingTemplate.convertAndSend("/topic/admin/inbox", response);
+    // Regular users can only send bot messages targeting themselves
+    if (!isAdmin && !isBot) return;
+    if (!isAdmin && isBot) {
+        if (!sender.getId().equals(payload.getTargetUserId())) return;
     }
+
+    MessageDto.MessageResponse response = messageService.save(
+            sender.getId(), "admin",
+            payload.getTargetUserId(),
+            payload.getContent(),
+            payload.getAttachmentUrl(),
+            payload.getAttachmentType(),
+            isBot                           // ← pass isBot
+    );
+
+    messagingTemplate.convertAndSend("/topic/user/" + payload.getTargetUserId(), response);
+    messagingTemplate.convertAndSend("/topic/admin/inbox", response);
+}
 
     // ── File Upload — saves to DB ─────────────────────────────────────────────
 
@@ -189,6 +199,33 @@ public class MessageController {
             return ResponseEntity.status(403).build();
         }
         return ResponseEntity.ok(messageService.getConversationSummaries());
+    }
+
+
+    @PostMapping("/api/messages/bot-reply")
+    public ResponseEntity<Map<String, Object>> botReply(
+            @RequestBody Map<String, Object> body,
+            @AuthenticationPrincipal UserDetails principal) {
+
+        User caller = resolveUser(principal);
+        if (caller == null) return ResponseEntity.status(401).build();
+
+        String content = (String) body.get("content");
+        Integer targetUserId = caller.getId();
+
+        // Find admin user to use as sender
+        User adminUser = userRepository.findByRole("admin").stream().findFirst().orElse(null);
+        Integer adminSenderId = adminUser != null ? adminUser.getId() : targetUserId;
+
+        MessageDto.MessageResponse response = messageService.save(
+                targetUserId, "admin", adminSenderId,
+                content, null, null, true
+        );
+
+        messagingTemplate.convertAndSend("/topic/user/" + targetUserId, response);
+        messagingTemplate.convertAndSend("/topic/admin/inbox", response);
+
+        return ResponseEntity.ok(Map.of("success", true));
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

@@ -30,7 +30,6 @@ export function useMessaging(user, targetUserId = null) {
     return () => { mountedRef.current = false; };
   }, []);
 
-  // ── REST helpers ──────────────────────────────────────────────────────────
   const fetchUnreadCount = useCallback(async () => {
     if (!userRef.current) return;
     try {
@@ -62,12 +61,13 @@ export function useMessaging(user, targetUserId = null) {
       const params = isAdminRef.current && userId ? { userId } : {};
       const { data } = await api.get("/api/messages/history", { params });
       if (mountedRef.current) setMessages(data);
+      return data;
     } catch (err) {
       console.error("[messaging] history error", err);
+      return [];
     }
   }, []);
 
-  // ── Upload file and return { url, type, fileName, fileSize } ─────────────
   const uploadFile = useCallback(async (file, targetUserIdOverride) => {
     const formData = new FormData();
     formData.append("file", file);
@@ -78,26 +78,27 @@ export function useMessaging(user, targetUserId = null) {
     const { data } = await api.post("/api/messages/upload", formData, {
       headers: { "Content-Type": "multipart/form-data" },
     });
-    return data; // { url, type, fileName, fileSize }
+    return data;
   }, []);
 
-  // ── Send message (text + optional attachment) ─────────────────────────────
-  const sendMessage = useCallback((content, targetUserIdOverride, attachment = null) => {
+  const sendMessage = useCallback((content, targetUserIdOverride, attachment = null, isBot = false) => {
     if (!stompRef.current?.connected) {
       console.warn("[STOMP] not connected");
       return;
     }
-    // Must have either content or an attachment
     if (!content?.trim() && !attachment) return;
 
     const payload = {
       content:        content ?? "",
       attachmentUrl:  attachment?.url  ?? null,
       attachmentType: attachment?.type ?? null,
+      isBot,
     };
 
-    if (isAdminRef.current) {
-      const tid = targetUserIdOverride ?? targetRef.current;
+    // Bot messages always go through the admin destination so the backend
+    // saves them with senderRole="admin" and isBot=true
+    if (isAdminRef.current || isBot) {
+      const tid = targetUserIdOverride ?? targetRef.current ?? userRef.current?.id;
       if (!tid) return;
       stompRef.current.publish({
         destination: "/app/chat.admin.send",
@@ -111,7 +112,6 @@ export function useMessaging(user, targetUserId = null) {
     }
   }, []);
 
-  // ── Dedup helper ──────────────────────────────────────────────────────────
   const mergeMessage = (prev, msg) => {
     if (prev.some(m => m.id === msg.id)) return prev;
     const index = prev.findIndex(m =>
@@ -128,7 +128,6 @@ export function useMessaging(user, targetUserId = null) {
     return [...prev, msg];
   };
 
-  // ── WebSocket connect ─────────────────────────────────────────────────────
   useEffect(() => {
     if (!user?.id) return;
 
@@ -148,10 +147,6 @@ export function useMessaging(user, targetUserId = null) {
       onConnect: () => {
         if (!mountedRef.current) return;
         setConnected(true);
-
-        console.log("[STOMP] connected");
-        console.log("[STOMP] user.id:", userRef.current?.id);
-        console.log("[STOMP] isAdmin:", isAdminRef.current);
 
         if (isAdminRef.current) {
           client.subscribe("/topic/admin/inbox", (frame) => {
@@ -196,7 +191,6 @@ export function useMessaging(user, targetUserId = null) {
     };
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Bootstrap on mount ────────────────────────────────────────────────────
   useEffect(() => {
     if (!user?.id) return;
     fetchUnreadCount();

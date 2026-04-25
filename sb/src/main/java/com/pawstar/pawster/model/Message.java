@@ -44,11 +44,17 @@ public class Message {
     @Column(name = "attachment_type", length = 20)
     private String attachmentType;
 
+    @Column(name = "is_bot", nullable = false)
+    private boolean isBot = false;
+
     public Message() {}
 
     // ── Getters & Setters ─────────────────────────────────────────────────────
 
     public Long getId() { return id; }
+
+    public boolean isBot()           { return isBot; }
+    public void    setBot(boolean b) { this.isBot = b; }
 
     public Integer getUserId() { return userId; }
     public void setUserId(Integer userId) { this.userId = userId; }

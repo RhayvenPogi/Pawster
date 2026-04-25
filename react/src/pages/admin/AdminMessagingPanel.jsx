@@ -11,12 +11,14 @@ import {
 const PH_LOCALE = "en-PH";
 const PH_TZ     = "Asia/Manila";
 
-const MAX_IMAGE_BYTES = 5  * 1024 * 1024;
-const MAX_VIDEO_BYTES = 100 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 500 * 1024 * 1024;
+const MAX_VIDEO_BYTES = 500 * 1024 * 1024;
 
 function userPhotoSrc(userId, fallback) {
   if (!userId) return fallback ?? null;
-  return `/api/users/${userId}/photo/public`;
+  // Only call the endpoint if userId looks like a number
+  if (!/^\d+$/.test(String(userId))) return fallback ?? null;
+  return `/api/users/${userId}/photo/public`;  
 }
 
 function timeAgo(dt) {
@@ -116,68 +118,45 @@ function DateDivider({ label }) {
 
 function Bubble({ msg, isFirst, isLast, adminPhotoUrl, userPhotoUrl, onImageClick }) {
   const isAdmin = msg.senderRole === "admin";
+  const isBot   = !!msg.isBot;
   const avatarName     = isAdmin ? "Pawster Support" : (msg.senderName ?? "");
   const avatarPhotoUrl = isAdmin ? (adminPhotoUrl ?? null) : (userPhotoUrl ?? msg.senderPhotoUrl ?? null);
-  const avatarStyle    = {
-    background: isAdmin
-      ? "linear-gradient(135deg,#1c4f09,#3a8a18)"
-      : "linear-gradient(135deg,#7c3300,#c2581e)",
-  };
-
-  const hasAttachment = !!msg.attachmentUrl;
-  const isImageOnly   = hasAttachment && msg.attachmentType === "image" && !msg.content;
+  const avatarStyle    = { background: isAdmin ? "linear-gradient(135deg,#1c4f09,#3a8a18)" : "linear-gradient(135deg,#7c3300,#c2581e)" };
+  const hasAttachment  = !!msg.attachmentUrl;
+  const isImageOnly    = hasAttachment && msg.attachmentType === "image" && !msg.content;
 
   return (
-    <div style={{ display:"flex", flexDirection: isAdmin ? "row-reverse" : "row", alignItems:"flex-end", gap:8, marginBottom: isLast ? 10 : 3 }}>
-      {isLast ? (
-        <Avatar name={avatarName} photoUrl={avatarPhotoUrl} size={26} style={avatarStyle} />
-      ) : (
-        <div style={{ width:26, flexShrink:0 }} />
-      )}
-
-      <div style={{ display:"flex", flexDirection:"column", alignItems: isAdmin ? "flex-end" : "flex-start", maxWidth:"68%", gap:2 }}>
+    <div style={{ display: "flex", flexDirection: isAdmin ? "row-reverse" : "row", alignItems: "flex-end", gap: 8, marginBottom: isLast ? 10 : 3 }}>
+      {isLast ? <Avatar name={avatarName} photoUrl={avatarPhotoUrl} size={26} style={avatarStyle} /> : <div style={{ width: 26, flexShrink: 0 }} />}
+      <div style={{ display: "flex", flexDirection: "column", alignItems: isAdmin ? "flex-end" : "flex-start", maxWidth: "68%", gap: 2 }}>
         {!isAdmin && isFirst && (
-          <span style={{ fontSize:10, fontWeight:700, color:"#c2581e", letterSpacing:"0.04em", textTransform:"uppercase", paddingInline:2 }}>
-            {msg.senderName}
-          </span>
+          <span style={{ fontSize: 10, fontWeight: 700, color: "#c2581e", letterSpacing: "0.04em", textTransform: "uppercase", paddingInline: 2 }}>{msg.senderName}</span>
         )}
-
         {isImageOnly ? (
-          <div onClick={() => onImageClick?.(msg.attachmentUrl)} style={{ cursor:"pointer" }}>
-            <AttachmentPreview msg={msg} isMine={isAdmin} />
-          </div>
+          <div onClick={() => onImageClick?.(msg.attachmentUrl)} style={{ cursor: "pointer" }}><AttachmentPreview msg={msg} isMine={isAdmin} /></div>
         ) : (
-          <div style={{
-            padding: hasAttachment ? "8px 10px" : "9px 13px",
-            borderRadius: bubbleRadius(isAdmin, isFirst, isLast),
-            fontSize:13.5, fontWeight:500, lineHeight:1.55,
-            background: isAdmin ? "#1e5c0a" : "rgba(255,251,235,0.98)",
-            color: isAdmin ? "#d8f2b0" : "#1a2e0a",
-            border: isAdmin ? "none" : "1px solid rgba(170,130,50,0.2)",
-            wordBreak:"break-word",
-            opacity: msg.pending ? 0.55 : 1,
-            transition:"opacity 0.25s ease",
-            boxShadow: isAdmin ? "inset 0 1px 0 rgba(255,255,255,0.06)" : "inset 0 1px 0 rgba(255,255,255,0.7), 0 1px 3px rgba(0,0,0,0.04)",
-          }}>
+          <div style={{ padding: hasAttachment ? "8px 10px" : "9px 13px", borderRadius: bubbleRadius(isAdmin, isFirst, isLast), fontSize: 13.5, fontWeight: 500, lineHeight: 1.55, background: isAdmin ? "#1e5c0a" : "rgba(255,251,235,0.98)", color: isAdmin ? "#d8f2b0" : "#1a2e0a", border: isAdmin ? "none" : "1px solid rgba(170,130,50,0.2)", wordBreak: "break-word", opacity: msg.pending ? 0.55 : 1, transition: "opacity 0.25s ease", boxShadow: isAdmin ? "inset 0 1px 0 rgba(255,255,255,0.06)" : "inset 0 1px 0 rgba(255,255,255,0.7), 0 1px 3px rgba(0,0,0,0.04)" }}>
             {hasAttachment && (
-              <div onClick={msg.attachmentType === "image" ? () => onImageClick?.(msg.attachmentUrl) : undefined}
-                style={{ cursor: msg.attachmentType === "image" ? "pointer" : "default" }}>
+              <div onClick={msg.attachmentType === "image" ? () => onImageClick?.(msg.attachmentUrl) : undefined} style={{ cursor: msg.attachmentType === "image" ? "pointer" : "default" }}>
                 <AttachmentPreview msg={msg} isMine={isAdmin} />
               </div>
             )}
-            {msg.content && <span>{msg.content}</span>}
+            {msg.content && (
+              <span>
+                {msg.content}
+                {isBot && (
+                  <span style={{ display: "inline-block", fontSize: 9, fontWeight: 800, color: "#4ade80", background: "rgba(74,222,128,0.12)", border: "1px solid rgba(74,222,128,0.25)", borderRadius: 4, padding: "1px 5px", marginLeft: 7, verticalAlign: "middle", letterSpacing: "0.05em" }}>AI</span>
+                )}
+              </span>
+            )}
           </div>
         )}
-
         {isLast && (
-          <div style={{ display:"flex", alignItems:"center", gap:4, paddingInline:3, marginTop:1, justifyContent: isAdmin ? "flex-end" : "flex-start" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 4, paddingInline: 3, marginTop: 1, justifyContent: isAdmin ? "flex-end" : "flex-start" }}>
             {msg.pending ? (
-              <><SendingSpinner /><span style={{ fontSize:10, fontWeight:600, color:"#8a9e70" }}>sending…</span></>
+              <><SendingSpinner /><span style={{ fontSize: 10, fontWeight: 600, color: "#8a9e70" }}>sending…</span></>
             ) : (
-              <>
-                <span style={{ fontSize:10, fontWeight:600, color:"#8a9e70" }}>{formatTime(msg.createdAt)}</span>
-                {isAdmin && <ReadTicks read={msg.read ?? false} />}
-              </>
+              <><span style={{ fontSize: 10, fontWeight: 600, color: "#8a9e70" }}>{formatTime(msg.createdAt)}</span>{isAdmin && <ReadTicks read={msg.read ?? false} />}</>
             )}
           </div>
         )}
@@ -458,7 +437,7 @@ export default function AdminMessagingPanel({ user, onUnreadChange }) {
                     <DateDivider key={item.key} label={item.label} />
                   ) : (
                     <Bubble key={item.msg.id} msg={item.msg} isFirst={item.isFirst} isLast={item.isLast}
-                      adminPhotoUrl={userPhotoSrc(user?.id, user?.photoUrl ?? user?.avatarUrl ?? null)}
+                      adminPhotoUrl={user?.photoUrl ?? user?.avatarUrl ?? user?.photo ?? null}
                       userPhotoUrl={activeUserPhotoUrl}
                       onImageClick={src => setLightboxSrc(src)}
                     />

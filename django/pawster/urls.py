@@ -4,12 +4,18 @@ from django.conf import settings
 from django.conf.urls.static import static
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 
+from apps.approvals import views as approvals_views
+
 
 urlpatterns = [
     path("admin/",              admin.site.urls),
     path("api/approvals/",      include("apps.approvals.urls")),
     path("api/surveys/",        include("apps.surveys.urls")),
     path("api/notifications/",  include("apps.notifications.urls")),
+
+    # ── User photo (no dedicated users app yet) ────────────────────────────
+    path("api/users/<int:pk>/photo/public/", approvals_views.user_photo_public, name="user_photo_public"),
+
     # OpenAPI schema
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     # Swagger UI

@@ -16,35 +16,27 @@ import java.util.Optional;
 @Service
 public class MessageService {
 
-    @Autowired
-    private MessageRepository messageRepository;
+    @Autowired private MessageRepository messageRepository;
+    @Autowired private UserRepository    userRepository;
 
-    @Autowired
-    private UserRepository userRepository;
-
-    // ── Send a message (text only, backward-compatible) ───────────────────────
-    public MessageDto.MessageResponse save(Integer senderId,
-                                           String senderRole,
-                                           Integer userId,
-                                           String content) {
-        return save(senderId, senderRole, userId, content, null, null);
+    // ── Save (text only) ──────────────────────────────────────────────────────
+    public MessageDto.MessageResponse save(Integer senderId, String senderRole,
+                                           Integer userId, String content) {
+        return save(senderId, senderRole, userId, content, null, null, false);
     }
 
-    // ── Send a message (text + optional attachment) ───────────────────────────
-    /**
-     * @param senderId       ID of the authenticated sender
-     * @param senderRole     "user" or "admin"
-     * @param userId         The non-admin user in the conversation
-     * @param content        Message text (may be null if attachment-only)
-     * @param attachmentUrl  Relative URL of the uploaded file (nullable)
-     * @param attachmentType "image" | "video" | "file" (nullable)
-     */
-    public MessageDto.MessageResponse save(Integer senderId,
-                                           String senderRole,
-                                           Integer userId,
-                                           String content,
-                                           String attachmentUrl,
-                                           String attachmentType) {
+    // ── Save (with attachment, no isBot) ──────────────────────────────────────
+    public MessageDto.MessageResponse save(Integer senderId, String senderRole,
+                                           Integer userId, String content,
+                                           String attachmentUrl, String attachmentType) {
+        return save(senderId, senderRole, userId, content, attachmentUrl, attachmentType, false);
+    }
+
+    // ── Save (full — with isBot) ──────────────────────────────────────────────
+    public MessageDto.MessageResponse save(Integer senderId, String senderRole,
+                                           Integer userId, String content,
+                                           String attachmentUrl, String attachmentType,
+                                           boolean isBot) {
         Message msg = new Message();
         msg.setSenderId(senderId);
         msg.setSenderRole(senderRole);
@@ -52,6 +44,7 @@ public class MessageService {
         msg.setContent(content);
         msg.setAttachmentUrl(attachmentUrl);
         msg.setAttachmentType(attachmentType);
+        msg.setBot(isBot);              // ← set isBot
         Message saved = messageRepository.save(msg);
         return toResponse(saved);
     }
@@ -59,9 +52,7 @@ public class MessageService {
     // ── History ───────────────────────────────────────────────────────────────
     public List<MessageDto.MessageResponse> getConversation(Integer userId) {
         return messageRepository.findByUserIdOrderByCreatedAtAsc(userId)
-                .stream()
-                .map(this::toResponse)
-                .toList();
+                .stream().map(this::toResponse).toList();
     }
 
     // ── Unread counts ─────────────────────────────────────────────────────────
@@ -86,27 +77,17 @@ public class MessageService {
     public List<MessageDto.ConversationSummary> getConversationSummaries() {
         List<Object[]> rows = messageRepository.findConversationSummariesRaw();
         List<MessageDto.ConversationSummary> result = new ArrayList<>();
-
         for (Object[] row : rows) {
             MessageDto.ConversationSummary summary = new MessageDto.ConversationSummary();
-
             Integer uid = ((Number) row[0]).intValue();
             summary.setUserId(uid);
-
-            Optional<User> userOpt = userRepository.findById(uid);
-            if (userOpt.isPresent()) {
-                User u = userOpt.get();
-                summary.setUserName(u.getFirstName() + " " + u.getLastName());
-            } else {
-                summary.setUserName("Unknown User");
-            }
-
+            userRepository.findById(uid).ifPresentOrElse(
+                u -> summary.setUserName(u.getFirstName() + " " + u.getLastName()),
+                () -> summary.setUserName("Unknown User")
+            );
             summary.setLastMessage(row[1] != null ? row[1].toString() : "");
-
-            if (row[2] instanceof java.sql.Timestamp ts) {
+            if (row[2] instanceof java.sql.Timestamp ts)
                 summary.setLastMessageAt(ts.toInstant().atOffset(ZoneOffset.UTC));
-            }
-
             summary.setUnreadCount(row[3] != null ? ((Number) row[3]).longValue() : 0L);
             result.add(summary);
         }
@@ -121,14 +102,13 @@ public class MessageService {
         r.setSenderId(msg.getSenderId());
         r.setSenderRole(msg.getSenderRole());
         r.setRead(msg.isRead());
+        r.setBot(msg.isBot());              // ← map isBot
         r.setCreatedAt(msg.getCreatedAt());
         r.setContent(msg.getContent());
         r.setAttachmentUrl(msg.getAttachmentUrl());
         r.setAttachmentType(msg.getAttachmentType());
-
         userRepository.findById(msg.getSenderId()).ifPresent(u ->
                 r.setSenderName(u.getFirstName() + " " + u.getLastName()));
-
         return r;
     }
 }

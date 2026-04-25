@@ -39,6 +39,8 @@ class RehomingRequestSerializer(serializers.ModelSerializer):
     province       = serializers.CharField(required=False, allow_blank=True, default="")
     zip_code       = serializers.CharField(required=False, allow_blank=True, default="")
     address        = serializers.CharField(required=False, allow_blank=True, default="")
+    request_type   = serializers.CharField(required=False, default="rehome")
+    found_location = serializers.CharField(required=False, allow_blank=True, default="")
 
     # ── Boolean flags — allow_null so missing fields don't blow up ─────────
     is_vaccinated      = serializers.BooleanField(allow_null=True, required=False)

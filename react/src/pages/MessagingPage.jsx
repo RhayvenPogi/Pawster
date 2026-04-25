@@ -1,71 +1,53 @@
-// pages/MessagingPage.jsx
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { useMessaging } from "../hooks/useMessaging";
+import { useBotReply } from "../hooks/useBotReply";
 import {
   AttachmentToolbar,
   AttachmentPreview,
-  UploadingIndicator,
   Lightbox,
 } from "./MessageShared";
 
 const PH_LOCALE = "en-PH";
 const PH_TZ     = "Asia/Manila";
-
-const MAX_IMAGE_BYTES = 5  * 1024 * 1024;
-const MAX_VIDEO_BYTES = 100 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 500 * 1024 * 1024;
+const MAX_VIDEO_BYTES = 500 * 1024 * 1024;
 
 function formatTime(dt) {
   if (!dt) return "";
-  const d   = new Date(dt);
-  const now = new Date();
-  const sameDay =
-    d.toLocaleDateString(PH_LOCALE, { timeZone: PH_TZ }) ===
-    now.toLocaleDateString(PH_LOCALE, { timeZone: PH_TZ });
-  if (sameDay)
-    return d.toLocaleTimeString(PH_LOCALE, { hour: "2-digit", minute: "2-digit", timeZone: PH_TZ });
-  return d.toLocaleDateString(PH_LOCALE, {
-    month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: PH_TZ,
-  });
+  const d = new Date(dt), now = new Date();
+  const sameDay = d.toLocaleDateString(PH_LOCALE, { timeZone: PH_TZ }) === now.toLocaleDateString(PH_LOCALE, { timeZone: PH_TZ });
+  if (sameDay) return d.toLocaleTimeString(PH_LOCALE, { hour: "2-digit", minute: "2-digit", timeZone: PH_TZ });
+  return d.toLocaleDateString(PH_LOCALE, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: PH_TZ });
 }
 
 function sameDayCheck(a, b) {
   if (!a || !b) return false;
-  return (
-    new Date(a).toLocaleDateString(PH_LOCALE, { timeZone: PH_TZ }) ===
-    new Date(b).toLocaleDateString(PH_LOCALE, { timeZone: PH_TZ })
-  );
+  return new Date(a).toLocaleDateString(PH_LOCALE, { timeZone: PH_TZ }) === new Date(b).toLocaleDateString(PH_LOCALE, { timeZone: PH_TZ });
 }
 
 function formatDivider(dt) {
   if (!dt) return "";
-  const d    = new Date(dt);
-  const now  = new Date();
+  const d = new Date(dt), now = new Date();
   const diff = (now - d) / 86400000;
   if (diff < 1) return "Today";
   if (diff < 2) return "Yesterday";
-  return d.toLocaleDateString(PH_LOCALE, {
-    weekday: "long", month: "short", day: "numeric", timeZone: PH_TZ,
-  });
+  return d.toLocaleDateString(PH_LOCALE, { weekday: "long", month: "short", day: "numeric", timeZone: PH_TZ });
 }
 
 function bubbleRadius(isMine, isFirst, isLast) {
-  if (isMine) {
-    return `16px ${isFirst ? "4px" : "16px"} ${isLast ? "4px" : "16px"} 16px`;
-  } else {
-    return `${isFirst ? "4px" : "16px"} 16px 16px ${isLast ? "4px" : "16px"}`;
-  }
+  return isMine
+    ? `16px ${isFirst ? "4px" : "16px"} ${isLast ? "4px" : "16px"} 16px`
+    : `${isFirst ? "4px" : "16px"} 16px 16px ${isLast ? "4px" : "16px"}`;
 }
 
 function SendingSpinner() {
   return (
     <>
-      <style>{`@keyframes _msgspin { to { transform: rotate(360deg); } }`}</style>
-      <svg width="10" height="10" viewBox="0 0 10 10"
-        style={{ animation: "_msgspin 0.8s linear infinite", flexShrink: 0 }}>
-        <circle cx="5" cy="5" r="4" fill="none" stroke="rgba(255,255,255,0.5)"
-          strokeWidth="1.5" strokeDasharray="18" strokeDashoffset="6" strokeLinecap="round" />
+      <style>{`@keyframes _msgspin{to{transform:rotate(360deg)}}`}</style>
+      <svg width="10" height="10" viewBox="0 0 10 10" style={{ animation: "_msgspin 0.8s linear infinite", flexShrink: 0 }}>
+        <circle cx="5" cy="5" r="4" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="1.5" strokeDasharray="18" strokeDashoffset="6" strokeLinecap="round" />
       </svg>
     </>
   );
@@ -83,92 +65,75 @@ function ReadTicks({ read }) {
 
 function DateDivider({ label }) {
   return (
-    <div style={{ display:"flex", alignItems:"center", gap:10, margin:"14px 0 10px", userSelect:"none" }}>
-      <div style={{ flex:1, height:1, background:"rgba(180,140,60,0.2)" }} />
-      <span style={{ fontSize:10, fontWeight:700, color:"#b0a07a", letterSpacing:"0.04em", textTransform:"uppercase", whiteSpace:"nowrap" }}>
-        {label}
-      </span>
-      <div style={{ flex:1, height:1, background:"rgba(180,140,60,0.2)" }} />
+    <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "14px 0 10px", userSelect: "none" }}>
+      <div style={{ flex: 1, height: 1, background: "rgba(180,140,60,0.2)" }} />
+      <span style={{ fontSize: 10, fontWeight: 700, color: "#b0a07a", letterSpacing: "0.04em", textTransform: "uppercase", whiteSpace: "nowrap" }}>{label}</span>
+      <div style={{ flex: 1, height: 1, background: "rgba(180,140,60,0.2)" }} />
     </div>
   );
 }
 
 function AvatarCircle({ name, photoUrl, size = 28, bg, color }) {
   const [imgFailed, setImgFailed] = useState(false);
-  const initials = name
-    ? name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()
-    : "?";
+  const initials = name ? name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase() : "?";
   useEffect(() => { setImgFailed(false); }, [photoUrl]);
   const safePhotoUrl = photoUrl && photoUrl.trim() !== "" ? photoUrl : null;
   return (
-    <div style={{ width:size, height:size, borderRadius:"50%", background: bg ?? "linear-gradient(135deg,#1c4f09,#3a8a18)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:size*0.34, fontWeight:800, color: color ?? "#fff", flexShrink:0, overflow:"hidden", position:"relative" }}>
-      <span style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", userSelect:"none" }}>{initials}</span>
+    <div style={{ width: size, height: size, borderRadius: "50%", background: bg ?? "linear-gradient(135deg,#1c4f09,#3a8a18)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.34, fontWeight: 800, color: color ?? "#fff", flexShrink: 0, overflow: "hidden", position: "relative" }}>
+      <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", userSelect: "none" }}>{initials}</span>
       {safePhotoUrl && !imgFailed && (
-        <img src={safePhotoUrl} alt={initials} style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", display:"block", zIndex:1 }} onError={() => setImgFailed(true)} />
+        <img src={safePhotoUrl} alt={initials} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", display: "block", zIndex: 1 }} onError={() => setImgFailed(true)} />
       )}
+    </div>
+  );
+}
+
+function BotTypingIndicator() {
+  return (
+    <div className="flex items-end gap-2" style={{ marginBottom: 10 }}>
+      <div style={{ width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg,#1c4f09,#3a8a18)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800, color: "#fff", flexShrink: 0 }}>PS</div>
+      <div style={{ padding: "10px 16px", borderRadius: "4px 16px 16px 16px", background: "rgba(255,250,232,0.95)", border: "1.5px solid rgba(180,140,60,0.28)", display: "flex", alignItems: "center", gap: 5 }}>
+        <style>{`@keyframes _blink{0%,80%,100%{opacity:.2}40%{opacity:1}}`}</style>
+        {[0, 0.2, 0.4].map((d, i) => (
+          <span key={i} style={{ width: 7, height: 7, borderRadius: "50%", background: "#4a8f20", display: "inline-block", animation: `_blink 1.2s ${d}s infinite` }} />
+        ))}
+      </div>
     </div>
   );
 }
 
 function Bubble({ msg, userId, user, isFirst, isLast, onImageClick }) {
   const isMine =
-    (msg.senderId != null && String(msg.senderId) === String(userId)) ||
-    (msg.senderId == null && msg.senderRole !== "admin");
-
-  const avatarName  = isMine
-    ? [user?.firstName, user?.lastName].filter(Boolean).join(" ") || user?.name || ""
-    : "Pawster Support";
+    msg.senderRole !== "admin" &&
+    !(msg.isBot || msg.bot) &&
+    ((msg.senderId != null && String(msg.senderId) === String(userId)) ||
+     (msg.senderId == null));
+  const avatarName  = isMine ? [user?.firstName, user?.lastName].filter(Boolean).join(" ") || user?.name || "" : "Pawster Support";
   const avatarPhoto = isMine ? (user?.photoUrl ?? user?.avatarUrl ?? null) : (msg.senderPhotoUrl ?? null);
   const avatarBg    = "linear-gradient(135deg,#1c4f09,#3a8a18)";
-
   const hasAttachment = !!msg.attachmentUrl;
   const isImageOnly   = hasAttachment && msg.attachmentType === "image" && !msg.content;
 
   return (
-    <div className={`flex items-end gap-2 ${isMine ? "flex-row-reverse" : "flex-row"}`}
-      style={{ marginBottom: isLast ? 10 : 3 }}>
-      {isLast
-        ? <AvatarCircle name={avatarName} photoUrl={avatarPhoto} size={28} bg={avatarBg} color="#fff" />
-        : <div className="w-7 flex-shrink-0" />
-      }
-
+    <div className={`flex items-end gap-2 ${isMine ? "flex-row-reverse" : "flex-row"}`} style={{ marginBottom: isLast ? 10 : 3 }}>
+      {isLast ? <AvatarCircle name={avatarName} photoUrl={avatarPhoto} size={28} bg={avatarBg} color="#fff" /> : <div className="w-7 flex-shrink-0" />}
       <div className={`max-w-[72%] flex flex-col gap-1 ${isMine ? "items-end" : "items-start"}`}>
         {isImageOnly ? (
-          <div onClick={() => onImageClick?.(msg.attachmentUrl)} style={{ cursor:"pointer" }}>
-            <AttachmentPreview msg={msg} isMine={isMine} />
-          </div>
+          <div onClick={() => onImageClick?.(msg.attachmentUrl)} style={{ cursor: "pointer" }}><AttachmentPreview msg={msg} isMine={isMine} /></div>
         ) : (
-          <div className="px-4 py-2.5 text-sm font-semibold leading-relaxed"
-            style={{
-              borderRadius: bubbleRadius(isMine, isFirst, isLast),
-              background: isMine ? "linear-gradient(135deg,rgba(28,79,9,0.92),rgba(58,138,24,0.88))" : "rgba(255,250,232,0.95)",
-              color: isMine ? "#fff" : "#1a2e0a",
-              border: isMine ? "none" : "1.5px solid rgba(180,140,60,0.28)",
-              wordBreak: "break-word",
-              opacity: msg.pending ? 0.55 : 1,
-              transition: "opacity 0.25s ease",
-              boxShadow: isMine ? "inset 0 1px 0 rgba(255,255,255,0.08)" : "inset 0 1px 0 rgba(255,255,255,0.7), 0 1px 3px rgba(0,0,0,0.04)",
-              padding: hasAttachment ? "8px 10px" : undefined,
-            }}>
+          <div className="px-4 py-2.5 text-sm font-semibold leading-relaxed" style={{ borderRadius: bubbleRadius(isMine, isFirst, isLast), background: isMine ? "linear-gradient(135deg,rgba(28,79,9,0.92),rgba(58,138,24,0.88))" : "rgba(255,250,232,0.95)", color: isMine ? "#fff" : "#1a2e0a", border: isMine ? "none" : "1.5px solid rgba(180,140,60,0.28)", wordBreak: "break-word", opacity: msg.pending ? 0.55 : 1, transition: "opacity 0.25s ease", boxShadow: isMine ? "inset 0 1px 0 rgba(255,255,255,0.08)" : "inset 0 1px 0 rgba(255,255,255,0.7), 0 1px 3px rgba(0,0,0,0.04)", padding: hasAttachment ? "8px 10px" : undefined }}>
             {hasAttachment && (
-              <div onClick={msg.attachmentType === "image" ? () => onImageClick?.(msg.attachmentUrl) : undefined}
-                style={{ cursor: msg.attachmentType === "image" ? "pointer" : "default" }}>
-                <AttachmentPreview msg={msg} isMine={isMine} />
-              </div>
+              <div onClick={msg.attachmentType === "image" ? () => onImageClick?.(msg.attachmentUrl) : undefined} style={{ cursor: msg.attachmentType === "image" ? "pointer" : "default" }}><AttachmentPreview msg={msg} isMine={isMine} /></div>
             )}
             {msg.content && <span>{msg.content}</span>}
           </div>
         )}
-
         {isLast && (
-          <div className="flex items-center gap-1" style={{ paddingInline:3, justifyContent: isMine ? "flex-end" : "flex-start" }}>
+          <div className="flex items-center gap-1" style={{ paddingInline: 3, justifyContent: isMine ? "flex-end" : "flex-start" }}>
             {msg.pending ? (
-              <><SendingSpinner /><span style={{ fontSize:10, fontWeight:600, color:"#9aaa80" }}>sending…</span></>
+              <><SendingSpinner /><span style={{ fontSize: 10, fontWeight: 600, color: "#9aaa80" }}>sending…</span></>
             ) : (
-              <>
-                <span className="text-[10px] font-semibold" style={{ color:"#9aaa80" }}>{formatTime(msg.createdAt)}</span>
-                {isMine && <ReadTicks read={msg.read ?? false} />}
-              </>
+              <><span className="text-[10px] font-semibold" style={{ color: "#9aaa80" }}>{formatTime(msg.createdAt)}</span>{isMine && <ReadTicks read={msg.read ?? false} />}</>
             )}
           </div>
         )}
@@ -178,18 +143,9 @@ function Bubble({ msg, userId, user, isFirst, isLast, onImageClick }) {
 }
 
 function Toast({ message, onDone }) {
-  useEffect(() => {
-    const t = setTimeout(onDone, 3500);
-    return () => clearTimeout(t);
-  }, [onDone]);
+  useEffect(() => { const t = setTimeout(onDone, 3500); return () => clearTimeout(t); }, [onDone]);
   return (
-    <div style={{
-      position: "fixed", bottom: 100, left: "50%", transform: "translateX(-50%)",
-      background: "rgba(180,44,22,0.94)", color: "#fff", borderRadius: 10,
-      padding: "9px 18px", fontSize: 12.5, fontWeight: 700, zIndex: 9999,
-      boxShadow: "0 4px 20px rgba(0,0,0,0.22)", pointerEvents: "none",
-      whiteSpace: "nowrap", fontFamily: "'Nunito', sans-serif",
-    }}>
+    <div style={{ position: "fixed", bottom: 100, left: "50%", transform: "translateX(-50%)", background: "rgba(180,44,22,0.94)", color: "#fff", borderRadius: 10, padding: "9px 18px", fontSize: 12.5, fontWeight: 700, zIndex: 9999, boxShadow: "0 4px 20px rgba(0,0,0,0.22)", pointerEvents: "none", whiteSpace: "nowrap", fontFamily: "'Nunito', sans-serif" }}>
       {message}
     </div>
   );
@@ -198,41 +154,41 @@ function Toast({ message, onDone }) {
 export default function MessagingPage() {
   const { user }  = useAuth();
   const navigate  = useNavigate();
-  const [input,          setInput]          = useState("");
-  const [uploading,      setUploading]      = useState(false);
-  const [uploadFileName, setUploadFileName] = useState("");
-  const [lightboxSrc,    setLightboxSrc]    = useState(null);
-  const [toast,          setToast]          = useState(null);
+  const [input,             setInput]             = useState("");
+  const [uploading,         setUploading]         = useState(false);
+  const [uploadFileName,    setUploadFileName]    = useState("");
+  const [lightboxSrc,       setLightboxSrc]       = useState(null);
+  const [toast,             setToast]             = useState(null);
   const [pendingAttachment, setPendingAttachment] = useState(null);
+  const [botTyping,         setBotTyping]         = useState(false);
 
   const bottomRef   = useRef(null);
   const textareaRef = useRef(null);
 
   const { messages, setMessages, connected, loadHistory, sendMessage, uploadFile, markRead } = useMessaging(user);
+  const { triggerBotGreeting, triggerBotReply } = useBotReply({ sendMessage, messages, onBotTypingChange: setBotTyping });
 
   useEffect(() => {
     if (!user) { navigate("/login"); return; }
-    loadHistory();
-    markRead();
+    loadHistory().then(history => {
+      markRead();
+      triggerBotGreeting(history ?? []);
+    });
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, botTyping]);
 
   const addOptimistic = (text, attachment = null) => {
     const tempId = `pending-${Date.now()}`;
     setMessages(prev => [...prev, {
       id: tempId, content: text || "", senderId: user.id,
       senderRole: "user", createdAt: new Date().toISOString(), pending: true, read: false,
-      attachmentUrl:      attachment?.url      ?? null,
-      attachmentType:     attachment?.type     ?? null,
-      attachmentFileName: attachment?.fileName ?? null,
-      attachmentFileSize: attachment?.fileSize ?? null,
+      attachmentUrl: attachment?.url ?? null, attachmentType: attachment?.type ?? null,
+      attachmentFileName: attachment?.fileName ?? null, attachmentFileSize: attachment?.fileSize ?? null,
     }]);
-    setTimeout(() => {
-      setMessages(prev => prev.map(m => m.id === tempId ? { ...m, pending: false } : m));
-    }, 3000);
+    setTimeout(() => { setMessages(prev => prev.map(m => m.id === tempId ? { ...m, pending: false } : m)); }, 3000);
   };
 
   const handleSend = () => {
@@ -240,73 +196,40 @@ export default function MessagingPage() {
     if (!text && !pendingAttachment) return;
     if (!connected) return;
 
-    addOptimistic(text, pendingAttachment ? {
-      url:      pendingAttachment.url,
-      type:     pendingAttachment.type,
-      fileName: pendingAttachment.fileName,
-      fileSize: pendingAttachment.fileSize,
-    } : null);
+    addOptimistic(text, pendingAttachment ? { url: pendingAttachment.url, type: pendingAttachment.type, fileName: pendingAttachment.fileName, fileSize: pendingAttachment.fileSize } : null);
+    sendMessage(text, undefined, pendingAttachment ? { url: pendingAttachment.url, type: pendingAttachment.type } : undefined);
 
-    sendMessage(text, undefined, pendingAttachment ? {
-      url:  pendingAttachment.url,
-      type: pendingAttachment.type,
-    } : undefined);
-
+    const snapshot = [...messages, { content: text, senderRole: "user", pending: false }];
     setInput("");
     setPendingAttachment(null);
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto";
-      textareaRef.current.focus();
-    }
+    if (textareaRef.current) { textareaRef.current.style.height = "auto"; textareaRef.current.focus(); }
+    setTimeout(() => triggerBotReply(snapshot), 100);
   };
 
   const handleFilePicked = async (file, kind) => {
     if (!connected) return;
-
     const limit = kind === "video" ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
-    if (file.size > limit) {
-      const limitMB = (limit / 1048576).toFixed(0);
-      setToast(`File too large — max ${limitMB} MB (yours: ${(file.size / 1048576).toFixed(1)} MB)`);
-      return;
-    }
-
-    setUploading(true);
-    setUploadFileName(file.name);
+    if (file.size > limit) { setToast(`File too large — max ${(limit / 1048576).toFixed(0)} MB`); return; }
+    setUploading(true); setUploadFileName(file.name);
     try {
       const attachment = await uploadFile(file);
       setPendingAttachment({ ...attachment, type: kind, fileName: file.name });
     } catch (err) {
-      console.error("[upload] failed", err);
-      const status = err?.response?.status;
-      if (status === 413) {
-        setToast("File too large — the server rejected it. Try a smaller file.");
-      } else {
-        setToast("Upload failed. Please try again.");
-      }
-    } finally {
-      setUploading(false);
-      setUploadFileName("");
-    }
+      setToast(err?.response?.status === 413 ? "File too large — server rejected it." : "Upload failed. Try again.");
+    } finally { setUploading(false); setUploadFileName(""); }
   };
 
-  const handleEmojiSelect = (emoji) => {
-    setInput(prev => prev + emoji);
-    textareaRef.current?.focus();
-  };
-
-  const handleKey = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
-  };
+  const handleEmojiSelect = (emoji) => { setInput(prev => prev + emoji); textareaRef.current?.focus(); };
+  const handleKey = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } };
 
   if (!user) return null;
 
   const enriched = [];
   messages.forEach((msg, i) => {
-    const prev = messages[i - 1];
-    const next = messages[i + 1];
+    const prev = messages[i - 1], next = messages[i + 1];
     const senderKey = msg.senderRole === "admin" ? "admin" : String(msg.senderId ?? "user");
-    const prevKey   = prev ? (prev.senderRole === "admin" ? "admin" : String(prev.senderId ?? "user")) : null;
-    const nextKey   = next ? (next.senderRole === "admin" ? "admin" : String(next.senderId ?? "user")) : null;
+    const prevKey = prev ? (prev.senderRole === "admin" ? "admin" : String(prev.senderId ?? "user")) : null;
+    const nextKey = next ? (next.senderRole === "admin" ? "admin" : String(next.senderId ?? "user")) : null;
     if (!prev || !sameDayCheck(prev.createdAt, msg.createdAt))
       enriched.push({ type: "divider", key: `div-${msg.id}`, label: formatDivider(msg.createdAt) });
     const isFirst = !prev || prevKey !== senderKey || !sameDayCheck(prev.createdAt, msg.createdAt);
@@ -315,96 +238,60 @@ export default function MessagingPage() {
   });
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background:"#EDDABB", fontFamily:"'Nunito', sans-serif" }}>
+    <div className="min-h-screen flex flex-col" style={{ background: "#EDDABB", fontFamily: "'Nunito', sans-serif" }}>
       {lightboxSrc && <Lightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />}
       {toast && <Toast message={toast} onDone={() => setToast(null)} />}
 
-      <header className="sticky top-0 z-20 flex items-center gap-3 px-5 h-[64px] shadow-sm"
-        style={{ background:"rgba(255,248,218,0.94)", backdropFilter:"blur(16px)", borderBottom:"1.5px solid rgba(90,170,48,0.35)" }}>
-        <button onClick={() => navigate(-1)}
-          className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-[rgba(28,79,9,0.08)] transition-all"
-          style={{ color:"#1c4f09" }}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
-          </svg>
+      <header className="sticky top-0 z-20 flex items-center gap-3 px-5 h-[64px] shadow-sm" style={{ background: "rgba(255,248,218,0.94)", backdropFilter: "blur(16px)", borderBottom: "1.5px solid rgba(90,170,48,0.35)" }}>
+        <button onClick={() => navigate(-1)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-[rgba(28,79,9,0.08)] transition-all" style={{ color: "#1c4f09" }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" /></svg>
         </button>
         <AvatarCircle name="Pawster Support" photoUrl={null} size={40} bg="linear-gradient(135deg,#1c4f09,#3a8a18)" color="#fff" />
         <div className="flex-1 min-w-0">
           <div className="font-black text-[#1a4a08] text-[0.95rem]">Pawster Support</div>
           <div className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full inline-block" style={{ background: connected ? "#4ccc20" : "#ccc" }} />
-            <span className="text-[0.72rem] font-bold" style={{ color: connected ? "#3a8a18" : "#9aaa80" }}>
-              {connected ? "Online" : "Connecting…"}
-            </span>
+            <span className="text-[0.72rem] font-bold" style={{ color: connected ? "#3a8a18" : "#9aaa80" }}>{connected ? "Online" : "Connecting…"}</span>
           </div>
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto px-4 py-5 relative z-10"
-        style={{ maxWidth:720, width:"100%", margin:"0 auto" }}>
-        {enriched.length === 0 ? (
+      <main className="flex-1 overflow-y-auto px-4 py-5 relative z-10" style={{ maxWidth: 720, width: "100%", margin: "0 auto" }}>
+        {enriched.length === 0 && !botTyping ? (
           <div className="flex flex-col items-center justify-center h-full py-20 gap-4 text-center">
-            <p className="text-[0.95rem] font-bold" style={{ color:"#6a8a50" }}>No messages yet</p>
-            <p className="text-sm font-semibold" style={{ color:"#9aaa80", maxWidth:280 }}>
-              Send a message to the Pawster team — we're here to help.
-            </p>
+            <p className="text-[0.95rem] font-bold" style={{ color: "#6a8a50" }}>No messages yet</p>
+            <p className="text-sm font-semibold" style={{ color: "#9aaa80", maxWidth: 280 }}>Send a message to the Pawster team — we're here to help.</p>
           </div>
         ) : (
-          enriched.map(item =>
-            item.type === "divider" ? (
-              <DateDivider key={item.key} label={item.label} />
-            ) : (
-              <Bubble key={item.msg.id} msg={item.msg} userId={user.id} user={user}
-                isFirst={item.isFirst} isLast={item.isLast}
-                onImageClick={src => setLightboxSrc(src)}
-              />
-            )
-          )
+          <>
+            {enriched.map(item =>
+              item.type === "divider" ? (
+                <DateDivider key={item.key} label={item.label} />
+              ) : (
+                <Bubble key={item.msg.id} msg={item.msg} userId={user.id} user={user} isFirst={item.isFirst} isLast={item.isLast} onImageClick={src => setLightboxSrc(src)} />
+              )
+            )}
+            {botTyping && <BotTypingIndicator />}
+          </>
         )}
         <div ref={bottomRef} />
       </main>
 
-      <footer className="sticky bottom-0 z-20 px-4 py-3"
-        style={{ background:"rgba(255,248,218,0.96)", backdropFilter:"blur(16px)", borderTop:"1.5px solid rgba(180,140,60,0.28)" }}>
+      <footer className="sticky bottom-0 z-20 px-4 py-3" style={{ background: "rgba(255,248,218,0.96)", backdropFilter: "blur(16px)", borderTop: "1.5px solid rgba(180,140,60,0.28)" }}>
         {pendingAttachment && (
-  <div className="max-w-[720px] mx-auto mb-2" style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 10px", borderRadius:10, background:"rgba(90,160,50,0.1)", border:"1px solid rgba(90,160,50,0.25)" }}>
-    <span style={{ fontSize:12, fontWeight:700, color:"#3a5820", flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-      📎 {pendingAttachment.fileName}
-    </span>
-    <button onClick={() => setPendingAttachment(null)}
-      style={{ fontSize:11, fontWeight:800, color:"#c2581e", background:"none", border:"none", cursor:"pointer", padding:"0 2px" }}>
-      ✕
-    </button>
-  </div>
-)}
-        <div className="flex items-end gap-2 rounded-2xl px-3 py-2 max-w-[720px] mx-auto"
-          style={{ background:"rgba(255,252,238,0.85)", border:"1.5px solid rgba(180,140,60,0.35)" }}>
-          <AttachmentToolbar
-            onEmojiSelect={handleEmojiSelect}
-            onFilePicked={handleFilePicked}
-            disabled={!connected || uploading}
-            size={32}
-            emojiPickerPlacement="above"
-          />
-          <textarea ref={textareaRef} rows={1} value={input}
-            onChange={e => { setInput(e.target.value); e.target.style.height="auto"; e.target.style.height=Math.min(e.target.scrollHeight,120)+"px"; }}
-            onKeyDown={handleKey} placeholder="Type a message…"
-            className="flex-1 bg-transparent border-none outline-none resize-none text-sm font-semibold leading-relaxed"
-            style={{ color:"#1a2e0a", minHeight:28, maxHeight:120, fontFamily:"'Nunito', sans-serif" }}
-          />
-          <button onClick={handleSend} disabled={(!input.trim() && !pendingAttachment) || !connected}
-  className="w-9 h-9 rounded-xl flex items-center justify-center transition-all flex-shrink-0"
-  style={{ background: (input.trim() || pendingAttachment) && connected ? "linear-gradient(135deg,#1c4f09,#2a7010)" : "rgba(180,140,60,0.18)", color: (input.trim() || pendingAttachment) && connected ? "#fff" : "#9aaa80" }}
-  onMouseDown={e => { if ((input.trim() || pendingAttachment) && connected) e.currentTarget.style.transform="scale(0.93)"; }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
-            </svg>
+          <div className="max-w-[720px] mx-auto mb-2" style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", borderRadius: 10, background: "rgba(90,160,50,0.1)", border: "1px solid rgba(90,160,50,0.25)" }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "#3a5820", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>📎 {pendingAttachment.fileName}</span>
+            <button onClick={() => setPendingAttachment(null)} style={{ fontSize: 11, fontWeight: 800, color: "#c2581e", background: "none", border: "none", cursor: "pointer", padding: "0 2px" }}>✕</button>
+          </div>
+        )}
+        <div className="flex items-end gap-2 rounded-2xl px-3 py-2 max-w-[720px] mx-auto" style={{ background: "rgba(255,252,238,0.85)", border: "1.5px solid rgba(180,140,60,0.35)" }}>
+          <AttachmentToolbar onEmojiSelect={handleEmojiSelect} onFilePicked={handleFilePicked} disabled={!connected || uploading} size={32} emojiPickerPlacement="above" />
+          <textarea ref={textareaRef} rows={1} value={input} onChange={e => { setInput(e.target.value); e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px"; }} onKeyDown={handleKey} placeholder="Type a message…" className="flex-1 bg-transparent border-none outline-none resize-none text-sm font-semibold leading-relaxed" style={{ color: "#1a2e0a", minHeight: 28, maxHeight: 120, fontFamily: "'Nunito', sans-serif" }} />
+          <button onClick={handleSend} disabled={(!input.trim() && !pendingAttachment) || !connected} className="w-9 h-9 rounded-xl flex items-center justify-center transition-all flex-shrink-0" style={{ background: (input.trim() || pendingAttachment) && connected ? "linear-gradient(135deg,#1c4f09,#2a7010)" : "rgba(180,140,60,0.18)", color: (input.trim() || pendingAttachment) && connected ? "#fff" : "#9aaa80" }} onMouseDown={e => { if ((input.trim() || pendingAttachment) && connected) e.currentTarget.style.transform = "scale(0.93)"; }} onMouseUp={e => (e.currentTarget.style.transform = "scale(1)")}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" /></svg>
           </button>
         </div>
-        <p className="text-center text-[10px] font-semibold mt-1.5" style={{ color:"#b0a07a" }}>
-          Press Enter to send · Shift+Enter for new line
-        </p>
+        <p className="text-center text-[10px] font-semibold mt-1.5" style={{ color: "#b0a07a" }}>Press Enter to send · Shift+Enter for new line</p>
       </footer>
     </div>
   );

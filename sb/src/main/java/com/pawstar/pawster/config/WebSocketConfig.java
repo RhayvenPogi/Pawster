@@ -19,16 +19,14 @@ import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 
 import java.security.Principal;
+import java.util.Map;
 
 @Configuration
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
-    @Autowired
-    private JwtUtils jwtUtils;
-
-    @Autowired
-    private CustomUserDetailsService userDetailsService;
+    @Autowired private JwtUtils                  jwtUtils;
+    @Autowired private CustomUserDetailsService  userDetailsService;
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
@@ -49,6 +47,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void configureClientInboundChannel(ChannelRegistration registration) {
         registration.interceptors(new ChannelInterceptor() {
+
+            private static final String SESSION_PRINCIPAL_KEY = "STOMP_PRINCIPAL";
+
             @Override
             public Message<?> preSend(Message<?> message, MessageChannel channel) {
                 StompHeaderAccessor accessor =
@@ -58,49 +59,54 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
                 StompCommand command = accessor.getCommand();
 
-                // ── On CONNECT: validate token and store principal on session ──
                 if (StompCommand.CONNECT.equals(command)) {
-                    String token = extractToken(accessor);
-
-                    if (token != null && jwtUtils.validateToken(token)) {
-                        String email = jwtUtils.getUsernameFromToken(token);
-                        UserDetails userDetails = userDetailsService.loadUserByUsername(email);
-
-                        UsernamePasswordAuthenticationToken auth =
-                                new UsernamePasswordAuthenticationToken(
-                                        userDetails, null, userDetails.getAuthorities());
-
-                        // This attaches the principal to the WebSocket SESSION
-                        // so it persists for all subsequent frames
+                    // Authenticate on CONNECT and store principal in session attributes
+                    UsernamePasswordAuthenticationToken auth = buildAuth(accessor);
+                    if (auth != null) {
                         accessor.setUser(auth);
-                    }
-                }
-
-                // ── On SEND/SUBSCRIBE: re-attach session principal so
-                //    @AuthenticationPrincipal resolves correctly ──────────────
-                if (StompCommand.SEND.equals(command) ||
-                    StompCommand.SUBSCRIBE.equals(command)) {
-
-                    Principal sessionUser = accessor.getUser();
-
-                    // If the session already has a principal (set at CONNECT),
-                    // make sure it is propagated — nothing extra needed.
-                    // If somehow it is missing, try the Authorization header
-                    // as a fallback (some clients resend it on every frame).
-                    if (sessionUser == null) {
-                        String token = extractToken(accessor);
-                        if (token != null && jwtUtils.validateToken(token)) {
-                            String email = jwtUtils.getUsernameFromToken(token);
-                            UserDetails userDetails = userDetailsService.loadUserByUsername(email);
-                            UsernamePasswordAuthenticationToken auth =
-                                    new UsernamePasswordAuthenticationToken(
-                                            userDetails, null, userDetails.getAuthorities());
-                            accessor.setUser(auth);
+                        // Also store in session attributes so SEND frames can retrieve it
+                        Map<String, Object> sessionAttributes = accessor.getSessionAttributes();
+                        if (sessionAttributes != null) {
+                            sessionAttributes.put(SESSION_PRINCIPAL_KEY, auth);
                         }
+                    }
+                } else if (StompCommand.SEND.equals(command) ||
+                           StompCommand.SUBSCRIBE.equals(command)) {
+
+                    // Restore principal from session attributes if not already set
+                    Principal sessionUser = accessor.getUser();
+                    if (sessionUser == null) {
+                        Map<String, Object> sessionAttributes = accessor.getSessionAttributes();
+                        if (sessionAttributes != null) {
+                            Principal stored = (Principal) sessionAttributes.get(SESSION_PRINCIPAL_KEY);
+                            if (stored != null) {
+                                accessor.setUser(stored);
+                            }
+                        }
+                    }
+
+                    // Final fallback: try Authorization header on this frame
+                    if (accessor.getUser() == null) {
+                        UsernamePasswordAuthenticationToken auth = buildAuth(accessor);
+                        if (auth != null) accessor.setUser(auth);
                     }
                 }
 
                 return message;
+            }
+
+            private UsernamePasswordAuthenticationToken buildAuth(StompHeaderAccessor accessor) {
+                String token = extractToken(accessor);
+                if (token == null) return null;
+                try {
+                    if (!jwtUtils.validateToken(token)) return null;
+                    String email = jwtUtils.getUsernameFromToken(token);
+                    UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+                    return new UsernamePasswordAuthenticationToken(
+                            userDetails, null, userDetails.getAuthorities());
+                } catch (Exception e) {
+                    return null;
+                }
             }
 
             private String extractToken(StompHeaderAccessor accessor) {

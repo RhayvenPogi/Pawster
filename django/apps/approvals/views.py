@@ -5,6 +5,7 @@ UPDATE, and DELETE (each action sends email where applicable).
 """
 import requests
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.utils import timezone
 from rest_framework import status as drf_status
 from rest_framework.decorators import api_view, permission_classes
@@ -162,17 +163,12 @@ def list_adoptions(request):
 
 
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAdminUser])
 def adoption_detail(request, pk):
-    """GET /api/approvals/adoptions/<pk>/  — fetch a single adoption record (admin or owner)"""
     try:
         obj = AdoptionRequest.objects.get(pk=pk)
     except AdoptionRequest.DoesNotExist:
         return Response({"success": False, "message": "Not found."}, status=404)
-
-    # Allow admins or the owning user
-    if not (request.user.is_staff or obj.user == request.user):
-        return Response({"success": False, "message": "Permission denied."}, status=403)
 
     return Response({"success": True, "data": AdoptionRequestSerializer(obj).data})
 
@@ -312,25 +308,41 @@ def submit_rehoming(request):
 @api_view(["GET"])
 @permission_classes([IsAdminUser])
 def list_rehoming(request):
-    """GET /api/approvals/rehoming/admin/  — admin lists all rehoming requests"""
     qs = RehomingRequest.objects.all()
     req_status = request.query_params.get("status")
     if req_status:
         qs = qs.filter(status=req_status)
-    return Response({"success": True, "data": RehomingRequestSerializer(qs, many=True).data})
+
+    # Exclude heavy base64 fields from list — cards show placeholder,
+    # DetailModal fetches full record via /id/ endpoint
+    serializer = RehomingRequestSerializer(qs, many=True)
+    data = [dict(r) for r in serializer.data]
+    for record in data:
+        # Strip heavy pet photo but flag it exists
+        if record.get("photo_base64") and len(record["photo_base64"]) > 100:
+            record["has_photo"] = True
+            record["photo_base64"] = None
+        else:
+            record["has_photo"] = False
+
+        # Strip vacc photos but send the count
+        vacc = record.get("vacc_photos") or []
+        if isinstance(vacc, list) and len(vacc) > 0:
+            record["vacc_photo_count"] = len(vacc)
+            record["vacc_photos"] = []
+        else:
+            record["vacc_photo_count"] = 0
+
+    return Response({"success": True, "data": data})
 
 
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAdminUser])
 def rehoming_detail(request, pk):
-    """GET /api/approvals/rehoming/<pk>/  — fetch a single rehoming record (admin or owner)"""
     try:
         obj = RehomingRequest.objects.get(pk=pk)
     except RehomingRequest.DoesNotExist:
         return Response({"success": False, "message": "Not found."}, status=404)
-
-    if not (request.user.is_staff or obj.user == request.user):
-        return Response({"success": False, "message": "Permission denied."}, status=403)
 
     return Response({"success": True, "data": RehomingRequestSerializer(obj).data})
 
@@ -505,3 +517,40 @@ def user_rehoming(request):
     """GET /api/approvals/rehoming/user/  — logged-in user's own rehoming requests"""
     qs = RehomingRequest.objects.filter(user=request.user).order_by("-created_at")
     return Response({"success": True, "data": RehomingRequestSerializer(qs, many=True).data})
+
+
+# ── User photo endpoint ───────────────────────────────────────────────────────
+
+User = get_user_model()
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def user_photo_public(request, pk):
+    """
+    GET /api/users/<pk>/photo/public/
+    Returns a user's profile photo without requiring authentication.
+    Only exposes the photo field — nothing else.
+    """
+    try:
+        user = User.objects.get(pk=pk)
+    except User.DoesNotExist:
+        return Response({"success": False, "message": "User not found."}, status=404)
+
+    # Walk common field patterns — the first non-empty value wins.
+    # Adjust this list once you know your exact field name.
+    profile = getattr(user, "profile", None)
+    photo = (
+        getattr(profile, "photo",         None) or
+        getattr(profile, "photo_base64",  None) or
+        getattr(profile, "avatar",        None) or
+        getattr(user,    "photo",         None) or
+        getattr(user,    "photo_base64",  None) or
+        getattr(user,    "avatar",        None) or
+        getattr(user,    "profile_picture", None) or
+        None
+    )
+
+    if not photo:
+        return Response({"success": False, "message": "No photo found."}, status=404)
+
+    return Response({"success": True, "photo": str(photo)})
