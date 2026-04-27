@@ -64,6 +64,8 @@ function fileToBase64(file) {
 // ── Fields optional for rescue (rescuer may not know these about a stray) ──
 const RESCUE_OPTIONAL = new Set([
   "durationOwned",   // Step 1
+  "isVaccinated",    // Step 2
+  "isNeutered",      // Step 2
   "isLeashTrained",  // Step 3
   "isHouseTrained",  // Step 3
   "goodWithChildren",// Step 3
@@ -150,7 +152,7 @@ const RYN = ({ value, onChange, invalid }) => (
   </div>
 );
 
-// Yes / No / Unknown toggle — used for rescue-optional behavioral fields
+// Yes / No / Unknown toggle — used for rescue-optional fields
 const RYNUnknown = ({ value, onChange, invalid }) => (
   <div style={{ display: "flex", gap: "0.4rem" }}>
     {[["yes", "Yes"], ["no", "No"], ["unknown", "Unknown"]].map(([v, l]) => (
@@ -339,7 +341,7 @@ function RequestTypeToggle({ value, onChange }) {
   );
 }
 
-/* ─── Rescue context banner shown on Steps 1, 3 when in rescue mode ─────── */
+/* ─── Rescue context banner shown on Steps 1, 2, 3 when in rescue mode ─────── */
 function RescueBanner() {
   return (
     <div style={{
@@ -427,17 +429,39 @@ function RehomeStepContent({ step, form, set, setV, photoPreview, onPhotoChange,
       {step === 2 && (
         <div style={col}>
           <RSecTitle icon="syringe" title="Health information" />
+
+          {/* ── Rescue banner on step 2 ── */}
+          {isRescue && <RescueBanner />}
+
           <div style={g2}>
-            <RField label="Vaccinated? *">
-              <RYN value={form.isVaccinated} onChange={(v) => setV("isVaccinated", v)} invalid={!!err("isVaccinated")} />
+            {/* Vaccinated — RYNUnknown for rescue, RYN for rehome */}
+            <RField label={
+              isRescue
+                ? <span>Vaccinated? <OptionalBadge /></span>
+                : "Vaccinated? *"
+            }>
+              {isRescue
+                ? <RYNUnknown value={form.isVaccinated} onChange={(v) => setV("isVaccinated", v)} invalid={!!err("isVaccinated")} />
+                : <RYN value={form.isVaccinated} onChange={(v) => setV("isVaccinated", v)} invalid={!!err("isVaccinated")} />
+              }
               <InlineErr msg={err("isVaccinated")} />
             </RField>
-            <RField label="Spayed / neutered? *">
-              <RYN value={form.isNeutered} onChange={(v) => setV("isNeutered", v)} invalid={!!err("isNeutered")} />
+
+            {/* Spayed/neutered — RYNUnknown for rescue, RYN for rehome */}
+            <RField label={
+              isRescue
+                ? <span>Spayed / neutered? <OptionalBadge /></span>
+                : "Spayed / neutered? *"
+            }>
+              {isRescue
+                ? <RYNUnknown value={form.isNeutered} onChange={(v) => setV("isNeutered", v)} invalid={!!err("isNeutered")} />
+                : <RYN value={form.isNeutered} onChange={(v) => setV("isNeutered", v)} invalid={!!err("isNeutered")} />
+              }
               <InlineErr msg={err("isNeutered")} />
             </RField>
           </div>
 
+          {/* Vaccination details — only expand when explicitly "yes" */}
           {form.isVaccinated === "yes" && (
             <div style={{ padding: "0.875rem 1rem", borderRadius: 12, background: "rgba(28,79,9,0.04)", border: "1px solid rgba(90,170,48,0.22)", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
               <div style={{ fontSize: "0.7rem", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.07em", color: "#1c4f09", display: "flex", alignItems: "center", gap: "0.4rem" }}>
@@ -469,6 +493,14 @@ function RehomeStepContent({ step, form, set, setV, photoPreview, onPhotoChange,
             <div style={{ padding: "0.6rem 0.875rem", borderRadius: 10, background: "rgba(224,120,32,0.06)", border: "1px solid rgba(224,120,32,0.2)", fontSize: "0.78rem", fontWeight: 700, color: "#b05010", display: "flex", gap: "0.4rem", alignItems: "flex-start" }}>
               <i className="fas fa-info-circle" style={{ marginTop: "0.1rem", flexShrink: 0 }} />
               The new owner will be informed vaccination is pending and may be required before adoption finalizes.
+            </div>
+          )}
+
+          {/* Unknown vaccination note for rescue */}
+          {isRescue && form.isVaccinated === "unknown" && (
+            <div style={{ padding: "0.6rem 0.875rem", borderRadius: 10, background: "rgba(40,100,140,0.06)", border: "1px solid rgba(60,140,180,0.2)", fontSize: "0.78rem", fontWeight: 700, color: "#1a4a5a", display: "flex", gap: "0.4rem", alignItems: "flex-start" }}>
+              <i className="fas fa-info-circle" style={{ marginTop: "0.1rem", flexShrink: 0 }} />
+              Vaccination status will be assessed by our team upon intake. The adopter will be informed before finalizing.
             </div>
           )}
 
@@ -871,9 +903,9 @@ export default function Rehome() {
   }, []);
 
   const [form, setForm] = useState({
-    requestType: "rehome",          // NEW — "rehome" | "rescue"
+    requestType: "rehome",
     petName: "", species: "Dog", breed: "", age: "", gender: "Male", durationOwned: "",
-    foundLocation: "",              // NEW — rescue only
+    foundLocation: "",
     isVaccinated: "", isNeutered: "", medicalNotes: "",
     vaccineType: "", lastVaccDate: "", vaccClinic: "", vaccNotes: "",
     behavior: "", behaviorOther: "", hasAggression: "", isHouseTrained: "", isLeashTrained: "",
@@ -924,7 +956,9 @@ export default function Rehome() {
           pet_name: form.petName, species: form.species, breed: form.breed, age: form.age,
           gender: form.gender, duration_owned: form.durationOwned,
           found_location: form.foundLocation || "",
-          is_vaccinated: form.isVaccinated === "yes", is_neutered: form.isNeutered === "yes",
+          // ── nullable booleans: "unknown" → null ──
+          is_vaccinated: form.isVaccinated === "yes" ? true : form.isVaccinated === "no" ? false : null,
+          is_neutered: form.isNeutered === "yes" ? true : form.isNeutered === "no" ? false : null,
           medical_notes: form.medicalNotes, vaccine_type: form.vaccineType || "",
           last_vacc_date: form.lastVaccDate || null, vacc_clinic: form.vaccClinic || "",
           vacc_notes: form.vaccNotes || "", vacc_photos: vaccPhotos.length > 0 ? vaccPhotos : [],

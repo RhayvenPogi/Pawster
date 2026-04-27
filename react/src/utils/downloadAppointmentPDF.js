@@ -3,7 +3,7 @@
  *
  * Receipt-style PDF — Adoption or Rehoming.
  * Layout: logo top-left · org info top-right · bordered table sections
- * No payment. No signature.
+ * No payment. No signature. No trait grid.
  *
  * ADDRESS FIELDS READ:
  *   street_address / street / house_number
@@ -25,7 +25,7 @@ const PH  = 297;
 const ML  = 15;
 const MR  = 15;
 const CW  = PW - ML - MR;
-const MT  = 14; // margin top content
+const MT  = 14;
 
 // ─── Typography scale ─────────────────────────────────────────────────────────
 const FONT = {
@@ -39,58 +39,52 @@ const FONT = {
 };
 
 // ─── Spacing constants ────────────────────────────────────────────────────────
-const SECTION_GAP  = 6;   // gap between sections
-const ROW_PAD_X    = 4;   // horizontal padding inside cells
-const ROW_PAD_Y    = 3.5; // top padding for label inside a cell
-const ROW_LINE_H   = 4.2; // line-height for value text
-const ROW_MIN_H    = 12;  // minimum row height
+const SECTION_GAP  = 6;
+const ROW_PAD_X    = 4;
+const ROW_PAD_Y    = 3.5;
+const ROW_LINE_H   = 4.2;
+const ROW_MIN_H    = 12;
 
 // ─── Palettes ─────────────────────────────────────────────────────────────────
-// Colors sourced from the Pawster login page design
-// Primary green: #1c4f09 / #2a6e10 / #588B41
-// Warm amber/brown: #B45A22 / #c87820 / #a06010
-// Page base: #EDDABB / #e8e0d0 / #d4c9b0
-// Text darks: #1a4a08 / #276010 / #2a5010
-
 const ADOPTION = {
-  headerBg:   [28,  79,   9],   // #1c4f09 — primary dark green (login button / headings)
-  sectionBg:  [28,  79,   9],   // #1c4f09
+  headerBg:   [22,  60,   8],
+  sectionBg:  [22,  60,   8],
   sectionFg:  [255, 255, 255],
-  accentLine: [88, 139,  65],   // #588B41 — mid green orb from mesh bg
-  tint:       [237, 248, 232],  // light green tint (matches green orb softly)
-  labelFg:    [90, 122,  64],   // #5a7a40 — muted green label (login page sub-text)
-  valueFg:    [26,  74,   8],   // #1a4a08 — darkest green heading
-  border:     [180, 215, 165],  // soft green border
-  divider:    [210, 232, 200],  // lighter green divider
+  accentLine: [72, 120,  50],
+  tint:       [240, 250, 235],
+  labelFg:    [80, 110,  58],
+  valueFg:    [20,  55,   6],
+  border:     [175, 210, 158],
+  divider:    [215, 235, 205],
   title:      "Animal Adoption Receipt",
   typeTag:    "ADOPTION",
 };
 const REHOMING = {
-  headerBg:   [164,  88,  32],  // #a45820 — darker amber (between #B45A22 and #a06010)
-  sectionBg:  [180,  90,  34],  // #B45A22 — warm amber orb (mesh bg)
+  headerBg:   [130,  65,  20],
+  sectionBg:  [145,  70,  22],
   sectionFg:  [255, 255, 255],
-  accentLine: [200, 120,  32],  // #c87820 — forgot-password / link amber
-  tint:       [253, 244, 228],  // #EDDABB lightened — page base tint
-  labelFg:    [140,  95,  50],  // warm mid-brown label
-  valueFg:    [80,   45,  10],  // deep warm brown value text
-  border:     [220, 185, 135],  // sand/amber border
-  divider:    [235, 210, 165],  // lighter amber divider
-  title:      "Animal Rehoming Receipt",
-  typeTag:    "REHOMING",
+  accentLine: [185, 105,  28],
+  tint:       [254, 246, 232],
+  labelFg:    [130,  88,  45],
+  valueFg:    [70,   38,   8],
+  border:     [215, 178, 128],
+  divider:    [235, 212, 170],
+  title:      "Animal Rehoming / Rescue Receipt",
+  typeTag:    "REHOMING / RESCUE",
 };
 
 const WHITE    = [255, 255, 255];
-const INK_MID  = [100,  80,  45];  // warm brown mid ink (matches login page brown tones)
-const INK_LITE = [160, 130,  85];  // lighter warm brown
-const RULE     = [220, 195, 155];  // #d4c9b0 — from mesh bg light orb
+const INK_MID  = [90,  70,  38];
+const INK_LITE = [148, 120,  78];
+const RULE     = [215, 192, 150];
 
 const STATUS_COLOR = {
-  Approved: { fg: [28,  79,   9],  bg: [220, 245, 210], border: [88, 139, 65]  },  // green palette
-  Rejected: { fg: [170,  18,  18], bg: [255, 218, 218], border: [210, 60, 60]  },  // kept red (universal)
-  Pending:  { fg: [164,  88,  32], bg: [255, 241, 215], border: [200, 120, 32] },  // amber palette
+  Approved: { fg: [22,  65,   8],  bg: [218, 244, 208], border: [72, 120, 50]  },
+  Rejected: { fg: [158,  16,  16], bg: [255, 215, 215], border: [200, 55, 55]  },
+  Pending:  { fg: [145,  78,  20], bg: [255, 240, 210], border: [185, 110, 28] },
 };
 
-// ─── Record normaliser ────────────────────────────────────────────────────────
+// ─── Boolean normaliser ───────────────────────────────────────────────────────
 function normalizeRecord(r) {
   const n = { ...r };
 
@@ -134,7 +128,7 @@ function setD(doc, c)  { doc.setDrawColor(...c); }
 function setT(doc, c)  { doc.setTextColor(...c); }
 function setLW(doc, w) { doc.setLineWidth(w); }
 
-function hln(doc, y, x1, x2, col, w = 0.2) {
+function hln(doc, y, x1, x2, col, w = 0.18) {
   x1  = x1  ?? ML;
   x2  = x2  ?? PW - MR;
   col = col ?? RULE;
@@ -147,6 +141,24 @@ function sv(v) {
   if (typeof v === "boolean") return v ? "Yes" : "No";
   const s = String(v).trim();
   return s === "" ? "—" : s;
+}
+
+/**
+ * triSv — for tri-state fields (is_vaccinated, is_neutered, etc.)
+ * null / "unknown" → "Unknown"
+ * true / "yes"     → "Yes"
+ * false / "no"     → "No"
+ */
+function triSv(v) {
+  if (v === true  || v === "yes")                            return "Yes";
+  if (v === false || v === "no")                             return "No";
+  if (v === "unknown" || v === null || v === undefined)      return "Unknown";
+  const s = String(v).trim();
+  return s === "" ? "Unknown" : s;
+}
+
+function isYes(v) {
+  return v === true || v === "yes" || v === "true" || v === 1;
 }
 
 function fmtDate(v) {
@@ -179,7 +191,7 @@ function addrComponents(r) {
   };
 }
 
-// ─── Rounded rect helper (with optional per-corner radii) ────────────────────
+// ─── Rounded rect ─────────────────────────────────────────────────────────────
 function roundRect(doc, x, y, w, h, r, style = "F") {
   doc.roundedRect(x, y, w, h, r, r, style);
 }
@@ -189,53 +201,52 @@ function drawHeader(doc, pal, logo, record, status) {
   // Background
   setF(doc, WHITE); doc.rect(0, 0, PW, PH, "F");
 
-  // Top colour bar with gradient-like layering
-  setF(doc, pal.headerBg); doc.rect(0, 0, PW, 38, "F");
-  // Subtle inner highlight strip
+  // Header band — tall enough to clear title + tag + padding
+  setF(doc, pal.headerBg); doc.rect(0, 0, PW, 52, "F");
+  // Top accent line
   setF(doc, pal.accentLine); doc.rect(0, 0, PW, 2, "F");
-
-  // Decorative diagonal shape at top-right for visual interest
-  doc.setGState && doc.setGState(doc.GState({ opacity: 0.12 }));
+  // Subtle triangle watermark
+  doc.setGState && doc.setGState(doc.GState({ opacity: 0.08 }));
   setF(doc, WHITE);
-  doc.triangle(PW - 50, 0, PW, 0, PW, 50, "F");
+  doc.triangle(PW - 45, 0, PW, 0, PW, 45, "F");
   doc.setGState && doc.setGState(doc.GState({ opacity: 1.0 }));
 
   // Logo
   if (logo) {
-    try { doc.addImage(logo, "PNG", ML, 7, 20, 20); }
+    try { doc.addImage(logo, "PNG", ML, 9, 20, 20); }
     catch {}
   }
 
-  // Org info (right-aligned)
+  // Org info (right)
   const rightX = PW - MR;
-  doc.setFont("helvetica", "bold"); doc.setFontSize(9.5);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(9);
   setT(doc, WHITE);
-  doc.text("PAWSTER", rightX, 10, { align: "right" });
+  doc.text("PAWSTER", rightX, 11, { align: "right" });
 
   doc.setFont("helvetica", "normal"); doc.setFontSize(FONT.tiny);
-  setT(doc, [190, 220, 240]);
-  doc.text("Animal Adoption & Rehoming System", rightX, 15,   { align: "right" });
-  doc.text("Ilocos Region, Philippines",         rightX, 19.5,{ align: "right" });
-  doc.text("pawster@email.com",                  rightX, 24,  { align: "right" });
+  setT(doc, [185, 215, 235]);
+  doc.text("Animal Adoption & Rescue System", rightX, 16,   { align: "right" });
+  doc.text("CAR, Philippines",               rightX, 20.5, { align: "right" });
+  doc.text("pawster@email.com",              rightX, 25,   { align: "right" });
 
-  // Document title — centred, baseline-aligned to logo midpoint
-  const titleY = logo ? 21 : 18;
+  // Document title (centred)
+  const titleY = 24;
   doc.setFont("helvetica", "bold"); doc.setFontSize(FONT.hero);
   setT(doc, WHITE);
   doc.text(pal.title.toUpperCase(), PW / 2, titleY, { align: "center" });
 
-  // Type tag pill
-  const tagW  = 24, tagH = 6;
-  const tagX  = PW / 2 - tagW / 2;
-  const tagY  = titleY + 3;
+  // Type badge
+  const tagW = 24, tagH = 6;
+  const tagX = PW / 2 - tagW / 2;
+  const tagY = titleY + 4;
   setF(doc, pal.accentLine); setD(doc, pal.accentLine); setLW(doc, 0);
   roundRect(doc, tagX, tagY, tagW, tagH, tagH / 2, "F");
   doc.setFont("helvetica", "bold"); doc.setFontSize(5);
   setT(doc, WHITE);
   doc.text(pal.typeTag, PW / 2, tagY + tagH / 3 + 1.8, { align: "center" });
 
-  // ── Meta strip (below header box) ───────────────────────────────────────
-  const stripY = 40;
+  // Meta strip — starts after header band clears
+  const stripY = 56;
   const colW   = CW / 4;
   const meta = [
     { label: "DATE GENERATED", value: new Date().toLocaleDateString("en-PH", { dateStyle: "medium" }) },
@@ -243,7 +254,6 @@ function drawHeader(doc, pal, logo, record, status) {
     { label: "DATE SUBMITTED", value: fmtDate(record.created_at) },
   ];
 
-  // Light meta background band
   setF(doc, [246, 249, 252]); doc.rect(ML, stripY, CW, 14, "F");
   setD(doc, pal.border); setLW(doc, 0.3);
   doc.rect(ML, stripY, CW, 14, "S");
@@ -256,21 +266,18 @@ function drawHeader(doc, pal, logo, record, status) {
     doc.setFont("helvetica", "bold"); doc.setFontSize(FONT.value);
     setT(doc, pal.valueFg);
     doc.text(m.value, cx, stripY + 10.5);
-    // Vertical divider
     if (i < meta.length - 1) {
       setD(doc, pal.border); setLW(doc, 0.2);
       doc.line(ML + colW * (i + 1), stripY + 2, ML + colW * (i + 1), stripY + 12);
     }
   });
 
-  // Status badge — right side of meta strip, vertically centred
-  const st   = STATUS_COLOR[status] || STATUS_COLOR.Pending;
+  // Status badge
+  const st     = STATUS_COLOR[status] || STATUS_COLOR.Pending;
   const badgeW = 30, badgeH = 8;
   const badgeX = PW - MR - badgeW - 1;
   const badgeY = stripY + (14 - badgeH) / 2;
-  setF(doc, st.bg);
-  setD(doc, st.border);
-  setLW(doc, 0.5);
+  setF(doc, st.bg); setD(doc, st.border); setLW(doc, 0.5);
   roundRect(doc, badgeX, badgeY, badgeW, badgeH, badgeH / 2, "FD");
   doc.setFont("helvetica", "bold"); doc.setFontSize(FONT.badge);
   setT(doc, st.fg);
@@ -302,9 +309,7 @@ function drawContinuation(doc, pal, logo, pageNum) {
 // ─── Footer ───────────────────────────────────────────────────────────────────
 function drawFooter(doc, pal, pageNum, total) {
   const fy = PH - 14;
-  // Thin accent rule above footer
   setF(doc, pal.accentLine); doc.rect(ML, fy, CW, 0.5, "F");
-  // Footer background tint
   setF(doc, [248, 250, 252]); doc.rect(ML, fy + 0.5, CW, 13, "F");
 
   doc.setFont("helvetica", "normal"); doc.setFontSize(FONT.tiny);
@@ -317,7 +322,7 @@ function drawFooter(doc, pal, pageNum, total) {
 
   setT(doc, INK_LITE);
   doc.text(
-    "Pawster Animal Adoption & Rehoming System  ·  Ilocos Region, Philippines",
+    "Pawster Animal Adoption & Rescue System  ·  Ilocos Region, Philippines",
     ML + 3, fy + 10
   );
   doc.text(
@@ -329,28 +334,18 @@ function drawFooter(doc, pal, pageNum, total) {
 // ─── Section header ───────────────────────────────────────────────────────────
 function sectionHeader(doc, y, title, pal) {
   const H = 8;
-  // Left accent bar
   setF(doc, pal.accentLine); doc.rect(ML, y, 3, H, "F");
-  // Section background
-  setF(doc, pal.sectionBg); doc.rect(ML + 3, y, CW - 3, H, "F");
-
+  setF(doc, pal.sectionBg);  doc.rect(ML + 3, y, CW - 3, H, "F");
   doc.setFont("helvetica", "bold"); doc.setFontSize(FONT.section);
   setT(doc, pal.sectionFg);
-  // Vertically center label in section header
   doc.text(title.toUpperCase(), ML + 8, y + H / 2 + 2.8);
-
   return y + H;
 }
 
 // ─── Table renderer ───────────────────────────────────────────────────────────
-/**
- * Renders a two-column key-value table.
- * Rows with `full: true` span both columns.
- */
 function renderTable(doc, startY, rows, pal) {
   const HALF = (CW - 1) / 2;
 
-  // Pair rows into groups: [full] or [left, right]
   const groups = [];
   let i = 0;
   while (i < rows.length) {
@@ -367,125 +362,55 @@ function renderTable(doc, startY, rows, pal) {
   }
 
   let y = startY;
-  // Outer border start — drawn at end
   const borderStartY = y;
 
   groups.forEach((grp, gi) => {
     const isFull = grp.length === 1 && !!grp[0].full;
     const valW   = isFull ? CW - ROW_PAD_X * 2 - 1 : HALF - ROW_PAD_X * 2;
 
-    // Compute row height based on wrapped value text
     let maxLines = 1;
     grp.forEach(cell => {
       const lines = doc.splitTextToSize(sv(cell.value), valW);
       if (lines.length > maxLines) maxLines = lines.length;
     });
-    // label row (6pt) + gap + value lines + bottom padding
-    const labelH = ROW_PAD_Y + 4;         // label top + label height
+    const labelH = ROW_PAD_Y + 4;
     const valueH = maxLines * ROW_LINE_H;
-    const rowH   = Math.max(ROW_MIN_H, labelH + valueH + 4);
+    const rowH   = Math.max(ROW_MIN_H, labelH + valueH + 3.5);
 
-    // Alternating row tint
     const rowBg = gi % 2 === 0 ? WHITE : pal.tint;
     setF(doc, rowBg); doc.rect(ML, y, CW, rowH, "F");
 
-    // Column divider for 2-col rows
     if (grp.length === 2) {
-      setD(doc, pal.divider); setLW(doc, 0.18);
+      setD(doc, pal.divider); setLW(doc, 0.15);
       doc.line(ML + HALF + 0.5, y + 1.5, ML + HALF + 0.5, y + rowH - 1.5);
     }
 
     grp.forEach((cell, ci) => {
       const cx = ci === 0 ? ML + ROW_PAD_X : ML + HALF + 1 + ROW_PAD_X;
 
-      // Label
       doc.setFont("helvetica", "bold"); doc.setFontSize(FONT.label);
       setT(doc, pal.labelFg);
       doc.text(cell.label.toUpperCase(), cx, y + ROW_PAD_Y + 2.5);
 
-      // Value — word-wrap
       doc.setFont("helvetica", "normal"); doc.setFontSize(FONT.value);
       setT(doc, pal.valueFg);
       const lines = doc.splitTextToSize(sv(cell.value), isFull ? CW - ROW_PAD_X * 2 - 1 : HALF - ROW_PAD_X * 2);
       doc.text(lines, cx, y + ROW_PAD_Y + 2.5 + 4);
     });
 
-    // Bottom divider per row
     hln(doc, y + rowH, ML, ML + CW, pal.divider, 0.18);
     y += rowH;
   });
 
-  // Outer border
   setD(doc, pal.border); setLW(doc, 0.45);
   doc.rect(ML, borderStartY, CW, y - borderStartY, "S");
 
   return y + SECTION_GAP;
 }
 
-// ─── Boolean trait grid ───────────────────────────────────────────────────────
-function traitTable(doc, startY, items, pal) {
-  const COLS   = 3;
-  const CELL_H = 9;
-  const colW   = CW / COLS;
-  const rows   = Math.ceil(items.length / COLS);
-  const totalH = rows * CELL_H;
-
-  // Background
-  setF(doc, WHITE); doc.rect(ML, startY, CW, totalH, "F");
-
-  items.forEach(([label, raw], idx) => {
-    const col = idx % COLS;
-    const row = Math.floor(idx / COLS);
-    const x   = ML + col * colW;
-    const ty  = startY + row * CELL_H;
-
-    // Alternating row tint (by row, not cell)
-    if (row % 2 === 1) {
-      setF(doc, pal.tint); doc.rect(x, ty, colW, CELL_H, "F");
-    }
-
-    const yes = raw === true || raw === "true" || raw === 1 || raw === "Yes";
-
-    // Indicator dot
-    const dotX = x + 5;
-    const dotY = ty + CELL_H / 2;
-    const dotR = 1.8;
-    setF(doc, yes ? [30, 155, 50] : [210, 55, 55]);
-    setD(doc, yes ? [20, 120, 38] : [170, 35, 35]);
-    setLW(doc, 0.2);
-    doc.circle(dotX, dotY, dotR, "FD");
-
-    // Checkmark / cross drawn inside dot
-    doc.setFont("helvetica", "bold"); doc.setFontSize(4);
-    setT(doc, WHITE);
-    doc.text(yes ? "✓" : "✕", dotX, dotY + 1.4, { align: "center" });
-
-    // Label
-    doc.setFont("helvetica", yes ? "bold" : "normal");
-    doc.setFontSize(7.2);
-    setT(doc, yes ? pal.valueFg : [140, 50, 50]);
-    doc.text(label, dotX + dotR + 2.5, ty + CELL_H / 2 + 2.5);
-
-    // Horizontal rule
-    hln(doc, ty + CELL_H, x, x + colW, pal.divider, 0.15);
-
-    // Vertical column divider
-    if (col < COLS - 1) {
-      setD(doc, pal.divider); setLW(doc, 0.15);
-      doc.line(x + colW, ty + 1.5, x + colW, ty + CELL_H - 1.5);
-    }
-  });
-
-  // Outer border
-  setD(doc, pal.border); setLW(doc, 0.45);
-  doc.rect(ML, startY, CW, totalH, "S");
-
-  return startY + totalH + SECTION_GAP;
-}
-
 // ─── Page-break guard ─────────────────────────────────────────────────────────
 function guard(doc, y, need, pal, logo, pg) {
-  if (y + need < PH - 18) return y;
+  if (y + need < PH - 16) return y;
   drawFooter(doc, pal, pg.n, "?");
   doc.addPage();
   pg.n++;
@@ -497,19 +422,12 @@ function addressRows(r, addrLabel = "Full Address") {
   const addr = addrComponents(r);
   const full = buildFullAddress(r);
   return [
-    { label: addrLabel,            value: full,          full: true },
-    { label: "Street / House No.", value: addr.street   },
-    { label: "City / Municipality",value: addr.city     },
-    { label: "Province",           value: addr.province },
-    { label: "Zip / Postal Code",  value: addr.zip      },
+    { label: addrLabel,             value: full,          full: true },
+    { label: "Street / House No.",  value: addr.street   },
+    { label: "City / Municipality", value: addr.city     },
+    { label: "Province",            value: addr.province },
+    { label: "Zip / Postal Code",   value: addr.zip      },
   ];
-}
-
-// ─── Divider between major sections ──────────────────────────────────────────
-function sectionSpacer(doc, y, pal) {
-  // Subtle dot separator
-  setF(doc, pal.border); doc.rect(ML, y, CW, 0.25, "F");
-  return y + SECTION_GAP;
 }
 
 // ─── Main export ──────────────────────────────────────────────────────────────
@@ -546,15 +464,15 @@ export async function downloadAppointmentPDF(recordRaw, _mode = "user") {
     // ── Applicant Details ─────────────────────────────────────
     y = sectionHeader(doc, y, "Applicant Details", pal);
     y = renderTable(doc, y, [
-      { label: "Full Name",          value: record.name },
-      { label: "Primary Caregiver",  value: record.primary_caregiver },
-      { label: "Phone",              value: record.phone },
-      { label: "Email",              value: record.email },
+      { label: "Full Name",         value: record.name },
+      { label: "Primary Caregiver", value: record.primary_caregiver },
+      { label: "Phone",             value: record.phone },
+      { label: "Email",             value: record.email },
       ...addressRows(record, "Home Address"),
     ], pal);
 
     // ── Animal Details ────────────────────────────────────────
-    y = guard(doc, y, 30, pal, logo, pg);
+    y = guard(doc, y, 28, pal, logo, pg);
     y = sectionHeader(doc, y, "Animal Details", pal);
     y = renderTable(doc, y, [
       { label: "Animal Applied For", value: record.animal_name },
@@ -562,22 +480,19 @@ export async function downloadAppointmentPDF(recordRaw, _mode = "user") {
     ], pal);
 
     // ── Household & Housing ───────────────────────────────────
-    y = guard(doc, y, 60, pal, logo, pg);
+    y = guard(doc, y, 70, pal, logo, pg);
     y = sectionHeader(doc, y, "Household & Housing", pal);
     y = renderTable(doc, y, [
-      { label: "Housing Type",       value: record.housing },
-      { label: "Household Size",     value: record.household_size },
-      { label: "Children's Ages",    value: record.children_ages },
-      { label: "Other Pets Detail",  value: record.other_pets_detail, full: true },
-    ], pal);
-    y = guard(doc, y, 32, pal, logo, pg);
-    y = traitTable(doc, y, [
-      ["Owns Home",             record.owns_home],
-      ["Has Pet Permission",    record.pet_permission],
-      ["Has Children",          record.has_children],
-      ["Has Other Pets",        record.has_other_pets],
-      ["Other Pets Vaccinated", record.other_pets_vaccinated],
-      ["Open to Guidance",      record.open_to_guidance],
+      { label: "Housing Type",          value: record.housing },
+      { label: "Household Size",        value: record.household_size },
+      { label: "Owns Home",             value: sv(record.owns_home) },
+      { label: "Has Pet Permission",    value: sv(record.pet_permission) },
+      { label: "Has Children",          value: sv(record.has_children) },
+      { label: "Children's Ages",       value: record.children_ages },
+      { label: "Has Other Pets",        value: sv(record.has_other_pets) },
+      { label: "Other Pets Vaccinated", value: sv(record.other_pets_vaccinated) },
+      { label: "Other Pets Detail",     value: record.other_pets_detail, full: true },
+      { label: "Open to Guidance",      value: sv(record.open_to_guidance) },
     ], pal);
 
     // ── Experience, Time & Budget ─────────────────────────────
@@ -595,10 +510,10 @@ export async function downloadAppointmentPDF(recordRaw, _mode = "user") {
     y = guard(doc, y, 60, pal, logo, pg);
     y = sectionHeader(doc, y, "Commitment & Reason", pal);
     y = renderTable(doc, y, [
-      { label: "Had a Previous Pet",    value: record.previous_pet },
-      { label: "Previous Pet Details",  value: record.previous_pet_details, full: true },
-      { label: "Reason for Adoption",   value: record.reason,               full: true },
-      { label: "Behaviour Response",    value: record.behavior_response,    full: true },
+      { label: "Had a Previous Pet",   value: sv(record.previous_pet) },
+      { label: "Previous Pet Details", value: record.previous_pet_details, full: true },
+      { label: "Reason for Adoption",  value: record.reason,               full: true },
+      { label: "Behaviour Response",   value: record.behavior_response,    full: true },
     ], pal);
   }
 
@@ -618,65 +533,89 @@ export async function downloadAppointmentPDF(recordRaw, _mode = "user") {
     // ── Pet Details ───────────────────────────────────────────
     y = guard(doc, y, 65, pal, logo, pg);
     y = sectionHeader(doc, y, "Pet Details", pal);
+
+    const isRescue = record.request_type === "rescue";
     y = renderTable(doc, y, [
-      { label: "Pet Name",       value: record.pet_name },
-      { label: "Species",        value: record.species },
-      { label: "Breed",          value: record.breed },
-      { label: "Age",            value: record.age },
-      { label: "Gender",         value: record.gender },
-      { label: "Duration Owned", value: record.duration_owned },
-      { label: "Ideal Home",     value: record.ideal_home_desc, full: true },
+      { label: "Pet Name", value: record.pet_name },
+      { label: "Species",  value: record.species },
+      { label: "Breed",    value: record.breed },
+      { label: "Age",      value: record.age },
+      { label: "Gender",   value: record.gender },
+      ...(isRescue
+        ? [{ label: "Where Found",    value: record.found_location || record.foundLocation || "—" }]
+        : [{ label: "Duration Owned", value: record.duration_owned }]
+      ),
+      { label: "Ideal Home Description", value: record.ideal_home_desc, full: true },
     ], pal);
 
     // ── Health & Vaccination ──────────────────────────────────
-    y = guard(doc, y, 60, pal, logo, pg);
+    y = guard(doc, y, 55, pal, logo, pg);
     y = sectionHeader(doc, y, "Health & Vaccination", pal);
+
+    const vaccStatus = triSv(record.is_vaccinated);
+    const vaccYes    = isYes(record.is_vaccinated);
+
     y = renderTable(doc, y, [
-      { label: "Vaccine Type",       value: record.vaccine_type },
-      { label: "Last Vaccinated",    value: record.last_vacc_date },
-      { label: "Vet / Clinic",       value: record.vacc_clinic },
-      { label: "Vaccination Notes",  value: record.vacc_notes,    full: true },
-      { label: "Medical Notes",      value: record.medical_notes, full: true },
+      { label: "Vaccination Status",  value: vaccStatus },
+      { label: "Neutered / Spayed",   value: triSv(record.is_neutered) },
+      ...(vaccYes
+        ? [
+            { label: "Vaccine Type",      value: record.vaccine_type },
+            { label: "Last Vaccinated",   value: record.last_vacc_date },
+            { label: "Vet / Clinic",      value: record.vacc_clinic },
+            { label: "Vaccination Notes", value: record.vacc_notes,    full: true },
+          ]
+        : []
+      ),
+      { label: "Medical Notes", value: record.medical_notes, full: true },
     ], pal);
 
-    // ── Care Traits ───────────────────────────────────────────
-    y = guard(doc, y, 55, pal, logo, pg);
-    y = sectionHeader(doc, y, "Care Traits & Characteristics", pal);
-    y = traitTable(doc, y, [
-      ["Vaccinated",           record.is_vaccinated],
-      ["Neutered / Spayed",    record.is_neutered],
-      ["House Trained",        record.is_house_trained],
-      ["Leash Trained",        record.is_leash_trained],
-      ["Good with Children",   record.good_with_children],
-      ["Good with Other Pets", record.good_with_pets],
-      ["Has Aggression",       record.has_aggression],
-      ["Can Provide Food",     record.can_provide_food],
-      ["Can Provide Carrier",  record.can_provide_carrier],
-      ["Can Provide Records",  record.can_provide_records],
+    // ── Behavioural Traits ────────────────────────────────────
+    y = guard(doc, y, 45, pal, logo, pg);
+    y = sectionHeader(doc, y, "Behavioural Traits", pal);
+    y = renderTable(doc, y, [
+      { label: "House Trained",        value: triSv(record.is_house_trained)   },
+      { label: "Leash Trained",        value: triSv(record.is_leash_trained)   },
+      { label: "Good with Children",   value: triSv(record.good_with_children) },
+      { label: "Good with Other Pets", value: triSv(record.good_with_pets)     },
+      { label: "Has Aggression",       value: sv(record.has_aggression)        },
+      { label: "Can Provide Food",     value: sv(record.can_provide_food)      },
+      { label: "Can Provide Carrier",  value: sv(record.can_provide_carrier)   },
+      { label: "Can Provide Records",  value: sv(record.can_provide_records)   },
     ], pal);
 
     // ── Behaviour & Reason for Rehoming ──────────────────────
     y = guard(doc, y, 65, pal, logo, pg);
-    y = sectionHeader(doc, y, "Behaviour & Reason for Rehoming", pal);
+    const sectionTitle = isRescue
+      ? "Behaviour & Reason for Surrendering"
+      : "Behaviour & Reason for Rehoming";
+    y = sectionHeader(doc, y, sectionTitle, pal);
     y = renderTable(doc, y, [
-      { label: "Behaviour",              value: record.behavior },
-      { label: "Behaviour Detail",       value: record.behavior_other },
-      { label: "Reason for Rehoming",    value: record.reason,             full: true },
-      { label: "Additional Details",     value: record.details,            full: true },
-      { label: "Alternatives Explored",  value: record.tried_alternatives, full: true },
+      { label: "Behaviour",        value: record.behavior },
+      { label: "Behaviour Detail", value: record.behavior_other },
+      {
+        label: isRescue ? "Reason for Surrendering" : "Reason for Rehoming",
+        value: record.reason,
+        full: true,
+      },
+      { label: "Additional Details", value: record.details, full: true },
+      ...(!isRescue
+        ? [{ label: "Alternatives Explored", value: record.tried_alternatives, full: true }]
+        : []
+      ),
     ], pal);
   }
 
   // ── Rejection note ────────────────────────────────────────────────────────
   if (sv(record.reject_note) !== "—") {
-    y = guard(doc, y, 38, pal, logo, pg);
+    y = guard(doc, y, 36, pal, logo, pg);
     const rejPal = {
       ...pal,
       sectionBg:  STATUS_COLOR.Rejected.fg,
       sectionFg:  WHITE,
       accentLine: STATUS_COLOR.Rejected.border,
       tint:       STATUS_COLOR.Rejected.bg,
-      divider:    [240, 195, 195],
+      divider:    [238, 192, 192],
       border:     STATUS_COLOR.Rejected.border,
     };
     y = sectionHeader(doc, y, "Rejection Note", rejPal);
@@ -686,7 +625,7 @@ export async function downloadAppointmentPDF(recordRaw, _mode = "user") {
   }
 
   // ── End-of-document banner ────────────────────────────────────────────────
-  y = guard(doc, y, 22, pal, logo, pg);
+  y = guard(doc, y, 20, pal, logo, pg);
   y += 4;
 
   setF(doc, pal.tint);  doc.rect(ML, y, CW, 14, "F");
@@ -701,7 +640,7 @@ export async function downloadAppointmentPDF(recordRaw, _mode = "user") {
   doc.setFont("helvetica", "normal"); doc.setFontSize(FONT.tiny);
   setT(doc, INK_MID);
   doc.text(
-    "This is a computer-generated document valid without a handwritten signature",
+    "This is a computer-generated document valid without a handwritten signature.",
     ML + 8, y + 11
   );
 
