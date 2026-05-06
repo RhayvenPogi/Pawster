@@ -1,0 +1,48 @@
+name: pawnagaywan_app
+description: PawAywan - Veterinary Clinic Locator for La Union, Philippines
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Map
+  flutter_map: ^6.1.0
+  latlong2: ^0.9.0
+
+  # Location
+  geolocator: ^10.1.0
+  permission_handler: ^11.3.0
+
+  # Actions
+  url_launcher: ^6.2.1
+
+  # State management
+  provider: ^6.1.2
+
+  # Database
+  sqflite: ^2.3.0
+  sqflite_common_ffi: ^2.3.0
+  path: ^1.8.3
+
+  # Utilities
+  uuid: ^4.2.1
+  http: ^1.1.0
+  image_picker: ^1.0.7
+
+  # UI
+  cupertino_icons: ^1.0.6
+  cached_network_image: ^3.3.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
