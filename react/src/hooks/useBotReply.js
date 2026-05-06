@@ -15,63 +15,89 @@ export const FAQ_OPTIONS = [
   { label: "General inquiry",              value: "General inquiry" },
 ];
 
-const ACK_SYSTEM_PROMPT = `You are a Pawster Support bot.
-The user selected a support topic. Write ONE short warm acknowledgment (1-2 sentences max).
-Tell them their concern has been noted and a human support agent will follow up shortly.
-Do not try to resolve the issue. Do not ask questions.`;
+const BOT_REPLY_SYSTEM_PROMPT = `You are a Pawster Support bot for a pet store app.
+The user selected a support topic. Give a helpful, friendly temporary answer (2-4 sentences).
+Address the specific topic they chose with relevant info or next steps.
+End by letting them know a human agent will follow up shortly.
+Be warm and concise. Do not ask follow-up questions.`;
 
-const ackedSessions = new Set();
+const FALLBACK_REPLIES = {
+  "Pet adoption inquiry":         "Thanks for your interest in adopting! Our adoption team reviews applications daily and will reach out within 24 hours to guide you through the process.",
+  "Payment or billing issue":     "We're sorry to hear about the billing concern! Our finance team will review your account and resolve any discrepancies promptly.",
+  "Order or delivery concern":    "We'll look into your order right away! Most delivery issues are resolved within 1-2 business days. You'll get a tracking update soon.",
+  "Pet health question":          "Your pet's health is our priority! While we connect you with our vet partners, please monitor your pet closely. A specialist will follow up shortly.",
+  "Account or technical problem": "Sorry for the inconvenience! Our tech team has been alerted and will investigate your account issue as soon as possible.",
+  "General inquiry":              "Thanks for reaching out to Pawster! Our support team will get back to you with a detailed response very soon.",
+};
 
-export function useBotReply({ sendMessage, messages, onBotTypingChange, sessionKey }) {
-  const greetedRef = useRef(false);
-  const botBusyRef = useRef(false);
+export function useBotReply({ sendMessage, messages, onBotTypingChange, sessionKey, setMessages }) {
+  const greetedRef  = useRef(false);
+  const botBusyRef  = useRef(false);
+  const ackedRef    = useRef(false);
 
   const adminHasReplied = useCallback((msgs) => {
     return msgs.some(m => m.senderRole === "admin" && !m.isBot);
   }, []);
 
+  // only calls the API to persist — does NOT inject into local state
+  // local state is handled by the websocket echo from the server
   const sendBotMessage = useCallback(async (content) => {
     try {
       await api.post("/api/messages/bot-reply", { content });
     } catch (err) {
-      console.error("[bot] failed to send", err);
+      console.error("[bot] failed to persist", err);
+      // if API fails, inject locally as fallback so user sees something
+      setMessages(prev => [...prev, {
+        id:         `bot-local-${Date.now()}`,
+        content,
+        senderRole: "admin",
+        isBot:      true,
+        createdAt:  new Date().toISOString(),
+        read:       false,
+      }]);
     }
-  }, []);
+  }, [setMessages]);
 
   const triggerBotGreeting = useCallback(async (existingMessages) => {
     if (greetedRef.current) return;
+    greetedRef.current = true;
 
+    // history already has messages — greeting was already sent before
     if (existingMessages && existingMessages.length > 0) {
-      greetedRef.current = true;
       const hasAck = existingMessages.some(m => m.isBot && m.content !== GREETING);
-      if (hasAck && sessionKey) ackedSessions.add(sessionKey);
+      if (hasAck) ackedRef.current = true;
       return;
     }
 
-    greetedRef.current = true;
+    // fresh chat — send greeting
     onBotTypingChange?.(true);
     await new Promise(r => setTimeout(r, 900));
     onBotTypingChange?.(false);
     await sendBotMessage(GREETING);
-  }, [sendBotMessage, onBotTypingChange, sessionKey]);
+  }, [sendBotMessage, onBotTypingChange]);
 
-  const triggerBotReply = useCallback(async (currentMessages) => {
-    if (botBusyRef.current) return;
-    if (sessionKey && ackedSessions.has(sessionKey)) return;
-    if (adminHasReplied(currentMessages)) return;
+  const triggerBotReply = useCallback(async (currentMessages, { force = false } = {}) => {
+  if (force) {
+    botBusyRef.current = false;
+    ackedRef.current   = false;
+  }
+  if (botBusyRef.current) return;
+  if (!force && ackedRef.current) return;
+  if (adminHasReplied(currentMessages)) return;
 
-    const last = currentMessages[currentMessages.length - 1];
-    if (!last || last.senderRole !== "user") return;
-    if (!last.content?.trim()) return;
+  const last = currentMessages[currentMessages.length - 1];
+  if (!last || last.senderRole !== "user") return;
+  if (!last.content?.trim()) return;
 
-    botBusyRef.current = true;
-    if (sessionKey) ackedSessions.add(sessionKey);
+  botBusyRef.current = true;
+  ackedRef.current   = true;
     onBotTypingChange?.(true);
 
     try {
       await new Promise(r => setTimeout(r, 800 + Math.random() * 500));
 
-      let ackMessage = "";
+      let replyText = "";
+
       try {
         const response = await fetch(`${OLLAMA_URL}/api/chat`, {
           method: "POST",
@@ -80,24 +106,40 @@ export function useBotReply({ sendMessage, messages, onBotTypingChange, sessionK
             model: OLLAMA_MODEL,
             stream: false,
             messages: [
-              { role: "system", content: ACK_SYSTEM_PROMPT },
-              { role: "user",   content: last.content },
+              { role: "system", content: BOT_REPLY_SYSTEM_PROMPT },
+              { role: "user",   content: `The user's selected topic is: "${last.content}". Provide a helpful temporary answer about this topic.` },
             ],
           }),
         });
         if (!response.ok) throw new Error(`Ollama ${response.status}`);
         const data = await response.json();
-        ackMessage = data.message?.content?.trim() ?? "";
+        replyText = data.message?.content?.trim() ?? "";
       } catch {
-        ackMessage = "Thank you for reaching out! Our support team has been notified and will get back to you shortly.";
+        // Ollama unavailable — use topic-specific fallback
+        replyText = FALLBACK_REPLIES[last.content]
+          ?? "Thank you for reaching out! Our support team has been notified and will get back to you shortly.";
       }
 
-      if (ackMessage) await sendBotMessage(ackMessage);
+      if (replyText) {
+  // persist to server — websocket echo will display it
+  api.post("/api/messages/bot-reply", { content: replyText }).catch(err => {
+    console.error("[bot] failed to persist reply", err);
+    // only inject locally if server call fails, as fallback
+    setMessages(prev => [...prev, {
+      id:         `bot-local-${Date.now()}`,
+      content:    replyText,
+      senderRole: "admin",
+      isBot:      true,
+      createdAt:  new Date().toISOString(),
+      read:       false,
+    }]);
+  });
+}
     } finally {
       botBusyRef.current = false;
       onBotTypingChange?.(false);
     }
-  }, [adminHasReplied, sendBotMessage, onBotTypingChange, sessionKey]);
+  }, [adminHasReplied, onBotTypingChange, setMessages]);
 
   return { triggerBotGreeting, triggerBotReply };
 }

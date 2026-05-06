@@ -282,35 +282,21 @@ export default function MessagingModal({ user, isOpen, onClose, onUnreadChange }
     messages,
     onBotTypingChange: setBotTyping,
     sessionKey: user?.id ? `user-${user.id}` : null,
+    setMessages,
   });
 
   const handleFaqSelect = useCallback((opt) => {
-    if (faqSelected || !connected) return;
-    setFaqSelected(true);
+  if (faqSelected || !connected) return;
+  setFaqSelected(true);
 
-    const text = opt.label;
-    const tempId = `pending-${Date.now()}`;
+  const text = opt.label;
+  sendMessage(text, undefined, undefined);
 
-    setMessages(prev => [...prev, {
-      id:         tempId,
-      content:    text,
-      senderId:   user.id,
-      senderRole: "user",
-      createdAt:  new Date().toISOString(),
-      pending:    true,
-      read:       false,
-    }]);
+  // use a standalone snapshot — don't depend on stale messages closure
+  const faqMessage = { content: text, senderRole: "user", pending: false, senderId: user?.id };
 
-    setTimeout(() => {
-      setMessages(prev => prev.map(m => m.id === tempId ? { ...m, pending: false } : m));
-    }, 3000);
-
-    const snapshot = [
-      ...messages,
-      { content: text, senderRole: "user", pending: false, senderId: user.id },
-    ];
-    setTimeout(() => triggerBotReply(snapshot), 150);
-  }, [faqSelected, connected, messages, sendMessage, setMessages, triggerBotReply, user?.id]);
+  setTimeout(() => triggerBotReply([faqMessage], { force: true }), 300);
+}, [faqSelected, connected, sendMessage, triggerBotReply, user?.id]);
 
   useEffect(() => { onUnreadChange?.(unreadCount); }, [unreadCount, onUnreadChange]);
 
