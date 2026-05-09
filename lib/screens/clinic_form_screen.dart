@@ -35,26 +35,18 @@ class _ClinicFormScreenState extends State<ClinicFormScreen> {
   void initState() {
     super.initState();
     final c = widget.clinic;
-    _name = TextEditingController(text: c?.name ?? '');
+    _name    = TextEditingController(text: c?.name ?? '');
     _address = TextEditingController(text: c?.address ?? '');
     _contact = TextEditingController(text: c?.contactNumber ?? '');
-    _imageUrl = TextEditingController(text: c?.imageUrl ?? '');
-    _lat = TextEditingController(text: c?.latitude.toString() ?? '');
-    _lng = TextEditingController(text: c?.longitude.toString() ?? '');
-    _rating = TextEditingController(text: c?.rating.toString() ?? '');
+    _imageUrl= TextEditingController(text: c?.imageUrl ?? '');
+    _lat     = TextEditingController(text: c?.latitude.toString() ?? '');
+    _lng     = TextEditingController(text: c?.longitude.toString() ?? '');
+    _rating  = TextEditingController(text: c?.rating.toString() ?? '');
   }
 
   @override
   void dispose() {
-    for (final c in [
-      _name,
-      _address,
-      _contact,
-      _imageUrl,
-      _lat,
-      _lng,
-      _rating,
-    ]) {
+    for (final c in [_name, _address, _contact, _imageUrl, _lat, _lng, _rating]) {
       c.dispose();
     }
     super.dispose();
@@ -91,14 +83,13 @@ class _ClinicFormScreenState extends State<ClinicFormScreen> {
                   ? '✅ Clinic updated successfully'
                   : '✅ Clinic added successfully',
             ),
-            backgroundColor: AppTheme.primary,
           ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('❌ Something went wrong. Please try again.'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppTheme.danger,
           ),
         );
       }
@@ -108,8 +99,9 @@ class _ClinicFormScreenState extends State<ClinicFormScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: Text(_isEditing ? 'Edit Clinic' : 'Add New Clinic'),
+        title: Text(_isEditing ? 'Edit clinic' : 'Add new clinic'),
         actions: [
           if (_saving)
             const Padding(
@@ -142,13 +134,14 @@ class _ClinicFormScreenState extends State<ClinicFormScreen> {
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            _SectionHeader(label: 'Basic Info'),
+            // ── Basic Info ───────────────────────────────────────────────
+            _SectionHeader(label: 'Basic info'),
             _Field(
               controller: _name,
-              label: 'Clinic Name',
+              label: 'Clinic name',
               icon: Icons.local_hospital_rounded,
               validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'Name is required' : null,
+              (v == null || v.trim().isEmpty) ? 'Name is required' : null,
             ),
             const SizedBox(height: 14),
             _Field(
@@ -162,15 +155,16 @@ class _ClinicFormScreenState extends State<ClinicFormScreen> {
             const SizedBox(height: 14),
             _Field(
               controller: _contact,
-              label: 'Contact Number',
+              label: 'Contact number',
               icon: Icons.phone_rounded,
               keyboardType: TextInputType.phone,
               validator: (v) => (v == null || v.trim().isEmpty)
                   ? 'Contact is required'
                   : null,
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 28),
 
+            // ── Location ─────────────────────────────────────────────────
             _SectionHeader(label: 'Location'),
             Row(
               children: [
@@ -186,7 +180,7 @@ class _ClinicFormScreenState extends State<ClinicFormScreen> {
                     validator: (v) {
                       final d = double.tryParse(v ?? '');
                       if (d == null) return 'Invalid';
-                      if (d < -90 || d > 90) return 'Must be -90 to 90';
+                      if (d < -90 || d > 90) return '−90 to 90';
                       return null;
                     },
                   ),
@@ -204,23 +198,22 @@ class _ClinicFormScreenState extends State<ClinicFormScreen> {
                     validator: (v) {
                       final d = double.tryParse(v ?? '');
                       if (d == null) return 'Invalid';
-                      if (d < -180 || d > 180) return 'Must be -180 to 180';
+                      if (d < -180 || d > 180) return '−180 to 180';
                       return null;
                     },
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 28),
 
+            // ── Details ──────────────────────────────────────────────────
             _SectionHeader(label: 'Details'),
             _Field(
               controller: _rating,
               label: 'Rating (0.0 – 5.0)',
               icon: Icons.star_rounded,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
               validator: (v) {
                 final d = double.tryParse(v ?? '');
                 if (d == null) return 'Invalid rating';
@@ -236,30 +229,21 @@ class _ClinicFormScreenState extends State<ClinicFormScreen> {
               keyboardType: TextInputType.url,
             ),
 
-            const SizedBox(height: 32),
+            const SizedBox(height: 36),
             ElevatedButton.icon(
               onPressed: _saving ? null : _save,
               icon: Icon(_isEditing ? Icons.save_rounded : Icons.add_rounded),
-              label: Text(
-                _isEditing ? 'Update Clinic' : 'Add Clinic',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
+              label: Text(_isEditing ? 'Update clinic' : 'Add clinic'),
             ),
+            const SizedBox(height: 24),
           ],
         ),
       ),
     );
   }
 }
+
+// ── Section header ────────────────────────────────────────────────────────────
 
 class _SectionHeader extends StatelessWidget {
   final String label;
@@ -269,18 +253,33 @@ class _SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w700,
-          color: AppTheme.primary,
-          letterSpacing: 0.5,
-        ),
+      child: Row(
+        children: [
+          Container(
+            width: 3,
+            height: 14,
+            decoration: BoxDecoration(
+              color: AppTheme.primary,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            label.toUpperCase(),
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.primary,
+              letterSpacing: 0.8,
+            ),
+          ),
+        ],
       ),
     );
   }
 }
+
+// ── Reusable form field ───────────────────────────────────────────────────────
 
 class _Field extends StatelessWidget {
   final TextEditingController controller;
@@ -299,35 +298,18 @@ class _Field extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Relies entirely on the global inputDecorationTheme in AppTheme.theme
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
       validator: validator,
+      style: const TextStyle(
+        fontSize: 14,
+        color: AppTheme.textPrimary,
+      ),
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: Icon(icon, color: AppTheme.primary, size: 20),
-        filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade300),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade200),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppTheme.primary, width: 2),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.red),
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 14,
-        ),
+        prefixIcon: Icon(icon),
       ),
     );
   }

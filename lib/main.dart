@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'services/clinic_provider.dart';
+import 'screens/onboarding_screen.dart';
 import 'screens/splash_screen.dart';
 import 'utils/app_theme.dart';
 
@@ -42,7 +43,7 @@ class VetClinicApp extends StatelessWidget {
         title: 'PawAywan: Veterinary Clinic Locator',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.theme,
-        home: const SplashScreen(),
+        home: const OnboardingScreen(),
       ),
     );
   }

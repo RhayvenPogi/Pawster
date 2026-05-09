@@ -1,5 +1,4 @@
-// lib/widgets/clinic_bottom_sheet.dart
-
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../models/vet_clinic.dart';
 import '../utils/app_theme.dart';
@@ -7,7 +6,6 @@ import '../utils/app_theme.dart';
 class ClinicBottomSheet extends StatelessWidget {
   final VetClinic clinic;
   final bool isNearest;
-  final VoidCallback onCall;
   final VoidCallback onDirections;
   final VoidCallback onClose;
   final VoidCallback onEdit;
@@ -17,7 +15,6 @@ class ClinicBottomSheet extends StatelessWidget {
     super.key,
     required this.clinic,
     required this.isNearest,
-    required this.onCall,
     required this.onDirections,
     required this.onClose,
     required this.onEdit,
@@ -34,7 +31,6 @@ class ClinicBottomSheet extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Handle bar
           Container(
             margin: const EdgeInsets.only(top: 12),
             width: 40,
@@ -44,8 +40,6 @@ class ClinicBottomSheet extends StatelessWidget {
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-
-          // Top row: close + edit + delete
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 4, 4, 0),
             child: Row(
@@ -57,92 +51,40 @@ class ClinicBottomSheet extends StatelessWidget {
                   onPressed: onEdit,
                 ),
                 IconButton(
-                  icon: const Icon(
-                    Icons.delete_outline_rounded,
-                    color: Colors.red,
-                  ),
+                  icon: const Icon(Icons.delete_outline_rounded, color: Colors.red),
                   tooltip: 'Delete',
                   onPressed: onDelete,
                 ),
                 IconButton(
-                  icon: const Icon(
-                    Icons.close_rounded,
-                    color: AppTheme.textSecondary,
-                  ),
+                  icon: const Icon(Icons.close_rounded, color: AppTheme.textSecondary),
                   onPressed: onClose,
                 ),
               ],
             ),
           ),
-
-          // Image
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(16),
-              child: Image.network(
-                clinic.imageUrl,
-                height: 180,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  height: 180,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: AppTheme.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.local_hospital_rounded,
-                        size: 64,
-                        color: AppTheme.primary.withOpacity(0.4),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'No Image Available',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: AppTheme.primary.withOpacity(0.5),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              child: _ClinicImage(clinic: clinic, height: 180),
             ),
           ),
-
           const SizedBox(height: 16),
-
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Badges
                 Row(
                   children: [
                     if (isNearest)
-                      _InfoBadge(
-                        label: '📍 Nearest to You',
-                        color: AppTheme.nearestBadge,
-                      ),
-                    if (isNearest && clinic.isTopRated)
-                      const SizedBox(width: 8),
+                      _InfoBadge(label: '📍 Nearest to You', color: AppTheme.nearestBadge),
+                    if (isNearest && clinic.isTopRated) const SizedBox(width: 8),
                     if (clinic.isTopRated)
-                      _InfoBadge(
-                        label: '⭐ Top Rated',
-                        color: AppTheme.topRatedBadge,
-                      ),
+                      _InfoBadge(label: '⭐ Top Rated', color: AppTheme.topRatedBadge),
                   ],
                 ),
                 const SizedBox(height: 10),
-
-                // Name
                 Text(
                   clinic.name,
                   style: const TextStyle(
@@ -152,29 +94,15 @@ class ClinicBottomSheet extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 8),
-
-                // Rating row
                 Row(
                   children: [
                     ...List.generate(5, (i) {
                       if (i < clinic.rating.floor()) {
-                        return const Icon(
-                          Icons.star_rounded,
-                          size: 18,
-                          color: AppTheme.starColor,
-                        );
+                        return const Icon(Icons.star_rounded, size: 18, color: AppTheme.starColor);
                       } else if (i < clinic.rating) {
-                        return const Icon(
-                          Icons.star_half_rounded,
-                          size: 18,
-                          color: AppTheme.starColor,
-                        );
+                        return const Icon(Icons.star_half_rounded, size: 18, color: AppTheme.starColor);
                       }
-                      return const Icon(
-                        Icons.star_outline_rounded,
-                        size: 18,
-                        color: AppTheme.starColor,
-                      );
+                      return const Icon(Icons.star_outline_rounded, size: 18, color: AppTheme.starColor);
                     }),
                     const SizedBox(width: 6),
                     Text(
@@ -188,19 +116,9 @@ class ClinicBottomSheet extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 14),
-
-                // Info rows
-                _InfoRow(
-                  icon: Icons.location_on_rounded,
-                  text: clinic.address,
-                  color: AppTheme.primary,
-                ),
+                _InfoRow(icon: Icons.location_on_rounded, text: clinic.address, color: AppTheme.primary),
                 const SizedBox(height: 8),
-                _InfoRow(
-                  icon: Icons.phone_rounded,
-                  text: clinic.contactNumber,
-                  color: AppTheme.secondary,
-                ),
+                _InfoRow(icon: Icons.phone_rounded, text: clinic.contactNumber, color: AppTheme.secondary),
                 if (clinic.distanceKm != null) ...[
                   const SizedBox(height: 8),
                   _InfoRow(
@@ -209,30 +127,21 @@ class ClinicBottomSheet extends StatelessWidget {
                     color: AppTheme.accent,
                   ),
                 ],
-
                 const SizedBox(height: 20),
-
-                // Call + Directions buttons
-                Row(
-                  children: [
-                    Expanded(
-                      child: _BigActionButton(
-                        icon: Icons.phone_rounded,
-                        label: 'Call Clinic',
-                        color: AppTheme.primary,
-                        onTap: onCall,
-                      ),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: onDirections,
+                    icon: const Icon(Icons.navigation_rounded, size: 18),
+                    label: const Text('Get Directions', style: TextStyle(fontWeight: FontWeight.w600)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.secondary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 0,
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _BigActionButton(
-                        icon: Icons.navigation_rounded,
-                        label: 'Get Directions',
-                        color: AppTheme.secondary,
-                        onTap: onDirections,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
                 const SizedBox(height: 24),
               ],
@@ -244,6 +153,59 @@ class ClinicBottomSheet extends StatelessWidget {
   }
 }
 
+class _ClinicImage extends StatelessWidget {
+  final VetClinic clinic;
+  final double height;
+  const _ClinicImage({required this.clinic, required this.height});
+
+  @override
+  Widget build(BuildContext context) {
+    if (clinic.hasLocalImage) {
+      return Image.file(
+        File(clinic.localImage!),
+        height: height,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _placeholder(),
+      );
+    }
+    if (clinic.imageUrl.isNotEmpty) {
+      return Image.network(
+        clinic.imageUrl,
+        height: height,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _placeholder(),
+      );
+    }
+    return _placeholder();
+  }
+
+  Widget _placeholder() => Container(
+    height: height,
+    width: double.infinity,
+    decoration: BoxDecoration(
+      color: AppTheme.primary.withOpacity(0.1),
+      borderRadius: BorderRadius.circular(16),
+    ),
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.local_hospital_rounded, size: 64, color: AppTheme.primary.withOpacity(0.4)),
+        const SizedBox(height: 8),
+        Text(
+          'No Image Available',
+          style: TextStyle(
+            fontSize: 13,
+            color: AppTheme.primary.withOpacity(0.5),
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
 class _InfoBadge extends StatelessWidget {
   final String label;
   final Color color;
@@ -253,17 +215,10 @@ class _InfoBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(20),
-      ),
+      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(20)),
       child: Text(
         label,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-        ),
+        style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700),
       ),
     );
   }
@@ -292,43 +247,10 @@ class _InfoRow extends StatelessWidget {
         Expanded(
           child: Padding(
             padding: const EdgeInsets.only(top: 6),
-            child: Text(
-              text,
-              style: const TextStyle(fontSize: 14, color: AppTheme.textPrimary),
-            ),
+            child: Text(text, style: const TextStyle(fontSize: 14, color: AppTheme.textPrimary)),
           ),
         ),
       ],
-    );
-  }
-}
-
-class _BigActionButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _BigActionButton({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ElevatedButton.icon(
-      onPressed: onTap,
-      icon: Icon(icon, size: 18),
-      label: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: color,
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        elevation: 0,
-      ),
     );
   }
 }

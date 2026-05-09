@@ -1,6 +1,4 @@
 import 'dart:io';
-// lib/widgets/clinic_card.dart
-
 import 'package:flutter/material.dart';
 import '../models/vet_clinic.dart';
 import '../utils/app_theme.dart';
@@ -9,7 +7,6 @@ class ClinicCard extends StatelessWidget {
   final VetClinic clinic;
   final bool isNearest;
   final VoidCallback onTap;
-  final VoidCallback onCall;
   final VoidCallback onDirections;
   final VoidCallback onEdit;
 
@@ -18,7 +15,6 @@ class ClinicCard extends StatelessWidget {
     required this.clinic,
     required this.isNearest,
     required this.onTap,
-    required this.onCall,
     required this.onDirections,
     required this.onEdit,
   });
@@ -39,20 +35,15 @@ class ClinicCard extends StatelessWidget {
               offset: const Offset(0, 4),
             ),
           ],
-          border: isNearest
-              ? Border.all(color: AppTheme.primary, width: 2)
-              : null,
+          border: isNearest ? Border.all(color: AppTheme.primary, width: 2) : null,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image + badges
             Stack(
               children: [
                 ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(14),
-                  ),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
                   child: _ClinicImage(clinic: clinic, height: 130),
                 ),
                 Positioned(
@@ -61,29 +52,20 @@ class ClinicCard extends StatelessWidget {
                   child: Row(
                     children: [
                       if (isNearest)
-                        _Badge(
-                          label: '📍 Nearest',
-                          color: AppTheme.nearestBadge,
-                        ),
-                      if (isNearest && clinic.isTopRated)
-                        const SizedBox(width: 6),
+                        _Badge(label: '📍 Nearest', color: AppTheme.nearestBadge),
+                      if (isNearest && clinic.isTopRated) const SizedBox(width: 6),
                       if (clinic.isTopRated)
-                        _Badge(
-                          label: '⭐ Top Rated',
-                          color: AppTheme.topRatedBadge,
-                        ),
+                        _Badge(label: '⭐ Top Rated', color: AppTheme.topRatedBadge),
                     ],
                   ),
                 ),
               ],
             ),
-
             Padding(
               padding: const EdgeInsets.all(14),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Name
                   Text(
                     clinic.name,
                     style: const TextStyle(
@@ -95,23 +77,14 @@ class ClinicCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
-
-                  // Address
                   Row(
                     children: [
-                      const Icon(
-                        Icons.location_on_outlined,
-                        size: 13,
-                        color: AppTheme.textSecondary,
-                      ),
+                      const Icon(Icons.location_on_outlined, size: 13, color: AppTheme.textSecondary),
                       const SizedBox(width: 3),
                       Expanded(
                         child: Text(
                           clinic.address,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppTheme.textSecondary,
-                          ),
+                          style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -119,8 +92,6 @@ class ClinicCard extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 8),
-
-                  // Rating + Distance
                   Row(
                     children: [
                       _RatingStars(rating: clinic.rating),
@@ -137,11 +108,7 @@ class ClinicCard extends StatelessWidget {
                       if (clinic.distanceKm != null)
                         Row(
                           children: [
-                            const Icon(
-                              Icons.directions_walk_rounded,
-                              size: 14,
-                              color: AppTheme.primary,
-                            ),
+                            const Icon(Icons.directions_walk_rounded, size: 14, color: AppTheme.primary),
                             const SizedBox(width: 3),
                             Text(
                               clinic.formattedDistance,
@@ -156,19 +123,8 @@ class ClinicCard extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 12),
-
-                  // Action buttons
                   Row(
                     children: [
-                      Expanded(
-                        child: _ActionButton(
-                          icon: Icons.phone_rounded,
-                          label: 'Call',
-                          color: AppTheme.primary,
-                          onTap: onCall,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
                       Expanded(
                         child: _ActionButton(
                           icon: Icons.navigation_rounded,
@@ -211,7 +167,7 @@ class _ClinicImage extends StatelessWidget {
         height: height,
         width: double.infinity,
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => _placeholder(height),
+        errorBuilder: (_, __, ___) => _placeholder(height),
       );
     }
     if (clinic.imageUrl.isNotEmpty) {
@@ -220,7 +176,7 @@ class _ClinicImage extends StatelessWidget {
         height: height,
         width: double.infinity,
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => _placeholder(height),
+        errorBuilder: (_, __, ___) => _placeholder(height),
       );
     }
     return _placeholder(height);
@@ -233,11 +189,7 @@ class _ClinicImage extends StatelessWidget {
     child: Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(
-          Icons.local_hospital_rounded,
-          size: 48,
-          color: AppTheme.primary.withOpacity(0.4),
-        ),
+        Icon(Icons.local_hospital_rounded, size: 48, color: AppTheme.primary.withOpacity(0.4)),
         const SizedBox(height: 6),
         Text(
           'No Image Available',
@@ -255,7 +207,6 @@ class _ClinicImage extends StatelessWidget {
 class _Badge extends StatelessWidget {
   final String label;
   final Color color;
-
   const _Badge({required this.label, required this.color});
 
   @override
@@ -266,20 +217,12 @@ class _Badge extends StatelessWidget {
         color: color,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          BoxShadow(
-            color: color.withOpacity(0.4),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
+          BoxShadow(color: color.withOpacity(0.4), blurRadius: 6, offset: const Offset(0, 2)),
         ],
       ),
       child: Text(
         label,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-        ),
+        style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
       ),
     );
   }
@@ -295,23 +238,11 @@ class _RatingStars extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: List.generate(5, (i) {
         if (i < rating.floor()) {
-          return const Icon(
-            Icons.star_rounded,
-            size: 14,
-            color: AppTheme.starColor,
-          );
+          return const Icon(Icons.star_rounded, size: 14, color: AppTheme.starColor);
         } else if (i < rating) {
-          return const Icon(
-            Icons.star_half_rounded,
-            size: 14,
-            color: AppTheme.starColor,
-          );
+          return const Icon(Icons.star_half_rounded, size: 14, color: AppTheme.starColor);
         }
-        return const Icon(
-          Icons.star_outline_rounded,
-          size: 14,
-          color: AppTheme.starColor,
-        );
+        return const Icon(Icons.star_outline_rounded, size: 14, color: AppTheme.starColor);
       }),
     );
   }
@@ -348,11 +279,7 @@ class _ActionButton extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: color,
-              ),
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color),
             ),
           ],
         ),

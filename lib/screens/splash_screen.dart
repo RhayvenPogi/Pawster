@@ -1,7 +1,6 @@
-// lib/screens/splash_screen.dart
-// Detects location FIRST before navigating to HomeScreen
-
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../services/clinic_provider.dart';
@@ -18,306 +17,401 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
-  late AnimationController _animController;
+  late AnimationController _ctrl;
   late Animation<double> _fadeAnim;
   late Animation<double> _scaleAnim;
+  late Animation<double> _slideAnim;
 
-  String _statusMessage = 'Starting up...';
+  String _status = 'Getting things ready...';
+  double _progress = 0;
   bool _showRetry = false;
-  bool _showSettingsBtn = false;
+  bool _showSettings = false;
 
   @override
   void initState() {
     super.initState();
-
-    _animController = AnimationController(
+    _ctrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 800),
-    );
-    _fadeAnim = CurvedAnimation(
-      parent: _animController,
-      curve: Curves.easeIn,
-    );
-    _scaleAnim = Tween<double>(begin: 0.8, end: 1.0).animate(
-      CurvedAnimation(parent: _animController, curve: Curves.elasticOut),
+      duration: const Duration(milliseconds: 1000),
     );
 
-    _animController.forward();
+    _fadeAnim = CurvedAnimation(parent: _ctrl, curve: Curves.easeIn);
+    _scaleAnim = Tween<double>(begin: 0.85, end: 1.0).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic),
+    );
+    _slideAnim = Tween<double>(begin: 20, end: 0).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic),
+    );
 
-    // Small delay so splash is visible, then start location
-    Future.delayed(const Duration(milliseconds: 1200), _initApp);
+    _ctrl.forward().then((_) {
+      Future.delayed(const Duration(milliseconds: 400), _initApp);
+    });
   }
 
   @override
   void dispose() {
-    _animController.dispose();
+    _ctrl.dispose();
     super.dispose();
   }
 
-  Future<void> _initApp() async {
+  void _setStatus(String msg, double progress) {
+    if (!mounted) return;
     setState(() {
-      _statusMessage = 'Requesting location permission...';
+      _status = msg;
+      _progress = progress;
       _showRetry = false;
-      _showSettingsBtn = false;
+      _showSettings = false;
     });
+  }
 
-    // Step 1: Check / request permission
-    final permStatus = await LocationService.checkAndRequestPermission();
+  Future<void> _initApp() async {
+    _setStatus('Checking location permission...', 0.25);
+    final perm = await LocationService.checkAndRequestPermission();
 
-    if (permStatus == LocationPermissionStatus.permanentlyDenied) {
+    if (perm == LocationPermissionStatus.permanentlyDenied) {
+      if (!mounted) return;
       setState(() {
-        _statusMessage =
-            'Location permission is permanently denied.\nPlease enable it in Settings to show nearby clinics.';
-        _showSettingsBtn = true;
-        _showRetry = false;
+        _status = 'Location access is disabled. Enable it in Settings to see distances.';
+        _showSettings = true;
+        _progress = 0.25;
       });
-      // Still proceed after 3s — app works without location, just no distances
       await Future.delayed(const Duration(seconds: 3));
-      _loadApp(withLocation: false);
+      if (mounted) _loadApp();
       return;
     }
 
-    if (permStatus == LocationPermissionStatus.denied) {
+    if (perm == LocationPermissionStatus.denied) {
+      if (!mounted) return;
       setState(() {
-        _statusMessage =
-            'Location permission denied.\nDistances will not be shown.';
+        _status = 'Location denied. Distances will not be shown.';
         _showRetry = true;
-        _showSettingsBtn = false;
+        _progress = 0.25;
       });
       await Future.delayed(const Duration(seconds: 2));
-      _loadApp(withLocation: false);
+      if (mounted) _loadApp();
       return;
     }
 
-    // Step 2: Get actual position
-    setState(() {
-      _statusMessage = 'Getting your location...';
-    });
-
+    _setStatus('Locating you...', 0.55);
     final position = await LocationService.getCurrentPosition();
 
     if (position == null) {
+      if (!mounted) return;
       setState(() {
-        _statusMessage =
-            'Could not get your location.\nMake sure GPS is enabled.';
+        _status = 'Could not get your location. Check that GPS is on.';
         _showRetry = true;
+        _progress = 0.55;
       });
-      return; // Wait for user to tap Retry
+      return;
     }
 
-    // Step 3: Position acquired — load clinics from DB
-    setState(() {
-      _statusMessage = 'Loading nearby clinics...';
-    });
+    _setStatus('Loading clinics...', 0.85);
+    await context.read<ClinicProvider>().initWithPosition(position);
 
-    final provider = context.read<ClinicProvider>();
-    await provider.initWithPosition(position);
-
-    // Step 4: Navigate to HomeScreen
     if (mounted) {
-      Navigator.of(context).pushReplacement(
-        PageRouteBuilder(
-          pageBuilder: (_, _, _) => const HomeScreen(),
-          transitionsBuilder: (_, anim, _, child) =>
-              FadeTransition(opacity: anim, child: child),
-          transitionDuration: const Duration(milliseconds: 500),
-        ),
-      );
+      setState(() => _progress = 1.0);
+      await Future.delayed(const Duration(milliseconds: 300));
+      _goHome();
     }
   }
 
-  Future<void> _loadApp({required bool withLocation}) async {
-    setState(() => _statusMessage = 'Loading clinics...');
-    final provider = context.read<ClinicProvider>();
-    await provider.loadClinicsFromDb();
-
+  Future<void> _loadApp() async {
+    _setStatus('Loading clinics...', 0.85);
+    await context.read<ClinicProvider>().loadClinicsFromDb();
     if (mounted) {
-      Navigator.of(context).pushReplacement(
-        PageRouteBuilder(
-          pageBuilder: (_, _, _) => const HomeScreen(),
-          transitionsBuilder: (_, anim, _, child) =>
-              FadeTransition(opacity: anim, child: child),
-          transitionDuration: const Duration(milliseconds: 500),
-        ),
-      );
+      setState(() => _progress = 1.0);
+      await Future.delayed(const Duration(milliseconds: 200));
+      _goHome();
     }
+  }
+
+  void _goHome() {
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) => const HomeScreen(),
+        transitionsBuilder: (_, anim, __, child) =>
+            FadeTransition(opacity: anim, child: child),
+        transitionDuration: const Duration(milliseconds: 500),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.primary,
-      body: SafeArea(
-        child: Center(
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(gradient: AppTheme.splashGradient),
+        child: SafeArea(
           child: FadeTransition(
             opacity: _fadeAnim,
-            child: ScaleTransition(
-              scale: _scaleAnim,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 40),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // App icon
-                    Container(
-                      width: 110,
-                      height: 110,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
-                            blurRadius: 24,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.pets_rounded,
-                        size: 60,
-                        color: AppTheme.primary,
-                      ),
+            child: Column(
+              children: [
+                const Spacer(flex: 3),
+
+                // Logo + title
+                AnimatedBuilder(
+                  animation: _ctrl,
+                  builder: (_, child) => Transform.translate(
+                    offset: Offset(0, _slideAnim.value),
+                    child: Transform.scale(
+                      scale: _scaleAnim.value,
+                      child: child,
                     ),
-                    const SizedBox(height: 24),
-
-                    // App name
-                    const Text(
-                      'PawAywan',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 32,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'Veterinary Clinic Locator',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 14,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                    const Text(
-                      'La Union, Philippines',
-                      style: TextStyle(
-                        color: Colors.white54,
-                        fontSize: 12,
-                      ),
-                    ),
-
-                    const SizedBox(height: 56),
-
-                    // Loading indicator
-                    if (!_showRetry && !_showSettingsBtn)
-                      Column(
-                        children: [
-                          const SizedBox(
-                            width: 36,
-                            height: 36,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 3,
-                            ),
+                  ),
+                  child: Column(
+                    children: [
+                      // Lottie loading animation
+                      SizedBox(
+                        width: 160,
+                        height: 160,
+                        child: Lottie.asset(
+                          'assets/lottie/loading.json',
+                          fit: BoxFit.contain,
+                          repeat: true,
+                          errorBuilder: (_, __, ___) => const Icon(
+                            Icons.pets_rounded,
+                            size: 48,
+                            color: Colors.white,
                           ),
-                          const SizedBox(height: 20),
-                          Text(
-                            _statusMessage,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 13,
-                              height: 1.5,
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
-
-                    // Retry state
-                    if (_showRetry)
-                      Column(
-                        children: [
-                          const Icon(Icons.location_off_rounded,
-                              color: Colors.white70, size: 40),
-                          const SizedBox(height: 12),
-                          Text(
-                            _statusMessage,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 13,
-                              height: 1.5,
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              ElevatedButton.icon(
-                                onPressed: _initApp,
-                                icon: const Icon(Icons.refresh_rounded),
-                                label: const Text('Retry'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.white,
-                                  foregroundColor: AppTheme.primary,
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12)),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              OutlinedButton(
-                                onPressed: () =>
-                                    _loadApp(withLocation: false),
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: Colors.white,
-                                  side: const BorderSide(
-                                      color: Colors.white54),
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12)),
-                                ),
-                                child: const Text('Skip'),
-                              ),
-                            ],
-                          ),
-                        ],
+                      const SizedBox(height: 24),
+                      const Text(
+                        'PawAywan',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 32,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
+                        ),
                       ),
-
-                    // Permanently denied state
-                    if (_showSettingsBtn)
-                      Column(
-                        children: [
-                          const Icon(Icons.location_disabled_rounded,
-                              color: Colors.white70, size: 40),
-                          const SizedBox(height: 12),
-                          Text(
-                            _statusMessage,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 13,
-                              height: 1.5,
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          ElevatedButton.icon(
-                            onPressed: () => openAppSettings(),
-                            icon: const Icon(Icons.settings_rounded),
-                            label: const Text('Open Settings'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: AppTheme.primary,
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12)),
-                            ),
-                          ),
-                        ],
+                      const SizedBox(height: 6),
+                      Text(
+                        'Veterinary Clinic Locator · La Union',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.65),
+                          fontSize: 13,
+                          letterSpacing: 0.3,
+                        ),
                       ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
+
+                const Spacer(flex: 3),
+
+                // Bottom status area
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(36, 0, 36, 48),
+                  child: Column(
+                    children: [
+                      // Progress bar
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: TweenAnimationBuilder<double>(
+                          tween: Tween(begin: 0, end: _progress),
+                          duration: const Duration(milliseconds: 500),
+                          curve: Curves.easeOut,
+                          builder: (_, value, __) => LinearProgressIndicator(
+                            value: value,
+                            minHeight: 3,
+                            backgroundColor: Colors.white.withOpacity(0.15),
+                            valueColor: const AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Status message
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 300),
+                        child: _showSettings
+                            ? _SettingsPrompt(
+                          message: _status,
+                          onSettings: () {
+                            openAppSettings();
+                          },
+                          onSkip: _loadApp,
+                        )
+                            : _showRetry
+                            ? _RetryPrompt(
+                          message: _status,
+                          onRetry: _initApp,
+                          onSkip: _loadApp,
+                        )
+                            : _StatusText(
+                          key: ValueKey(_status),
+                          message: _status,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Status text ───────────────────────────────────────────────────────────────
+
+class _StatusText extends StatelessWidget {
+  final String message;
+  const _StatusText({super.key, required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        SizedBox(
+          width: 13,
+          height: 13,
+          child: CircularProgressIndicator(
+            strokeWidth: 1.8,
+            color: Colors.white.withOpacity(0.7),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Flexible(
+          child: Text(
+            message,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.7),
+              fontSize: 13,
+              height: 1.4,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Settings prompt ───────────────────────────────────────────────────────────
+
+class _SettingsPrompt extends StatelessWidget {
+  final String message;
+  final VoidCallback onSettings;
+  final VoidCallback onSkip;
+
+  const _SettingsPrompt({
+    required this.message,
+    required this.onSettings,
+    required this.onSkip,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(
+          message,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: Colors.white.withOpacity(0.75),
+            fontSize: 13,
+            height: 1.5,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _SplashButton(
+              label: 'Open Settings',
+              onTap: onSettings,
+              filled: true,
+            ),
+            const SizedBox(width: 10),
+            _SplashButton(label: 'Skip', onTap: onSkip, filled: false),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+// ── Retry prompt ──────────────────────────────────────────────────────────────
+
+class _RetryPrompt extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+  final VoidCallback onSkip;
+
+  const _RetryPrompt({
+    required this.message,
+    required this.onRetry,
+    required this.onSkip,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(
+          message,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: Colors.white.withOpacity(0.75),
+            fontSize: 13,
+            height: 1.5,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _SplashButton(label: 'Retry', onTap: onRetry, filled: true),
+            const SizedBox(width: 10),
+            _SplashButton(label: 'Skip', onTap: onSkip, filled: false),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+// ── Shared button ─────────────────────────────────────────────────────────────
+
+class _SplashButton extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  final bool filled;
+
+  const _SplashButton({
+    required this.label,
+    required this.onTap,
+    required this.filled,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
+        decoration: BoxDecoration(
+          color: filled ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          border: Border.all(
+            color: Colors.white.withOpacity(filled ? 0 : 0.4),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: filled ? AppTheme.primary : Colors.white,
+            fontWeight: FontWeight.w700,
+            fontSize: 13,
           ),
         ),
       ),
