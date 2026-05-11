@@ -788,6 +788,7 @@ function AdoptModal({ animal, user, onClose, onSuccess }) {
       try { data = await res.json(); } catch { /**/ }
       if (res.ok && data.success !== false) {
         onSuccess("Request submitted! We'll be in touch soon 🐾");
+        window.dispatchEvent(new CustomEvent('pawster:adoptionSubmitted'));  // ← ADD THIS
         onClose();
       } else if (res.status === 401) {
         onSuccess("Session expired — please log in again.", "err");

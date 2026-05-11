@@ -2,7 +2,7 @@
  * ProfilePage.jsx  (Account Settings — full standalone page at /account)
  *
  * ADDED: "My History" tab showing all adoption & rehoming requests
- *        with a 📄 Download Receipt button per row (jsPDF).
+ *        with a Download Receipt button per row (jsPDF).
  *        Install: npm install jspdf
  */
 
@@ -18,6 +18,65 @@ import { usePageTitle } from '../hooks/usePageTitle';
 
 const API_BASE    = import.meta.env.VITE_API_BASE    ?? 'http://localhost:8000';
 const DJANGO_BASE = import.meta.env.VITE_DJANGO_API  ?? 'http://localhost:8000';
+
+/* ── SVG icon components ── */
+function IconPaw({ size = 14, color = 'currentColor' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={color} xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="5.5" cy="6.5" rx="2.5" ry="3.5" />
+      <ellipse cx="18.5" cy="6.5" rx="2.5" ry="3.5" />
+      <ellipse cx="10" cy="4" rx="2" ry="3" />
+      <ellipse cx="14" cy="4" rx="2" ry="3" />
+      <path d="M12 10c-4 0-7 2.5-7 6 0 2.5 2 4 4 4 .8 0 1.6-.3 2.2-.8l.8-.6.8.6c.6.5 1.4.8 2.2.8 2 0 4-1.5 4-4 0-3.5-3-6-7-6z" />
+    </svg>
+  );
+}
+
+function IconHome({ size = 14, color = 'currentColor' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+      <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z" />
+      <path d="M9 21V12h6v9" />
+    </svg>
+  );
+}
+
+function IconDownload({ size = 14, color = 'currentColor' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 3v13M7 11l5 5 5-5" />
+      <path d="M4 20h16" />
+    </svg>
+  );
+}
+
+function IconCalendar({ size = 13, color = 'currentColor' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+      <rect x="3" y="4" width="18" height="18" rx="2" />
+      <path d="M16 2v4M8 2v4M3 10h18" />
+    </svg>
+  );
+}
+
+function IconFile({ size = 14, color = 'currentColor' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+      <line x1="8" y1="13" x2="16" y2="13" />
+      <line x1="8" y1="17" x2="13" y2="17" />
+    </svg>
+  );
+}
+
+function IconClip({ size = 14, color = 'currentColor' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+      <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66L9.41 17.41a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+    </svg>
+  );
+}
 
 /* ── tiny helpers ── */
 function inp(extra = {}) {
@@ -118,7 +177,7 @@ function DownloadReceiptBtn({ record }) {
     >
       {busy
         ? <><span style={{ display: 'inline-block', width: 11, height: 11, borderRadius: '50%', border: '2px solid rgba(28,79,9,0.3)', borderTopColor: '#1c4f09', animation: 'spin 0.7s linear infinite' }} /> Generating…</>
-        : <>📄 Download Receipt</>
+        : <><IconDownload size={13} color="#1c4f09" /> Download Receipt</>
       }
     </button>
   );
@@ -213,7 +272,9 @@ function AppointmentHistoryTab({ userId }) {
         </div>
       ) : filtered.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '3rem 0', color: '#9aaa80' }}>
-          <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>🐾</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.5rem', opacity: 0.45 }}>
+            <IconPaw size={40} color="#9aaa80" />
+          </div>
           <div style={{ fontSize: '0.88rem', fontWeight: 700 }}>
             No {filter !== 'All' ? filter.toLowerCase() + ' ' : ''}requests found.
           </div>
@@ -227,8 +288,12 @@ function AppointmentHistoryTab({ userId }) {
               {/* Left: info */}
               <div style={{ minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.3rem', flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: '0.60rem', fontWeight: 900, padding: '0.15rem 0.55rem', borderRadius: 50, background: r._type === 'Adoption' ? 'rgba(28,79,9,0.10)' : 'rgba(180,90,34,0.10)', color: r._type === 'Adoption' ? '#1c4f09' : '#b45a22', border: `1px solid ${r._type === 'Adoption' ? 'rgba(90,170,48,0.3)' : 'rgba(180,90,34,0.3)'}`, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                    {r._type === 'Adoption' ? '🐾 Adoption' : '🏠 Rehoming'}
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.60rem', fontWeight: 900, padding: '0.15rem 0.55rem', borderRadius: 50, background: r._type === 'Adoption' ? 'rgba(28,79,9,0.10)' : 'rgba(180,90,34,0.10)', color: r._type === 'Adoption' ? '#1c4f09' : '#b45a22', border: `1px solid ${r._type === 'Adoption' ? 'rgba(90,170,48,0.3)' : 'rgba(180,90,34,0.3)'}`, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    {r._type === 'Adoption'
+                      ? <IconPaw size={10} color="#1c4f09" />
+                      : <IconHome size={10} color="#b45a22" />
+                    }
+                    {r._type === 'Adoption' ? 'Adoption' : 'Rehoming'}
                   </span>
                   <HistoryStatusPill status={r.status || 'Pending'} />
                 </div>
@@ -238,14 +303,21 @@ function AppointmentHistoryTab({ userId }) {
                 </div>
 
                 <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#6a7a50' }}>
-                    📅 {r.created_at ? new Date(r.created_at).toLocaleDateString('en-PH', { dateStyle: 'medium' }) : '—'}
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.28rem', fontSize: '0.72rem', fontWeight: 700, color: '#6a7a50' }}>
+                    <IconCalendar size={12} color="#6a7a50" />
+                    {r.created_at ? new Date(r.created_at).toLocaleDateString('en-PH', { dateStyle: 'medium' }) : '—'}
                   </span>
                   {r._type === 'Adoption' && r.housing && (
-                    <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#6a7a50' }}>🏠 {r.housing}</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.28rem', fontSize: '0.72rem', fontWeight: 700, color: '#6a7a50' }}>
+                      <IconHome size={12} color="#6a7a50" />
+                      {r.housing}
+                    </span>
                   )}
                   {r._type === 'Rehoming' && r.species && (
-                    <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#6a7a50' }}>🐾 {r.species}</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.28rem', fontSize: '0.72rem', fontWeight: 700, color: '#6a7a50' }}>
+                      <IconPaw size={12} color="#6a7a50" />
+                      {r.species}
+                    </span>
                   )}
                 </div>
               </div>
@@ -433,8 +505,6 @@ export default function ProfilePage() {
         <div style={{ position: 'absolute', width: 800, height: 800, bottom: '-15%', right: '-15%', borderRadius: '50%', background: 'radial-gradient(circle,#B45A22,transparent 70%)', filter: 'blur(120px)', opacity: 0.35, animation: 'fl2 11s ease-in-out infinite' }} />
       </div>
 
-    
-
       <div className="prof-pad" style={{ position: 'relative', zIndex: 10, maxWidth: 880, margin: '0 auto', padding: '3rem 1.5rem 5rem' }}>
 
         {/* Page header */}
@@ -542,7 +612,10 @@ export default function ProfilePage() {
                     <div className="upload-zone" onClick={() => fileRef.current?.click()}>
                       <i className="fas fa-cloud-arrow-up" style={{ fontSize: '1.4rem', color: '#6a7a50', marginBottom: '0.3rem', display: 'block' }} />
                       <div style={{ fontSize: '0.80rem', fontWeight: 800, color: '#3a5020' }}>
-                        {photoFile ? `📎 ${photoFile.name}` : 'Click to upload or change your photo'}
+                        {photoFile
+                          ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}><IconClip size={13} color="#3a5020" /> {photoFile.name}</span>
+                          : 'Click to upload or change your photo'
+                        }
                       </div>
                       <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#9aaa80', marginTop: '0.12rem' }}>JPG, PNG, WEBP · max 5 MB</div>
                     </div>
@@ -721,42 +794,42 @@ export default function ProfilePage() {
         </div>
       </div>
 
-       {/* Footer */}
-            <footer className="relative z-10 border-t border-[rgba(90,170,48,0.45)] bg-[rgba(255,248,218,0.85)] backdrop-blur-md px-10 py-12">
-              <div className="max-w-[1200px] mx-auto grid gap-12 mb-10 grid-cols-[repeat(auto-fit,minmax(160px,1fr))]">
-                <div>
-                  <div className="mb-2">
-                    <img src={logo} alt="Pawster" className="w-8 h-8 object-contain" onError={(e) => (e.target.style.display = "none")} />
-                  </div>
-                  <div className="font-black text-[1.2rem] text-[#1a4a08]">Paw<em className="italic text-[#e07820]">ster</em></div>
-                  <p className="text-[0.82rem] font-bold leading-7 text-[#6a7a50] max-w-[260px] mt-2">
-                    Screening, placing, and supporting animal adoptions across Baguio City and the Cordillera Administrative Region with care and accountability.
-                  </p>
-                </div>
-                {[
-                  { title: "Adopt", links: [["Browse animals", "/pets"], ["My profile", "/profile"], ["Log in", "/login"], ["Register", "/register"]] },
-                  { title: "Services", links: [["How it works", "/how-it-works"], ["Rehome & Rescue", "/rehome"], ["Missing pets", "/missing-pets"], ["About us", "/about"]] },
-                  { title: "Regions", links: [["Baguio City", "/pets"], ["Benguet", "/pets"], ["Mountain Province", "/pets"], ["Ifugao", "/pets"]] },
-                ].map(({ title, links }) => (
-                  <div key={title}>
-                    <div className="text-[0.72rem] font-black uppercase tracking-wider text-[#1c4f09] mb-4">{title}</div>
-                    {links.map(([label, to]) => (
-                      <Link key={label} to={to} className="block text-[0.83rem] font-bold text-[#3a5020] mb-2 hover:underline">{label}</Link>
-                    ))}
-                  </div>
-                ))}
-              </div>
-              <div className="max-w-[1200px] mx-auto pt-6 border-t border-[rgba(180,140,60,0.28)] flex flex-wrap items-center justify-between gap-4">
-                <div className="text-[0.75rem] font-bold text-[#6a7a50]">© 2025 Pawster. All rights reserved. Made with 🐾 in Baguio City.</div>
-                <div className="flex gap-2">
-                  {["fab fa-facebook-f", "fab fa-instagram", "fab fa-twitter"].map(icon => (
-                    <a key={icon} href="#" className="w-8 h-8 flex items-center justify-center rounded-md text-[0.8rem] text-[#6a7a50] bg-[rgba(255,250,232,0.7)] border border-[rgba(180,140,60,0.28)] hover:bg-black/5 transition">
-                      <i className={icon} />
-                    </a>
-                  ))}
-                </div>
-              </div>
-            </footer>
+      {/* Footer */}
+      <footer className="relative z-10 border-t border-[rgba(90,170,48,0.45)] bg-[rgba(255,248,218,0.85)] backdrop-blur-md px-10 py-12">
+        <div className="max-w-[1200px] mx-auto grid gap-12 mb-10 grid-cols-[repeat(auto-fit,minmax(160px,1fr))]">
+          <div>
+            <div className="mb-2">
+              <img src={logo} alt="Pawster" className="w-8 h-8 object-contain" onError={(e) => (e.target.style.display = "none")} />
+            </div>
+            <div className="font-black text-[1.2rem] text-[#1a4a08]">Paw<em className="italic text-[#e07820]">ster</em></div>
+            <p className="text-[0.82rem] font-bold leading-7 text-[#6a7a50] max-w-[260px] mt-2">
+              Screening, placing, and supporting animal adoptions across Baguio City and the Cordillera Administrative Region with care and accountability.
+            </p>
+          </div>
+          {[
+            { title: "Adopt", links: [["Browse animals", "/pets"], ["My profile", "/profile"], ["Log in", "/login"], ["Register", "/register"]] },
+            { title: "Services", links: [["How it works", "/how-it-works"], ["Rehome & Rescue", "/rehome"], ["Missing pets", "/missing-pets"], ["About us", "/about"]] },
+            { title: "Regions", links: [["Baguio City", "/pets"], ["Benguet", "/pets"], ["Mountain Province", "/pets"], ["Ifugao", "/pets"]] },
+          ].map(({ title, links }) => (
+            <div key={title}>
+              <div className="text-[0.72rem] font-black uppercase tracking-wider text-[#1c4f09] mb-4">{title}</div>
+              {links.map(([label, to]) => (
+                <Link key={label} to={to} className="block text-[0.83rem] font-bold text-[#3a5020] mb-2 hover:underline">{label}</Link>
+              ))}
+            </div>
+          ))}
+        </div>
+        <div className="max-w-[1200px] mx-auto pt-6 border-t border-[rgba(180,140,60,0.28)] flex flex-wrap items-center justify-between gap-4">
+          <div className="text-[0.75rem] font-bold text-[#6a7a50]">© 2025 Pawster. All rights reserved. Made with 🐾 in Baguio City.</div>
+          <div className="flex gap-2">
+            {["fab fa-facebook-f", "fab fa-instagram", "fab fa-twitter"].map(icon => (
+              <a key={icon} href="#" className="w-8 h-8 flex items-center justify-center rounded-md text-[0.8rem] text-[#6a7a50] bg-[rgba(255,250,232,0.7)] border border-[rgba(180,140,60,0.28)] hover:bg-black/5 transition">
+                <i className={icon} />
+              </a>
+            ))}
+          </div>
+        </div>
+      </footer>
 
       {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
     </div>
@@ -775,7 +848,7 @@ function IdUploadForm({ userId, onSuccess, onError }) {
     if (!f) return;
     if (f.size > 5 * 1024 * 1024) { onError('File must be under 5 MB.'); return; }
     setFile(f);
-    setLabel(`📎 ${f.name}`);
+    setLabel(f.name);
   };
 
   const handleSubmit = async (e) => {
@@ -800,10 +873,13 @@ function IdUploadForm({ userId, onSuccess, onError }) {
       <label style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', padding: '0.78rem 1rem', background: 'rgba(255,250,232,0.70)', border: '2.5px dashed rgba(90,170,48,0.40)', borderRadius: 11, cursor: 'pointer', transition: 'all 0.15s', marginBottom: '0.65rem' }}
         onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(90,170,48,0.7)'; e.currentTarget.style.background = 'rgba(255,250,232,0.95)'; }}
         onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(90,170,48,0.40)'; e.currentTarget.style.background = 'rgba(255,250,232,0.70)'; }}>
-        <i className="fas fa-paperclip" style={{ color: '#5aaa30', fontSize: '1rem', flexShrink: 0 }} />
+        <IconClip size={16} color="#5aaa30" />
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: '0.82rem', fontWeight: 800, color: '#1a4a08' }}>Choose File</div>
-          <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#9aaa80' }}>{label}</div>
+          <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#9aaa80', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            {file && <IconFile size={11} color="#9aaa80" />}
+            {label}
+          </div>
         </div>
         <input ref={fileRef} type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={handleFile} style={{ display: 'none' }} />
       </label>

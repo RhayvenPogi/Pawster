@@ -66,6 +66,24 @@ services:
       timeout: 3s
       retries: 5
 
+  # ── MongoDB (Messages) ───────────────────────────────────────────────────────
+  mongodb:
+    image: mongo:7
+    container_name: pawster_mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: user
+      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_DATABASE: pawster_messages
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # ── Spring Boot (Auth + Animals) ─────────────────────────────────────────────
   sb:
     image: eclipse-temurin:17-jdk-alpine
@@ -74,6 +92,8 @@ services:
       db:
         condition: service_healthy
       eureka-server:
+        condition: service_healthy
+      mongodb:                    # ← add
         condition: service_healthy
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/pawster_db
@@ -84,6 +104,7 @@ services:
       - BREVO_API_KEY=${BREVO_API_KEY}
       - APP_BASE_URL=http://localhost:3000
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - MONGO_URI=mongodb://user:password@mongodb:27017/pawster_messages?authSource=admin   # ← add
     volumes:
       - ./sb:/app
       - ~/.m2:/root/.m2
@@ -264,3 +285,4 @@ volumes:
   postgres_data:
   php_vendor:
   ollama_data:    # ← added
+  mongodb_data:

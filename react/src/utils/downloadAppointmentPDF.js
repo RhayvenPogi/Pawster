@@ -3,7 +3,7 @@
  *
  * Receipt-style PDF — Adoption or Rehoming.
  * Layout: logo top-left · org info top-right · bordered table sections
- * No payment. No signature. No trait grid.
+ * No payment. Signature block at end (like physical contract).
  *
  * ADDRESS FIELDS READ:
  *   street_address / street / house_number
@@ -143,12 +143,6 @@ function sv(v) {
   return s === "" ? "—" : s;
 }
 
-/**
- * triSv — for tri-state fields (is_vaccinated, is_neutered, etc.)
- * null / "unknown" → "Unknown"
- * true / "yes"     → "Yes"
- * false / "no"     → "No"
- */
 function triSv(v) {
   if (v === true  || v === "yes")                            return "Yes";
   if (v === false || v === "no")                             return "No";
@@ -198,26 +192,20 @@ function roundRect(doc, x, y, w, h, r, style = "F") {
 
 // ─── Page 1 header ────────────────────────────────────────────────────────────
 function drawHeader(doc, pal, logo, record, status) {
-  // Background
   setF(doc, WHITE); doc.rect(0, 0, PW, PH, "F");
 
-  // Header band — tall enough to clear title + tag + padding
   setF(doc, pal.headerBg); doc.rect(0, 0, PW, 52, "F");
-  // Top accent line
   setF(doc, pal.accentLine); doc.rect(0, 0, PW, 2, "F");
-  // Subtle triangle watermark
   doc.setGState && doc.setGState(doc.GState({ opacity: 0.08 }));
   setF(doc, WHITE);
   doc.triangle(PW - 45, 0, PW, 0, PW, 45, "F");
   doc.setGState && doc.setGState(doc.GState({ opacity: 1.0 }));
 
-  // Logo
   if (logo) {
     try { doc.addImage(logo, "PNG", ML, 9, 20, 20); }
     catch {}
   }
 
-  // Org info (right)
   const rightX = PW - MR;
   doc.setFont("helvetica", "bold"); doc.setFontSize(9);
   setT(doc, WHITE);
@@ -229,13 +217,11 @@ function drawHeader(doc, pal, logo, record, status) {
   doc.text("CAR, Philippines",               rightX, 20.5, { align: "right" });
   doc.text("pawster@email.com",              rightX, 25,   { align: "right" });
 
-  // Document title (centred)
   const titleY = 24;
   doc.setFont("helvetica", "bold"); doc.setFontSize(FONT.hero);
   setT(doc, WHITE);
   doc.text(pal.title.toUpperCase(), PW / 2, titleY, { align: "center" });
 
-  // Type badge
   const tagW = 24, tagH = 6;
   const tagX = PW / 2 - tagW / 2;
   const tagY = titleY + 4;
@@ -245,7 +231,6 @@ function drawHeader(doc, pal, logo, record, status) {
   setT(doc, WHITE);
   doc.text(pal.typeTag, PW / 2, tagY + tagH / 3 + 1.8, { align: "center" });
 
-  // Meta strip — starts after header band clears
   const stripY = 56;
   const colW   = CW / 4;
   const meta = [
@@ -272,7 +257,6 @@ function drawHeader(doc, pal, logo, record, status) {
     }
   });
 
-  // Status badge
   const st     = STATUS_COLOR[status] || STATUS_COLOR.Pending;
   const badgeW = 30, badgeH = 8;
   const badgeX = PW - MR - badgeW - 1;
@@ -428,6 +412,76 @@ function addressRows(r, addrLabel = "Full Address") {
     { label: "Province",            value: addr.province },
     { label: "Zip / Postal Code",   value: addr.zip      },
   ];
+}
+
+// ─── Signature block ──────────────────────────────────────────────────────────
+function drawSignatureBlock(doc, y, pal, isRehoming) {
+  const sigH = 52; // total height of signature block
+
+  // Section header
+  y = sectionHeader(doc, y, "Final Signatures", pal);
+  y += 4;
+
+  // Background panel
+  setF(doc, [248, 252, 245]);
+  doc.rect(ML, y, CW, sigH, "F");
+  setD(doc, pal.border); setLW(doc, 0.4);
+  doc.rect(ML, y, CW, sigH, "S");
+
+  // Left column: ~60% width for name/sig line, right: ~35% for date
+  const nameLineW = CW * 0.55;
+  const dateLineW = CW * 0.25;
+  const dateX     = ML + CW * 0.68;
+
+  // ── Row 1: Applicant/Owner ────────────────────────────────
+  const r1LabelY = y + 8;
+  const r1LineY  = y + 20;
+
+  const applicantLabel = isRehoming ? "Owner / Submitter Name & Signature:" : "Adopter Name & Signature:";
+
+  doc.setFont("helvetica", "normal"); doc.setFontSize(FONT.value);
+  setT(doc, pal.valueFg);
+  doc.text(applicantLabel, ML + ROW_PAD_X, r1LabelY);
+
+  // Signature line
+  setD(doc, pal.accentLine); setLW(doc, 0.5);
+  doc.line(ML + ROW_PAD_X, r1LineY, ML + ROW_PAD_X + nameLineW, r1LineY);
+
+  // Date label + line
+  doc.setFont("helvetica", "normal"); doc.setFontSize(FONT.value);
+  setT(doc, pal.valueFg);
+  doc.text("Date:", dateX, r1LabelY);
+  setD(doc, pal.accentLine); setLW(doc, 0.5);
+  doc.line(dateX + 10, r1LineY, dateX + 10 + dateLineW, r1LineY);
+
+  // Divider
+  hln(doc, y + sigH / 2, ML + 4, ML + CW - 4, pal.divider, 0.2);
+
+  // ── Row 2: Pawster Representative ────────────────────────
+  const r2LabelY1 = y + sigH / 2 + 8;
+  const r2LabelY2 = r2LabelY1 + 5;
+  const r2LineY   = y + sigH - 8;
+
+  doc.setFont("helvetica", "italic"); doc.setFontSize(FONT.value);
+  setT(doc, pal.labelFg);
+  doc.text("Pawster Animal Adoption & Rescue System", ML + ROW_PAD_X, r2LabelY1);
+
+  doc.setFont("helvetica", "normal"); doc.setFontSize(FONT.value);
+  setT(doc, pal.valueFg);
+  doc.text("Representative Name & Signature:", ML + ROW_PAD_X, r2LabelY2);
+
+  // Signature line
+  setD(doc, pal.accentLine); setLW(doc, 0.5);
+  doc.line(ML + ROW_PAD_X, r2LineY, ML + ROW_PAD_X + nameLineW, r2LineY);
+
+  // Date label + line
+  doc.setFont("helvetica", "normal"); doc.setFontSize(FONT.value);
+  setT(doc, pal.valueFg);
+  doc.text("Date:", dateX, r2LabelY2);
+  setD(doc, pal.accentLine); setLW(doc, 0.5);
+  doc.line(dateX + 10, r2LineY, dateX + 10 + dateLineW, r2LineY);
+
+  return y + sigH + SECTION_GAP;
 }
 
 // ─── Main export ──────────────────────────────────────────────────────────────
@@ -624,25 +678,10 @@ export async function downloadAppointmentPDF(recordRaw, _mode = "user") {
     ], rejPal);
   }
 
-  // ── End-of-document banner ────────────────────────────────────────────────
-  y = guard(doc, y, 20, pal, logo, pg);
+  // ── Signature block ───────────────────────────────────────────────────────
+  y = guard(doc, y, 80, pal, logo, pg);
   y += 4;
-
-  setF(doc, pal.tint);  doc.rect(ML, y, CW, 14, "F");
-  setF(doc, pal.accentLine); doc.rect(ML, y, 4, 14, "F");
-  setD(doc, pal.border); setLW(doc, 0.4);
-  doc.rect(ML, y, CW, 14, "S");
-
-  doc.setFont("helvetica", "bold");   doc.setFontSize(7.5);
-  setT(doc, pal.sectionBg);
-  doc.text("END OF DOCUMENT", ML + 8, y + 6);
-
-  doc.setFont("helvetica", "normal"); doc.setFontSize(FONT.tiny);
-  setT(doc, INK_MID);
-  doc.text(
-    "This is a computer-generated document valid without a handwritten signature.",
-    ML + 8, y + 11
-  );
+  drawSignatureBlock(doc, y, pal, isRehoming);
 
   // ── Footer on every page ──────────────────────────────────────────────────
   const total = pg.n;

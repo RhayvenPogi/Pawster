@@ -1,82 +1,79 @@
 package com.pawstar.pawster.model;
 
-import jakarta.persistence.*;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
+import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
 
-@Entity
-@Table(name = "messages")
+import java.time.Instant;
+
+
+@Document(collection = "messages")
 public class Message {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String id;
 
-    /**
-     * The non-admin user in the conversation.
-     * Every message (whether sent by user or admin) is filed under this userId.
-     */
-    @Column(name = "user_id", nullable = false)
+    @Indexed
+    @Field("user_id")
     private Integer userId;
 
-    /** Who actually sent this message */
-    @Column(name = "sender_id", nullable = false)
+    @Field("sender_id")
     private Integer senderId;
 
-    /** "user" or "admin" */
-    @Column(name = "sender_role", nullable = false, length = 20)
+    @Field("sender_role")
     private String senderRole;
 
-    @Column(name = "content", columnDefinition = "TEXT")
+    @Field("content")
     private String content;
 
-    @Column(name = "is_read", nullable = false)
+    @Field("is_read")
     private boolean isRead = false;
 
-    @Column(name = "created_at", nullable = false)
-    private OffsetDateTime createdAt = OffsetDateTime.now(ZoneOffset.UTC);
+    @Field("created_at")
+    @Indexed
+    private Instant createdAt = Instant.now();
 
-    /** Relative URL of the uploaded file, e.g. /uploads/messages/uuid_filename.jpg */
-    @Column(name = "attachment_url")
+    @Field("attachment_url")
     private String attachmentUrl;
 
-    /** One of: "image", "video", "file" */
-    @Column(name = "attachment_type", length = 20)
+    @Field("attachment_type")
     private String attachmentType;
 
-    @Column(name = "is_bot", nullable = false)
+    @Field("is_bot")
     private boolean isBot = false;
 
     public Message() {}
 
     // ── Getters & Setters ─────────────────────────────────────────────────────
 
-    public Long getId() { return id; }
+    public String getId()          { return id; }
+    public void   setId(String id) { this.id = id; }
 
     public boolean isBot()           { return isBot; }
     public void    setBot(boolean b) { this.isBot = b; }
 
-    public Integer getUserId() { return userId; }
-    public void setUserId(Integer userId) { this.userId = userId; }
+    public Integer getUserId()                   { return userId; }
+    public void    setUserId(Integer userId)     { this.userId = userId; }
 
-    public Integer getSenderId() { return senderId; }
-    public void setSenderId(Integer senderId) { this.senderId = senderId; }
+    public Integer getSenderId()                 { return senderId; }
+    public void    setSenderId(Integer senderId) { this.senderId = senderId; }
 
-    public String getSenderRole() { return senderRole; }
-    public void setSenderRole(String senderRole) { this.senderRole = senderRole; }
+    public String getSenderRole()                  { return senderRole; }
+    public void   setSenderRole(String senderRole) { this.senderRole = senderRole; }
 
-    public String getContent() { return content; }
-    public void setContent(String content) { this.content = content; }
+    public String getContent()               { return content; }
+    public void   setContent(String content) { this.content = content; }
 
-    public boolean isRead() { return isRead; }
-    public void setRead(boolean read) { isRead = read; }
+    public boolean isRead()              { return isRead; }
+    public void    setRead(boolean read) { isRead = read; }
 
-    public OffsetDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
+    public Instant getCreatedAt()                         { return createdAt; }
+    public void           setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
 
-    public String getAttachmentUrl() { return attachmentUrl; }
-    public void setAttachmentUrl(String attachmentUrl) { this.attachmentUrl = attachmentUrl; }
+    public String getAttachmentUrl()                       { return attachmentUrl; }
+    public void   setAttachmentUrl(String attachmentUrl)   { this.attachmentUrl = attachmentUrl; }
 
-    public String getAttachmentType() { return attachmentType; }
-    public void setAttachmentType(String attachmentType) { this.attachmentType = attachmentType; }
+    public String getAttachmentType()                      { return attachmentType; }
+    public void   setAttachmentType(String attachmentType) { this.attachmentType = attachmentType; }
 }

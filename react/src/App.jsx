@@ -36,6 +36,19 @@ function ChatIcon({ size = 24 }) {
   );
 }
 
+const CHAT_ALLOWED_PATHS = [
+  '/home',
+  '/pets',
+  '/rehome',
+  '/how-it-works',
+  '/missing-pets',
+  '/about',
+  '/profile',
+  '/profile/edit',
+  '/follow-up-surveys',
+  '/messages',
+];
+
 function AppInner() {
   const { user } = useAuth();
   const location = useLocation();
@@ -52,13 +65,18 @@ function AppInner() {
 
   const hideNavbar = ['/', '/landing', '/login', '/register', '/forgot-password', '/admin'].includes(location.pathname);
 
+  const showChatButton =
+    user &&
+    user.role !== "admin" &&
+    CHAT_ALLOWED_PATHS.includes(location.pathname);
+
   return (
     <>
       <ScrollToTop />
 
       {!hideNavbar && <Navbar />}
 
-      {user && user.role !== "admin" && (
+      {showChatButton && (
         <MessagingModal
           user={user}
           isOpen={chatOpen}
@@ -67,7 +85,7 @@ function AppInner() {
         />
       )}
 
-      {user && user.role !== "admin" && (
+      {showChatButton && (
         <div style={{ position: "fixed", bottom: 28, right: 28, zIndex: 997 }}>
           <button
             onClick={toggleChat}

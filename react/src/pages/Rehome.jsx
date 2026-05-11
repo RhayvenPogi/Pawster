@@ -982,7 +982,10 @@ export default function Rehome() {
       });
       let data = {};
       try { data = await res.json(); } catch { }
-      if (res.ok && data.success !== false) { setSubmitted(true); }
+      if (res.ok && data.success !== false) {
+        setSubmitted(true);
+        window.dispatchEvent(new CustomEvent('pawster:rehomeSubmitted'));  // ← ADD THIS
+      }
       else { setSubmitError(data.message || `Error (${res.status}). Please try again.`); }
     } catch { setSubmitError("Network error. Please try again."); }
     setLoading(false);

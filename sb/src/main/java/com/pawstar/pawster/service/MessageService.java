@@ -2,69 +2,78 @@ package com.pawstar.pawster.service;
 
 import com.pawstar.pawster.dto.MessageDto;
 import com.pawstar.pawster.model.Message;
-import com.pawstar.pawster.model.User;
 import com.pawstar.pawster.repository.MessageRepository;
 import com.pawstar.pawster.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.time.ZoneOffset;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class MessageService {
 
-    @Autowired private MessageRepository messageRepository;
-    @Autowired private UserRepository    userRepository;
+    @Autowired
+    private MessageRepository messageRepository;
 
-    // ── Save (text only) ──────────────────────────────────────────────────────
+    @Autowired
+    private UserRepository userRepository;
+
+    // ── Save (text only)
     public MessageDto.MessageResponse save(Integer senderId, String senderRole,
                                            Integer userId, String content) {
         return save(senderId, senderRole, userId, content, null, null, false);
     }
 
-    // ── Save (with attachment, no isBot) ──────────────────────────────────────
+    // ── Save (with attachment)
     public MessageDto.MessageResponse save(Integer senderId, String senderRole,
                                            Integer userId, String content,
                                            String attachmentUrl, String attachmentType) {
         return save(senderId, senderRole, userId, content, attachmentUrl, attachmentType, false);
     }
 
-    // ── Save (full — with isBot) ──────────────────────────────────────────────
+    // ── Full save (bot supported)
     public MessageDto.MessageResponse save(Integer senderId, String senderRole,
                                            Integer userId, String content,
                                            String attachmentUrl, String attachmentType,
                                            boolean isBot) {
+
         Message msg = new Message();
+
         msg.setSenderId(senderId);
         msg.setSenderRole(senderRole);
         msg.setUserId(userId);
         msg.setContent(content);
         msg.setAttachmentUrl(attachmentUrl);
         msg.setAttachmentType(attachmentType);
-        msg.setBot(isBot);              // ← set isBot
+        msg.setBot(isBot);
+
+        // ✅ FIX: use Instant instead of OffsetDateTime
+        msg.setCreatedAt(Instant.now());
+
         Message saved = messageRepository.save(msg);
         return toResponse(saved);
     }
 
-    // ── History ───────────────────────────────────────────────────────────────
+    // ── Conversation history
     public List<MessageDto.MessageResponse> getConversation(Integer userId) {
         return messageRepository.findByUserIdOrderByCreatedAtAsc(userId)
-                .stream().map(this::toResponse).toList();
+                .stream()
+                .map(this::toResponse)
+                .toList();
     }
 
-    // ── Unread counts ─────────────────────────────────────────────────────────
+    // ── Unread counts
     public long countUnreadForUser(Integer userId) {
-        return messageRepository.countUnreadForUser(userId);
+        return messageRepository.countByUserIdAndSenderRoleAndIsReadFalse(userId, "admin");
     }
 
     public long countUnreadForAdmin() {
-        return messageRepository.countUnreadForAdmin();
+        return messageRepository.countBySenderRoleAndIsReadFalse("user");
     }
 
-    // ── Mark as read ──────────────────────────────────────────────────────────
+    // ── Mark read
     public void markReadForUser(Integer userId) {
         messageRepository.markAdminMessagesReadForUser(userId);
     }
@@ -73,42 +82,70 @@ public class MessageService {
         messageRepository.markUserMessagesReadForAdmin(userId);
     }
 
-    // ── Admin conversation list ───────────────────────────────────────────────
+    // ── Conversation summaries
     public List<MessageDto.ConversationSummary> getConversationSummaries() {
-        List<Object[]> rows = messageRepository.findConversationSummariesRaw();
+
+        List<MessageRepository.ConversationSummaryProjection> rows =
+                messageRepository.findConversationSummaries();
+
         List<MessageDto.ConversationSummary> result = new ArrayList<>();
-        for (Object[] row : rows) {
+
+        for (var row : rows) {
+
             MessageDto.ConversationSummary summary = new MessageDto.ConversationSummary();
-            Integer uid = ((Number) row[0]).intValue();
+
+            Integer uid = row.get_id();
             summary.setUserId(uid);
+
             userRepository.findById(uid).ifPresentOrElse(
-                u -> summary.setUserName(u.getFirstName() + " " + u.getLastName()),
-                () -> summary.setUserName("Unknown User")
+                    u -> summary.setUserName(u.getFirstName() + " " + u.getLastName()),
+                    () -> summary.setUserName("Unknown User")
             );
-            summary.setLastMessage(row[1] != null ? row[1].toString() : "");
-            if (row[2] instanceof java.sql.Timestamp ts)
-                summary.setLastMessageAt(ts.toInstant().atOffset(ZoneOffset.UTC));
-            summary.setUnreadCount(row[3] != null ? ((Number) row[3]).longValue() : 0L);
+
+            summary.setLastMessage(
+                    row.getLastMessage() != null ? row.getLastMessage() : ""
+            );
+
+            // ✅ FIX: store as Instant (no OffsetDateTime conversion here)
+            Object rawDate = row.getLastMessageAt();
+            if (rawDate instanceof java.util.Date d) {
+                summary.setLastMessageAt(d.toInstant());
+            } else if (rawDate instanceof Instant i) {
+                summary.setLastMessageAt(i);
+            }
+
+            summary.setUnreadCount(
+                    row.getUnreadCount() != null ? row.getUnreadCount() : 0L
+            );
+
             result.add(summary);
         }
+
         return result;
     }
 
-    // ── Mapper ────────────────────────────────────────────────────────────────
+    // ── Mapper
     private MessageDto.MessageResponse toResponse(Message msg) {
+
         MessageDto.MessageResponse r = new MessageDto.MessageResponse();
+
         r.setId(msg.getId());
         r.setUserId(msg.getUserId());
         r.setSenderId(msg.getSenderId());
         r.setSenderRole(msg.getSenderRole());
         r.setRead(msg.isRead());
-        r.setBot(msg.isBot());              // ← map isBot
-        r.setCreatedAt(msg.getCreatedAt());
+        r.setBot(msg.isBot());
         r.setContent(msg.getContent());
         r.setAttachmentUrl(msg.getAttachmentUrl());
         r.setAttachmentType(msg.getAttachmentType());
+
+        // ✅ FIX: Instant everywhere
+        r.setCreatedAt(msg.getCreatedAt());
+
         userRepository.findById(msg.getSenderId()).ifPresent(u ->
-                r.setSenderName(u.getFirstName() + " " + u.getLastName()));
+                r.setSenderName(u.getFirstName() + " " + u.getLastName())
+        );
+
         return r;
     }
 }

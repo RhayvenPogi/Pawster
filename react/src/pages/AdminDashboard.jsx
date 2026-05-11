@@ -684,20 +684,6 @@ function Topbar({ panel, user, onRefresh, onToggle, collapsed, onNav, onOpenProf
                 </div>
               </div>
               <div className="h-px my-1" style={{ background: "rgba(180,140,60,0.28)" }} />
-              {[
-                { label: "Profile Settings", icon: "user-cog",   tab: "profile"  },
-                { label: "Security",         icon: "shield-alt", tab: "security" },
-              ].map(item => (
-                <a
-                  key={item.label}
-                  href="#"
-                  onClick={e => { e.preventDefault(); setProfileOpen(false); onOpenProfile(item.tab); }}
-                  className="flex items-center gap-2 px-2.5 py-2 rounded-lg text-[#3a5020] no-underline text-sm font-bold hover:bg-[rgba(90,170,48,0.10)] hover:text-[#1a4a08] transition-all duration-150"
-                >
-                  <FaIcon name={item.icon} size={14} color="#6a7a50" /> {item.label}
-                </a>
-              ))}
-              <div className="h-px my-1" style={{ background: "rgba(180,140,60,0.28)" }} />
               <a
                 onClick={e => { e.preventDefault(); setProfileOpen(false); onLogout(); }}
                 href="#"

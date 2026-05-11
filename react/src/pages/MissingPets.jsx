@@ -288,6 +288,7 @@ export default function MissingPets() {
     setSubmitted(true);
     setSubmitting(false);
     fetchPets();
+    window.dispatchEvent(new CustomEvent('pawster:missingPetReported'));  // ← ADD THIS
     setTimeout(() => {
       setShowModal(false); setSubmitted(false); setPhotoFile(null); setPhotoPreview(null);
       setFormErrs({}); setTouched(false);

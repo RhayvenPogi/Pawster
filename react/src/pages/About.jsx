@@ -415,11 +415,13 @@ export default function About() {
               <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: '1.8rem', fontWeight: 900, color: '#1a4a08', marginBottom: '0.5rem' }}>Get in Touch</h2>
               <p style={{ fontSize: '0.9rem', fontWeight: 700, color: '#3a5020', lineHeight: 1.7, margin: 0 }}>
                 Questions about adopting, rehoming, or how the platform works?<br />
-                Reach us at <strong>hello@pawster.ph</strong> or on Facebook.
+                Reach us at <strong>pawster.medico@gmail.com</strong> or on Facebook.
               </p>
             </div>
             <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-              <a href="mailto:hello@pawster.ph" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.85rem 1.75rem', borderRadius: 12, fontWeight: 900, fontSize: '0.9rem', color: '#fff', background: '#1c4f09', textDecoration: 'none', boxShadow: '0 4px 16px rgba(28,79,9,0.25)' }}>
+              <a href="https://mail.google.com/mail/?view=cm&to=pawster.medico@gmail.com"
+target="_blank"
+rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.85rem 1.75rem', borderRadius: 12, fontWeight: 900, fontSize: '0.9rem', color: '#fff', background: '#1c4f09', textDecoration: 'none', boxShadow: '0 4px 16px rgba(28,79,9,0.25)' }}>
                 <i className="fas fa-envelope" /> Email Us
               </a>
               <Link to="/pets" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.85rem 1.75rem', borderRadius: 12, fontWeight: 800, fontSize: '0.9rem', color: '#3a5020', background: 'rgba(255,248,220,0.75)', border: '1px solid rgba(180,140,60,0.28)', textDecoration: 'none' }}>

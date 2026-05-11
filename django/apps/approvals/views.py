@@ -19,6 +19,9 @@ from utils.email_service import send_email
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
+_LOGO_URL = "https://i.imgur.com/qVRCfX7.png"
+
+
 def _send(subject, body, to):
     """Fire-and-forget email — never crashes the main request."""
     if not to:
@@ -28,7 +31,8 @@ def _send(subject, body, to):
             f'<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;'
             f'background:#fffdf5;border:1.5px solid #e8d8a0;border-radius:16px;overflow:hidden;">'
             f'<div style="background:#1c4f09;padding:28px 32px;text-align:center;">'
-            f'<h1 style="margin:0;color:#fff;font-size:26px;font-weight:900;">🐾 Pawster</h1>'
+            f'<img src="{_LOGO_URL}" alt="Pawster" style="height:64px;width:auto;margin-bottom:10px;" />'
+            f'<h1 style="margin:0;color:#fff;font-size:26px;font-weight:900;">Pawster</h1>'
             f'</div><div style="padding:32px;">'
             f'<p style="color:#3a5020;white-space:pre-line;">{body}</p>'
             f'</div></div>'
@@ -40,14 +44,14 @@ def _send(subject, body, to):
 
 def _adoption_approval_email(adoption):
     _send(
-        subject=f"🐾 Your adoption of {adoption.animal_name} has been approved!",
+        subject=f"Your adoption of {adoption.animal_name} has been approved!",
         body=(
             f"Hi {adoption.name},\n\n"
             f"Great news! Your adoption request for {adoption.animal_name} has been approved.\n"
             f"Our team will contact you soon to arrange the handover.\n\n"
             f"Remember: you'll receive follow-up check-ins at 7 days and 30 days "
             f"after adoption to make sure everything is going well.\n\n"
-            f"Thank you for choosing to adopt! 🐾\n\n"
+            f"Thank you for choosing to adopt!\n\n"
             f"— The Pawster Team"
         ),
         to=adoption.email,
@@ -71,7 +75,7 @@ def _adoption_rejection_email(adoption):
 
 def _rehome_approval_email(rehome):
     _send(
-        subject=f"🏡 Your rehoming request for {rehome.pet_name} has been accepted",
+        subject=f"Your rehoming request for {rehome.pet_name} has been accepted",
         body=(
             f"Hello,\n\n"
             f"We've reviewed your rehoming request for {rehome.pet_name} ({rehome.species}) "
@@ -130,11 +134,9 @@ def _rehome_update_email(rehome):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def submit_adoption(request):
-    """POST /api/approvals/adoptions/  — user submits adoption request"""
     serializer = AdoptionRequestSerializer(data=request.data)
     if serializer.is_valid():
         obj = serializer.save(user=request.user)
-
         try:
             requests.post(
                 f"{settings.SPRING_BOOT_API}/api/animals/mark-pending",
@@ -143,7 +145,6 @@ def submit_adoption(request):
             )
         except Exception:
             pass
-
         return Response(
             {"success": True, "id": obj.id, "message": "Adoption request submitted."},
             status=201,
@@ -154,7 +155,6 @@ def submit_adoption(request):
 @api_view(["GET"])
 @permission_classes([IsAdminUser])
 def list_adoptions(request):
-    """GET /api/approvals/adoptions/admin/  — admin lists all adoption requests"""
     qs = AdoptionRequest.objects.all()
     req_status = request.query_params.get("status")
     if req_status:
@@ -169,14 +169,12 @@ def adoption_detail(request, pk):
         obj = AdoptionRequest.objects.get(pk=pk)
     except AdoptionRequest.DoesNotExist:
         return Response({"success": False, "message": "Not found."}, status=404)
-
     return Response({"success": True, "data": AdoptionRequestSerializer(obj).data})
 
 
 @api_view(["POST"])
 @permission_classes([IsAdminUser])
 def approve_adoption(request, pk):
-    """POST /api/approvals/adoptions/<pk>/approve/  — admin approves"""
     try:
         obj = AdoptionRequest.objects.get(pk=pk)
     except AdoptionRequest.DoesNotExist:
@@ -204,7 +202,7 @@ def approve_adoption(request, pk):
         from apps.notifications.models import Notification
         Notification.objects.create(
             user=obj.user,
-            title="Adoption Approved! 🎉",
+            title="Adoption Approved!",
             body=f"Your adoption request for {obj.animal_name} has been approved. We'll contact you soon.",
             notif_type="adoption_approved",
         )
@@ -216,7 +214,6 @@ def approve_adoption(request, pk):
 @api_view(["POST"])
 @permission_classes([IsAdminUser])
 def reject_adoption(request, pk):
-    """POST /api/approvals/adoptions/<pk>/reject/  — admin rejects"""
     try:
         obj = AdoptionRequest.objects.get(pk=pk)
     except AdoptionRequest.DoesNotExist:
@@ -248,14 +245,12 @@ def reject_adoption(request, pk):
 @api_view(["PATCH"])
 @permission_classes([IsAdminUser])
 def update_adoption(request, pk):
-    """PATCH /api/approvals/adoptions/<pk>/update/  — admin edits adoption request fields"""
     try:
         obj = AdoptionRequest.objects.get(pk=pk)
     except AdoptionRequest.DoesNotExist:
         return Response({"success": False, "message": "Not found."}, status=404)
 
     data = request.data.copy()
-    # Guard: never allow status/decision fields via PATCH
     for f in ("status", "decided_by", "decided_at"):
         data.pop(f, None)
 
@@ -270,7 +265,6 @@ def update_adoption(request, pk):
 @api_view(["DELETE"])
 @permission_classes([IsAdminUser])
 def delete_adoption(request, pk):
-    """DELETE /api/approvals/adoptions/<pk>/delete/  — admin deletes adoption request"""
     try:
         obj = AdoptionRequest.objects.get(pk=pk)
     except AdoptionRequest.DoesNotExist:
@@ -284,7 +278,6 @@ def delete_adoption(request, pk):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def user_adoptions(request):
-    """GET /api/approvals/adoptions/user/  — logged-in user's own adoption requests"""
     qs = AdoptionRequest.objects.filter(user=request.user).order_by("-created_at")
     return Response({"success": True, "data": AdoptionRequestSerializer(qs, many=True).data})
 
@@ -294,7 +287,6 @@ def user_adoptions(request):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def submit_rehoming(request):
-    """POST /api/approvals/rehoming/  — user submits rehoming request"""
     serializer = RehomingRequestSerializer(data=request.data, context={"request": request})
     if serializer.is_valid():
         obj = serializer.save(user=request.user)
@@ -313,19 +305,15 @@ def list_rehoming(request):
     if req_status:
         qs = qs.filter(status=req_status)
 
-    # Exclude heavy base64 fields from list — cards show placeholder,
-    # DetailModal fetches full record via /id/ endpoint
     serializer = RehomingRequestSerializer(qs, many=True)
     data = [dict(r) for r in serializer.data]
     for record in data:
-        # Strip heavy pet photo but flag it exists
         if record.get("photo_base64") and len(record["photo_base64"]) > 100:
             record["has_photo"] = True
             record["photo_base64"] = None
         else:
             record["has_photo"] = False
 
-        # Strip vacc photos but send the count
         vacc = record.get("vacc_photos") or []
         if isinstance(vacc, list) and len(vacc) > 0:
             record["vacc_photo_count"] = len(vacc)
@@ -343,14 +331,12 @@ def rehoming_detail(request, pk):
         obj = RehomingRequest.objects.get(pk=pk)
     except RehomingRequest.DoesNotExist:
         return Response({"success": False, "message": "Not found."}, status=404)
-
     return Response({"success": True, "data": RehomingRequestSerializer(obj).data})
 
 
 @api_view(["POST"])
 @permission_classes([IsAdminUser])
 def approve_rehoming(request, pk):
-    """POST /api/approvals/rehoming/<pk>/approve/  — admin approves and pushes to animal listing"""
     try:
         obj = RehomingRequest.objects.get(pk=pk)
     except RehomingRequest.DoesNotExist:
@@ -361,7 +347,6 @@ def approve_rehoming(request, pk):
     obj.decided_at = timezone.now()
     obj.save()
 
-    # ── Build notes from pet details ──────────────────────────────────────
     desc_parts = [
         obj.ideal_home_desc or "",
         (
@@ -377,10 +362,8 @@ def approve_rehoming(request, pk):
     ]
     notes = " ".join(p for p in desc_parts if p).strip() or "Available for adoption."
 
-    # ── Resolve photo ─────────────────────────────────────────────────────
     photo_base64 = None
     photo_type   = "image/jpeg"
-
     raw_photo = obj.photo_base64 or obj.photo_url or None
     if raw_photo:
         if "base64," in raw_photo:
@@ -389,7 +372,6 @@ def approve_rehoming(request, pk):
         else:
             photo_base64 = raw_photo
 
-    # ── POST to Spring Boot ───────────────────────────────────────────────
     try:
         spring_payload = {
             "name":        obj.pet_name or "Unknown",
@@ -416,7 +398,7 @@ def approve_rehoming(request, pk):
         from apps.notifications.models import Notification
         Notification.objects.create(
             user=obj.user,
-            title="Rehoming Request Accepted 🏡",
+            title="Rehoming Request Accepted",
             body=f"Your rehoming request for {obj.pet_name} has been accepted. We'll contact you shortly.",
             notif_type="rehoming_approved",
         )
@@ -447,7 +429,6 @@ def _extract_mime_type(data_url: str) -> str:
 @api_view(["POST"])
 @permission_classes([IsAdminUser])
 def reject_rehoming(request, pk):
-    """POST /api/approvals/rehoming/<pk>/reject/  — admin rejects"""
     try:
         obj = RehomingRequest.objects.get(pk=pk)
     except RehomingRequest.DoesNotExist:
@@ -479,7 +460,6 @@ def reject_rehoming(request, pk):
 @api_view(["PATCH"])
 @permission_classes([IsAdminUser])
 def update_rehoming(request, pk):
-    """PATCH /api/approvals/rehoming/<pk>/update/  — admin edits rehoming request fields"""
     try:
         obj = RehomingRequest.objects.get(pk=pk)
     except RehomingRequest.DoesNotExist:
@@ -500,7 +480,6 @@ def update_rehoming(request, pk):
 @api_view(["DELETE"])
 @permission_classes([IsAdminUser])
 def delete_rehoming(request, pk):
-    """DELETE /api/approvals/rehoming/<pk>/delete/  — admin deletes rehoming request"""
     try:
         obj = RehomingRequest.objects.get(pk=pk)
     except RehomingRequest.DoesNotExist:
@@ -514,7 +493,6 @@ def delete_rehoming(request, pk):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def user_rehoming(request):
-    """GET /api/approvals/rehoming/user/  — logged-in user's own rehoming requests"""
     qs = RehomingRequest.objects.filter(user=request.user).order_by("-created_at")
     return Response({"success": True, "data": RehomingRequestSerializer(qs, many=True).data})
 
@@ -526,26 +504,19 @@ User = get_user_model()
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def user_photo_public(request, pk):
-    """
-    GET /api/users/<pk>/photo/public/
-    Returns a user's profile photo without requiring authentication.
-    Only exposes the photo field — nothing else.
-    """
     try:
         user = User.objects.get(pk=pk)
     except User.DoesNotExist:
         return Response({"success": False, "message": "User not found."}, status=404)
 
-    # Walk common field patterns — the first non-empty value wins.
-    # Adjust this list once you know your exact field name.
     profile = getattr(user, "profile", None)
     photo = (
-        getattr(profile, "photo",         None) or
-        getattr(profile, "photo_base64",  None) or
-        getattr(profile, "avatar",        None) or
-        getattr(user,    "photo",         None) or
-        getattr(user,    "photo_base64",  None) or
-        getattr(user,    "avatar",        None) or
+        getattr(profile, "photo",           None) or
+        getattr(profile, "photo_base64",    None) or
+        getattr(profile, "avatar",          None) or
+        getattr(user,    "photo",           None) or
+        getattr(user,    "photo_base64",    None) or
+        getattr(user,    "avatar",          None) or
         getattr(user,    "profile_picture", None) or
         None
     )

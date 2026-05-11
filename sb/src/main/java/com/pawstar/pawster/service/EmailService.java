@@ -17,15 +17,17 @@ public class EmailService {
     @Value("${app.base-url}")
     private String baseUrl;
 
+    private static final String LOGO_URL = "https://i.imgur.com/qVRCfX7.png";
+
     private final HttpClient httpClient = HttpClient.newHttpClient();
 
     public void sendOtpEmail(String toEmail, String otp) {
-        sendEmail(toEmail, "🐾 Pawster — Your Password Reset PIN", buildOtpHtml(otp));
+        sendEmail(toEmail, "Pawster — Your Password Reset PIN", buildOtpHtml(otp));
     }
 
     public void sendWelcomeEmail(String toEmail, String firstName, String role, String plainPassword) {
         String roleLabel = "admin".equalsIgnoreCase(role) ? "Administrator" : "User";
-        sendEmail(toEmail, "🐾 Welcome to Pawster — Your Account is Ready!", buildWelcomeHtml(firstName, roleLabel, toEmail, plainPassword));
+        sendEmail(toEmail, "Welcome to Pawster — Your Account is Ready!", buildWelcomeHtml(firstName, roleLabel, toEmail, plainPassword));
     }
 
     private void sendEmail(String to, String subject, String html) {
@@ -76,13 +78,14 @@ public class EmailService {
         return "<div style=\"font-family:Arial,sans-serif;max-width:520px;margin:0 auto;"
             + "background:#fffdf5;border:1.5px solid #e8d8a0;border-radius:16px;overflow:hidden;\">"
             + "<div style=\"background:#1c4f09;padding:28px 32px;text-align:center;\">"
-            + "<h1 style=\"margin:0;color:#fff;font-size:26px;font-weight:900;\">🐾 Pawster</h1>"
+            + "<img src=\"" + LOGO_URL + "\" alt=\"Pawster\" style=\"height:64px;width:auto;margin-bottom:10px;\" />"
+            + "<h1 style=\"margin:0;color:#fff;font-size:26px;font-weight:900;\">Pawster</h1>"
             + "<p style=\"margin:6px 0 0;color:#a8d890;font-size:13px;\">Every Pet Deserves Love</p>"
             + "</div><div style=\"padding:32px;\">"
             + "<h2 style=\"color:#1a4a08;\">Password Reset Request</h2>"
             + "<p style=\"color:#3a5020;font-size:14px;\">Use the PIN below. Valid for <strong>10 minutes</strong>.</p>"
             + "<div style=\"background:#f0f7e8;border:1.5px solid #b0d890;border-radius:12px;padding:28px;text-align:center;\">"
-            + "<p style=\"font-weight:700;color:#3a5020;\">🔐 Your One-Time PIN</p>"
+            + "<p style=\"font-weight:700;color:#3a5020;\">Your One-Time PIN</p>"
             + "<div>" + digits + "</div></div></div>"
             + "<div style=\"background:#f5f0e0;padding:16px 32px;text-align:center;\">"
             + "<p style=\"font-size:11px;color:#9a8a60;\">Do not share this PIN with anyone.</p>"
@@ -93,7 +96,8 @@ public class EmailService {
         return "<div style=\"font-family:Arial,sans-serif;max-width:520px;margin:0 auto;"
             + "background:#fffdf5;border:1.5px solid #e8d8a0;border-radius:16px;overflow:hidden;\">"
             + "<div style=\"background:#1c4f09;padding:28px 32px;text-align:center;\">"
-            + "<h1 style=\"margin:0;color:#fff;font-size:26px;font-weight:900;\">🐾 Pawster</h1>"
+            + "<img src=\"" + LOGO_URL + "\" alt=\"Pawster\" style=\"height:64px;width:auto;margin-bottom:10px;\" />"
+            + "<h1 style=\"margin:0;color:#fff;font-size:26px;font-weight:900;\">Pawster</h1>"
             + "</div><div style=\"padding:32px;\">"
             + "<h2 style=\"color:#1a4a08;\">Welcome, " + firstName + "! 👋</h2>"
             + "<p>Your account has been created as <strong>" + roleLabel + "</strong>.</p>"
