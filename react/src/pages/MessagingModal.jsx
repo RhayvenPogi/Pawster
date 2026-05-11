@@ -8,7 +8,7 @@ import {
 } from "./MessageShared";
 
 const PH_LOCALE = "en-PH";
-const PH_TZ     = "Asia/Manila";
+const PH_TZ = "Asia/Manila";
 const MAX_IMAGE_BYTES = 500 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 500 * 1024 * 1024;
 
@@ -42,39 +42,65 @@ function bubbleRadius(isMine, isFirst, isLast) {
 
 function FaqIcon({ type }) {
   const s = { width: 15, height: 15, flexShrink: 0 };
+
+  // 1. Pet adoption inquiry — heart / paw
   if (type === "adoption") return (
     <svg {...s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
     </svg>
   );
-  if (type === "payment") return (
+
+  // 2. Adoption application status — clipboard with clock
+  if (type === "status") return (
     <svg {...s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/>
+      <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
+      <rect x="9" y="3" width="6" height="4" rx="1" />
+      <circle cx="12" cy="14" r="3" />
+      <path d="M12 12.5v1.5l1 1" />
     </svg>
   );
-  if (type === "order") return (
+
+  // 3. Post-adoption check-in — calendar with checkmark
+  if (type === "checkin") return (
     <svg {...s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M5 12h14"/><path d="M12 5l7 7-7 7"/>
+      <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
+      <path d="M9 16l2 2 4-4" />
     </svg>
   );
-  if (type === "health") return (
+
+  // 4. Rehoming or rescue request — house with arrow
+  if (type === "rehome") return (
     <svg {...s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+      <path d="M3 12L12 3l9 9" /><path d="M9 21V12h6v9" />
+      <path d="M17 17l2 2 2-2" />
+      <path d="M19 19V15" />
     </svg>
   );
+
+  // 5. Account or technical problem — gear/settings
   if (type === "account") return (
     <svg {...s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14" />
     </svg>
   );
+
+  // 6. General inquiry — speech bubble (default)
   return (
     <svg {...s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
     </svg>
   );
 }
 
-const FAQ_ICONS = ["adoption", "payment", "order", "health", "account", "general"];
+// Order must match FAQ_OPTIONS in useBotReply.js:
+// 1. Pet adoption inquiry
+// 2. Adoption application status
+// 3. Post-adoption check-in concern
+// 4. Rehoming or rescue request
+// 5. Account or technical problem
+// 6. General inquiry
+const FAQ_ICONS = ["adoption", "status", "checkin", "rehome", "account", "general"];
 
 function AvatarCircle({ name, photoUrl, size = 28, bg, color }) {
   const [imgFailed, setImgFailed] = useState(false);
@@ -179,16 +205,16 @@ function Bubble({ msg, userId, user, isFirst, isLast, onImageClick, onFaqSelect,
     msg.senderRole !== "admin" &&
     !(msg.isBot || msg.bot) &&
     ((msg.senderId != null && String(msg.senderId) === String(userId)) ||
-     (msg.senderId == null));
+      (msg.senderId == null));
 
-  const avatarName  = isMine
+  const avatarName = isMine
     ? [user?.firstName, user?.lastName].filter(Boolean).join(" ") || user?.name || ""
     : "Pawster Support";
   const avatarPhoto = isMine ? (user?.photoUrl ?? user?.avatarUrl ?? null) : null;
-  const avatarBg    = "linear-gradient(135deg,#1c4f09,#3a8a18)";
+  const avatarBg = "linear-gradient(135deg,#1c4f09,#3a8a18)";
   const hasAttachment = !!msg.attachmentUrl;
-  const isImageOnly   = hasAttachment && msg.attachmentType === "image" && !msg.content;
-  const isGreeting    = (msg.isBot || msg.bot) && msg.content === GREETING;
+  const isImageOnly = hasAttachment && msg.attachmentType === "image" && !msg.content;
+  const isGreeting = (msg.isBot || msg.bot) && msg.content === GREETING;
 
   return (
     <>
@@ -260,16 +286,16 @@ function Toast({ message, onDone }) {
 }
 
 export default function MessagingModal({ user, isOpen, onClose, onUnreadChange }) {
-  const [input,             setInput]             = useState("");
-  const [uploading,         setUploading]         = useState(false);
-  const [uploadFileName,    setUploadFileName]    = useState("");
-  const [lightboxSrc,       setLightboxSrc]       = useState(null);
-  const [toast,             setToast]             = useState(null);
+  const [input, setInput] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [uploadFileName, setUploadFileName] = useState("");
+  const [lightboxSrc, setLightboxSrc] = useState(null);
+  const [toast, setToast] = useState(null);
   const [pendingAttachment, setPendingAttachment] = useState(null);
-  const [botTyping,         setBotTyping]         = useState(false);
-  const [faqSelected,       setFaqSelected]       = useState(false);
+  const [botTyping, setBotTyping] = useState(false);
+  const [faqSelected, setFaqSelected] = useState(false);
 
-  const bottomRef   = useRef(null);
+  const bottomRef = useRef(null);
   const textareaRef = useRef(null);
 
   const {
@@ -285,19 +311,37 @@ export default function MessagingModal({ user, isOpen, onClose, onUnreadChange }
     setMessages,
   });
 
+  const addOptimistic = useCallback((text, attachment = null) => {
+    const tempId = `pending-${Date.now()}`;
+    setMessages(prev => [...prev, {
+      id: tempId, content: text || "", senderId: user.id,
+      senderRole: "user", createdAt: new Date().toISOString(), pending: true, read: false,
+      attachmentUrl: attachment?.url ?? null, attachmentType: attachment?.type ?? null,
+      attachmentFileName: attachment?.fileName ?? null, attachmentFileSize: attachment?.fileSize ?? null,
+    }]);
+    setTimeout(() => {
+      setMessages(prev => prev.map(m => m.id === tempId ? { ...m, pending: false } : m));
+    }, 3000);
+  }, [user?.id, setMessages]);
+
   const handleFaqSelect = useCallback((opt) => {
-  if (faqSelected || !connected) return;
-  setFaqSelected(true);
+    if (faqSelected || !connected) return;
+    setFaqSelected(true);
 
-  const text = opt.label;
-  sendMessage(text, undefined, undefined);
+    const text = opt.label;
 
-  // use a standalone snapshot — don't depend on stale messages closure
-  const faqMessage = { content: text, senderRole: "user", pending: false, senderId: user?.id };
+    // Show the bubble immediately as an optimistic message
+    addOptimistic(text);
 
-  setTimeout(() => triggerBotReply([faqMessage], { force: true }), 300);
-}, [faqSelected, connected, sendMessage, triggerBotReply, user?.id]);
+    // Send via WebSocket so the server persists it
+    sendMessage(text, undefined, undefined);
 
+    // Trigger bot reply, passing the topic directly so it doesn't depend on
+    // the messages state (which may not have updated yet at this point)
+    setTimeout(() => {
+      triggerBotReply(messages, { force: true, topic: text });
+    }, 300);
+  }, [faqSelected, connected, addOptimistic, sendMessage, triggerBotReply, messages]);
   useEffect(() => { onUnreadChange?.(unreadCount); }, [unreadCount, onUnreadChange]);
 
   useEffect(() => {
@@ -320,19 +364,6 @@ export default function MessagingModal({ user, isOpen, onClose, onUnreadChange }
     if (isOpen) document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
   }, [isOpen, onClose, lightboxSrc]);
-
-  const addOptimistic = (text, attachment = null) => {
-    const tempId = `pending-${Date.now()}`;
-    setMessages(prev => [...prev, {
-      id: tempId, content: text || "", senderId: user.id,
-      senderRole: "user", createdAt: new Date().toISOString(), pending: true, read: false,
-      attachmentUrl: attachment?.url ?? null, attachmentType: attachment?.type ?? null,
-      attachmentFileName: attachment?.fileName ?? null, attachmentFileSize: attachment?.fileSize ?? null,
-    }]);
-    setTimeout(() => {
-      setMessages(prev => prev.map(m => m.id === tempId ? { ...m, pending: false } : m));
-    }, 3000);
-  };
 
   const handleSend = () => {
     const text = input.trim();
@@ -376,12 +407,12 @@ export default function MessagingModal({ user, isOpen, onClose, onUnreadChange }
   messages.forEach((msg, i) => {
     const prev = messages[i - 1], next = messages[i + 1];
     const senderKey = msg.senderRole === "admin" ? "admin" : String(msg.senderId ?? "user");
-    const prevKey   = prev ? (prev.senderRole === "admin" ? "admin" : String(prev.senderId ?? "user")) : null;
-    const nextKey   = next ? (next.senderRole === "admin" ? "admin" : String(next.senderId ?? "user")) : null;
+    const prevKey = prev ? (prev.senderRole === "admin" ? "admin" : String(prev.senderId ?? "user")) : null;
+    const nextKey = next ? (next.senderRole === "admin" ? "admin" : String(next.senderId ?? "user")) : null;
     if (!prev || !sameDayCheck(prev.createdAt, msg.createdAt))
       enriched.push({ type: "divider", key: `div-${msg.id}`, label: formatDivider(msg.createdAt) });
     const isFirst = !prev || prevKey !== senderKey || !sameDayCheck(prev.createdAt, msg.createdAt);
-    const isLast  = !next || nextKey !== senderKey || !sameDayCheck(msg.createdAt, next?.createdAt);
+    const isLast = !next || nextKey !== senderKey || !sameDayCheck(msg.createdAt, next?.createdAt);
     enriched.push({ type: "bubble", msg, isFirst, isLast });
   });
 
@@ -455,11 +486,11 @@ export default function MessagingModal({ user, isOpen, onClose, onUnreadChange }
           {pendingAttachment && (
             <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", marginBottom: 6, borderRadius: 10, background: "rgba(90,160,50,0.1)", border: "1px solid rgba(90,160,50,0.25)" }}>
               <span style={{ fontSize: 12, fontWeight: 700, color: "#3a5820", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 4, verticalAlign: "middle" }}><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 4, verticalAlign: "middle" }}><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>
                 {pendingAttachment.fileName}
               </span>
               <button onClick={() => setPendingAttachment(null)} style={{ fontSize: 11, fontWeight: 800, color: "#c2581e", background: "none", border: "none", cursor: "pointer", padding: "0 2px" }}>
-                <svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor"><path d="M1 1l10 10M11 1L1 11" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
+                <svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor"><path d="M1 1l10 10M11 1L1 11" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
               </button>
             </div>
           )}

@@ -12,7 +12,6 @@ const POLL_APPS     = 15_000;
 const POLL_ACTIVITY = 20_000;
 const POLL_STATS    = 30_000;
 
-// ── How many items to show per panel page ──
 const PAGE_SIZE = 5;
 
 function getToken() {
@@ -39,9 +38,7 @@ function apiFetch(base, path, opts = {}) {
 
 function resolvePhotoUrl(a) {
   if (!a) return null;
-  // base64 blob with explicit type
   if (a.photoData && a.photoType) return `data:${a.photoType};base64,${a.photoData}`;
-  // rehome form stores the full data-URI in photo_base64
   if (a.photo_base64 && a.photo_base64.startsWith('data:')) return a.photo_base64;
   if (a.photoBase64  && a.photoBase64.startsWith('data:'))  return a.photoBase64;
   const raw =
@@ -53,16 +50,13 @@ function resolvePhotoUrl(a) {
   return `${PHP_BASE}${raw.startsWith("/") ? "" : "/"}${raw}`;
 }
 
-/* ── Animal photo cache: keyed by id (string) ── */
-const animalPhotoCache = {};   // { "123": "https://..." | "data:..." }
+const animalPhotoCache = {};
 
-/* ── Fetch animal photo URL by id, with cache ── */
 async function fetchAnimalPhoto(animalId) {
   if (!animalId) return null;
   const key = String(animalId);
   if (animalPhotoCache[key] !== undefined) return animalPhotoCache[key];
 
-  // 1. Try Spring Boot /api/animals/:id
   try {
     const token = getToken();
     const res = await fetch(`${API_BASE}/api/animals/${key}`, {
@@ -75,7 +69,6 @@ async function fetchAnimalPhoto(animalId) {
     }
   } catch { /* fallthrough */ }
 
-  // 2. Try Django /api/approvals/animals/:id
   try {
     const token = getToken();
     const res = await fetch(`${DJANGO}/api/approvals/animals/${key}/`, {
@@ -88,7 +81,6 @@ async function fetchAnimalPhoto(animalId) {
     }
   } catch { /* fallthrough */ }
 
-  // 3. Try PHP dashboard action=get_animal
   try {
     const fd = new FormData();
     fd.append('action', 'get_animal');
@@ -105,21 +97,17 @@ async function fetchAnimalPhoto(animalId) {
     }
   } catch { /* fallthrough */ }
 
-  // 4. Try Spring Boot /api/animals/:id/photo as a direct image URL
   const directUrl = `${API_BASE}/api/animals/${key}/photo`;
   animalPhotoCache[key] = directUrl;
   return directUrl;
 }
 
-/* ── Enrich a list of adoption/rehome records with animal photos ── */
 async function enrichWithPhotos(list, idField = 'animal_id') {
   return Promise.all(
     list.map(async (item) => {
-      // Already has a resolvable photo on the item itself → use it
       const existing = resolvePhotoUrl(item);
       if (existing) return { ...item, _resolvedPhoto: existing };
 
-      // Extract animal id from various field names
       const animalId =
         item[idField] ??
         item.animalId ??
@@ -136,7 +124,6 @@ async function enrichWithPhotos(list, idField = 'animal_id') {
   );
 }
 
-/* ── Exhaustive paginated fetch — walks all pages until done ── */
 async function fetchAllPages(base, path) {
   const results = [];
   let page = 0;
@@ -148,18 +135,15 @@ async function fetchAllPages(base, path) {
     if (!res.ok) break;
     const data = await res.json();
 
-    // Handle Spring‑style Page<T>
     if (data && typeof data === 'object' && 'content' in data) {
       results.push(...(data.content ?? []));
       totalPages = data.totalPages ?? 1;
       page++;
       continue;
     }
-    // Handle Django‑style { data: [], count: N } or { results: [] }
     const list = data.data ?? data.results ?? (Array.isArray(data) ? data : []);
     results.push(...list);
 
-    // If a next link exists keep going, otherwise stop
     if (data.next) {
       page++;
     } else {
@@ -298,7 +282,6 @@ function getAnimalSVG(type, size = '1.1rem') {
   return <span style={{ fontSize: size, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{icon}</span>;
 }
 
-/* ── Reveal on scroll ── */
 function useReveal() {
   const ref = useRef(null);
   const [vis, setVis] = useState(false);
@@ -322,7 +305,6 @@ function Reveal({ children, delay = 0 }) {
   );
 }
 
-/* ── Live badge ── */
 function LiveBadge() {
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.28rem', padding: '0.12rem 0.55rem', borderRadius: 4, background: 'rgba(28,79,9,0.07)', border: '1px solid rgba(90,170,48,0.28)', fontSize: '0.58rem', fontWeight: 800, color: '#1c4f09', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
@@ -332,7 +314,6 @@ function LiveBadge() {
   );
 }
 
-/* ── Stat card ── */
 function StatCard({ icon, value, label, sublabel, color, delay }) {
   const [ref, vis] = useReveal();
   const [hov, setHov] = useState(false);
@@ -366,7 +347,6 @@ function StatCard({ icon, value, label, sublabel, color, delay }) {
   );
 }
 
-/* ── Pet avatar ── */
 function PetAvatar({ photoUrl, animalType, size = 38, gradient = 'linear-gradient(135deg,#1c4f09,#3a8a18)' }) {
   const [err, setErr] = useState(false);
   if (photoUrl && !err) {
@@ -383,7 +363,6 @@ function PetAvatar({ photoUrl, animalType, size = 38, gradient = 'linear-gradien
   );
 }
 
-/* ── Status badge ── */
 const STATUS_MAP = {
   Approved: { bg: 'rgba(88,139,65,0.12)', color: '#276010', dot: '#5aaa30', label: 'Approved' },
   approved: { bg: 'rgba(88,139,65,0.12)', color: '#276010', dot: '#5aaa30', label: 'Approved' },
@@ -402,7 +381,6 @@ function StatusBadge({ status }) {
   );
 }
 
-/* ── Pagination controls ── */
 function Pagination({ page, total, pageSize, onChange }) {
   const totalPages = Math.ceil(total / pageSize);
   if (totalPages <= 1) return null;
@@ -427,15 +405,13 @@ function Pagination({ page, total, pageSize, onChange }) {
   );
 }
 
-/* ── Application row ── */
 function AppRow({ app }) {
   const [hov, setHov] = useState(false);
   const animalType = app.animalType || app.animal_type || '';
   const petName    = app.petName ?? app.animalName ?? app.animal_name ?? 'Unknown Pet';
   const date       = app.date ?? app.createdAt ?? app.created_at ?? '';
   const breed      = app.breed ?? app.animalBreed ?? '';
-  // _resolvedPhoto is pre-fetched by enrichWithPhotos()
-  const photoUrl = app._resolvedPhoto ?? null;
+  const photoUrl   = app._resolvedPhoto ?? null;
 
   return (
     <div
@@ -460,7 +436,6 @@ function AppRow({ app }) {
   );
 }
 
-/* ── Rehome row ── */
 function RehomeRow({ item }) {
   const [hov, setHov] = useState(false);
   const rawStatus = item.status ?? 'Pending';
@@ -468,7 +443,6 @@ function RehomeRow({ item }) {
   const petName  = item.pet_name ?? item.petName ?? 'Unknown Pet';
   const date     = item.created_at ?? item.createdAt ?? '';
   const species  = item.species ?? item.animal_type ?? '';
-  // _resolvedPhoto is pre-fetched; rehome photo = submitted pet photo
   const photoUrl = item._resolvedPhoto ?? null;
 
   return (
@@ -494,7 +468,6 @@ function RehomeRow({ item }) {
   );
 }
 
-/* ── Activity item ── */
 function ActivityItem({ icon, iconColor, title, desc, time, last, isNew }) {
   return (
     <div style={{ position: 'relative', padding: '0.75rem 0' }}>
@@ -516,7 +489,6 @@ function ActivityItem({ icon, iconColor, title, desc, time, last, isNew }) {
   );
 }
 
-/* ── Quick link ── */
 function QuickLink({ to, icon, color, title, desc }) {
   const [hov, setHov] = useState(false);
   return (
@@ -544,7 +516,6 @@ function QuickLink({ to, icon, color, title, desc }) {
   );
 }
 
-/* ── Panel wrapper ── */
 function Panel({ children, style = {} }) {
   return (
     <div style={{
@@ -560,7 +531,6 @@ function Panel({ children, style = {} }) {
   );
 }
 
-/* ── Panel header ── */
 function PanelHeader({ title, subtitle, badge, children }) {
   return (
     <div style={{ padding: '1.1rem 1.3rem 0.9rem', borderBottom: '1px solid rgba(180,140,60,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', background: 'rgba(255,252,235,0.6)' }}>
@@ -580,7 +550,6 @@ function PanelHeader({ title, subtitle, badge, children }) {
   );
 }
 
-/* ── Icon button ── */
 function IconBtn({ onClick, loading, title }) {
   return (
     <button onClick={onClick} title={title} style={{ width: 30, height: 30, borderRadius: 7, border: '1px solid rgba(180,140,60,0.22)', background: 'rgba(255,252,238,0.7)', color: '#7a8a60', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}>
@@ -589,7 +558,6 @@ function IconBtn({ onClick, loading, title }) {
   );
 }
 
-/* ── Pill button ── */
 function PillBtn({ to, label, color = '#1c4f09' }) {
   return (
     <Link to={to} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.28rem', padding: '0.32rem 0.8rem', borderRadius: 7, fontSize: '0.64rem', fontWeight: 800, color, background: `${color}10`, border: `1px solid ${color}28`, textDecoration: 'none', letterSpacing: '0.02em' }}>
@@ -598,12 +566,10 @@ function PillBtn({ to, label, color = '#1c4f09' }) {
   );
 }
 
-/* ── Skeleton loader ── */
 function Skeleton({ h = 52, r = 11 }) {
   return <div style={{ height: h, borderRadius: r, background: 'rgba(180,140,60,0.08)', animation: 'shimmer 1.4s ease infinite', backgroundSize: '400px 100%' }} />;
 }
 
-/* ── Empty state ── */
 function EmptyState({ icon, text, linkTo, linkText, color = '#1c4f09' }) {
   return (
     <div style={{ textAlign: 'center', padding: '2.25rem 1rem' }}>
@@ -618,7 +584,6 @@ function EmptyState({ icon, text, linkTo, linkText, color = '#1c4f09' }) {
   );
 }
 
-/* ── Toast ── */
 function Toast({ message }) {
   return (
     <div style={{ position: 'fixed', bottom: '1.75rem', left: '50%', transform: 'translateX(-50%)', zIndex: 9999, display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.65rem 1.25rem', borderRadius: 10, background: '#1c4f09', color: '#fff', fontWeight: 700, fontSize: '0.80rem', fontFamily: "'Nunito',sans-serif", boxShadow: '0 8px 24px rgba(0,0,0,0.18)', animation: 'fadeUp 0.25s ease both', whiteSpace: 'nowrap' }}>
@@ -636,7 +601,6 @@ const timeAgo = (iso) => {
   return `${Math.floor(diff / 86400)}d ago`;
 };
 
-/* ── Build activity feed from adoptions + rehome data ── */
 function buildActivityFromData(applications, rehomeList) {
   const feed = [];
 
@@ -675,7 +639,6 @@ function buildActivityFromData(applications, rehomeList) {
     });
   });
 
-  // Sort newest first
   feed.sort((a, b) => b._ts - a._ts);
   return feed;
 }
@@ -693,10 +656,8 @@ export default function UserDashboard() {
   const [loadingRehome, setLoadingRehome] = useState(true);
   const [loadingAct,    setLoadingAct]    = useState(true);
 
-  const [photoUrl,      setPhotoUrl]      = useState(user?.photoUrl ?? null);
   const [toast,         setToast]         = useState(null);
 
-  // Pagination state
   const [appsPage,    setAppsPage]    = useState(0);
   const [rehomePage,  setRehomePage]  = useState(0);
   const [actPage,     setActPage]     = useState(0);
@@ -704,23 +665,16 @@ export default function UserDashboard() {
   const prevActIds = useRef(new Set());
   const [newActivityIds, setNewActivityIds] = useState(new Set());
 
-  const initials = ((user?.firstName?.[0] ?? '') + (user?.lastName?.[0] ?? 'U')).toUpperCase();
-
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
 
-  /* ── Fetch all adoption applications (all pages) ── */
   const fetchApps = useCallback(async () => {
     if (!user?.id) { setLoadingApps(false); return; }
     setLoadingApps(true);
     try {
-      // Try Django first
       const res = await apiFetch(DJANGO, `/api/approvals/adoptions/user/`);
       if (res.ok) {
         const data = await res.json();
-        // Could be paginated { data: [], count } or flat array
         let list = data.data ?? data.results ?? (Array.isArray(data) ? data : []);
-
-        // If Django returns a next link, walk the rest
         if (data.next) {
           let nextUrl = data.next;
           while (nextUrl) {
@@ -732,15 +686,12 @@ export default function UserDashboard() {
             nextUrl = d2.next ?? null;
           }
         }
-
         const enriched = await enrichWithPhotos(list, 'animal_id');
         setApplications(enriched);
         setLoadingApps(false);
         return;
       }
     } catch { /* fallthrough */ }
-
-    // Fallback: Spring Boot with full pagination walk
     try {
       const list = await fetchAllPages(API_BASE, `/api/adoptions?userId=${user.id}`);
       const enriched = await enrichWithPhotos(list, 'animal_id');
@@ -749,7 +700,6 @@ export default function UserDashboard() {
     setLoadingApps(false);
   }, [user?.id]);
 
-  /* ── Fetch all rehome requests ── */
   const fetchRehome = useCallback(async () => {
     if (!user?.id) { setLoadingRehome(false); return; }
     setLoadingRehome(true);
@@ -758,7 +708,6 @@ export default function UserDashboard() {
       if (res.ok) {
         const data = await res.json();
         let list = data.data ?? data.results ?? (Array.isArray(data) ? data : []);
-
         if (data.next) {
           let nextUrl = data.next;
           while (nextUrl) {
@@ -770,9 +719,6 @@ export default function UserDashboard() {
             nextUrl = d2.next ?? null;
           }
         }
-
-        // For rehome: photo is the pet photo submitted inline (photo_base64/photo_url)
-        // enrichWithPhotos handles this via resolvePhotoUrl on the item itself first
         const enriched = await enrichWithPhotos(list, 'animal_id');
         setRehomeList(enriched);
       }
@@ -780,7 +726,6 @@ export default function UserDashboard() {
     setLoadingRehome(false);
   }, [user?.id]);
 
-  /* ── Fetch missing pets ── */
   const fetchMissing = useCallback(async () => {
     if (!user?.id) return;
     try {
@@ -789,12 +734,9 @@ export default function UserDashboard() {
     } catch { /* silent */ }
   }, [user?.id]);
 
-  /* ── Rebuild activity from adoptions + rehome (no dedicated endpoint needed) ── */
   const rebuildActivity = useCallback((apps, rehome) => {
     setLoadingAct(true);
     const feed = buildActivityFromData(apps, rehome);
-
-    // Detect new entries
     const newIds = new Set();
     feed.forEach(item => {
       if (prevActIds.current.size > 0 && !prevActIds.current.has(item.id)) {
@@ -806,12 +748,10 @@ export default function UserDashboard() {
       setNewActivityIds(newIds);
       setTimeout(() => setNewActivityIds(new Set()), 6000);
     }
-
     setActivityFeed(feed);
     setLoadingAct(false);
   }, []);
 
-  /* ── Try dedicated activity endpoint first, fall back to derived ── */
   const fetchActivity = useCallback(async (apps, rehome) => {
     if (!user?.id) { rebuildActivity(apps, rehome); return; }
     try {
@@ -825,26 +765,12 @@ export default function UserDashboard() {
           return;
         }
       }
-    } catch { /* fallthrough to derived */ }
-
-    // Derive activity from adoptions + rehome data
+    } catch { /* fallthrough */ }
     rebuildActivity(apps, rehome);
   }, [user?.id, rebuildActivity]);
 
-  /* ── Full refresh ── */
-  const refreshAll = useCallback(async (msg) => {
-    if (msg) showToast(msg);
-    const [apps, rehome] = await Promise.all([
-      (async () => { await fetchApps(); return applications; })(),
-      (async () => { await fetchRehome(); return rehomeList; })(),
-      fetchMissing(),
-    ]);
-    // fetchApps / fetchRehome update state asynchronously; we re-derive after a tick
-  }, [fetchApps, fetchRehome, fetchMissing, applications, rehomeList]);
-
   usePageTitle('Dashboard');
 
-  // Initial load
   useEffect(() => {
     const load = async () => {
       await Promise.all([fetchApps(), fetchRehome(), fetchMissing()]);
@@ -852,48 +778,40 @@ export default function UserDashboard() {
     load();
   }, [fetchApps, fetchRehome, fetchMissing]);
 
-  // Rebuild activity whenever apps or rehome data changes
   useEffect(() => {
     if (!loadingApps && !loadingRehome) {
       fetchActivity(applications, rehomeList);
     }
   }, [applications, rehomeList, loadingApps, loadingRehome]);
 
-  // Poll
   useEffect(() => {
-    const t1 = setInterval(fetchApps,   POLL_APPS);
-    const t2 = setInterval(fetchRehome, POLL_APPS);
+    const t1 = setInterval(fetchApps,    POLL_APPS);
+    const t2 = setInterval(fetchRehome,  POLL_APPS);
     const t3 = setInterval(fetchMissing, POLL_STATS);
     return () => { clearInterval(t1); clearInterval(t2); clearInterval(t3); };
   }, [fetchApps, fetchRehome, fetchMissing]);
 
-  // Custom events from other pages
   useEffect(() => {
     const onAdopt   = () => { fetchApps();   showToast('Adoption submitted — dashboard updated!'); };
     const onRehome  = () => { fetchRehome(); showToast('Rehome request submitted — dashboard updated!'); };
     const onMissing = () => { fetchMissing(); showToast('Missing pet report filed — dashboard updated!'); };
-    const onPhoto   = (e) => { if (e.detail?.photoUrl !== undefined) setPhotoUrl(e.detail.photoUrl); };
     window.addEventListener('pawster:adoptionSubmitted',  onAdopt);
     window.addEventListener('pawster:rehomeSubmitted',    onRehome);
     window.addEventListener('pawster:missingPetReported', onMissing);
-    window.addEventListener('pawster:photoUpdated',       onPhoto);
     return () => {
       window.removeEventListener('pawster:adoptionSubmitted',  onAdopt);
       window.removeEventListener('pawster:rehomeSubmitted',    onRehome);
       window.removeEventListener('pawster:missingPetReported', onMissing);
-      window.removeEventListener('pawster:photoUpdated',       onPhoto);
     };
   }, [fetchApps, fetchRehome, fetchMissing]);
 
-  // Derived counts
   const approved   = applications.filter(a => ['approved','Approved'].includes(a.status)).length;
   const pending    = applications.filter(a => ['pending','Pending'].includes(a.status)).length;
   const foundCount = missingList.filter(p => p.resolvedByUser).length;
 
-  // Paginated slices
-  const appsSlice   = applications.slice(appsPage * PAGE_SIZE,   (appsPage + 1) * PAGE_SIZE);
-  const rehomeSlice = rehomeList.slice(rehomePage * PAGE_SIZE,  (rehomePage + 1) * PAGE_SIZE);
-  const actSlice    = activityFeed.slice(actPage * PAGE_SIZE,   (actPage + 1) * PAGE_SIZE);
+  const appsSlice   = applications.slice(appsPage   * PAGE_SIZE, (appsPage   + 1) * PAGE_SIZE);
+  const rehomeSlice = rehomeList.slice(rehomePage    * PAGE_SIZE, (rehomePage + 1) * PAGE_SIZE);
+  const actSlice    = activityFeed.slice(actPage     * PAGE_SIZE, (actPage    + 1) * PAGE_SIZE);
 
   return (
     <div style={{ minHeight: '100vh', background: '#EDDABB', fontFamily: "'Nunito',sans-serif", color: '#1a2e0a' }}>
@@ -914,7 +832,7 @@ export default function UserDashboard() {
         @media(max-width:360px)  { .stat-grid { grid-template-columns: 1fr !important } }
       `}</style>
 
-      {/* ── Mesh background ── */}
+      {/* Mesh background */}
       <div style={{ position: 'fixed', inset: 0, zIndex: 0, overflow: 'hidden', pointerEvents: 'none' }}>
         <div style={{ position: 'absolute', inset: 0, background: '#EDDABB' }} />
         <div style={{ position: 'absolute', width: 900, height: 900, top: '-20%', left: '-15%', borderRadius: '50%', background: 'radial-gradient(circle,#588B41,transparent 70%)', filter: 'blur(120px)', opacity: 0.38, animation: 'fl1 9s ease-in-out infinite' }} />
@@ -923,38 +841,25 @@ export default function UserDashboard() {
 
       <div className="dash-wrap" style={{ position: 'relative', zIndex: 10, maxWidth: 1180, margin: '0 auto', padding: '2.75rem 2rem 5rem' }}>
 
-        {/* ── Page header ── */}
+        {/* Page header */}
         <Reveal>
           <div style={{ marginBottom: '2rem' }}>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.875rem', padding: '0.22rem 0.8rem', borderRadius: 4, background: 'rgba(28,79,9,0.07)', border: '1px solid rgba(90,170,48,0.22)' }}>
               <i className="fas fa-th-large" style={{ fontSize: '0.58rem', color: '#1c4f09' }} />
               <span style={{ fontSize: '0.58rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.09em', color: '#1c4f09', fontStyle: 'italic' }}>Member Dashboard</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
-              <div>
-                <h1 style={{ fontFamily: "'Playfair Display',serif", fontSize: 'clamp(1.65rem,3vw,2.5rem)', fontWeight: 900, color: '#1a4a08', margin: '0 0 0.35rem', lineHeight: 1.1 }}>
-                  Welcome back, <em style={{ fontStyle: 'italic', color: '#e07820' }}>{user?.firstName}</em>
-                </h1>
-                <p style={{ fontSize: '0.80rem', fontWeight: 700, color: '#3a5020', margin: 0, display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                  Your dashboard updates in real time <LiveBadge />
-                </p>
-              </div>
-              <div style={{ flexShrink: 0 }}>
-                {photoUrl ? (
-                  <img src={photoUrl} alt={user?.firstName} style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(180,140,60,0.35)', boxShadow: '0 2px 10px rgba(0,0,0,0.10)' }} onError={() => setPhotoUrl(null)} />
-                ) : (
-                  <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'linear-gradient(135deg,#1c4f09,#3a8a18)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Playfair Display',serif", fontWeight: 900, fontSize: '1rem', color: '#fff', border: '2px solid rgba(180,140,60,0.35)', letterSpacing: '0.03em' }}>
-                    {initials}
-                  </div>
-                )}
-              </div>
-            </div>
+            <h1 style={{ fontFamily: "'Playfair Display',serif", fontSize: 'clamp(1.65rem,3vw,2.5rem)', fontWeight: 900, color: '#1a4a08', margin: '0 0 0.35rem', lineHeight: 1.1 }}>
+              Welcome back, <em style={{ fontStyle: 'italic', color: '#e07820' }}>{user?.firstName}</em>
+            </h1>
+            <p style={{ fontSize: '0.80rem', fontWeight: 700, color: '#3a5020', margin: 0, display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+              Your dashboard updates in real time <LiveBadge />
+            </p>
           </div>
         </Reveal>
 
         <div style={{ height: 1, background: 'linear-gradient(to right, transparent, rgba(180,140,60,0.25), transparent)', marginBottom: '1.75rem' }} />
 
-        {/* ── Stat cards ── */}
+        {/* Stat cards */}
         <div className="stat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '0.875rem', marginBottom: '1.75rem' }}>
           <StatCard icon={SVG.file}   color="#1c7a09" value={applications.length} label="Adoptions"       sublabel={`${approved} approved`}                                                                    delay={0}   />
           <StatCard icon={SVG.home}   color="#B45A22" value={rehomeList.length}   label="Rehome Requests" sublabel={`${rehomeList.filter(r=>['Approved','approved'].includes(r.status)).length} approved`}     delay={60}  />
@@ -962,7 +867,7 @@ export default function UserDashboard() {
           <StatCard icon={SVG.clock}  color="#1a5fbf" value={pending}             label="Pending Review"  sublabel="awaiting decision"                                                                         delay={180} />
         </div>
 
-        {/* ── Main grid ── */}
+        {/* Main grid */}
         <div className="dash-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
 
           {/* Adoption applications */}
@@ -982,7 +887,7 @@ export default function UserDashboard() {
               </div>
               {!loadingApps && (
                 <div style={{ padding: '0 0.875rem 0.875rem' }}>
-                  <Pagination page={appsPage} total={applications.length} pageSize={PAGE_SIZE} onChange={p => { setAppsPage(p); }} />
+                  <Pagination page={appsPage} total={applications.length} pageSize={PAGE_SIZE} onChange={p => setAppsPage(p)} />
                 </div>
               )}
             </Panel>
@@ -1005,13 +910,13 @@ export default function UserDashboard() {
               </div>
               {!loadingRehome && (
                 <div style={{ padding: '0 0.875rem 0.875rem' }}>
-                  <Pagination page={rehomePage} total={rehomeList.length} pageSize={PAGE_SIZE} onChange={p => { setRehomePage(p); }} />
+                  <Pagination page={rehomePage} total={rehomeList.length} pageSize={PAGE_SIZE} onChange={p => setRehomePage(p)} />
                 </div>
               )}
             </Panel>
           </Reveal>
 
-          {/* Recent Activity — derived from real data */}
+          {/* Recent Activity */}
           <Reveal delay={120}>
             <Panel>
               <PanelHeader title="Recent Activity" subtitle="Based on your applications & requests" badge={<LiveBadge />}>
@@ -1061,7 +966,7 @@ export default function UserDashboard() {
         </div>
       </div>
 
-      {/* ── Footer ── */}
+      {/* Footer */}
       <footer style={{ position: 'relative', zIndex: 10, borderTop: '1px solid rgba(90,170,48,0.35)', background: 'rgba(255,248,218,0.88)', backdropFilter: 'blur(8px)', padding: '3rem 2.5rem' }}>
         <div style={{ maxWidth: 1200, margin: '0 auto', display: 'grid', gap: '3rem', marginBottom: '2.5rem', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))' }}>
           <div>
@@ -1074,9 +979,9 @@ export default function UserDashboard() {
             </p>
           </div>
           {[
-            { title: "Adopt",    links: [["Browse animals", "/pets"], ["My profile", "/profile"], ["Log in", "/login"], ["Register", "/register"]] },
-            { title: "Services", links: [["How it works", "/how-it-works"], ["Rehome & Rescue", "/rehome"], ["Missing pets", "/missing-pets"], ["About us", "/about"]] },
-            { title: "Provinces",  links: [["Baguio City", "/pets"], ["Benguet", "/pets"], ["Mountain Province", "/pets"], ["Ifugao", "/pets"]] },
+            { title: "Adopt",     links: [["Browse animals", "/pets"], ["My profile", "/profile"], ["Log in", "/login"], ["Register", "/register"]] },
+            { title: "Services",  links: [["How it works", "/how-it-works"], ["Rehome & Rescue", "/rehome"], ["Missing pets", "/missing-pets"], ["About us", "/about"]] },
+            { title: "Provinces", links: [["Baguio City", "/pets"], ["Benguet", "/pets"], ["Mountain Province", "/pets"], ["Ifugao", "/pets"]] },
           ].map(({ title, links }) => (
             <div key={title}>
               <div style={{ fontSize: '0.68rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#1c4f09', marginBottom: '1rem' }}>{title}</div>
@@ -1089,8 +994,8 @@ export default function UserDashboard() {
         <div style={{ maxWidth: 1200, margin: '0 auto', paddingTop: '1.5rem', borderTop: '1px solid rgba(180,140,60,0.22)', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
           <div style={{ fontSize: '0.73rem', fontWeight: 700, color: '#7a8a60' }}>© 2025 Pawster. All rights reserved. Made with 🐾 in Baguio City.</div>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
-            {["fab fa-facebook-f", "fab fa-instagram", "fab fa-twitter"].map(icon => (
-              <a key={icon} href="#" style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 6, fontSize: '0.78rem', color: '#7a8a60', background: 'rgba(255,250,232,0.7)', border: '1px solid rgba(180,140,60,0.22)', textDecoration: 'none' }}>
+            {["fab fa-facebook-f"].map(icon => (
+              <a key={icon} href="https://www.facebook.com/pawsterofficial" style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 6, fontSize: '0.78rem', color: '#7a8a60', background: 'rgba(255,250,232,0.7)', border: '1px solid rgba(180,140,60,0.22)', textDecoration: 'none' }}>
                 <i className={icon} />
               </a>
             ))}

@@ -112,14 +112,23 @@ function PawSVG({ style }) {
 }
 
 function TermsModal({ onAccept, onDecline, onClose }) {
+  const [closing, setClosing] = useState(false);
+  const close = (cb) => { setClosing(true); setTimeout(cb, 220); };
+
   return (
     <div
       className="fixed inset-0 z-[10000] flex items-center justify-center p-6 backdrop-blur-md"
-      style={{ background:"rgba(20,35,15,0.55)", animation:"modalFadeIn .22s ease" }}
-      onClick={e=>{ if(e.target===e.currentTarget) onClose(); }}
+      style={{
+        background:"rgba(20,35,15,0.55)",
+        animation: closing ? "modalFadeIn .22s ease reverse both" : "modalFadeIn .22s ease",
+      }}
+      onClick={e=>{ if(e.target===e.currentTarget) close(onClose); }}
     >
       <div className="bg-white rounded-[20px] w-full max-w-[600px] max-h-[88vh] flex flex-col overflow-hidden"
-        style={{ boxShadow:"0 24px 64px rgba(60,100,30,0.18)", animation:"modalSlideUp .26s cubic-bezier(.34,1.3,.64,1)" }}>
+        style={{
+          boxShadow:"0 24px 64px rgba(60,100,30,0.18)",
+          animation: closing ? "modalSlideDown .22s ease both" : "modalSlideUp .26s cubic-bezier(.34,1.3,.64,1)",
+        }}>
         {/* Header */}
         <div className="flex items-center gap-[0.9rem] px-[1.6rem] py-[1.4rem] border-b border-[#e8f0e2] flex-shrink-0"
           style={{ background:"linear-gradient(135deg,#f4faf0,#edf7e5)" }}>
@@ -135,7 +144,7 @@ function TermsModal({ onAccept, onDecline, onClose }) {
             <h2 className="text-[1.05rem] font-extrabold text-[#2a4a18] mb-[0.15rem]">Terms of Service &amp; Privacy Policy</h2>
             <p className="text-[0.78rem] font-semibold text-[#7aaa50]">Pawster — Terms & Conditions</p>
           </div>
-          <button onClick={onClose} className="ml-auto bg-none border-none text-[1.6rem] text-[#6a8a58] px-[0.4rem] py-[0.2rem] rounded-lg leading-none">&times;</button>
+          <button onClick={()=>close(onClose)} className="ml-auto bg-none border-none text-[1.6rem] text-[#6a8a58] px-[0.4rem] py-[0.2rem] rounded-lg leading-none">&times;</button>
         </div>
         {/* Body */}
         <div className="overflow-y-auto px-[1.6rem] py-[1.4rem]" style={{ maxHeight:"420px" }}>
@@ -151,12 +160,8 @@ function TermsModal({ onAccept, onDecline, onClose }) {
               ["Contact", "Questions? Email pawster.medico@gmail.com"],
           ].map(([title, text]) => (
             <div key={title} className="mb-[1.3rem]">
-              <h3 className="text-[0.88rem] font-black text-[#3a6a20] mb-[0.45rem] uppercase tracking-[0.04em]">
-                  {title}
-              </h3>
-              <p className="text-[0.88rem] text-[#4a5a42] leading-[1.65]">
-                  {text}
-              </p>
+              <h3 className="text-[0.88rem] font-black text-[#3a6a20] mb-[0.45rem] uppercase tracking-[0.04em]">{title}</h3>
+              <p className="text-[0.88rem] text-[#4a5a42] leading-[1.65]">{text}</p>
             </div>
           ))}
         </div>
@@ -233,6 +238,8 @@ function MapPickerModal({ onClose, onConfirm }) {
   const [picked, setPicked]   = useState(null);
   const [loading, setLoading] = useState(false);
   const [geoErr, setGeoErr]   = useState("");
+  const [closing, setClosing] = useState(false);
+  const close = (cb) => { setClosing(true); setTimeout(cb, 220); };
 
   useEffect(() => {
     if (!document.getElementById("leaflet-css")) {
@@ -264,8 +271,7 @@ function MapPickerModal({ onClose, onConfirm }) {
             const road=a.road||a.pedestrian||a.footway||"", houseNo=a.house_number||"", suburb=a.suburb||a.village||a.neighbourhood||"";
             const city=a.city||a.town||a.municipality||"", province=a.province||a.state||"", postcode=a.postcode||"";
             const streetLine=[houseNo,road,suburb].filter(Boolean).join(" ");
-            const dbMatches=lookupZip(city), verifiedZip=postcode||(dbMatches.length>0?String(dbMatches[0][3]):"");
-            setPicked({ lat, lng, street:streetLine, city, province, zip:verifiedZip, label:data.display_name });
+            setPicked({ lat, lng, street:streetLine, city, province, zip:postcode||"", label:data.display_name });
           })
           .catch(()=>setGeoErr("Could not fetch address. You can still confirm."))
           .finally(()=>setLoading(false));
@@ -292,10 +298,17 @@ function MapPickerModal({ onClose, onConfirm }) {
 
   return (
     <div className="fixed inset-0 z-[20000] flex items-center justify-center p-4 backdrop-blur-[8px]"
-      style={{ background:"rgba(10,25,5,0.65)", animation:"modalFadeIn .22s ease" }}
-      onClick={e=>{ if(e.target===e.currentTarget) onClose(); }}>
+      style={{
+        background:"rgba(10,25,5,0.65)",
+        animation: closing ? "modalFadeIn .22s ease reverse both" : "modalFadeIn .22s ease",
+      }}
+      onClick={e=>{ if(e.target===e.currentTarget) close(onClose); }}>
       <div className="w-full max-w-[680px] rounded-[24px] overflow-hidden flex flex-col max-h-[90vh]"
-        style={{ background:"rgba(255,250,230,0.97)", boxShadow:"0 28px 72px rgba(28,79,9,0.22)", animation:"modalSlideUp .28s cubic-bezier(.34,1.3,.64,1)" }}>
+        style={{
+          background:"rgba(255,250,230,0.97)",
+          boxShadow:"0 28px 72px rgba(28,79,9,0.22)",
+          animation: closing ? "modalSlideDown .22s ease both" : "modalSlideUp .28s cubic-bezier(.34,1.3,.64,1)",
+        }}>
         {/* Header */}
         <div className="flex items-center gap-3 px-[1.4rem] py-[1.1rem] flex-shrink-0"
           style={{ background:"linear-gradient(135deg,#1c4f09,#2a6e10)" }}>
@@ -307,7 +320,7 @@ function MapPickerModal({ onClose, onConfirm }) {
             <h3 className="text-[1rem] font-black text-white">Pin Your Address</h3>
             <p className="text-[0.74rem] font-bold text-white/75">Click anywhere on the map to set your location</p>
           </div>
-          <button onClick={onClose} className="ml-auto w-8 h-8 rounded-lg flex items-center justify-center text-white text-[1.2rem] border-none"
+          <button onClick={()=>close(onClose)} className="ml-auto w-8 h-8 rounded-lg flex items-center justify-center text-white text-[1.2rem] border-none"
             style={{ background:"rgba(255,255,255,0.15)" }}>×</button>
         </div>
         {/* Map */}
@@ -342,7 +355,7 @@ function MapPickerModal({ onClose, onConfirm }) {
         {/* Footer */}
         <div className="flex gap-3 px-[1.4rem] py-[0.9rem] flex-shrink-0 border-t border-[rgba(180,150,80,0.22)]"
           style={{ background:"rgba(255,250,228,0.9)" }}>
-          <button onClick={onClose} className="flex-1 py-[0.7rem] border-2 border-[rgba(28,79,9,0.3)] bg-transparent text-[#1c4f09] text-[0.9rem] font-black rounded-[10px]">Cancel</button>
+          <button onClick={()=>close(onClose)} className="flex-1 py-[0.7rem] border-2 border-[rgba(28,79,9,0.3)] bg-transparent text-[#1c4f09] text-[0.9rem] font-black rounded-[10px]">Cancel</button>
           <button onClick={()=>picked&&onConfirm(picked)} disabled={!picked||loading}
             className="flex-[2] py-[0.7rem] border-none text-[0.9rem] font-black rounded-[10px] transition-all duration-[200ms]"
             style={{ background:picked?"linear-gradient(135deg,#1c4f09,#2a6e10)":"rgba(180,180,160,0.4)", color:picked?"#fff":"#aaa", boxShadow:picked?"0 4px 14px rgba(28,79,9,0.28)":"none" }}>
@@ -396,9 +409,10 @@ function ZipField({ city, value, onChange, onSelect, error }) {
   useEffect(() => {
     if (city && city.trim().length >= 2) {
       const matches = lookupZip(city);
-      if (matches.length === 1) { onSelect(matches[0]); setSuggestions([]); setShow(false); }
-      else if (matches.length > 1) { setSuggestions(matches.slice(0,10)); setShow(true); }
+      if (matches.length > 0) { setSuggestions(matches.slice(0, 10)); setShow(true); }
       else { setSuggestions([]); setShow(false); }
+    } else {
+      setSuggestions([]); setShow(false);
     }
   }, [city]);
 
@@ -464,6 +478,9 @@ function ZipField({ city, value, onChange, onSelect, error }) {
 export default function RegisterPage() {
   const { register }              = useAuth();
   const [step, setStep]           = useState(1);
+  const [direction, setDirection] = useState("forward");
+  const [exiting, setExiting]     = useState(false);
+  const [leaving, setLeaving]     = useState(false);
   const [showTerms, setShowTerms] = useState(false);
   const [pendingSubmit, setPendingSubmit] = useState(false);
   const [alert, setAlert]         = useState({ type:"",msg:"" });
@@ -491,6 +508,11 @@ export default function RegisterPage() {
 
   usePageTitle("Register");
 
+  function navigate(url) {
+    setLeaving(true);
+    setTimeout(() => { window.location.href = url; }, 220);
+  }
+
   function validateStep1() {
     const e={};
     if (!form.firstName.trim()) e.firstName="First name is required.";
@@ -516,11 +538,13 @@ export default function RegisterPage() {
 
   function goTo(next) {
     setAlert({type:"",msg:""});
-    if (next>step) {
-      if (step===1&&!validateStep1()) return;
-      if (step===2&&!validateStep2()) return;
+    if (next > step) {
+      if (step===1 && !validateStep1()) return;
+      if (step===2 && !validateStep2()) return;
     }
-    setStep(next);
+    setDirection(next > step ? "forward" : "backward");
+    setExiting(true);
+    setTimeout(() => { setStep(next); setExiting(false); }, 180);
   }
 
   async function doRegister() {
@@ -545,10 +569,15 @@ export default function RegisterPage() {
   function handleTermsDecline() { setTermsAccepted(false); setPendingSubmit(false); setShowTerms(false); }
 
   function handleMapConfirm(loc) {
-    setForm(f=>({ ...f, address:loc.street||f.address, city:loc.city||f.city, province:loc.province||f.province, zip:loc.zip||f.zip }));
+    const safeZip = loc.zip || "";
+    setForm(f=>({ ...f, address:loc.street||f.address, city:loc.city||f.city, province:loc.province||f.province, zip:safeZip }));
     setErrors(v=>({...v,address:"",city:"",province:"",zip:""}));
     setShowMap(false);
   }
+
+  const stepClass = exiting
+    ? (direction === "forward" ? "step-exit-fwd" : "step-exit-bwd")
+    : (direction === "forward" ? "step-enter-fwd" : "step-enter-bwd");
 
   const pawData = [
     { top:"18%",left:"2%",  width:120,fill:"rgba(72,95,42,0.28)",  rotate:-8  },
@@ -573,13 +602,22 @@ export default function RegisterPage() {
         @keyframes float6{0%,100%{transform:translate(0,0) scale(1)}30%{transform:translate(15%,12%) scale(1.15)}70%{transform:translate(-8%,18%) scale(0.88)}}
         @keyframes grain{0%,100%{transform:translate(0,0)}50%{transform:translate(-2%,2%)}}
         @keyframes modalFadeIn{from{opacity:0}to{opacity:1}}
-        @keyframes modalSlideUp{from{transform:translateY(28px) scale(.97);opacity:0}to{transform:translateY(0) scale(1);opacity:1}}
+        @keyframes modalSlideUp{from{transform:translateY(36px) scale(.95);opacity:0}to{transform:translateY(0) scale(1);opacity:1}}
+        @keyframes modalSlideDown{from{transform:translateY(0) scale(1);opacity:1}to{transform:translateY(36px) scale(.95);opacity:0}}
         @keyframes cardIn{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
-        @keyframes stepFadeIn{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:translateX(0)}}
-        @keyframes spin{to{transform:rotate(360deg)}}
+        @keyframes stepEnterFwd{from{opacity:0;transform:translateX(36px)}to{opacity:1;transform:translateX(0)}}
+        @keyframes stepEnterBwd{from{opacity:0;transform:translateX(-36px)}to{opacity:1;transform:translateX(0)}}
+        @keyframes stepExitFwd{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(-36px)}}
+        @keyframes stepExitBwd{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(36px)}}
+        @keyframes pageFadeOut{from{opacity:1}to{opacity:0}}
+        .step-enter-fwd { animation: stepEnterFwd 0.30s cubic-bezier(0.22,1,0.36,1) both; }
+        .step-enter-bwd { animation: stepEnterBwd 0.30s cubic-bezier(0.22,1,0.36,1) both; }
+        .step-exit-fwd  { animation: stepExitFwd  0.18s ease both; }
+        .step-exit-bwd  { animation: stepExitBwd  0.18s ease both; }
+        .page-exit { animation: pageFadeOut 0.22s ease both; }
         .spin-anim { animation: spin 0.8s linear infinite; }
+        @keyframes spin{to{transform:rotate(360deg)}}
         .card-anim { animation: cardIn 0.4s cubic-bezier(0.22,1,0.36,1) both; }
-        .step-content { animation: stepFadeIn 0.22s ease both; }
         .field-input:focus { border-color:#1c4f09 !important; border-left-color:#1c4f09 !important; background:rgba(255,252,238,0.78) !important; box-shadow:0 0 0 3px rgba(28,79,9,0.09) !important; }
         .field-input::placeholder { color:#b0a07a; font-style:italic; font-weight:600; }
         .upload-btn:hover { background:rgba(236,221,184,0.8) !important; border-style:solid !important; }
@@ -594,7 +632,7 @@ export default function RegisterPage() {
 
       {/* Nav */}
       <nav className="fixed top-0 right-0 z-[300] flex items-center gap-3 px-4 md:px-[1.6rem] py-[0.85rem]">
-        <button onClick={()=>window.location.href="/login"}
+        <button onClick={()=>navigate("/login")}
           className="bg-[#1c4f09] text-white border-none rounded-full text-[0.85rem] md:text-[0.95rem] font-black px-4 md:px-6 py-[0.4rem] md:py-[0.45rem]">
           Sign in
         </button>
@@ -603,9 +641,9 @@ export default function RegisterPage() {
       </nav>
 
       {/* Page wrapper */}
-      <div className="relative z-10 flex items-center justify-center min-h-screen w-full max-w-[1920px] mx-auto px-4 md:px-[6vw] gap-[2vw]">
+      <div className={`relative z-10 flex items-center justify-center min-h-screen w-full max-w-[1920px] mx-auto px-4 md:px-[6vw] gap-[2vw] ${leaving ? "page-exit" : ""}`}>
 
-        {/* Left Panel — large screens only */}
+        {/* Left Panel */}
         <div className="hidden lg:block flex-1 relative h-screen max-h-[1200px] overflow-visible">
           <div className="absolute inset-0 z-[5] pointer-events-none">
             {pawData.map((p,i)=>(
@@ -628,7 +666,7 @@ export default function RegisterPage() {
         </div>
 
         {/* Register card */}
-        <div className="card-anim w-full max-w-[500px] lg:w-[500px] lg:min-w-[460px] lg:flex-shrink-0 lg:mr-[3vw] lg:mt-[3vh] mt-16 lg:mt-0 flex flex-col justify-center px-5 py-6 md:px-[2.4rem] md:py-8 rounded-[28px] overflow-y-auto backdrop-blur-xl"
+        <div className="card-anim w-full max-w-[500px] lg:w-[500px] lg:min-w-[460px] lg:flex-shrink-0 lg:mr-[3vw] lg:mt-[3vh] mt-16 lg:mt-0 flex flex-col justify-center px-5 py-6 md:px-[2.4rem] md:py-8 rounded-[28px] overflow-hidden backdrop-blur-xl"
           style={{ background:"rgba(255,248,225,0.42)", border:"1.5px solid rgba(255,238,190,0.55)", boxShadow:"0 12px 48px rgba(160,105,30,0.15),0 2px 12px rgba(0,0,0,0.07)", maxHeight:"92vh" }}>
 
           {/* Mobile-only logo */}
@@ -657,7 +695,7 @@ export default function RegisterPage() {
 
           {/* ── Step 1 ── */}
           {step===1 && (
-            <div className="step-content">
+            <div className={stepClass}>
               <div className="flex gap-[0.9rem]">
                 <Field label="First name" id="firstName" placeholder="First name…" value={form.firstName} onChange={set("firstName")} error={errors.firstName} className="flex-1"/>
                 <Field label="Last name"  id="lastName"  placeholder="Last name…"  value={form.lastName}  onChange={set("lastName")}  error={errors.lastName}  className="flex-1"/>
@@ -679,8 +717,7 @@ export default function RegisterPage() {
 
           {/* ── Step 2 ── */}
           {step===2 && (
-            <div className="step-content">
-              {/* Address field with map pin */}
+            <div className={stepClass}>
               <div className="mb-[0.95rem] flex flex-col">
                 <label htmlFor="address" className={`text-[0.72rem] font-black uppercase tracking-[0.07em] italic mb-[0.38rem] ${errors.address?"text-[#c03030]":"text-[#276010]"}`}>
                   Home Address
@@ -728,8 +765,7 @@ export default function RegisterPage() {
 
           {/* ── Step 3 ── */}
           {step===3 && (
-            <div className="step-content">
-              {/* ID Upload */}
+            <div className={stepClass}>
               <div className="mb-4">
                 <label className="block text-[0.72rem] font-black uppercase tracking-[0.07em] text-[#276010] mb-[0.45rem] italic">
                   Government-Issued ID
@@ -762,7 +798,6 @@ export default function RegisterPage() {
                 )}
               </div>
 
-              {/* Why notice */}
               <div className="flex gap-[0.85rem] items-start rounded-[10px] px-4 py-[0.85rem] mb-4 border-l-4 border-[#e07820]"
                 style={{ background:"rgba(255,245,225,0.80)" }}>
                 <div className="w-8 h-8 min-w-[32px] bg-[#e07820] text-white text-[1rem] font-black rounded-lg flex items-center justify-center italic flex-shrink-0">!</div>
@@ -772,7 +807,6 @@ export default function RegisterPage() {
                 </div>
               </div>
 
-              {/* Terms notice */}
               <div className="flex items-start gap-[0.55rem] rounded-[10px] px-[0.95rem] py-[0.8rem] mb-[1.1rem] border border-[rgba(90,170,48,0.28)]"
                 style={{ background:"rgba(230,245,220,0.55)" }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5aaa30" strokeWidth="2.2" className="flex-shrink-0 mt-[1px]"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
@@ -807,7 +841,7 @@ export default function RegisterPage() {
 
           <p className="text-center text-[0.85rem] font-bold text-[#4a6030] mt-4">
             Already have an account?{" "}
-            <a href="/login" className="text-[#c87820] italic font-extrabold no-underline">Log in here!</a>
+            <button onClick={()=>navigate("/login")} className="bg-transparent border-none text-[#c87820] italic font-extrabold cursor-pointer text-[0.85rem]">Log in here!</button>
           </p>
         </div>
       </div>

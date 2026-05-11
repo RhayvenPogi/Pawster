@@ -1200,8 +1200,8 @@ export default function FindAPet() {
         <div className="max-w-[1200px] mx-auto pt-6 border-t border-[rgba(180,140,60,0.28)] flex flex-wrap items-center justify-between gap-4">
           <div className="text-[0.75rem] font-bold text-[#6a7a50]">© 2025 Pawster. All rights reserved. Made with 🐾 in Baguio City.</div>
           <div className="flex gap-2">
-            {["fab fa-facebook-f", "fab fa-instagram", "fab fa-twitter"].map(icon => (
-              <a key={icon} href="#" className="w-8 h-8 flex items-center justify-center rounded-md text-[0.8rem] text-[#6a7a50] bg-[rgba(255,250,232,0.7)] border border-[rgba(180,140,60,0.28)] hover:bg-black/5 transition">
+            {["fab fa-facebook-f"].map(icon => (
+              <a key={icon} href="https://www.facebook.com/pawsterofficial" style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 6, fontSize: '0.78rem', color: '#7a8a60', background: 'rgba(255,250,232,0.7)', border: '1px solid rgba(180,140,60,0.22)', textDecoration: 'none' }}>
                 <i className={icon} />
               </a>
             ))}

@@ -126,6 +126,7 @@ export default function LoginPage() {
   const [errors, setErrors]     = useState({});
   const [alert, setAlert]       = useState({ type: "", msg: "" });
   const [loading, setLoading]   = useState(false);
+  const [leaving, setLeaving]   = useState(false);
 
   usePageTitle("Sign in");
 
@@ -133,6 +134,11 @@ export default function LoginPage() {
     const saved = localStorage.getItem("pawster_email");
     if (saved) { setEmail(saved); setRemember(true); }
   }, []);
+
+  function navigate(url) {
+    setLeaving(true);
+    setTimeout(() => { window.location.href = url; }, 220);
+  }
 
   function validate() {
     const e = {};
@@ -202,8 +208,10 @@ export default function LoginPage() {
         @keyframes grain{0%,100%{transform:translate(0,0)}50%{transform:translate(-2%,2%)}}
         @keyframes cardIn{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
         @keyframes spin{to{transform:rotate(360deg)}}
+        @keyframes pageFadeOut{from{opacity:1}to{opacity:0}}
         .card-anim { animation: cardIn 0.4s cubic-bezier(0.22,1,0.36,1) both; }
         .spin-anim { animation: spin 0.8s linear infinite; }
+        .page-exit { animation: pageFadeOut 0.22s ease both; }
         .field-input:focus { border-color:#1c4f09 !important; border-left-color:#1c4f09 !important; background:rgba(255,252,238,0.78) !important; box-shadow:0 0 0 3px rgba(28,79,9,0.09) !important; }
         .field-input::placeholder { color:#b0a07a; font-style:italic; font-weight:600; }
         .signin-btn:hover:not(:disabled) { background:#143806 !important; transform:translateY(-2px); box-shadow:0 8px 24px rgba(28,79,9,0.35) !important; }
@@ -226,7 +234,7 @@ export default function LoginPage() {
         </span>
         <button
           className="nav-register bg-[#1c4f09] text-white border-none rounded-full text-[0.85rem] md:text-[0.95rem] font-black px-4 md:px-6 py-[0.4rem] transition-colors duration-[180ms]"
-          onClick={() => window.location.href = "/register"}
+          onClick={() => navigate("/register")}
         >
           Register
         </button>
@@ -236,9 +244,9 @@ export default function LoginPage() {
       </nav>
 
       {/* Page wrapper */}
-      <div className="relative z-10 flex items-center justify-center min-h-screen w-full max-w-[1920px] mx-auto px-4 md:px-[6vw] gap-[2vw]">
+      <div className={`relative z-10 flex items-center justify-center min-h-screen w-full max-w-[1920px] mx-auto px-4 md:px-[6vw] gap-[2vw] ${leaving ? "page-exit" : ""}`}>
 
-        {/* Left Panel — large screens only */}
+        {/* Left Panel */}
         <div className="hidden lg:block flex-1 relative h-screen max-h-[1200px] overflow-visible">
           <div className="absolute inset-0 z-[5] pointer-events-none">
             {pawData.map((p, i) => (
@@ -351,7 +359,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 className="forgot-btn bg-transparent border-none text-[0.88rem] font-extrabold text-[#c87820] p-0 transition-colors duration-[150ms] cursor-pointer"
-                onClick={() => window.location.href = "/forgot-password"}
+                onClick={() => navigate("/forgot-password")}
               >
                 Forgot password?
               </button>
@@ -411,9 +419,12 @@ export default function LoginPage() {
 
           <p className="text-center text-[0.86rem] font-bold text-[#4a6030]">
             Don't have an account?{" "}
-            <a href="/register" className="footer-link text-[#c87820] italic font-extrabold no-underline ml-[0.15rem]">
+            <button
+              onClick={() => navigate("/register")}
+              className="footer-link bg-transparent border-none text-[#c87820] italic font-extrabold cursor-pointer text-[0.86rem] p-0"
+            >
               Create Account!
-            </a>
+            </button>
           </p>
         </div>
       </div>

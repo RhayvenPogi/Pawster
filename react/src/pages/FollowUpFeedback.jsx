@@ -729,6 +729,7 @@ export default function FollowUpReports() {
         </div>
       )}
 
+      {/* ── Footer ── */}
       <footer className="relative z-10 border-t border-[rgba(90,170,48,0.45)] bg-[rgba(255,248,218,0.85)] backdrop-blur-md px-10 py-12">
         <div className="max-w-[1200px] mx-auto grid gap-12 mb-10 grid-cols-[repeat(auto-fit,minmax(160px,1fr))]">
           <div>
@@ -739,12 +740,12 @@ export default function FollowUpReports() {
               Paw<em className="italic text-[#e07820]">ster</em>
             </div>
             <p className="text-[0.82rem] font-bold leading-7 text-[#6a7a50] max-w-[260px] mt-2">
-              Screening, placing, and supporting animal adoptions across the Ilocos Region with care and accountability.
+              A digital platform connecting adopters and rescue coordinators across Baguio City and the Cordillera Administrative Region.
             </p>
           </div>
           {[
             { title: "Adopt",    links: [["Browse Animals", "/pets"], ["My Profile", "/profile"], ["Log In", "/login"], ["Register", "/register"]] },
-            { title: "Services", links: [["How It Works", "/how-it-works"], ["Rehome a Pet", "/rehome"], ["Missing Pets", "/missing-pets"], ["About Us", "/about"]] },
+            { title: "Services", links: [["How It Works", "/how-it-works"], ["Rehome & Rescue", "/rehome"], ["Missing Pets", "/missing-pets"], ["About Us", "/about"]] },
             { title: "Provinces",  links: [["Baguio City", "/pets"], ["Benguet", "/pets"], ["Mountain Province", "/pets"], ["Ifugao", "/pets"]] },
           ].map(({ title, links }) => (
             <div key={title}>
@@ -756,10 +757,10 @@ export default function FollowUpReports() {
           ))}
         </div>
         <div className="max-w-[1200px] mx-auto pt-6 border-t border-[rgba(180,140,60,0.28)] flex flex-wrap items-center justify-between gap-4">
-          <div className="text-[0.75rem] font-bold text-[#6a7a50]">© 2025 Pawster. All rights reserved. Made with 🐾 in the Ilocos Region.</div>
+          <div className="text-[0.75rem] font-bold text-[#6a7a50]">© 2025 Pawster. All rights reserved. Made with 🐾 in Baguio City.</div>
           <div className="flex gap-2">
-            {["fab fa-facebook-f", "fab fa-instagram", "fab fa-twitter"].map(icon => (
-              <a key={icon} href="#" className="w-8 h-8 flex items-center justify-center rounded-md text-[0.8rem] text-[#6a7a50] bg-[rgba(255,250,232,0.7)] border border-[rgba(180,140,60,0.28)] hover:bg-black/5 transition">
+            {["fab fa-facebook-f"].map(icon => (
+              <a key={icon} href="https://www.facebook.com/pawsterofficial" style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 6, fontSize: '0.78rem', color: '#7a8a60', background: 'rgba(255,250,232,0.7)', border: '1px solid rgba(180,140,60,0.22)', textDecoration: 'none' }}>
                 <i className={icon} />
               </a>
             ))}
