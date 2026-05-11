@@ -1,10 +1,14 @@
-import { useState, useEffect, useCallback, use } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { usePageTitle } from "../../hooks/usePageTitle";
+
+/* ─────────────────────────────────────────────
+   STATUS / STYLE CONFIG
+───────────────────────────────────────────── */
 const STATUS_STYLE = {
-  approved: { bg: "bg-green-100",  text: "text-green-800",  border: "border-green-300",  dot: "bg-green-400",  label: "Approved"     },
-  pending:  { bg: "bg-amber-100",  text: "text-amber-700",  border: "border-amber-300",  dot: "bg-amber-400",  label: "Pending"      },
-  rejected: { bg: "bg-red-100",    text: "text-red-700",    border: "border-red-300",    dot: "bg-red-400",    label: "Rejected"     },
-  resolved: { bg: "bg-blue-100",   text: "text-blue-700",   border: "border-blue-300",   dot: "bg-blue-400",   label: "Resolved ✅"  },
+  approved: { bg: "bg-green-100",  text: "text-green-800",  border: "border-green-300",  dot: "bg-green-400",  label: "Approved" },
+  pending:  { bg: "bg-amber-100",  text: "text-amber-700",  border: "border-amber-300",  dot: "bg-amber-400",  label: "Pending"  },
+  rejected: { bg: "bg-red-100",    text: "text-red-700",    border: "border-red-300",    dot: "bg-red-400",    label: "Rejected" },
+  resolved: { bg: "bg-blue-100",   text: "text-blue-700",   border: "border-blue-300",   dot: "bg-blue-400",   label: "Resolved" },
 };
 
 function getPetPhotoUrl(pet) {
@@ -12,11 +16,158 @@ function getPetPhotoUrl(pet) {
   return `/api/missing-pets/${pet.id}/photo`;
 }
 
+function formatDate(dateStr) {
+  if (!dateStr) return "—";
+  return new Date(dateStr).toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" });
+}
+
+/* ─────────────────────────────────────────────
+   SVG ICONS
+───────────────────────────────────────────── */
+const Ico = ({ d, size = 16, style, className, viewBox = "0 0 24 24", fill = "none" }) => (
+  <svg width={size} height={size} viewBox={viewBox} fill={fill}
+    stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+    style={style} className={className}>
+    {Array.isArray(d) ? d.map((path, i) => <path key={i} d={path} />) : <path d={d} />}
+  </svg>
+);
+
+const Icons = {
+  Paw: ({ size = 16, style, className }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+      strokeLinecap="round" strokeLinejoin="round" style={style} className={className}>
+      <circle cx="11" cy="4" r="2"/><circle cx="18" cy="8" r="2"/><circle cx="4" cy="8" r="2"/>
+      <circle cx="6.5" cy="15.5" r="2.5"/>
+      <path d="M17.5 15.5c0 4-6 7-6 7s-6-3-6-7"/>
+    </svg>
+  ),
+  Eye: ({ size = 14, style }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}>
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+    </svg>
+  ),
+  Edit: ({ size = 14, style }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}>
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+    </svg>
+  ),
+  Check: ({ size = 14, style }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={style}>
+      <polyline points="20 6 9 17 4 12"/>
+    </svg>
+  ),
+  X: ({ size = 14, style }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={style}>
+      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+    </svg>
+  ),
+  Trash: ({ size = 14, style }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}>
+      <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+      <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+    </svg>
+  ),
+  RefreshCw: ({ size = 14, style }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}>
+      <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+      <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+    </svg>
+  ),
+  Search: ({ size = 14, style }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}>
+      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg>
+  ),
+  MapPin: ({ size = 14, style }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}>
+      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+    </svg>
+  ),
+  Palette: ({ size = 14, style }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}>
+      <circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/>
+      <circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/>
+      <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/>
+    </svg>
+  ),
+  Calendar: ({ size = 14, style }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}>
+      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/>
+      <line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+    </svg>
+  ),
+  Cat: ({ size = 14, style }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}>
+      <path d="M12 5c.67 0 1.35.09 2 .26 1.78-2 5.03-2.84 6.42-2.26 1.4.58-.42 7-.42 7 .57 1.07 1 2.24 1 3.44C21 17.9 16.97 21 12 21s-9-3-9-7.56c0-1.25.5-2.4 1-3.44 0 0-1.89-6.42-.5-7 1.39-.58 4.72.23 6.5 2.26A9.06 9.06 0 0 1 12 5z"/>
+      <path d="M8 14v.5"/><path d="M16 14v.5"/><path d="M11.25 16.25h1.5L12 17l-.75-.75z"/>
+    </svg>
+  ),
+  Dog: ({ size = 14, style }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}>
+      <path d="M10 5.172C10 3.782 8.423 2.679 6.5 3 4.722 3.295 3 4.272 3 6c0 1.333.375 2.375 1.125 3.125L3 16v3h3l1-2h8l1 2h3v-3l-1.125-6.875C18.625 8.375 19 7.333 19 6c0-1.728-1.722-2.705-3.5-3-.667-.12-1.353.143-2 .5"/>
+      <path d="M9.5 11c-.667 0-1 .5-1 1s.333 1 1 1h5c.667 0 1-.5 1-1s-.333-1-1-1h-5z"/>
+    </svg>
+  ),
+  Home: ({ size = 14, style }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}>
+      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+      <polyline points="9 22 9 12 15 12 15 22"/>
+    </svg>
+  ),
+  AlertTriangle: ({ size = 14, style }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}>
+      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+      <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+    </svg>
+  ),
+  FileText: ({ size = 14, style }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+      <polyline points="14 2 14 8 20 8"/>
+      <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+      <polyline points="10 9 9 9 8 9"/>
+    </svg>
+  ),
+  Save: ({ size = 14, style }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}>
+      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+      <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
+    </svg>
+  ),
+  Slash: ({ size = 14, style }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}>
+      <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+    </svg>
+  ),
+  Info: ({ size = 14, style }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}>
+      <circle cx="12" cy="12" r="10"/>
+      <line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+    </svg>
+  ),
+  Clock: ({ size = 14, style }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}>
+      <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+    </svg>
+  ),
+  List: ({ size = 14, style }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}>
+      <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/>
+      <line x1="8" y1="18" x2="21" y2="18"/>
+      <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+    </svg>
+  ),
+};
+
+/* ─────────────────────────────────────────────
+   BADGE COMPONENTS
+───────────────────────────────────────────── */
 function StatusBadge({ status }) {
   const s = STATUS_STYLE[status] ?? STATUS_STYLE.pending;
   return (
     <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide border ${s.bg} ${s.text} ${s.border}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
+      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.dot}`} />
       {s.label}
     </span>
   );
@@ -25,18 +176,16 @@ function StatusBadge({ status }) {
 function TypeBadge({ type }) {
   const isLost = type === "lost";
   return (
-    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide border ${isLost ? "bg-red-100 text-red-700 border-red-300" : "bg-green-100 text-green-800 border-green-300"}`}>
-      {isLost ? "🔴 Lost" : "🟢 Found"}
+    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide border ${isLost ? "bg-red-100 text-red-700 border-red-300" : "bg-green-100 text-green-800 border-green-300"}`}>
+      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isLost ? "bg-red-400" : "bg-green-400"}`} />
+      {isLost ? "Lost" : "Found"}
     </span>
   );
 }
 
-function formatDate(dateStr) {
-  if (!dateStr) return "—";
-  return new Date(dateStr).toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" });
-}
-
-/* ── Confirm Dialog ── */
+/* ─────────────────────────────────────────────
+   CONFIRM DIALOG
+───────────────────────────────────────────── */
 function ConfirmDialog({ message, title, icon, onConfirm, onCancel, confirmLabel = "Confirm", confirmColor, confirmBg, confirmBorder }) {
   useEffect(() => {
     document.body.style.overflow = "hidden";
@@ -45,13 +194,13 @@ function ConfirmDialog({ message, title, icon, onConfirm, onCancel, confirmLabel
 
   return (
     <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-[#fffceb] border border-[rgba(180,140,60,0.35)] rounded-2xl p-7 max-w-sm w-full shadow-2xl">
-        <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl"
-          style={{ background: confirmBg || "rgba(192,48,48,0.09)" }}>
+      <div className="bg-[#fffceb] border border-[rgba(180,140,60,0.35)] rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+        <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4"
+          style={{ background: confirmBg || "rgba(192,48,48,0.09)", color: confirmColor }}>
           {icon}
         </div>
         {title && (
-          <p className="text-center font-black text-[#1a4a08] text-lg mb-1" style={{ fontFamily: "'Playfair Display', serif" }}>
+          <p className="text-center font-black text-[#1a4a08] text-base mb-1" style={{ fontFamily: "'Playfair Display', serif" }}>
             {title}
           </p>
         )}
@@ -62,7 +211,7 @@ function ConfirmDialog({ message, title, icon, onConfirm, onCancel, confirmLabel
             Cancel
           </button>
           <button onClick={onConfirm}
-            className="flex-1 py-2.5 rounded-xl font-extrabold text-sm cursor-pointer flex items-center justify-center gap-1 transition-opacity hover:opacity-80"
+            className="flex-1 py-2.5 rounded-xl font-extrabold text-sm cursor-pointer flex items-center justify-center gap-1.5 transition-opacity hover:opacity-80"
             style={{ background: confirmBg, border: `1.5px solid ${confirmBorder}`, color: confirmColor }}>
             {confirmLabel}
           </button>
@@ -72,7 +221,9 @@ function ConfirmDialog({ message, title, icon, onConfirm, onCancel, confirmLabel
   );
 }
 
-/* ── Edit Modal ── */
+/* ─────────────────────────────────────────────
+   EDIT MODAL
+───────────────────────────────────────────── */
 function EditModal({ pet, onClose, onSave, saving }) {
   const [form, setForm] = useState({
     name:    pet.name    || "",
@@ -89,95 +240,76 @@ function EditModal({ pet, onClose, onSave, saving }) {
     return () => { document.body.style.overflow = ""; };
   }, []);
 
-  const handleChange = (e) =>
-    setForm(f => ({ ...f, [e.target.name]: e.target.value }));
+  const handleChange = (e) => setForm(f => ({ ...f, [e.target.name]: e.target.value }));
 
   const FIELDS = [
-    { name: "name",    label: "Pet Name",   placeholder: "e.g. Buddy"          },
-    { name: "species", label: "Species",    placeholder: "e.g. Dog, Cat"        },
-    { name: "breed",   label: "Breed",      placeholder: "e.g. Labrador"        },
-    { name: "color",   label: "Color",      placeholder: "e.g. Brown and white" },
-    { name: "area",    label: "Area",       placeholder: "e.g. Brgy. San Jose"  },
-    { name: "address", label: "Address",    placeholder: "Full address"         },
+    { name: "name",    label: "Pet Name",  placeholder: "e.g. Buddy"           },
+    { name: "species", label: "Species",   placeholder: "e.g. Dog, Cat"         },
+    { name: "breed",   label: "Breed",     placeholder: "e.g. Labrador"         },
+    { name: "color",   label: "Color",     placeholder: "e.g. Brown and white"  },
+    { name: "area",    label: "Area",      placeholder: "e.g. Brgy. San Jose"   },
+    { name: "address", label: "Address",   placeholder: "Full address"          },
   ];
 
+  const inputCls = "w-full px-3 py-2 rounded-xl border border-[rgba(180,140,60,0.28)] bg-[rgba(255,250,232,0.88)] font-bold text-sm text-[#1a4a08] outline-none focus:border-[#B45A22] focus:ring-2 focus:ring-[rgba(180,90,34,0.12)] transition-all";
+
   return (
-    <div
-      className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
-      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      <div
-        className="bg-white rounded-2xl max-w-lg w-full max-h-[92vh] overflow-hidden flex flex-col shadow-2xl border border-black/10"
-        onClick={e => e.stopPropagation()}
-      >
+    <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="bg-white rounded-2xl max-w-lg w-full max-h-[92vh] overflow-hidden flex flex-col shadow-2xl border border-black/10"
+        onClick={e => e.stopPropagation()}>
+
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-black/8">
-          <div className="flex items-center gap-2">
-            <span>✏️</span>
-            <span className="font-bold text-[15px] text-[#1a3a08]">Edit Report</span>
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-black/[0.08] flex-shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <Icons.Edit size={15} style={{ color: "#B45A22", flexShrink: 0 }} />
+            <span className="font-bold text-[15px] text-[#1a3a08] truncate">Edit Report</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0 ml-2">
             <TypeBadge type={pet.type} />
             <StatusBadge status={pet.status ?? "pending"} />
             <button onClick={onClose}
-              className="w-7 h-7 rounded-lg border border-black/12 bg-transparent text-gray-400 hover:bg-gray-50 cursor-pointer flex items-center justify-center text-sm transition-colors">
-              ✕
+              className="w-7 h-7 rounded-lg border border-black/[0.12] bg-transparent text-gray-400 hover:bg-gray-50 cursor-pointer flex items-center justify-center transition-colors ml-1">
+              <Icons.X size={14} />
             </button>
           </div>
         </div>
 
         {/* Body */}
         <div className="overflow-y-auto flex-1 p-5 flex flex-col gap-3">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {FIELDS.map(({ name, label, placeholder }) => (
-              <div key={name} className={name === "address" ? "col-span-2" : ""}>
-                <label className="block text-[10px] font-black uppercase tracking-wider text-[#B45A22] mb-1">
-                  {label}
-                </label>
-                <input
-                  name={name}
-                  value={form[name]}
-                  onChange={handleChange}
-                  placeholder={placeholder}
-                  className="w-full px-3 py-2 rounded-xl border border-[rgba(180,140,60,0.28)] bg-[rgba(255,250,232,0.88)] font-bold text-sm text-[#1a4a08] outline-none focus:border-[#B45A22] focus:ring-2 focus:ring-[rgba(180,90,34,0.12)] transition-all"
-                />
+              <div key={name} className={name === "address" ? "sm:col-span-2" : ""}>
+                <label className="block text-[10px] font-black uppercase tracking-wider text-[#B45A22] mb-1">{label}</label>
+                <input name={name} value={form[name]} onChange={handleChange}
+                  placeholder={placeholder} className={inputCls} />
               </div>
             ))}
           </div>
-
-          {/* Details textarea */}
           <div>
-            <label className="block text-[10px] font-black uppercase tracking-wider text-[#B45A22] mb-1">
-              Details
-            </label>
-            <textarea
-              name="details"
-              value={form.details}
-              onChange={handleChange}
-              placeholder="Additional details about the pet…"
-              rows={4}
-              className="w-full px-3 py-2 rounded-xl border border-[rgba(180,140,60,0.28)] bg-[rgba(255,250,232,0.88)] font-bold text-sm text-[#1a4a08] outline-none focus:border-[#B45A22] focus:ring-2 focus:ring-[rgba(180,90,34,0.12)] transition-all resize-none"
-            />
+            <label className="block text-[10px] font-black uppercase tracking-wider text-[#B45A22] mb-1">Details</label>
+            <textarea name="details" value={form.details} onChange={handleChange}
+              placeholder="Additional details about the pet…" rows={4}
+              className={`${inputCls} resize-none`} />
           </div>
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-3.5 border-t border-black/8 flex gap-2 bg-white shrink-0">
-          <button onClick={onClose}
-            disabled={saving}
-            className="flex-1 py-2.5 rounded-xl font-bold text-sm cursor-pointer bg-transparent border border-black/15 text-gray-500 hover:bg-gray-50 transition-colors disabled:opacity-50">
+        <div className="px-5 py-3.5 border-t border-black/[0.08] flex gap-2 bg-white flex-shrink-0">
+          <button onClick={onClose} disabled={saving}
+            className="flex-1 py-2.5 rounded-xl font-bold text-sm cursor-pointer bg-transparent border border-black/[0.15] text-gray-500 hover:bg-gray-50 transition-colors disabled:opacity-50">
             Cancel
           </button>
-          <button
-            onClick={() => onSave(form)}
-            disabled={saving}
+          <button onClick={() => onSave(form)} disabled={saving}
             className="flex-1 py-2.5 rounded-xl font-bold text-sm cursor-pointer bg-[#2d5a1b] text-white border-none hover:bg-[#245015] transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
             {saving ? (
               <>
                 <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full inline-block" style={{ animation: "spin .7s linear infinite" }} />
                 Saving…
               </>
-            ) : "💾 Save Changes"}
+            ) : (
+              <><Icons.Save size={14} /> Save Changes</>
+            )}
           </button>
         </div>
       </div>
@@ -185,7 +317,9 @@ function EditModal({ pet, onClose, onSave, saving }) {
   );
 }
 
-/* ── Detail Modal ── */
+/* ─────────────────────────────────────────────
+   DETAIL MODAL
+───────────────────────────────────────────── */
 function DetailModal({ pet, onClose, onApprove, onReject, onDelete, onEdit }) {
   const [imgErr, setImgErr] = useState(false);
 
@@ -195,18 +329,18 @@ function DetailModal({ pet, onClose, onApprove, onReject, onDelete, onEdit }) {
     return () => { document.body.style.overflow = ""; };
   }, []);
 
-  const photoUrl = getPetPhotoUrl(pet);
+  const photoUrl  = getPetPhotoUrl(pet);
   const isPending  = !pet.status || pet.status === "pending";
   const isApproved = pet.status === "approved";
+  const isCat      = pet.species?.toLowerCase() === "cat";
 
   const pills = [
-    { icon: "📍", label: "Area",     value: pet.area || "—"   },
-    { icon: "🎨", label: "Color",    value: pet.color || "—"  },
-    { icon: "📅", label: "Reported", value: pet.reportedDate ? new Date(pet.reportedDate).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" }) : "—" },
-    { icon: "🐾", label: "Species",  value: pet.species || "—" },
-    ...(pet.breed ? [{ icon: "🦮", label: "Breed", value: pet.breed }] : []),
-    // ── NEW: show resolved status if owner marked it ──
-    ...(pet.resolvedByUser ? [{ icon: "🏠", label: "Owner Status", value: "Reunited with owner ✅" }] : []),
+    { Icon: Icons.MapPin,  label: "Area",     value: pet.area    || "—" },
+    { Icon: Icons.Palette, label: "Color",    value: pet.color   || "—" },
+    { Icon: Icons.Calendar,label: "Reported", value: formatDate(pet.reportedDate) },
+    { Icon: Icons.Paw,     label: "Species",  value: pet.species || "—" },
+    ...(pet.breed          ? [{ Icon: Icons.Dog,  label: "Breed",        value: pet.breed }] : []),
+    ...(pet.resolvedByUser ? [{ Icon: Icons.Home, label: "Owner Status", value: "Reunited with owner" }] : []),
   ];
 
   return (
@@ -216,24 +350,22 @@ function DetailModal({ pet, onClose, onApprove, onReject, onDelete, onEdit }) {
         onClick={e => e.stopPropagation()}>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-black/8">
-          <div className="flex items-center gap-2">
-            <span>🐾</span>
-            <span className="font-bold text-[15px] text-[#1a3a08]">Report Details</span>
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-black/[0.08] flex-shrink-0 gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <Icons.FileText size={15} style={{ color: "#B45A22", flexShrink: 0 }} />
+            <span className="font-bold text-[15px] text-[#1a3a08] truncate">Report Details</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 flex-shrink-0 flex-wrap justify-end">
             <TypeBadge type={pet.type} />
             <StatusBadge status={pet.status ?? "pending"} />
-            {/* ── NEW: Resolved badge in header ── */}
             {pet.resolvedByUser && (
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide border bg-blue-100 text-blue-700 border-blue-300">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
-                Reunited
+                <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-blue-400" />Reunited
               </span>
             )}
             <button onClick={onClose}
-              className="w-7 h-7 rounded-lg border border-black/12 bg-transparent text-gray-400 hover:bg-gray-50 cursor-pointer flex items-center justify-center text-sm transition-colors">
-              ✕
+              className="w-7 h-7 rounded-lg border border-black/[0.12] bg-transparent text-gray-400 hover:bg-gray-50 cursor-pointer flex items-center justify-center transition-colors ml-1">
+              <Icons.X size={14} />
             </button>
           </div>
         </div>
@@ -241,25 +373,22 @@ function DetailModal({ pet, onClose, onApprove, onReject, onDelete, onEdit }) {
         {/* Scrollable body */}
         <div className="overflow-y-auto flex-1 flex flex-col">
           {/* Cover photo */}
-          <div className="relative h-48 bg-[#f0ece0] shrink-0 overflow-hidden">
+          <div className="relative flex-shrink-0 overflow-hidden" style={{ height: "clamp(140px, 28vw, 192px)" }}>
             {!imgErr ? (
-              <img
-                src={photoUrl}
-                alt={pet.name || "Pet"}
+              <img src={photoUrl} alt={pet.name || "Pet"}
                 className="w-full h-full object-cover"
-                onError={() => setImgErr(true)}
-                onLoad={() => setImgErr(false)}
-              />
+                onError={() => setImgErr(true)} onLoad={() => setImgErr(false)} />
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-6xl opacity-20">
-                {pet.species?.toLowerCase() === "cat" ? "🐱" : "🐶"}
+              <div className="w-full h-full flex items-center justify-center bg-[#f0ece0]">
+                {isCat
+                  ? <Icons.Cat size={48} style={{ color: "#9aaa80", opacity: 0.4 }} />
+                  : <Icons.Dog size={48} style={{ color: "#9aaa80", opacity: 0.4 }} />}
               </div>
             )}
             <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-white to-transparent" />
-            {/* ── NEW: Resolved ribbon over photo ── */}
             {pet.resolvedByUser && (
               <div className="absolute top-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-600/90 backdrop-blur-sm text-white text-[11px] font-black shadow-lg">
-                🏠 Reunited with owner
+                <Icons.Home size={11} style={{ color: "#fff" }} /> Reunited with owner
               </div>
             )}
             <div className="absolute bottom-3 left-4 right-4">
@@ -272,36 +401,43 @@ function DetailModal({ pet, onClose, onApprove, onReject, onDelete, onEdit }) {
 
           {/* Content */}
           <div className="p-5 flex flex-col gap-3">
-            {/* ── NEW: Resolved info banner ── */}
+            {/* Reunited banner */}
             {pet.resolvedByUser && (
               <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-50 border border-blue-200">
-                <span className="text-2xl">🏠</span>
+                <Icons.Home size={22} style={{ color: "#2563eb", flexShrink: 0 }} />
                 <div>
                   <p className="text-xs font-black text-blue-700 uppercase tracking-wider m-0">Pet Reunited</p>
-                  <p className="text-sm font-bold text-blue-600 m-0 mt-0.5">
-                    The owner has confirmed this pet was found and reunited.
-                  </p>
+                  <p className="text-sm font-bold text-blue-600 m-0 mt-0.5">The owner has confirmed this pet was found and reunited.</p>
                 </div>
               </div>
             )}
 
+            {/* Pills */}
             <div className="flex gap-2 flex-wrap">
-              {pills.map(({ icon, label, value }) => (
-                <div key={label} className="bg-[#faf8f0] border border-black/8 rounded-xl px-3 py-1.5">
-                  <p className="text-[9px] font-black uppercase tracking-wider text-[#B45A22]">{icon} {label}</p>
+              {pills.map(({ Icon, label, value }) => (
+                <div key={label} className="bg-[#faf8f0] border border-black/[0.08] rounded-xl px-3 py-1.5">
+                  <p className="text-[9px] font-black uppercase tracking-wider text-[#B45A22] flex items-center gap-1">
+                    <Icon size={10} /> {label}
+                  </p>
                   <p className="text-[13px] font-bold text-[#1a3a08] mt-0.5">{value}</p>
                 </div>
               ))}
             </div>
+
             {pet.address && (
-              <div className="bg-[#faf8f0] border border-black/8 rounded-xl p-3">
-                <p className="text-[9px] font-black uppercase tracking-wider text-[#B45A22] mb-1">📍 Address</p>
+              <div className="bg-[#faf8f0] border border-black/[0.08] rounded-xl p-3">
+                <p className="text-[9px] font-black uppercase tracking-wider text-[#B45A22] mb-1 flex items-center gap-1">
+                  <Icons.MapPin size={10} /> Address
+                </p>
                 <p className="text-[13px] font-bold text-[#1a3a08] leading-snug">{pet.address}</p>
               </div>
             )}
+
             {pet.details && (
-              <div className="bg-[#faf8f0] border border-black/8 rounded-xl p-3">
-                <p className="text-[9px] font-black uppercase tracking-wider text-gray-400 mb-1">📝 Details</p>
+              <div className="bg-[#faf8f0] border border-black/[0.08] rounded-xl p-3">
+                <p className="text-[9px] font-black uppercase tracking-wider text-gray-400 mb-1 flex items-center gap-1">
+                  <Icons.FileText size={10} /> Details
+                </p>
                 <p className="text-[13px] font-semibold text-[#3a5020] leading-relaxed">{pet.details}</p>
               </div>
             )}
@@ -309,36 +445,38 @@ function DetailModal({ pet, onClose, onApprove, onReject, onDelete, onEdit }) {
         </div>
 
         {/* Footer actions */}
-        <div className="px-5 py-3.5 border-t border-black/8 flex gap-2 bg-white shrink-0">
-          {isPending && (<>
-            <button onClick={() => onApprove(pet)}
-              className="flex-1 py-2.5 rounded-xl font-bold text-sm cursor-pointer bg-[#2d5a1b] text-white border-none hover:bg-[#245015] transition-colors">
-              ✓ Approve
-            </button>
-            <button onClick={() => onReject(pet)}
-              className="flex-1 py-2.5 rounded-xl font-bold text-sm cursor-pointer bg-transparent border border-black/15 text-gray-500 hover:bg-gray-50 transition-colors">
-              ✕ Reject
-            </button>
-          </>)}
+        <div className="px-5 py-3.5 border-t border-black/[0.08] flex gap-2 bg-white flex-shrink-0 flex-wrap">
+          {isPending && (
+            <>
+              <button onClick={() => onApprove(pet)}
+                className="flex-1 min-w-[100px] py-2.5 rounded-xl font-bold text-sm cursor-pointer bg-[#2d5a1b] text-white border-none hover:bg-[#245015] transition-colors flex items-center justify-center gap-1.5">
+                <Icons.Check size={13} /> Approve
+              </button>
+              <button onClick={() => onReject(pet)}
+                className="flex-1 min-w-[100px] py-2.5 rounded-xl font-bold text-sm cursor-pointer bg-transparent border border-black/[0.15] text-gray-500 hover:bg-gray-50 transition-colors flex items-center justify-center gap-1.5">
+                <Icons.X size={13} /> Reject
+              </button>
+            </>
+          )}
           {isApproved && (
             <button onClick={() => onReject(pet)}
-              className="flex-1 py-2.5 rounded-xl font-bold text-sm cursor-pointer bg-transparent border border-black/15 text-amber-600 hover:bg-amber-50 transition-colors">
-              ⊘ Revoke Approval
+              className="flex-1 min-w-[120px] py-2.5 rounded-xl font-bold text-sm cursor-pointer bg-transparent border border-black/[0.15] text-amber-600 hover:bg-amber-50 transition-colors flex items-center justify-center gap-1.5">
+              <Icons.Slash size={13} /> Revoke Approval
             </button>
           )}
           {pet.status === "rejected" && (
             <button onClick={() => onApprove(pet)}
-              className="flex-1 py-2.5 rounded-xl font-bold text-sm cursor-pointer bg-[#2d5a1b] text-white border-none hover:bg-[#245015] transition-colors">
-              ✓ Re-approve
+              className="flex-1 min-w-[100px] py-2.5 rounded-xl font-bold text-sm cursor-pointer bg-[#2d5a1b] text-white border-none hover:bg-[#245015] transition-colors flex items-center justify-center gap-1.5">
+              <Icons.Check size={13} /> Re-approve
             </button>
           )}
           <button onClick={() => onEdit(pet)}
-            className="px-4 py-2.5 rounded-xl font-bold text-sm cursor-pointer bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 transition-colors">
-            ✏️
+            className="px-4 py-2.5 rounded-xl font-bold text-sm cursor-pointer bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 transition-colors flex items-center justify-center gap-1.5">
+            <Icons.Edit size={13} />
           </button>
           <button onClick={() => onDelete(pet)}
-            className="px-4 py-2.5 rounded-xl font-bold text-sm cursor-pointer bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 transition-colors">
-            🗑
+            className="px-4 py-2.5 rounded-xl font-bold text-sm cursor-pointer bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 transition-colors flex items-center justify-center gap-1.5">
+            <Icons.Trash size={13} />
           </button>
         </div>
       </div>
@@ -346,9 +484,9 @@ function DetailModal({ pet, onClose, onApprove, onReject, onDelete, onEdit }) {
   );
 }
 
-/* ════════════════════════════════════════════════
-   Main Panel
-════════════════════════════════════════════════ */
+/* ─────────────────────────────────────────────
+   MAIN PANEL
+───────────────────────────────────────────── */
 export default function MissingPetsPanel({ show, onStatsChange }) {
   const [pets, setPets]             = useState([]);
   const [loading, setLoading]       = useState(true);
@@ -443,7 +581,6 @@ export default function MissingPetsPanel({ show, onStatsChange }) {
     }
   };
 
-  // ── counts now includes resolved ──────────────────────────────────────────
   const counts = {
     all:      pets.length,
     pending:  pets.filter(p => !p.status || p.status === "pending").length,
@@ -454,7 +591,6 @@ export default function MissingPetsPanel({ show, onStatsChange }) {
     found:    pets.filter(p => p.type === "found").length,
   };
 
-  // ── filter logic now handles "resolved" ───────────────────────────────────
   const filtered = pets.filter(p => {
     const matchStatus =
       statusFilter === "all"      ? true :
@@ -462,88 +598,110 @@ export default function MissingPetsPanel({ show, onStatsChange }) {
       statusFilter === "resolved" ? !!p.resolvedByUser :
       p.status === statusFilter;
     const matchType   = typeFilter === "all" || p.type === typeFilter;
-    const matchSearch = !search.trim() || [p.name, p.breed, p.area, p.address, p.color, p.species]
-      .some(f => f?.toLowerCase().includes(search.toLowerCase()));
+    const matchSearch = !search.trim() ||
+      [p.name, p.breed, p.area, p.address, p.color, p.species]
+        .some(f => f?.toLowerCase().includes(search.toLowerCase()));
     return matchStatus && matchType && matchSearch;
   });
 
   if (!show) return null;
 
-  // ── stat cards now includes Resolved ─────────────────────────────────────
   const STAT_CARDS = [
-    { label: "Total",    value: counts.all,      icon: "📋", bg: "bg-amber-100",  text: "text-amber-700"  },
-    { label: "Pending",  value: counts.pending,  icon: "🕐", bg: "bg-amber-100",  text: "text-amber-700"  },
-    { label: "Approved", value: counts.approved, icon: "✅", bg: "bg-green-100",  text: "text-green-800"  },
-    { label: "Rejected", value: counts.rejected, icon: "❌", bg: "bg-red-100",    text: "text-red-700"    },
-    { label: "Resolved", value: counts.resolved, icon: "🏠", bg: "bg-blue-100",   text: "text-blue-700"   },
-    { label: "Lost",     value: counts.lost,     icon: "🔴", bg: "bg-red-50",     text: "text-red-600"    },
-    { label: "Found",    value: counts.found,    icon: "🟢", bg: "bg-green-50",   text: "text-green-700"  },
+    { label: "Total",    value: counts.all,      Icon: Icons.List,          bg: "bg-amber-50",  text: "text-amber-700"  },
+    { label: "Pending",  value: counts.pending,  Icon: Icons.Clock,         bg: "bg-amber-100", text: "text-amber-700"  },
+    { label: "Approved", value: counts.approved, Icon: Icons.Check,         bg: "bg-green-100", text: "text-green-800"  },
+    { label: "Rejected", value: counts.rejected, Icon: Icons.X,             bg: "bg-red-100",   text: "text-red-700"    },
+    { label: "Reunited", value: counts.resolved, Icon: Icons.Home,          bg: "bg-blue-100",  text: "text-blue-700"   },
+    { label: "Lost",     value: counts.lost,     Icon: Icons.AlertTriangle, bg: "bg-red-50",    text: "text-red-600"    },
+    { label: "Found",    value: counts.found,    Icon: Icons.Paw,           bg: "bg-green-50",  text: "text-green-700"  },
   ];
 
-  // ── status filters now includes Resolved ─────────────────────────────────
   const STATUS_FILTERS = [
-    { val: "all",      label: "All",         active: "bg-[#1a4a08] text-white"  },
-    { val: "pending",  label: "Pending",     active: "bg-amber-600 text-white"  },
-    { val: "approved", label: "Approved",    active: "bg-[#1c4f09] text-white"  },
-    { val: "rejected", label: "Rejected",    active: "bg-red-600 text-white"    },
-    { val: "resolved", label: "Resolved 🏠", active: "bg-blue-600 text-white"   },
+    { val: "all",      label: "All",      active: "bg-[#1a4a08] text-white"  },
+    { val: "pending",  label: "Pending",  active: "bg-amber-600 text-white"  },
+    { val: "approved", label: "Approved", active: "bg-[#1c4f09] text-white"  },
+    { val: "rejected", label: "Rejected", active: "bg-red-600 text-white"    },
+    { val: "resolved", label: "Reunited", active: "bg-blue-600 text-white"   },
   ];
+
+  /* ─── Table column headers (desktop) ─── */
+  const COL_HEADERS = ["Photo", "Type", "Pet / Breed", "Species", "Area", "Status", "Date", "Actions"];
 
   return (
     <div className="font-[Nunito,sans-serif]">
-      <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}} @keyframes spin{to{transform:rotate(360deg)}} .mpp-anim{animation:fadeUp .25s ease both;}`}</style>
+      <style>{`
+        @keyframes fadeUp { from { opacity:0; transform:translateY(10px) } to { opacity:1; transform:translateY(0) } }
+        @keyframes spin   { to   { transform:rotate(360deg) } }
+        .mpp-anim { animation: fadeUp .22s ease both; }
+        /* Mobile card layout for table rows */
+        @media (max-width: 767px) {
+          .pet-table-header { display: none !important; }
+          .pet-table-row    { display: flex !important; flex-direction: column !important; gap: 0.625rem !important; padding: 1rem !important; }
+          .pet-row-photo    { display: flex !important; align-items: center !important; gap: 0.75rem !important; }
+          .pet-row-grid     { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 0.375rem 0.75rem !important; }
+          .pet-row-actions  { display: flex !important; flex-wrap: wrap !important; gap: 0.375rem !important; }
+          .pet-col-hide     { display: none !important; }
+        }
+      `}</style>
 
-      {/* Toast */}
+      {/* ── Toast ── */}
       {toast && (
-        <div className={`fixed bottom-6 right-6 z-[2000] px-5 py-3 rounded-xl font-extrabold text-sm text-white shadow-xl mpp-anim ${toast.type === "success" ? "bg-[rgba(28,79,9,0.94)]" : "bg-[rgba(192,48,48,0.94)]"}`}>
-          {toast.type === "success" ? "✓ " : "✕ "}{toast.msg}
+        <div className={`fixed bottom-6 right-6 z-[2000] px-5 py-3 rounded-xl font-extrabold text-sm text-white shadow-xl mpp-anim flex items-center gap-2 ${toast.type === "success" ? "bg-[rgba(28,79,9,0.94)]" : "bg-[rgba(192,48,48,0.94)]"}`}>
+          {toast.type === "success"
+            ? <Icons.Check size={14} style={{ color: "#fff" }} />
+            : <Icons.X     size={14} style={{ color: "#fff" }} />}
+          {toast.msg}
         </div>
       )}
 
-      {/* Header */}
+      {/* ── Header ── */}
       <div className="flex items-end justify-between flex-wrap gap-4 mb-6">
         <div>
-          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-[rgba(180,90,34,0.10)] border border-[rgba(180,90,34,0.28)] text-[#B45A22] mb-2">
-            🐾 Community Reports
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-[rgba(180,90,34,0.10)] border border-[rgba(180,90,34,0.28)] text-[#B45A22] mb-2">
+            <Icons.Paw size={11} /> Community Reports
           </span>
-          <h2 className="text-3xl font-black text-[#1a4a08] leading-tight m-0" style={{ fontFamily: "'Playfair Display', serif" }}>
+          <h2 className="text-[clamp(1.5rem,5vw,2rem)] font-black text-[#1a4a08] leading-tight m-0"
+            style={{ fontFamily: "'Playfair Display', serif" }}>
             <em className="italic text-[#B45A22]">Missing</em> Pets
           </h2>
-          <p className="text-sm font-bold text-[#6a7a50] mt-1">
-            {counts.all} total · {counts.pending} pending · {counts.approved} approved · {counts.rejected} rejected · {counts.resolved} reunited
+          <p className="text-xs font-bold text-[#6a7a50] mt-1 leading-relaxed">
+            {counts.all} total &middot; {counts.pending} pending &middot; {counts.approved} approved &middot; {counts.rejected} rejected &middot; {counts.resolved} reunited
           </p>
         </div>
         <button onClick={fetchPets}
           className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-extrabold text-sm text-[#1c4f09] bg-[rgba(90,170,48,0.12)] border border-[rgba(90,170,48,0.30)] hover:bg-[rgba(90,170,48,0.2)] cursor-pointer transition-colors">
-          🔄 Refresh
+          <Icons.RefreshCw size={14} /> Refresh
         </button>
       </div>
 
-      {/* Stat cards — 7 columns */}
-      <div className="grid grid-cols-7 gap-2.5 mb-5">
-        {STAT_CARDS.map(c => (
-          <div key={c.label} className={`${c.bg} rounded-2xl p-3 flex items-center gap-2.5 border border-black/8`}>
-            <span className="text-lg">{c.icon}</span>
+      {/* ── Stat cards — fluid wrap ── */}
+      <div className="grid gap-2.5 mb-5"
+        style={{ gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 120px), 1fr))" }}>
+        {STAT_CARDS.map(({ label, value, Icon, bg, text }) => (
+          <div key={label} className={`${bg} rounded-2xl p-3 flex items-center gap-2.5 border border-black/[0.08]`}>
+            <Icon size={16} style={{ flexShrink: 0, opacity: 0.7 }} className={text} />
             <div>
-              <p className={`text-xl font-black leading-none ${c.text}`}>{c.value}</p>
-              <p className="text-[9px] font-black text-[#6a7a50] uppercase tracking-widest mt-0.5">{c.label}</p>
+              <p className={`text-xl font-black leading-none ${text}`}>{value}</p>
+              <p className="text-[9px] font-black text-[#6a7a50] uppercase tracking-widest mt-0.5">{label}</p>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Filters */}
-      <div className="flex gap-2.5 flex-wrap items-center mb-4">
-        <div className="inline-flex gap-0.5 bg-[rgba(255,248,220,0.7)] rounded-full p-1 border border-[rgba(180,140,60,0.28)]">
+      {/* ── Filters ── */}
+      <div className="flex gap-2 flex-wrap items-center mb-4">
+        {/* Status pill group */}
+        <div className="inline-flex gap-0.5 bg-[rgba(255,248,220,0.7)] rounded-full p-1 border border-[rgba(180,140,60,0.28)] flex-wrap">
           {STATUS_FILTERS.map(({ val, label, active }) => (
             <button key={val} onClick={() => setStatus(val)}
-              className={`px-3 py-1.5 rounded-full text-xs font-extrabold border-none cursor-pointer transition-all ${statusFilter === val ? active : "bg-transparent text-[#3a5020] hover:bg-[rgba(180,140,60,0.08)]"}`}>
+              className={`px-3 py-1.5 rounded-full text-xs font-extrabold border-none cursor-pointer transition-all whitespace-nowrap ${statusFilter === val ? active : "bg-transparent text-[#3a5020] hover:bg-[rgba(180,140,60,0.08)]"}`}>
               {label}
               {val !== "all" && counts[val] > 0 && <span className="opacity-60 ml-1">({counts[val]})</span>}
             </button>
           ))}
         </div>
 
+        {/* Type pill group */}
         <div className="inline-flex gap-0.5 bg-[rgba(255,248,220,0.7)] rounded-full p-1 border border-[rgba(180,140,60,0.28)]">
           {[["all", "All", "bg-[#555] text-white"], ["lost", "Lost", "bg-red-600 text-white"], ["found", "Found", "bg-[#1c4f09] text-white"]].map(([val, label, active]) => (
             <button key={val} onClick={() => setType(val)}
@@ -553,46 +711,47 @@ export default function MissingPetsPanel({ show, onStatsChange }) {
           ))}
         </div>
 
-        <div className="flex-1 min-w-[200px] relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[#9aaa80] pointer-events-none">🔍</span>
+        {/* Search */}
+        <div className="flex-1 min-w-[160px] relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#9aaa80]">
+            <Icons.Search size={14} />
+          </span>
           <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Search name, breed, area, address…"
+            placeholder="Search name, breed, area…"
             className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-[rgba(180,140,60,0.28)] bg-[rgba(255,250,232,0.88)] font-bold text-sm text-[#1a4a08] outline-none focus:border-[#B45A22] focus:ring-2 focus:ring-[rgba(180,90,34,0.12)] transition-all" />
         </div>
 
         {(statusFilter !== "all" || typeFilter !== "all" || search) && (
           <button onClick={() => { setStatus("all"); setType("all"); setSearch(""); }}
-            className="px-3 py-2 rounded-xl text-xs font-extrabold border border-[rgba(180,140,60,0.28)] bg-[rgba(255,248,220,0.7)] text-[#6a7a50] cursor-pointer hover:bg-[rgba(180,140,60,0.1)] transition-colors whitespace-nowrap">
-            ✕ Clear
+            className="px-3 py-2 rounded-xl text-xs font-extrabold border border-[rgba(180,140,60,0.28)] bg-[rgba(255,248,220,0.7)] text-[#6a7a50] cursor-pointer hover:bg-[rgba(180,140,60,0.1)] transition-colors whitespace-nowrap flex items-center gap-1">
+            <Icons.X size={11} /> Clear
           </button>
         )}
       </div>
 
-      {/* ── Pending banner ── */}
+      {/* ── Attention banners ── */}
       {counts.pending > 0 && statusFilter !== "pending" && (
         <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-amber-50 border border-amber-200 mb-4 cursor-pointer hover:bg-amber-100 transition-colors"
           onClick={() => setStatus("pending")}>
-          <div className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
+          <Icons.Clock size={14} style={{ color: "#b45309", flexShrink: 0 }} />
           <p className="text-xs font-extrabold text-amber-700 m-0">
             {counts.pending} report{counts.pending !== 1 ? "s" : ""} awaiting review —{" "}
             <span className="underline">click to filter</span>
           </p>
         </div>
       )}
-
-      {/* ── NEW: Resolved / Reunited banner ── */}
       {counts.resolved > 0 && statusFilter !== "resolved" && (
         <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-blue-50 border border-blue-200 mb-4 cursor-pointer hover:bg-blue-100 transition-colors"
           onClick={() => setStatus("resolved")}>
-          <div className="w-2 h-2 rounded-full bg-blue-400 shrink-0" />
+          <Icons.Home size={14} style={{ color: "#2563eb", flexShrink: 0 }} />
           <p className="text-xs font-extrabold text-blue-700 m-0">
-            🏠 {counts.resolved} pet{counts.resolved !== 1 ? "s" : ""} marked as reunited by their owner —{" "}
+            {counts.resolved} pet{counts.resolved !== 1 ? "s" : ""} marked as reunited by their owner —{" "}
             <span className="underline">click to filter</span>
           </p>
         </div>
       )}
 
-      {/* Loading */}
+      {/* ── Loading ── */}
       {loading && (
         <div className="flex justify-center items-center py-16 gap-3 text-[#3a5020] font-bold text-sm">
           <div className="w-5 h-5 border-[3px] border-[rgba(180,90,34,0.2)] border-t-[#B45A22] rounded-full" style={{ animation: "spin .7s linear infinite" }} />
@@ -600,108 +759,143 @@ export default function MissingPetsPanel({ show, onStatsChange }) {
         </div>
       )}
 
-      {/* Empty */}
+      {/* ── Empty ── */}
       {!loading && filtered.length === 0 && (
         <div className="text-center py-16 text-[#6a7a50]">
-          <div className="text-5xl mb-3">🐾</div>
-          <p className="font-black text-lg text-[#1a4a08]" style={{ fontFamily: "'Playfair Display', serif" }}>No reports found</p>
+          <Icons.Paw size={44} style={{ color: "#9aaa80", opacity: 0.3, display: "block", margin: "0 auto 0.75rem" }} />
+          <p className="font-black text-lg text-[#1a4a08] m-0" style={{ fontFamily: "'Playfair Display', serif" }}>No reports found</p>
           <p className="text-sm font-bold mt-1">{search ? "Try a different search term." : "No reports match the selected filters."}</p>
         </div>
       )}
 
-      {/* Table */}
+      {/* ── Table / Card list ── */}
       {!loading && filtered.length > 0 && (
         <div className="bg-[rgba(255,248,225,0.9)] border border-[rgba(180,140,60,0.28)] rounded-2xl overflow-hidden shadow-sm">
-          <div className="grid gap-2 px-4 py-2.5 bg-[rgba(180,140,60,0.08)] border-b border-[rgba(180,140,60,0.18)]"
+
+          {/* Desktop header */}
+          <div
+            className="pet-table-header grid gap-2 px-4 py-2.5 bg-[rgba(180,140,60,0.08)] border-b border-[rgba(180,140,60,0.18)]"
             style={{ gridTemplateColumns: "56px 80px 1fr 90px 130px 120px 95px 160px" }}>
-            {["Photo", "Type", "Pet / Breed", "Species", "Area / Address", "Status", "Reported", "Actions"].map(h => (
+            {COL_HEADERS.map(h => (
               <div key={h} className="text-[10px] font-black uppercase tracking-widest text-[#6a7a50]">{h}</div>
             ))}
           </div>
 
-          {filtered.map((pet, i) => (
-            <div key={pet.id}
-              className="grid gap-2 px-4 py-3 items-center cursor-pointer transition-colors hover:bg-[rgba(90,170,48,0.05)]"
-              style={{ gridTemplateColumns: "56px 80px 1fr 90px 130px 120px 95px 160px", borderBottom: i < filtered.length - 1 ? "1px solid rgba(180,140,60,0.11)" : "none" }}
-              onClick={() => setSelected(pet)}>
+          {filtered.map((pet, i) => {
+            const isCat = pet.species?.toLowerCase() === "cat";
+            const isLast = i === filtered.length - 1;
+            return (
+              <div key={pet.id}
+                className="pet-table-row cursor-pointer transition-colors hover:bg-[rgba(90,170,48,0.05)]"
+                style={{
+                  /* Desktop: 8-col grid */
+                  display: "grid",
+                  gridTemplateColumns: "56px 80px 1fr 90px 130px 120px 95px 160px",
+                  gap: "0.5rem",
+                  padding: "0.75rem 1rem",
+                  alignItems: "center",
+                  borderBottom: isLast ? "none" : "1px solid rgba(180,140,60,0.11)",
+                }}
+                onClick={() => setSelected(pet)}>
 
-              {/* Photo */}
-              <div className="w-11 h-11 rounded-xl overflow-hidden bg-[rgba(180,140,60,0.12)] flex items-center justify-center shrink-0 relative">
-                <img
-                  src={getPetPhotoUrl(pet)}
-                  alt=""
-                  className="w-full h-full object-cover"
-                  onError={e => {
-                    e.target.style.display = "none";
-                    e.target.nextSibling.style.display = "flex";
-                  }}
-                />
-                <span className="text-2xl hidden items-center justify-center w-full h-full">
-                  {pet.species?.toLowerCase() === "cat" ? "🐱" : "🐶"}
-                </span>
-                {/* ── NEW: small resolved overlay on photo thumbnail ── */}
-                {pet.resolvedByUser && (
-                  <div className="absolute inset-0 bg-blue-600/60 flex items-center justify-center rounded-xl">
-                    <span className="text-base">🏠</span>
-                  </div>
-                )}
-              </div>
-
-              <div><TypeBadge type={pet.type} /></div>
-
-              <div>
-                <p className="font-black text-sm text-[#1a4a08] m-0">{pet.name || "Unknown"}</p>
-                <p className="text-[11px] font-bold text-[#6a7a50] m-0">{pet.breed || "—"}</p>
-              </div>
-
-              <div className="text-xs font-bold text-[#3a5020]">{pet.species}</div>
-
-              <div>
-                <p className="text-xs font-bold text-[#3a5020] m-0 truncate">{pet.area || "—"}</p>
-                {pet.address && <p className="text-[10px] font-bold text-[#9aaa80] m-0 truncate">{pet.address}</p>}
-              </div>
-
-              {/* ── UPDATED: Status column shows both approval status + resolved badge ── */}
-              <div className="flex flex-col gap-1">
-                <StatusBadge status={pet.status ?? "pending"} />
-                {pet.resolvedByUser && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-blue-700 border border-blue-300 w-fit">
-                    🏠 Reunited
+                {/* Photo */}
+                <div className="w-11 h-11 rounded-xl overflow-hidden bg-[rgba(180,140,60,0.12)] flex items-center justify-center flex-shrink-0 relative">
+                  <img
+                    src={getPetPhotoUrl(pet)} alt=""
+                    className="w-full h-full object-cover"
+                    onError={e => {
+                      e.target.style.display = "none";
+                      e.target.nextSibling.style.display = "flex";
+                    }}
+                  />
+                  <span className="hidden items-center justify-center w-full h-full">
+                    {isCat
+                      ? <Icons.Cat size={24} style={{ color: "#9aaa80" }} />
+                      : <Icons.Dog size={24} style={{ color: "#9aaa80" }} />}
                   </span>
-                )}
-              </div>
+                  {pet.resolvedByUser && (
+                    <div className="absolute inset-0 bg-blue-600/60 flex items-center justify-center rounded-xl">
+                      <Icons.Home size={14} style={{ color: "#fff" }} />
+                    </div>
+                  )}
+                </div>
 
-              <div className="text-[11px] font-bold text-[#6a7a50]">{formatDate(pet.reportedDate)}</div>
+                {/* Type */}
+                <div><TypeBadge type={pet.type} /></div>
 
-              {/* Actions */}
-              <div className="flex gap-1 flex-wrap" onClick={e => e.stopPropagation()}>
-                <button onClick={() => setSelected(pet)} title="View"
-                  className="px-2 py-1 rounded-lg text-[11px] font-black border cursor-pointer transition-opacity hover:opacity-70 bg-blue-50 border-blue-200 text-blue-700">
-                  👁
-                </button>
-                <button onClick={() => setEditPet(pet)} title="Edit"
-                  className="px-2 py-1 rounded-lg text-[11px] font-black border cursor-pointer transition-opacity hover:opacity-70 bg-amber-50 border-amber-200 text-amber-700">
-                  ✏️
-                </button>
-                {(pet.status === "pending" || !pet.status || pet.status === "rejected") && (
-                  <button onClick={() => setConfirmAct({ pet, action: "approve" })} title="Approve"
-                    className="px-2 py-1 rounded-lg text-[11px] font-black border cursor-pointer transition-opacity hover:opacity-70 bg-green-50 border-green-200 text-green-700">
-                    ✓
-                  </button>
-                )}
-                {(pet.status === "pending" || !pet.status || pet.status === "approved") && (
-                  <button onClick={() => setConfirmAct({ pet, action: "reject" })} title={pet.status === "approved" ? "Revoke" : "Reject"}
-                    className="px-2 py-1 rounded-lg text-[11px] font-black border cursor-pointer transition-opacity hover:opacity-70 bg-red-50 border-red-200 text-red-600">
-                    {pet.status === "approved" ? "⊘" : "✕"}
-                  </button>
-                )}
-                <button onClick={() => setConfirmDel(pet)} title="Delete"
-                  className="px-2 py-1 rounded-lg text-[11px] font-black border cursor-pointer transition-opacity hover:opacity-70 bg-red-50 border-red-200 text-red-600">
-                  🗑
-                </button>
+                {/* Pet / Breed */}
+                <div>
+                  <p className="font-black text-sm text-[#1a4a08] m-0 truncate">{pet.name || "Unknown"}</p>
+                  <p className="text-[11px] font-bold text-[#6a7a50] m-0 truncate">{pet.breed || "—"}</p>
+                </div>
+
+                {/* Species — hidden on mobile via pet-col-hide */}
+                <div className="pet-col-hide text-xs font-bold text-[#3a5020] truncate">{pet.species}</div>
+
+                {/* Area */}
+                <div>
+                  <p className="text-xs font-bold text-[#3a5020] m-0 truncate">{pet.area || "—"}</p>
+                  {pet.address && <p className="text-[10px] font-bold text-[#9aaa80] m-0 truncate">{pet.address}</p>}
+                </div>
+
+                {/* Status */}
+                <div className="flex flex-col gap-1 items-start">
+                  <StatusBadge status={pet.status ?? "pending"} />
+                  {pet.resolvedByUser && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-blue-700 border border-blue-300">
+                      <Icons.Home size={9} /> Reunited
+                    </span>
+                  )}
+                </div>
+
+                {/* Date */}
+                <div className="text-[11px] font-bold text-[#6a7a50] pet-col-hide">{formatDate(pet.reportedDate)}</div>
+
+                {/* Actions */}
+                <div className="flex gap-1 flex-wrap" onClick={e => e.stopPropagation()}>
+                  {[
+                    {
+                      label: "View", Icon: Icons.Eye,
+                      cls: "bg-blue-50 border-blue-200 text-blue-700",
+                      onClick: () => setSelected(pet),
+                      show: true,
+                    },
+                    {
+                      label: "Edit", Icon: Icons.Edit,
+                      cls: "bg-amber-50 border-amber-200 text-amber-700",
+                      onClick: () => setEditPet(pet),
+                      show: true,
+                    },
+                    {
+                      label: "Approve", Icon: Icons.Check,
+                      cls: "bg-green-50 border-green-200 text-green-700",
+                      onClick: () => setConfirmAct({ pet, action: "approve" }),
+                      show: pet.status === "pending" || !pet.status || pet.status === "rejected",
+                    },
+                    {
+                      label: pet.status === "approved" ? "Revoke" : "Reject",
+                      Icon: pet.status === "approved" ? Icons.Slash : Icons.X,
+                      cls: "bg-red-50 border-red-200 text-red-600",
+                      onClick: () => setConfirmAct({ pet, action: "reject" }),
+                      show: pet.status === "pending" || !pet.status || pet.status === "approved",
+                    },
+                    {
+                      label: "Delete", Icon: Icons.Trash,
+                      cls: "bg-red-50 border-red-200 text-red-600",
+                      onClick: () => setConfirmDel(pet),
+                      show: true,
+                    },
+                  ].filter(a => a.show).map(({ label, Icon, cls, onClick }) => (
+                    <button key={label} onClick={onClick} title={label}
+                      className={`px-2 py-1.5 rounded-lg text-[11px] font-black border cursor-pointer transition-opacity hover:opacity-70 flex items-center gap-1 ${cls}`}>
+                      <Icon size={11} />
+                      <span className="hidden sm:inline">{label}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -711,40 +905,35 @@ export default function MissingPetsPanel({ show, onStatsChange }) {
         </p>
       )}
 
-      {/* Detail modal */}
+      {/* ── Modals ── */}
       {selected && !editPet && (
         <DetailModal
           pet={selected}
           onClose={() => setSelected(null)}
-          onApprove={(pet) => { setSelected(null); setConfirmAct({ pet, action: "approve" }); }}
-          onReject={(pet)  => { setSelected(null); setConfirmAct({ pet, action: "reject"  }); }}
-          onDelete={(pet)  => { setSelected(null); setConfirmDel(pet); }}
-          onEdit={(pet)    => setEditPet(pet)}
+          onApprove={pet => { setSelected(null); setConfirmAct({ pet, action: "approve" }); }}
+          onReject={pet  => { setSelected(null); setConfirmAct({ pet, action: "reject"  }); }}
+          onDelete={pet  => { setSelected(null); setConfirmDel(pet); }}
+          onEdit={pet    => setEditPet(pet)}
         />
       )}
 
-      {/* Edit modal */}
       {editPet && (
-        <EditModal
-          pet={editPet}
-          onClose={() => setEditPet(null)}
-          onSave={handleUpdate}
-          saving={saving}
-        />
+        <EditModal pet={editPet} onClose={() => setEditPet(null)} onSave={handleUpdate} saving={saving} />
       )}
 
-      {/* Approve / Reject confirm */}
       {confirmAct && (
         <ConfirmDialog
-          title={confirmAct.action === "approve" ? "Approve report?" : confirmAct.pet.status === "approved" ? "Revoke approval?" : "Reject report?"}
-          message={
-            confirmAct.action === "approve"
-              ? `"${confirmAct.pet.name || "Unknown"}" will become visible to the public.`
-              : confirmAct.pet.status === "approved"
-                ? `"${confirmAct.pet.name || "Unknown"}" will be hidden from the public board.`
-                : `"${confirmAct.pet.name || "Unknown"}" will be marked as rejected.`
-          }
-          icon={confirmAct.action === "approve" ? "✓" : confirmAct.pet.status === "approved" ? "⏎" : "✕"}
+          title={confirmAct.action === "approve"
+            ? "Approve report?"
+            : confirmAct.pet.status === "approved" ? "Revoke approval?" : "Reject report?"}
+          message={confirmAct.action === "approve"
+            ? `"${confirmAct.pet.name || "Unknown"}" will become visible to the public.`
+            : confirmAct.pet.status === "approved"
+              ? `"${confirmAct.pet.name || "Unknown"}" will be hidden from the public board.`
+              : `"${confirmAct.pet.name || "Unknown"}" will be marked as rejected.`}
+          icon={confirmAct.action === "approve"
+            ? <Icons.Check size={20} />
+            : confirmAct.pet.status === "approved" ? <Icons.Slash size={20} /> : <Icons.X size={20} />}
           confirmLabel={confirmAct.action === "approve" ? "Approve" : confirmAct.pet.status === "approved" ? "Revoke" : "Reject"}
           confirmColor={confirmAct.action === "approve" ? "#276010" : confirmAct.pet.status === "approved" ? "#b07010" : "#b03030"}
           confirmBg={confirmAct.action === "approve" ? "rgba(88,139,65,0.12)" : confirmAct.pet.status === "approved" ? "rgba(212,136,10,0.10)" : "rgba(192,48,48,0.09)"}
@@ -754,12 +943,11 @@ export default function MissingPetsPanel({ show, onStatsChange }) {
         />
       )}
 
-      {/* Delete confirm */}
       {confirmDel && (
         <ConfirmDialog
           title="Delete permanently?"
           message={`The report for "${confirmDel.name || "Unknown"}" and its photo will be removed forever.`}
-          icon="🗑"
+          icon={<Icons.Trash size={20} />}
           confirmLabel="Delete"
           confirmColor="#b03030"
           confirmBg="rgba(192,48,48,0.09)"

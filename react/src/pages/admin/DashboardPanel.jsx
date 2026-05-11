@@ -15,7 +15,7 @@ function djFetch(path) {
 
 // ── THEME ─────────────────────────────────────────────────────────────────────
 const T = {
-  card:        { background: "rgba(255,248,225,0.85)", border: "1.5px solid rgba(180,140,60,0.22)", borderRadius: 12, backdropFilter: "blur(12px)", boxShadow: "0 2px 10px rgba(100,70,20,0.08)" },
+  card:          { background: "rgba(255,248,225,0.85)", border: "1.5px solid rgba(180,140,60,0.22)", borderRadius: 12, backdropFilter: "blur(12px)", boxShadow: "0 2px 10px rgba(100,70,20,0.08)" },
   textPrimary:   "#1a4a08",
   textSecondary: "#6a7a50",
   textTertiary:  "#9aaa80",
@@ -87,7 +87,6 @@ function StatCard({ val, label, sub, subType = "ok", accent = "green", onClick }
         transition: "transform 0.18s, box-shadow 0.18s, background 0.18s",
       }}
     >
-      {/* top accent bar */}
       <div style={{ height: 3, background: a.bar, marginLeft: -20, marginRight: -20, marginBottom: 14 }} />
       <div style={{ fontSize: "0.7rem", fontWeight: 800, color: T.textSecondary, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 6 }}>
         {label}
@@ -168,13 +167,14 @@ function ReqRow({ name, detail, status }) {
   const s = (status || "").toLowerCase();
   const badgeType = s === "approved" ? "ok" : s === "rejected" ? "danger" : "warn";
   return (
-    <div style={{
-      display: "flex", alignItems: "center", gap: 10,
-      padding: "8px 10px", borderRadius: 8,
-      background: "rgba(255,250,230,0.50)",
-      borderBottom: "1px solid rgba(180,140,60,0.10)",
-      transition: "background 0.13s", cursor: "pointer",
-    }}
+    <div
+      style={{
+        display: "flex", alignItems: "center", gap: 10,
+        padding: "8px 10px", borderRadius: 8,
+        background: "rgba(255,250,230,0.50)",
+        borderBottom: "1px solid rgba(180,140,60,0.10)",
+        transition: "background 0.13s", cursor: "pointer",
+      }}
       onMouseEnter={e => e.currentTarget.style.background = "rgba(255,250,230,0.90)"}
       onMouseLeave={e => e.currentTarget.style.background = "rgba(255,250,230,0.50)"}
     >
@@ -214,7 +214,6 @@ function EmptyState({ message }) {
 export default function DashboardPanel({ stats = {}, onNav, user }) {
   const [adoptions,   setAdoptions]   = useState([]);
   const [rehomings,   setRehomings]   = useState([]);
-  const [recentUsers, setRecentUsers] = useState([]);
   const [polling,     setPolling]     = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
 
@@ -234,17 +233,6 @@ export default function DashboardPanel({ stats = {}, onNav, user }) {
       ]);
       if (aRes.ok) { const d = await aRes.json(); setAdoptions(d.data || d || []); }
       if (rRes.ok) { const d = await rRes.json(); setRehomings(d.data || d || []); }
-      try {
-        const uRes = await fetch("/php/admin/dashboard", {
-          method: "POST",
-          body: (() => { const f = new FormData(); f.append("action", "get_users"); f.append("role", "all"); return f; })(),
-          credentials: "include",
-        });
-        if (uRes.ok) {
-          const uData = await uRes.json();
-          if (uData.success) setRecentUsers((uData.data || []).slice(0, 5));
-        }
-      } catch {}
       setLastUpdated(new Date());
     } catch (e) { console.warn("[DashboardPanel] fetch error:", e); }
     setPolling(false);
@@ -264,28 +252,75 @@ export default function DashboardPanel({ stats = {}, onNav, user }) {
   const recentRehome = [...rehomings].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 5);
 
   const statCards = [
-    { val: stats.animals ?? "—",  label: "Total Animals",     sub: "Active listings",             subType: "ok",      accent: "green",  panel: "animals"    },
-    { val: adoptions.length,       label: "Adoption Requests", sub: `${adoptPending} pending`,     subType: adoptPending  > 0 ? "warn" : "ok", accent: "orange", panel: "adoptions" },
-    { val: rehomings.length,       label: "Rehome Requests",   sub: `${rehomePending} pending`,    subType: rehomePending > 0 ? "warn" : "ok", accent: "amber",  panel: "rehome"    },
-    { val: stats.users ?? "—",     label: "Registered Users",  sub: "All accounts",                subType: "neutral", accent: "purple", panel: "users"      },
-    { val: stats.surveys ?? "—",   label: "Feedback Reports",  sub: "Post-adoption",               subType: "neutral", accent: "teal",   panel: "surveys"    },
-    { val: missingCount,           label: "Missing Pets",      sub: `${missingCount} active`,      subType: missingCount > 0 ? "danger" : "ok", accent: "rose", panel: "missingpets" },
-  ];
-
-  const quickActions = [
-    { label: "Manage Animals",    accent: "green",  panel: "animals"     },
-    { label: "Review Adoptions",  accent: "orange", panel: "adoptions"   },
-    { label: "Rehoming Requests", accent: "amber",  panel: "rehome"      },
-    { label: "User Management",   accent: "purple", panel: "users"       },
-    { label: "Missing Pets",      accent: "rose",   panel: "missingpets" },
-    { label: "Analytics",         accent: "teal",   panel: "analytics"   },
+    { val: stats.animals ?? "—",  label: "Total Animals",     sub: "Active listings",          subType: "ok",      accent: "green",  panel: "animals"     },
+    { val: adoptions.length,       label: "Adoption Requests", sub: `${adoptPending} pending`,  subType: adoptPending  > 0 ? "warn" : "ok", accent: "orange", panel: "adoptions" },
+    { val: rehomings.length,       label: "Rehome Requests",   sub: `${rehomePending} pending`, subType: rehomePending > 0 ? "warn" : "ok", accent: "amber",  panel: "rehome"    },
+    { val: stats.users ?? "—",     label: "Registered Users",  sub: "All accounts",             subType: "neutral", accent: "purple", panel: "users"       },
+    { val: stats.surveys ?? "—",   label: "Feedback Reports",  sub: "Post-adoption",            subType: "neutral", accent: "teal",   panel: "surveys"     },
+    { val: missingCount,           label: "Missing Pets",      sub: `${missingCount} active`,   subType: missingCount > 0 ? "danger" : "ok", accent: "rose", panel: "missingpets" },
   ];
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18, fontFamily: "'Nunito',sans-serif", animation: "fadeUp 0.25s ease both" }}>
 
+      {/* ── Responsive styles */}
+      <style>{`
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+
+        .dash-stat-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 14px;
+        }
+        .dash-health-row {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 14px;
+        }
+        .dash-recent-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 14px;
+        }
+        .dash-header {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          flex-wrap: wrap;
+          gap: 10px;
+        }
+        .dash-donut-row {
+          display: flex;
+          align-items: center;
+          gap: 20px;
+        }
+
+        @media (max-width: 700px) {
+          .dash-stat-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+          }
+          .dash-recent-grid {
+            grid-template-columns: 1fr;
+            gap: 10px;
+          }
+          .dash-donut-row {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 14px;
+          }
+        }
+
+        @media (max-width: 420px) {
+          .dash-stat-grid {
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+          }
+        }
+      `}</style>
+
       {/* ── Header */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+      <div className="dash-header">
         <div>
           <h2 style={{ fontFamily: "'Playfair Display',Georgia,serif", fontSize: "1.45rem", fontWeight: 800, color: T.textPrimary, margin: 0 }}>
             Good day, {user?.firstName || "Administrator"}
@@ -294,7 +329,7 @@ export default function DashboardPanel({ stats = {}, onNav, user }) {
             Here is a snapshot of the shelter right now.
           </p>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <LiveBadge lastUpdated={lastUpdated} polling={polling} />
           <button
             onClick={() => onNav("analytics")}
@@ -309,60 +344,28 @@ export default function DashboardPanel({ stats = {}, onNav, user }) {
         </div>
       </div>
 
-      {/* ── Stat cards — 3 × 2 */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14 }}>
+      {/* ── Stat cards — responsive grid */}
+      <div className="dash-stat-grid">
         {statCards.map(c => (
           <StatCard key={c.panel} {...c} onClick={() => onNav(c.panel)} />
         ))}
       </div>
 
-      {/* ── Middle row: health + quick actions */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-
-        {/* Animal Health */}
-        <div style={{ ...T.card, padding: "18px 20px" }}>
-          <SectionHeader title="Animal Health Overview" />
-          <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-            <DonutChart healthy={healthy} care={care} treatment={treatment} />
-            <div style={{ flex: 1 }}>
-              <HealthBar label="Healthy"          val={healthy}   total={healthTotal} color="#5aaa30" bg="rgba(90,170,48,0.10)"    />
-              <HealthBar label="Needs Care"       val={care}      total={healthTotal} color="#d4880a" bg="rgba(212,136,10,0.10)"   />
-              <HealthBar label="Under Treatment"  val={treatment} total={healthTotal} color="#7a3dc0" bg="rgba(122,61,192,0.10)"   />
-            </div>
-          </div>
-        </div>
-
-        {/* Quick Actions */}
-        <div style={{ ...T.card, padding: "18px 20px" }}>
-          <SectionHeader title="Quick Actions" />
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            {quickActions.map(a => {
-              const ac = T.accent[a.accent] || T.accent.green;
-              return (
-                <button
-                  key={a.panel}
-                  onClick={() => onNav(a.panel)}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 8,
-                    padding: "12px 14px", borderRadius: 10,
-                    background: `${ac.hover}`,
-                    border: `1.5px solid ${ac.color}33`,
-                    cursor: "pointer", fontFamily: "'Nunito',sans-serif", textAlign: "left",
-                    transition: "transform 0.15s, box-shadow 0.15s",
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 4px 14px rgba(0,0,0,0.10)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; }}
-                >
-                  <span style={{ fontSize: "0.78rem", fontWeight: 800, color: ac.color }}>{a.label}</span>
-                </button>
-              );
-            })}
+      {/* ── Animal Health — full width */}
+      <div style={{ ...T.card, padding: "18px 20px" }}>
+        <SectionHeader title="Animal Health Overview" />
+        <div className="dash-donut-row">
+          <DonutChart healthy={healthy} care={care} treatment={treatment} />
+          <div style={{ flex: 1, width: "100%" }}>
+            <HealthBar label="Healthy"         val={healthy}   total={healthTotal} color="#5aaa30" bg="rgba(90,170,48,0.10)"   />
+            <HealthBar label="Needs Care"      val={care}      total={healthTotal} color="#d4880a" bg="rgba(212,136,10,0.10)"  />
+            <HealthBar label="Under Treatment" val={treatment} total={healthTotal} color="#7a3dc0" bg="rgba(122,61,192,0.10)"  />
           </div>
         </div>
       </div>
 
-      {/* ── Bottom row: recent lists */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
+      {/* ── Recent requests — 2 columns (stacks on mobile) */}
+      <div className="dash-recent-grid">
 
         {/* Recent Adoptions */}
         <div style={{ ...T.card, padding: "18px 20px" }}>
@@ -385,50 +388,8 @@ export default function DashboardPanel({ stats = {}, onNav, user }) {
             : <EmptyState message="No recent rehoming requests" />
           }
         </div>
-
-        {/* Recent Users */}
-        <div style={{ ...T.card, padding: "18px 20px" }}>
-          <SectionHeader title="Recent Users" action="View All" onAction={() => onNav("users")} />
-          {recentUsers.length > 0
-            ? recentUsers.map((u, i) => {
-                const name = `${u.first_name || ""} ${u.last_name || ""}`.trim();
-                const isAdmin = u.role === "admin";
-                return (
-                  <div
-                    key={i}
-                    style={{
-                      display: "flex", alignItems: "center", gap: 10,
-                      padding: "8px 10px", borderRadius: 8,
-                      background: "rgba(255,250,230,0.50)",
-                      borderBottom: "1px solid rgba(180,140,60,0.10)",
-                      cursor: "pointer", transition: "background 0.13s",
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.background = "rgba(255,250,230,0.90)"}
-                    onMouseLeave={e => e.currentTarget.style.background = "rgba(255,250,230,0.50)"}
-                  >
-                    <div style={{
-                      width: 30, height: 30, borderRadius: "50%", flexShrink: 0,
-                      background: "linear-gradient(135deg,#1c4f09,#2a7010)",
-                      border: "2px solid #5aaa30",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      color: "rgba(255,248,220,0.9)", fontSize: "0.76rem", fontWeight: 900,
-                    }}>
-                      {name?.charAt(0)?.toUpperCase() || "?"}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: "0.78rem", fontWeight: 800, color: T.textPrimary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name || "—"}</div>
-                      <div style={{ fontSize: "0.67rem", fontWeight: 700, color: T.textSecondary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.email}</div>
-                    </div>
-                    <Badge type={isAdmin ? "purple" : "blue"}>{u.role}</Badge>
-                  </div>
-                );
-              })
-            : <EmptyState message="No user data available" />
-          }
-        </div>
       </div>
 
-      <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}`}</style>
     </div>
   );
 }
