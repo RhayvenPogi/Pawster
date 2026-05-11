@@ -40,12 +40,46 @@ const CHECKINS = [
 ];
 
 const FAQS = [
-  { q: 'Do I need to complete the questionnaire before browsing animals?',  a: 'You can browse animals freely, but you must complete the pre-adoption questionnaire before submitting any adoption request.' },
-  { q: 'How long does the review process take?',                            a: 'Review times vary by organization, but most applications receive a response within a few business days. You can track your status on the platform.' },
-  { q: 'What happens if my application is rejected?',                       a: 'The rescue coordinator may provide feedback. You are welcome to apply for a different animal that may be a better fit for your situation.' },
-  { q: 'Can I rehome a pet I can no longer care for?',                      a: 'Yes. Use the Rehome a Pet feature to submit a rehoming request to a rescue organization. The organization reviews and coordinates from there.' },
-  { q: 'What are the post-adoption check-ins?',                             a: 'After adoption, you\'ll receive notifications at Day 7, 30, and 90 to submit a short update on your pet\'s condition. This opens an in-app messaging channel with your rescue coordinator.' },
-  { q: 'Is the platform available outside the Ilocos Region?',             a: 'Pawster currently serves Ilocos Norte, Ilocos Sur, La Union, and Pangasinan. Inter-region cases may be handled individually by the rescue organization.' },
+  {
+    q: 'Do I need to complete the questionnaire before browsing animals?',
+    a: 'You can browse animals freely without an account, but you must complete the pre-adoption questionnaire before submitting any adoption request. The questionnaire covers your living situation, previous pet experience, time availability, and financial readiness.'
+  },
+  {
+    q: 'How long does the review process take?',
+    a: 'Review times vary by rescue coordinator, but most applications receive a response within a few business days. You can track your application status directly on the platform under your profile.'
+  },
+  {
+    q: 'What happens if my application is rejected?',
+    a: 'The rescue coordinator may provide feedback on why the application was declined. You are welcome to apply for a different animal that may be a better fit for your current situation and lifestyle.'
+  },
+  {
+    q: 'Can I rehome a pet I can no longer care for?',
+    a: 'Yes. Use the Rehome a Pet feature to submit a rehoming request through the platform. A rescue coordinator will review your submission and coordinate the next steps with you directly via in-app messaging.'
+  },
+  {
+    q: 'What are the post-adoption check-ins?',
+    a: 'After adoption, you\'ll receive notifications at Day 7, Day 30, and Day 90 prompting you to submit a short update on your pet\'s condition and adjustment. Each check-in opens a private messaging channel between you and your rescue coordinator so support is always available.'
+  },
+  {
+    q: 'Is Pawster a shelter or rescue organization?',
+    a: 'No. Pawster is a digital platform — not a shelter. We do not house or physically care for animals. We provide the structured system that connects adopters and rehomers to rescue coordinators who manage listings and facilitate placements responsibly.'
+  },
+  {
+    q: 'Where does Pawster operate?',
+    a: 'Pawster currently serves Baguio City and the Cordillera Administrative Region (CAR). Location-aware matching connects adopters to rescue coordinators nearby within the region.'
+  },
+  {
+    q: 'How do rescue coordinators join the platform?',
+    a: 'Rescue coordinators can register for a coordinator account on Pawster. Once verified, they can post animal listings, review adoption applications, manage rehome requests, and communicate with adopters through the platform.'
+  },
+  {
+    q: 'Is my personal information kept secure?',
+    a: 'Yes. Your uploaded ID and personal details are used solely for identity verification and adoption screening. Rescue coordinators only see what is necessary to evaluate your adoption request.'
+  },
+  {
+    q: 'Who built Pawster?',
+    a: 'Pawster was built by second-year BS Information Technology students from Lorma Colleges as a capstone project. It was developed with real-world guidance from PetMedico Baguio, whose workflows shaped the platform\'s screening criteria and post-adoption tracking features.'
+  },
 ];
 
 export default function HowItWorks() {
@@ -211,7 +245,7 @@ export default function HowItWorks() {
                 {[
                   { title: "Adopt", links: [["Browse animals", "/pets"], ["My profile", "/profile"], ["Log in", "/login"], ["Register", "/register"]] },
                   { title: "Services", links: [["How it works", "/how-it-works"], ["Rehome & Rescue", "/rehome"], ["Missing pets", "/missing-pets"], ["About us", "/about"]] },
-                  { title: "Regions", links: [["Baguio City", "/pets"], ["Benguet", "/pets"], ["Mountain Province", "/pets"], ["Ifugao", "/pets"]] },
+                  { title: "Provinces", links: [["Baguio City", "/pets"], ["Benguet", "/pets"], ["Mountain Province", "/pets"], ["Ifugao", "/pets"]] },
                 ].map(({ title, links }) => (
                   <div key={title}>
                     <div className="text-[0.72rem] font-black uppercase tracking-wider text-[#1c4f09] mb-4">{title}</div>

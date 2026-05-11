@@ -449,7 +449,7 @@ rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center',
           {[
             { title: "Adopt",    links: [["Browse Animals", "/pets"], ["My Profile", "/profile"], ["Log In", "/login"], ["Register", "/register"]] },
             { title: "Services", links: [["How It Works", "/how-it-works"], ["Rehome & Rescue", "/rehome"], ["Missing Pets", "/missing-pets"], ["About Us", "/about"]] },
-            { title: "Regions",  links: [["Baguio City", "/pets"], ["Benguet", "/pets"], ["Mountain Province", "/pets"], ["Ifugao", "/pets"]] },
+            { title: "Provinces",  links: [["Baguio City", "/pets"], ["Benguet", "/pets"], ["Mountain Province", "/pets"], ["Ifugao", "/pets"]] },
           ].map(({ title, links }) => (
             <div key={title}>
               <div className="text-[0.72rem] font-black uppercase tracking-wider text-[#1c4f09] mb-4">{title}</div>
