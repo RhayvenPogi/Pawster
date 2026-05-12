@@ -6,7 +6,7 @@
  *  2. Edit modal hides vacc detail fields when is_vaccinated is not "yes"/true
  *  3. Detail modal hides vacc detail fields when is_vaccinated is not "yes"/true
  */
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { downloadAppointmentPDF } from "../../utils/downloadAppointmentPDF";
 import { usePageTitle } from "../../hooks/usePageTitle";
 
@@ -1058,6 +1058,7 @@ export default function RequestsPanel({ type, show, onStatsChange }) {
   const [loading,      setLoading]      = useState(false);
   const [filter,       setFilter]       = useState("all");
   const [typeFilter,   setTypeFilter]   = useState("all");
+  const [search,       setSearch]       = useState("");        // ← ADDED
   const [rejectId,     setRejectId]     = useState(null);
   const [viewTarget,   setViewTarget]   = useState(null);
   const [editTarget,   setEditTarget]   = useState(null);
@@ -1082,6 +1083,19 @@ export default function RequestsPanel({ type, show, onStatsChange }) {
   }, [type]);
 
   useEffect(() => { if (show) load(filter); }, [show, filter, load]);
+
+  // ── ADDED: Search filter logic ─────────────────────────────────────────────
+  const filteredRecords = useMemo(() => {
+    if (!search.trim()) return records;
+    const q = search.toLowerCase().trim();
+    return records.filter(r => {
+      const haystack = type === "adoptions"
+        ? `${r.name || ""} ${r.email || ""} ${r.phone || ""} ${r.animal_name || ""} ${r.city || ""} ${r.province || ""}`
+        : `${r.pet_name || ""} ${r.owner_name || ""} ${r.species || ""} ${r.breed || ""} ${r.contact || ""} ${r.city || ""} ${r.found_location || ""}`;
+      return haystack.toLowerCase().includes(q);
+    });
+  }, [records, search, type]);
+  // ───────────────────────────────────────────────────────────────────────────
 
   const approve = async (id) => {
     try {
@@ -1125,11 +1139,13 @@ export default function RequestsPanel({ type, show, onStatsChange }) {
   const tabs   = ["all", "Pending", "Approved", "Rejected"];
   const label  = type === "adoptions" ? "Adoption Requests" : "Rehome & Rescue Requests";
 
-  const visibleRecords = records.filter(r => typeFilter === "all" || r.request_type === typeFilter);
+  // ── CHANGED: use filteredRecords instead of records ─────────────────────────
+  const visibleRecords = filteredRecords.filter(r => typeFilter === "all" || r.request_type === typeFilter);
   const counts = tabs.reduce((acc, t) => ({ ...acc, [t]: t === "all" ? visibleRecords.length : visibleRecords.filter(r => r.status === t).length }), {});
 
-  const rescueCount = records.filter(r => r.request_type === "rescue").length;
-  const rehomeCount = records.filter(r => r.request_type === "rehome" || !r.request_type).length;
+  const rescueCount = filteredRecords.filter(r => r.request_type === "rescue").length;
+  const rehomeCount = filteredRecords.filter(r => r.request_type === "rehome" || !r.request_type).length;
+  // ───────────────────────────────────────────────────────────────────────────
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem", fontFamily: font }}>
@@ -1146,8 +1162,8 @@ export default function RequestsPanel({ type, show, onStatsChange }) {
         {type === "rehoming" && (
           <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
             {[
-              { label: "Total",    value: records.length },
-              { label: "Pending",  value: records.filter(r => r.status === "Pending").length, warn: true },
+              { label: "Total",    value: filteredRecords.length },
+              { label: "Pending",  value: filteredRecords.filter(r => r.status === "Pending").length, warn: true },
               { label: "Rehoming", value: rehomeCount },
               { label: "Rescue",   value: rescueCount },
             ].map(({ label: l, value, warn }) => (
@@ -1160,13 +1176,67 @@ export default function RequestsPanel({ type, show, onStatsChange }) {
         )}
       </div>
 
+      {/* ── ADDED: Search bar ───────────────────────────────────────────────── */}
+      <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "center" }}>
+        <div style={{ position: "relative", flex: 1, minWidth: 240, maxWidth: 420 }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.textMute} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ position: "absolute", left: "0.75rem", top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
+            <circle cx="11" cy="11" r="8" />
+            <path d="M21 21l-4.35-4.35" />
+          </svg>
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder={type === "adoptions" ? "Search by name, email, animal, city…" : "Search by pet name, owner, species, breed…"}
+            style={{
+              ...inputSt,
+              paddingLeft: "2.25rem",
+              paddingRight: search ? "2rem" : "0.75rem",
+              width: "100%",
+            }}
+          />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              style={{
+                position: "absolute",
+                right: "0.5rem",
+                top: "50%",
+                transform: "translateY(-50%)",
+                width: 18,
+                height: 18,
+                borderRadius: "50%",
+                border: "none",
+                background: C.border,
+                color: C.textMute,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "0.65rem",
+                fontWeight: 800,
+                padding: 0,
+              }}
+            >
+              ✕
+            </button>
+          )}
+        </div>
+        {search && (
+          <span style={{ fontSize: "0.72rem", fontWeight: 600, color: C.textMute, whiteSpace: "nowrap" }}>
+            {visibleRecords.length} result{visibleRecords.length !== 1 ? "s" : ""}
+          </span>
+        )}
+      </div>
+      {/* ─────────────────────────────────────────────────────────────────────── */}
+
       {type === "rehoming" && (
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
-          <span style={{ fontSize: "0.65rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textMute }}>Type</span>
+          <span style={{ fontSize: "0.65rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.07em", color: C.textMute }}>Type</span>
           {[{ key: "all", label: "All" }, { key: "rehome", label: "Rehoming" }, { key: "rescue", label: "Rescue / Surrender" }].map(t => (
             <button key={t.key} onClick={() => setTypeFilter(t.key)}
               style={{ padding: "0.35rem 0.75rem", borderRadius: 6, fontSize: "0.75rem", fontWeight: 700, border: `1px solid ${typeFilter === t.key ? C.green : C.border}`, background: typeFilter === t.key ? C.greenBg : "transparent", color: typeFilter === t.key ? C.green : C.textSub, cursor: "pointer", fontFamily: font }}>
-              {t.label} <span style={{ fontWeight: 600, opacity: 0.7, marginLeft: "0.2rem" }}>({t.key === "all" ? records.length : t.key === "rescue" ? rescueCount : rehomeCount})</span>
+              {t.label} <span style={{ fontWeight: 600, opacity: 0.7, marginLeft: "0.2rem" }}>({t.key === "all" ? filteredRecords.length : t.key === "rescue" ? rescueCount : rehomeCount})</span>
             </button>
           ))}
         </div>
@@ -1191,7 +1261,7 @@ export default function RequestsPanel({ type, show, onStatsChange }) {
         </div>
       ) : visibleRecords.length === 0 ? (
         <div style={{ textAlign: "center", padding: "4rem 0", color: C.textMute, fontSize: "0.82rem", fontWeight: 600 }}>
-          No {filter === "all" ? "" : filter.toLowerCase() + " "}requests found
+          {search.trim() ? `No results for "${search.trim()}"` : `No ${filter === "all" ? "" : filter.toLowerCase() + " "}requests found`}
           {typeFilter !== "all" && ` for ${typeFilter === "rescue" ? "rescue / surrender" : "rehoming"}`}
         </div>
       ) : (
