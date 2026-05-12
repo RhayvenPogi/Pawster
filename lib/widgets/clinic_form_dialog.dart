@@ -2,8 +2,16 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/vet_clinic.dart';
-import '../utils/app_theme.dart';
 
+// Colors used across this file
+const Color _primary       = Color(0xFF388E3C);
+const Color _danger        = Color(0xFFE53935); // validation errors, delete
+const Color _textPrimary   = Color(0xFF1B2B1C);
+const Color _textSecondary = Color(0xFF5A7A5C);
+
+/// Modal dialog for adding a new clinic or editing an existing one.
+/// Pass [clinic] to pre-populate fields for editing; leave it null to add.
+/// [onSubmit] is called with the validated field values when the user saves.
 class ClinicFormDialog extends StatefulWidget {
   final VetClinic? clinic;
   final Future<void> Function(
@@ -32,8 +40,8 @@ class _ClinicFormDialogState extends State<ClinicFormDialog> {
   final _lngCtrl     = TextEditingController();
 
   XFile? _pickedImage;
-  bool   _pickingImage = false;
-  bool   _submitting   = false;
+  bool   _pickingImage = false; // true while the image picker is open
+  bool   _submitting   = false; // true while onSubmit is awaiting
   double _rating       = 0.0;
 
   bool get _isEditing => widget.clinic != null;
@@ -41,6 +49,7 @@ class _ClinicFormDialogState extends State<ClinicFormDialog> {
   @override
   void initState() {
     super.initState();
+    // Pre-populate fields when editing an existing clinic
     if (widget.clinic != null) {
       final c = widget.clinic!;
       _nameCtrl.text    = c.name;
@@ -62,6 +71,11 @@ class _ClinicFormDialogState extends State<ClinicFormDialog> {
     super.dispose();
   }
 
+  // ---------------------------------------------------------------------------
+  // Image picking
+  // ---------------------------------------------------------------------------
+
+  /// Opens the camera or gallery and stores the picked file in [_pickedImage].
   Future<void> _pickImage(ImageSource source) async {
     setState(() => _pickingImage = true);
     try {
@@ -82,6 +96,7 @@ class _ClinicFormDialogState extends State<ClinicFormDialog> {
     }
   }
 
+  /// Bottom sheet that lets the user choose camera, gallery, or remove photo.
   void _showImageSourceSheet() {
     showModalBottomSheet(
       context: context,
@@ -94,6 +109,7 @@ class _ClinicFormDialogState extends State<ClinicFormDialog> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: 8),
+            // Drag handle
             Container(
               width: 36,
               height: 4,
@@ -110,25 +126,32 @@ class _ClinicFormDialogState extends State<ClinicFormDialog> {
             const SizedBox(height: 8),
             ListTile(
               leading: CircleAvatar(
-                backgroundColor: AppTheme.primary.withOpacity(0.1),
-                child: const Icon(Icons.camera_alt_rounded, color: AppTheme.primary),
+                backgroundColor: _primary.withOpacity(0.1),
+                child: const Icon(Icons.camera_alt_rounded, color: _primary),
               ),
               title: const Text('Take a photo'),
-              onTap: () { Navigator.pop(context); _pickImage(ImageSource.camera); },
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(ImageSource.camera);
+              },
             ),
             ListTile(
               leading: CircleAvatar(
-                backgroundColor: AppTheme.primary.withOpacity(0.1),
-                child: const Icon(Icons.photo_library_rounded, color: AppTheme.primary),
+                backgroundColor: _primary.withOpacity(0.1),
+                child: const Icon(Icons.photo_library_rounded, color: _primary),
               ),
               title: const Text('Choose from gallery'),
-              onTap: () { Navigator.pop(context); _pickImage(ImageSource.gallery); },
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(ImageSource.gallery);
+              },
             ),
+            // Show "Remove photo" only when there is already a photo to remove
             if (_pickedImage != null || widget.clinic?.hasLocalImage == true)
               ListTile(
                 leading: CircleAvatar(
-                  backgroundColor: AppTheme.danger.withOpacity(0.1),
-                  child: Icon(Icons.delete_rounded, color: AppTheme.danger),
+                  backgroundColor: _danger.withOpacity(0.1),
+                  child: const Icon(Icons.delete_rounded, color: _danger),
                 ),
                 title: const Text('Remove photo'),
                 onTap: () {
@@ -143,10 +166,15 @@ class _ClinicFormDialogState extends State<ClinicFormDialog> {
     );
   }
 
+  // ---------------------------------------------------------------------------
+  // Form submission
+  // ---------------------------------------------------------------------------
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _submitting = true);
     try {
+      // Prefer newly picked image; fall back to existing local path
       final localPath = _pickedImage?.path ?? widget.clinic?.localImage ?? '';
       final imageUrl  = widget.clinic?.imageUrl ?? '';
       await widget.onSubmit(
@@ -164,6 +192,10 @@ class _ClinicFormDialogState extends State<ClinicFormDialog> {
       if (mounted) setState(() => _submitting = false);
     }
   }
+
+  // ---------------------------------------------------------------------------
+  // Build
+  // ---------------------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
@@ -184,9 +216,10 @@ class _ClinicFormDialogState extends State<ClinicFormDialog> {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
-            color: AppTheme.primary,
+            color: _primary,
             child: Row(
               children: [
+                // Mode icon
                 Container(
                   width: 36,
                   height: 36,
@@ -225,7 +258,7 @@ class _ClinicFormDialogState extends State<ClinicFormDialog> {
             ),
           ),
 
-          // ── Body ────────────────────────────────────────────────────────
+          // ── Scrollable form body ─────────────────────────────────────────
           Flexible(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
@@ -235,7 +268,7 @@ class _ClinicFormDialogState extends State<ClinicFormDialog> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
 
-                    // Photo picker
+                    // Photo picker — shows preview when an image is selected
                     GestureDetector(
                       onTap: _showImageSourceSheet,
                       child: Container(
@@ -249,30 +282,36 @@ class _ClinicFormDialogState extends State<ClinicFormDialog> {
                         clipBehavior: Clip.antiAlias,
                         child: _pickingImage
                             ? const Center(
-                          child: CircularProgressIndicator(color: AppTheme.primary),
+                          child: CircularProgressIndicator(color: _primary),
                         )
                             : hasPreview
                             ? Stack(
                           fit: StackFit.expand,
                           children: [
-                            Image.file(File(previewPath!), fit: BoxFit.cover),
+                            Image.file(File(previewPath!),
+                                fit: BoxFit.cover),
+                            // "Change" overlay in bottom-right corner
                             Positioned(
                               bottom: 8,
                               right: 8,
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4,
-                                ),
+                                    horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
                                   color: Colors.black54,
-                                  borderRadius: BorderRadius.circular(8),
+                                  borderRadius:
+                                  BorderRadius.circular(8),
                                 ),
                                 child: const Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(Icons.edit_rounded, color: Colors.white, size: 12),
+                                    Icon(Icons.edit_rounded,
+                                        color: Colors.white, size: 12),
                                     SizedBox(width: 4),
-                                    Text('Change', style: TextStyle(color: Colors.white, fontSize: 11)),
+                                    Text('Change',
+                                        style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 11)),
                                   ],
                                 ),
                               ),
@@ -283,11 +322,14 @@ class _ClinicFormDialogState extends State<ClinicFormDialog> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(Icons.add_photo_alternate_rounded,
-                                size: 32, color: Colors.grey.shade400),
+                                size: 32,
+                                color: Colors.grey.shade400),
                             const SizedBox(height: 6),
                             Text(
                               'Tap to add photo',
-                              style: TextStyle(fontSize: 12, color: Colors.grey.shade400),
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade400),
                             ),
                           ],
                         ),
@@ -295,7 +337,7 @@ class _ClinicFormDialogState extends State<ClinicFormDialog> {
                     ),
                     const SizedBox(height: 20),
 
-                    // ── Basic info ─────────────────────────────────────────
+                    // ── Basic info ───────────────────────────────────────────
                     const _SectionLabel(label: 'Basic info'),
                     const SizedBox(height: 10),
                     _FormField(
@@ -324,7 +366,7 @@ class _ClinicFormDialogState extends State<ClinicFormDialog> {
                     ),
                     const SizedBox(height: 20),
 
-                    // ── Location ───────────────────────────────────────────
+                    // ── Location ─────────────────────────────────────────────
                     const _SectionLabel(label: 'Location'),
                     const SizedBox(height: 10),
                     Row(
@@ -335,8 +377,7 @@ class _ClinicFormDialogState extends State<ClinicFormDialog> {
                             hint: 'Latitude',
                             icon: Icons.my_location_rounded,
                             keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true, signed: true,
-                            ),
+                                decimal: true, signed: true),
                             validator: (v) {
                               final d = double.tryParse(v ?? '');
                               if (d == null) return 'Invalid';
@@ -352,8 +393,7 @@ class _ClinicFormDialogState extends State<ClinicFormDialog> {
                             hint: 'Longitude',
                             icon: Icons.explore_rounded,
                             keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true, signed: true,
-                            ),
+                                decimal: true, signed: true),
                             validator: (v) {
                               final d = double.tryParse(v ?? '');
                               if (d == null) return 'Invalid';
@@ -366,7 +406,7 @@ class _ClinicFormDialogState extends State<ClinicFormDialog> {
                     ),
                     const SizedBox(height: 20),
 
-                    // ── Rating ─────────────────────────────────────────────
+                    // ── Rating ───────────────────────────────────────────────
                     const _SectionLabel(label: 'Rating'),
                     const SizedBox(height: 10),
                     Container(
@@ -378,6 +418,7 @@ class _ClinicFormDialogState extends State<ClinicFormDialog> {
                       ),
                       child: Column(
                         children: [
+                          // Star preview + numeric value
                           Row(
                             children: [
                               ...List.generate(5, (i) {
@@ -399,26 +440,26 @@ class _ClinicFormDialogState extends State<ClinicFormDialog> {
                                 style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w700,
-                                  color: AppTheme.textPrimary,
+                                  color: _textPrimary,
                                 ),
                               ),
                               const Text(
                                 ' / 5.0',
                                 style: TextStyle(
-                                  fontSize: 13,
-                                  color: AppTheme.textSecondary,
-                                ),
+                                    fontSize: 13, color: _textSecondary),
                               ),
                             ],
                           ),
+                          // Slider — 50 divisions give 0.1 step precision
                           SliderTheme(
                             data: SliderTheme.of(context).copyWith(
-                              activeTrackColor: AppTheme.primary,
+                              activeTrackColor: _primary,
                               inactiveTrackColor: Colors.grey.shade200,
-                              thumbColor: AppTheme.primary,
-                              overlayColor: AppTheme.primary.withOpacity(0.1),
+                              thumbColor: _primary,
+                              overlayColor: _primary.withOpacity(0.1),
                               trackHeight: 3,
-                              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+                              thumbShape: const RoundSliderThumbShape(
+                                  enabledThumbRadius: 8),
                             ),
                             child: Slider(
                               value: _rating,
@@ -438,7 +479,7 @@ class _ClinicFormDialogState extends State<ClinicFormDialog> {
             ),
           ),
 
-          // ── Actions ─────────────────────────────────────────────────────
+          // ── Cancel / Save actions ────────────────────────────────────────
           Container(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
             decoration: BoxDecoration(
@@ -453,15 +494,12 @@ class _ClinicFormDialogState extends State<ClinicFormDialog> {
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 13),
                       side: BorderSide(color: Colors.grey.shade300),
-                      foregroundColor: AppTheme.textSecondary,
+                      foregroundColor: _textSecondary,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                          borderRadius: BorderRadius.circular(12)),
                     ),
-                    child: const Text(
-                      'Cancel',
-                      style: TextStyle(fontWeight: FontWeight.w600),
-                    ),
+                    child: const Text('Cancel',
+                        style: TextStyle(fontWeight: FontWeight.w600)),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -469,22 +507,20 @@ class _ClinicFormDialogState extends State<ClinicFormDialog> {
                   child: ElevatedButton(
                     onPressed: _submitting ? null : _submit,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primary,
+                      backgroundColor: _primary,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 13),
                       elevation: 0,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                          borderRadius: BorderRadius.circular(12)),
                     ),
+                    // Show a spinner while saving
                     child: _submitting
                         ? const SizedBox(
                       width: 18,
                       height: 18,
                       child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
+                          strokeWidth: 2, color: Colors.white),
                     )
                         : Text(
                       _isEditing ? 'Update' : 'Add clinic',
@@ -501,21 +537,26 @@ class _ClinicFormDialogState extends State<ClinicFormDialog> {
   }
 }
 
-// ── Section label ─────────────────────────────────────────────────────────────
+// ---------------------------------------------------------------------------
+// Private sub-widgets
+// ---------------------------------------------------------------------------
 
+/// Small section header with a coloured left bar, e.g. "BASIC INFO".
 class _SectionLabel extends StatelessWidget {
   final String label;
+
   const _SectionLabel({required this.label});
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
+        // Accent bar
         Container(
           width: 3,
           height: 13,
           decoration: BoxDecoration(
-            color: AppTheme.primary,
+            color: _primary,
             borderRadius: BorderRadius.circular(2),
           ),
         ),
@@ -525,7 +566,7 @@ class _SectionLabel extends StatelessWidget {
           style: const TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.w700,
-            color: AppTheme.primary,
+            color: _primary,
             letterSpacing: 0.8,
           ),
         ),
@@ -534,8 +575,7 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
-// ── Reusable form field ───────────────────────────────────────────────────────
-
+/// Reusable styled [TextFormField] with prefix icon, hint, and validation.
 class _FormField extends StatelessWidget {
   final TextEditingController controller;
   final String hint;
@@ -557,14 +597,15 @@ class _FormField extends StatelessWidget {
       controller: controller,
       keyboardType: keyboardType,
       validator: validator,
-      style: const TextStyle(fontSize: 14, color: AppTheme.textPrimary),
+      style: const TextStyle(fontSize: 14, color: _textPrimary),
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
         prefixIcon: Icon(icon, color: Colors.grey.shade400, size: 20),
         filled: true,
         fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+        contentPadding:
+        const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: Colors.grey.shade200),
@@ -579,11 +620,11 @@ class _FormField extends StatelessWidget {
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppTheme.danger),
+          borderSide: const BorderSide(color: _danger),
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppTheme.danger, width: 1.5),
+          borderSide: const BorderSide(color: _danger, width: 1.5),
         ),
       ),
     );

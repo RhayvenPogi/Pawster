@@ -5,9 +5,22 @@ import 'package:provider/provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../services/clinic_provider.dart';
 import '../services/location_service.dart';
-import '../utils/app_theme.dart';
 import 'home_screen.dart';
 
+// Colors and gradient for the splash background
+const _primary      = Color(0xFF388E3C);
+const _primaryDark  = Color(0xFF2E7D32);
+const _primaryLight = Color(0xFF66BB6A);
+const _radiusMd     = 12.0;
+const _splashGradient = LinearGradient(
+  begin: Alignment.topLeft,
+  end: Alignment.bottomRight,
+  colors: [_primaryDark, _primary, _primaryLight],
+  stops: [0.0, 0.55, 1.0],
+);
+
+/// Entry screen shown while the app checks permissions and fetches location.
+/// Transitions to [HomeScreen] once everything is ready (or skipped).
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -17,14 +30,14 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
-  late AnimationController _ctrl;
-  late Animation<double> _fadeAnim;
-  late Animation<double> _scaleAnim;
-  late Animation<double> _slideAnim;
+  late final AnimationController _ctrl;
+  late final Animation<double> _fadeAnim;
+  late final Animation<double> _scaleAnim;
+  late final Animation<double> _slideAnim;
 
-  String _status = 'Getting things ready...';
-  double _progress = 0;
-  bool _showRetry = false;
+  String _status    = 'Getting things ready...';
+  double _progress  = 0;
+  bool _showRetry   = false;
   bool _showSettings = false;
 
   @override
@@ -35,7 +48,7 @@ class _SplashScreenState extends State<SplashScreen>
       duration: const Duration(milliseconds: 1000),
     );
 
-    _fadeAnim = CurvedAnimation(parent: _ctrl, curve: Curves.easeIn);
+    _fadeAnim  = CurvedAnimation(parent: _ctrl, curve: Curves.easeIn);
     _scaleAnim = Tween<double>(begin: 0.85, end: 1.0).animate(
       CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic),
     );
@@ -43,6 +56,7 @@ class _SplashScreenState extends State<SplashScreen>
       CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic),
     );
 
+    // Start intro animation, then begin app initialisation
     _ctrl.forward().then((_) {
       Future.delayed(const Duration(milliseconds: 400), _initApp);
     });
@@ -54,16 +68,18 @@ class _SplashScreenState extends State<SplashScreen>
     super.dispose();
   }
 
+  /// Updates the status message and progress bar; resets action buttons.
   void _setStatus(String msg, double progress) {
     if (!mounted) return;
     setState(() {
-      _status = msg;
-      _progress = progress;
-      _showRetry = false;
+      _status       = msg;
+      _progress     = progress;
+      _showRetry    = false;
       _showSettings = false;
     });
   }
 
+  /// Main initialisation flow: permission → location → clinics → home.
   Future<void> _initApp() async {
     _setStatus('Checking location permission...', 0.25);
     final perm = await LocationService.checkAndRequestPermission();
@@ -71,10 +87,11 @@ class _SplashScreenState extends State<SplashScreen>
     if (perm == LocationPermissionStatus.permanentlyDenied) {
       if (!mounted) return;
       setState(() {
-        _status = 'Location access is disabled. Enable it in Settings to see distances.';
+        _status       = 'Location access is disabled. Enable it in Settings to see distances.';
         _showSettings = true;
-        _progress = 0.25;
+        _progress     = 0.25;
       });
+      // Give the user time to read before auto-skipping
       await Future.delayed(const Duration(seconds: 3));
       if (mounted) _loadApp();
       return;
@@ -83,9 +100,9 @@ class _SplashScreenState extends State<SplashScreen>
     if (perm == LocationPermissionStatus.denied) {
       if (!mounted) return;
       setState(() {
-        _status = 'Location denied. Distances will not be shown.';
+        _status    = 'Location denied. Distances will not be shown.';
         _showRetry = true;
-        _progress = 0.25;
+        _progress  = 0.25;
       });
       await Future.delayed(const Duration(seconds: 2));
       if (mounted) _loadApp();
@@ -96,11 +113,12 @@ class _SplashScreenState extends State<SplashScreen>
     final position = await LocationService.getCurrentPosition();
 
     if (position == null) {
+      // GPS failed — show Retry so the user can try again
       if (!mounted) return;
       setState(() {
-        _status = 'Could not get your location. Check that GPS is on.';
+        _status    = 'Could not get your location. Check that GPS is on.';
         _showRetry = true;
-        _progress = 0.55;
+        _progress  = 0.55;
       });
       return;
     }
@@ -115,6 +133,7 @@ class _SplashScreenState extends State<SplashScreen>
     }
   }
 
+  /// Fallback path: skip location and load clinics without distances.
   Future<void> _loadApp() async {
     _setStatus('Loading clinics...', 0.85);
     await context.read<ClinicProvider>().loadClinicsFromDb();
@@ -125,6 +144,7 @@ class _SplashScreenState extends State<SplashScreen>
     }
   }
 
+  /// Navigates to [HomeScreen] with a fade transition.
   void _goHome() {
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
@@ -142,7 +162,7 @@ class _SplashScreenState extends State<SplashScreen>
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: const BoxDecoration(gradient: AppTheme.splashGradient),
+        decoration: const BoxDecoration(gradient: _splashGradient),
         child: SafeArea(
           child: FadeTransition(
             opacity: _fadeAnim,
@@ -150,19 +170,15 @@ class _SplashScreenState extends State<SplashScreen>
               children: [
                 const Spacer(flex: 3),
 
-                // Logo + title
+                // Logo + app name, with slide-in + scale-in animation
                 AnimatedBuilder(
                   animation: _ctrl,
                   builder: (_, child) => Transform.translate(
                     offset: Offset(0, _slideAnim.value),
-                    child: Transform.scale(
-                      scale: _scaleAnim.value,
-                      child: child,
-                    ),
+                    child: Transform.scale(scale: _scaleAnim.value, child: child),
                   ),
                   child: Column(
                     children: [
-                      // Lottie loading animation
                       SizedBox(
                         width: 160,
                         height: 160,
@@ -202,12 +218,12 @@ class _SplashScreenState extends State<SplashScreen>
 
                 const Spacer(flex: 3),
 
-                // Bottom status area
+                // Progress bar + status message / action buttons
                 Padding(
                   padding: const EdgeInsets.fromLTRB(36, 0, 36, 48),
                   child: Column(
                     children: [
-                      // Progress bar
+                      // Animated progress bar
                       ClipRRect(
                         borderRadius: BorderRadius.circular(8),
                         child: TweenAnimationBuilder<double>(
@@ -226,15 +242,13 @@ class _SplashScreenState extends State<SplashScreen>
                       ),
                       const SizedBox(height: 20),
 
-                      // Status message
+                      // Switches between status text, retry prompt, and settings prompt
                       AnimatedSwitcher(
                         duration: const Duration(milliseconds: 300),
                         child: _showSettings
                             ? _SettingsPrompt(
                           message: _status,
-                          onSettings: () {
-                            openAppSettings();
-                          },
+                          onSettings: openAppSettings,
                           onSkip: _loadApp,
                         )
                             : _showRetry
@@ -260,8 +274,11 @@ class _SplashScreenState extends State<SplashScreen>
   }
 }
 
-// ── Status text ───────────────────────────────────────────────────────────────
+// ---------------------------------------------------------------------------
+// Private sub-widgets
+// ---------------------------------------------------------------------------
 
+/// Spinner + message shown during normal loading steps.
 class _StatusText extends StatelessWidget {
   final String message;
   const _StatusText({super.key, required this.message});
@@ -296,8 +313,7 @@ class _StatusText extends StatelessWidget {
   }
 }
 
-// ── Settings prompt ───────────────────────────────────────────────────────────
-
+/// Shown when location is permanently denied; offers "Open Settings" and "Skip".
 class _SettingsPrompt extends StatelessWidget {
   final String message;
   final VoidCallback onSettings;
@@ -326,11 +342,7 @@ class _SettingsPrompt extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            _SplashButton(
-              label: 'Open Settings',
-              onTap: onSettings,
-              filled: true,
-            ),
+            _SplashButton(label: 'Open Settings', onTap: onSettings, filled: true),
             const SizedBox(width: 10),
             _SplashButton(label: 'Skip', onTap: onSkip, filled: false),
           ],
@@ -340,8 +352,7 @@ class _SettingsPrompt extends StatelessWidget {
   }
 }
 
-// ── Retry prompt ──────────────────────────────────────────────────────────────
-
+/// Shown when GPS fails or permission is denied; offers "Retry" and "Skip".
 class _RetryPrompt extends StatelessWidget {
   final String message;
   final VoidCallback onRetry;
@@ -380,8 +391,7 @@ class _RetryPrompt extends StatelessWidget {
   }
 }
 
-// ── Shared button ─────────────────────────────────────────────────────────────
-
+/// Filled (white) or outlined (transparent) button used on the splash screen.
 class _SplashButton extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
@@ -401,7 +411,7 @@ class _SplashButton extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
         decoration: BoxDecoration(
           color: filled ? Colors.white : Colors.transparent,
-          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          borderRadius: BorderRadius.circular(_radiusMd),
           border: Border.all(
             color: Colors.white.withOpacity(filled ? 0 : 0.4),
           ),
@@ -409,7 +419,7 @@ class _SplashButton extends StatelessWidget {
         child: Text(
           label,
           style: TextStyle(
-            color: filled ? AppTheme.primary : Colors.white,
+            color: filled ? _primary : Colors.white,
             fontWeight: FontWeight.w700,
             fontSize: 13,
           ),

@@ -1,62 +1,71 @@
-// lib/services/clinic_provider.dart
-
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import '../models/vet_clinic.dart';
 import 'database_service.dart';
 import 'location_service.dart';
 
+/// Controls how the clinic list is ordered.
 enum SortMode { nearest, highestRated }
 
+/// Central state manager for clinics, location, search, and sort.
+/// Consumed by the UI via [Consumer<ClinicProvider>] or [context.watch].
 class ClinicProvider extends ChangeNotifier {
-  List<VetClinic> _allClinics = [];
+  List<VetClinic> _allClinics      = [];
   List<VetClinic> _filteredClinics = [];
 
   Position? _userPosition;
-  bool _isLoadingLocation = false;
-  bool _isLoadingClinics = false;
-  String? _locationError;
-  String? _dbError;
-  SortMode _sortMode = SortMode.nearest;
-  String _searchQuery = '';
+  bool      _isLoadingLocation = false;
+  bool      _isLoadingClinics  = false;
+  String?   _locationError;
+  String?   _dbError;
+  SortMode  _sortMode    = SortMode.nearest;
+  String    _searchQuery = '';
   VetClinic? _selectedClinic;
 
-  // ── Getters ───────────────────────────────────────────────────────────────
+  // ---------------------------------------------------------------------------
+  // Getters
+  // ---------------------------------------------------------------------------
 
-  List<VetClinic> get clinics => _filteredClinics;
-  Position? get userPosition => _userPosition;
-  bool get isLoadingLocation => _isLoadingLocation;
-  bool get isLoadingClinics => _isLoadingClinics;
-  String? get locationError => _locationError;
-  String? get dbError => _dbError;
-  SortMode get sortMode => _sortMode;
-  String get searchQuery => _searchQuery;
-  VetClinic? get selectedClinic => _selectedClinic;
+  List<VetClinic> get clinics           => _filteredClinics;
+  Position?       get userPosition      => _userPosition;
+  bool            get isLoadingLocation => _isLoadingLocation;
+  bool            get isLoadingClinics  => _isLoadingClinics;
+  String?         get locationError     => _locationError;
+  String?         get dbError           => _dbError;
+  SortMode        get sortMode          => _sortMode;
+  String          get searchQuery       => _searchQuery;
+  VetClinic?      get selectedClinic    => _selectedClinic;
 
+  /// Returns the clinic with the smallest [distanceKm], or null if unknown.
   VetClinic? get nearestClinic {
-    final withDistance =
-        _filteredClinics.where((c) => c.distanceKm != null).toList();
-    if (withDistance.isEmpty) return null;
-    withDistance.sort((a, b) => a.distanceKm!.compareTo(b.distanceKm!));
-    return withDistance.first;
+    final withDistance = _filteredClinics
+        .where((c) => c.distanceKm != null)
+        .toList()
+      ..sort((a, b) => a.distanceKm!.compareTo(b.distanceKm!));
+    return withDistance.isEmpty ? null : withDistance.first;
   }
 
-  // ── Initialisation ────────────────────────────────────────────────────────
+  // ---------------------------------------------------------------------------
+  // Initialisation
+  // ---------------------------------------------------------------------------
 
-  /// Called by SplashScreen — position already obtained before this
+  /// Use when the caller already has a [Position] (e.g. from a splash screen).
   Future<void> initWithPosition(Position position) async {
     _userPosition = position;
-    await loadClinicsFromDb(); // will call _applyDistances internally
+    await loadClinicsFromDb();
   }
 
-  /// Fallback init without position (called when permission denied)
+  /// Full init: load clinics then fetch GPS position.
   Future<void> init() async {
     await loadClinicsFromDb();
     await fetchUserLocation();
   }
 
-  // ── DB operations ─────────────────────────────────────────────────────────
+  // ---------------------------------------------------------------------------
+  // Database operations
+  // ---------------------------------------------------------------------------
 
+  /// Fetches all clinics from SQLite, recalculates distances, and re-filters.
   Future<void> loadClinicsFromDb() async {
     _isLoadingClinics = true;
     _dbError = null;
@@ -74,9 +83,11 @@ class ClinicProvider extends ChangeNotifier {
     }
   }
 
+  /// Inserts [clinic] into the DB and adds it to the in-memory list.
+  /// Returns true on success.
   Future<bool> addClinic(VetClinic clinic) async {
     try {
-      final id = await DatabaseService.insertClinic(clinic);
+      final id       = await DatabaseService.insertClinic(clinic);
       final inserted = clinic.copyWith(id: id);
       _allClinics.add(inserted);
       _applyDistances();
@@ -89,6 +100,8 @@ class ClinicProvider extends ChangeNotifier {
     }
   }
 
+  /// Persists changes to [clinic] and updates the in-memory list.
+  /// Returns true on success.
   Future<bool> updateClinic(VetClinic clinic) async {
     try {
       await DatabaseService.updateClinic(clinic);
@@ -104,6 +117,9 @@ class ClinicProvider extends ChangeNotifier {
     }
   }
 
+  /// Removes the clinic with the given [id] from the DB and the in-memory list.
+  /// Clears [selectedClinic] if it was the deleted one.
+  /// Returns true on success.
   Future<bool> deleteClinic(int id) async {
     try {
       await DatabaseService.deleteClinic(id);
@@ -118,49 +134,60 @@ class ClinicProvider extends ChangeNotifier {
     }
   }
 
+  /// Wipes the DB and reseeds it with the default clinic data.
   Future<void> resetToDefaults() async {
     await DatabaseService.resetDatabase();
     await loadClinicsFromDb();
   }
 
-  // ── Selection ─────────────────────────────────────────────────────────────
+  // ---------------------------------------------------------------------------
+  // Selection & error helpers
+  // ---------------------------------------------------------------------------
 
+  /// Marks [clinic] as selected (highlights it on the map and in the list).
   void selectClinic(VetClinic? clinic) {
     _selectedClinic = clinic;
     notifyListeners();
   }
 
+  /// Clears any location or database error messages.
   void clearErrors() {
     _locationError = null;
-    _dbError = null;
+    _dbError       = null;
     notifyListeners();
   }
 
-  // ── Search & filter ───────────────────────────────────────────────────────
+  // ---------------------------------------------------------------------------
+  // Search & sort
+  // ---------------------------------------------------------------------------
 
+  /// Filters the visible list to clinics whose name contains [query].
   void setSearchQuery(String query) {
     _searchQuery = query;
     _applyFilters();
   }
 
+  /// Switches between nearest-first and highest-rated-first ordering.
   void setSortMode(SortMode mode) {
     _sortMode = mode;
     _applyFilters();
   }
 
+  /// Applies the current search query and sort mode to [_allClinics]
+  /// and stores the result in [_filteredClinics].
   void _applyFilters() {
     List<VetClinic> result = List.from(_allClinics);
 
+    // Name search (case-insensitive)
     if (_searchQuery.isNotEmpty) {
-      result = result
-          .where(
-            (c) => c.name.toLowerCase().contains(_searchQuery.toLowerCase()),
-          )
-          .toList();
+      final q = _searchQuery.toLowerCase();
+      result = result.where((c) => c.name.toLowerCase().contains(q)).toList();
     }
 
+    // Sort
     if (_sortMode == SortMode.nearest) {
       result.sort((a, b) {
+        // Push clinics without a distance to the end
         if (a.distanceKm == null && b.distanceKm == null) return 0;
         if (a.distanceKm == null) return 1;
         if (b.distanceKm == null) return -1;
@@ -174,6 +201,8 @@ class ClinicProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Calculates and caches [VetClinic.distanceKm] for every clinic
+  /// based on the current [_userPosition]. No-op if position is unknown.
   void _applyDistances() {
     if (_userPosition == null) return;
     for (final clinic in _allClinics) {
@@ -186,25 +215,27 @@ class ClinicProvider extends ChangeNotifier {
     }
   }
 
-  // ── Location ──────────────────────────────────────────────────────────────
+  // ---------------------------------------------------------------------------
+  // Location
+  // ---------------------------------------------------------------------------
 
+  /// Requests GPS permission, gets the current position, and refreshes distances.
   Future<void> fetchUserLocation() async {
     _isLoadingLocation = true;
-    _locationError = null;
+    _locationError     = null;
     notifyListeners();
 
     final permStatus = await LocationService.checkAndRequestPermission();
 
     if (permStatus == LocationPermissionStatus.permanentlyDenied) {
-      _locationError =
-          'Location permission is permanently denied. Please enable it in Settings.';
+      _locationError     = 'Location permission is permanently denied. Please enable it in Settings.';
       _isLoadingLocation = false;
       notifyListeners();
       return;
     }
 
     if (permStatus == LocationPermissionStatus.denied) {
-      _locationError = 'Location permission denied. Distance cannot be shown.';
+      _locationError     = 'Location permission denied. Distance cannot be shown.';
       _isLoadingLocation = false;
       notifyListeners();
       return;
@@ -213,16 +244,15 @@ class ClinicProvider extends ChangeNotifier {
     final position = await LocationService.getCurrentPosition();
 
     if (position == null) {
-      _locationError =
-          'Could not get your location. Please ensure location services are enabled.';
+      _locationError     = 'Could not get your location. Please ensure location services are enabled.';
       _isLoadingLocation = false;
       notifyListeners();
       return;
     }
 
-    _userPosition = position;
-    _applyDistances();
+    _userPosition      = position;
     _isLoadingLocation = false;
-    _applyFilters();
+    _applyDistances();
+    _applyFilters(); // also calls notifyListeners
   }
 }

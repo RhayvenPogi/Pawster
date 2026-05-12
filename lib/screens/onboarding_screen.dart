@@ -1,13 +1,20 @@
-// lib/screens/onboarding_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
-import '../utils/app_theme.dart';
 import 'splash_screen.dart';
 
-// ── Per-page color themes ─────────────────────────────────────────────────────
+// Shared neutral colours used across all pages
+const _cardBg        = Color(0xFFFFFFFF);
+const _surface       = Color(0xFFC8E6C9);
+const _textPrimary   = Color(0xFF1B2B1C);
+const _textSecondary = Color(0xFF5A7A5C);
+const _radiusMd      = 12.0;
 
+// ---------------------------------------------------------------------------
+// Per-page colour theme
+// ---------------------------------------------------------------------------
+
+/// Holds the two accent colours that animate when the user swipes pages.
 class _PageTheme {
   final Color primary;
   final Color primaryTint;
@@ -22,32 +29,35 @@ class _PageTheme {
   });
 }
 
+// One theme entry per onboarding page
 const _pageThemes = [
-  // Page 1 — Logo green (paw)
   _PageTheme(
-    primary: Color(0xFF4CAF50),
+    primary:     Color(0xFF4CAF50),
     primaryTint: Color(0xFFF1F8F1),
-    accent: Color(0xFF388E3C),
-    accentTint: Color(0xFFE8F5E9),
+    accent:      Color(0xFF388E3C),
+    accentTint:  Color(0xFFE8F5E9),
   ),
-  // Page 2 — Logo amber/orange (house)
   _PageTheme(
-    primary: Color(0xFFF59E0B),
+    primary:     Color(0xFFF59E0B),
     primaryTint: Color(0xFFFFFBEB),
-    accent: Color(0xFFD97706),
-    accentTint: Color(0xFFFEF3C7),
+    accent:      Color(0xFFD97706),
+    accentTint:  Color(0xFFFEF3C7),
   ),
-  // Page 3 — Deeper green (complementary to logo)
   _PageTheme(
-    primary: Color(0xFF2E7D32),
+    primary:     Color(0xFF2E7D32),
     primaryTint: Color(0xFFEDF7EE),
-    accent: Color(0xFF43A047),
-    accentTint: Color(0xFFE8F5E9),
+    accent:      Color(0xFF43A047),
+    accentTint:  Color(0xFFE8F5E9),
   ),
 ];
 
-// ── Screen ────────────────────────────────────────────────────────────────────
+// ---------------------------------------------------------------------------
+// Screen
+// ---------------------------------------------------------------------------
 
+/// Three-page onboarding flow shown on first launch.
+/// Each page slides and fades in; the colour scheme cross-fades between pages.
+/// The last page's CTA navigates to [SplashScreen].
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -57,46 +67,44 @@ class OnboardingScreen extends StatefulWidget {
 
 class _OnboardingScreenState extends State<OnboardingScreen>
     with TickerProviderStateMixin {
-  final PageController _pageController = PageController();
-  late AnimationController _fadeCtrl;
-  late AnimationController _buttonCtrl;
-  late AnimationController _slideCtrl;
-  late AnimationController _themeCtrl;
+  final _pageController = PageController();
 
-  late Animation<double> _fadeAnim;
-  late Animation<double> _buttonScale;
-  late Animation<Offset> _slideAnim;
+  late final AnimationController _fadeCtrl;
+  late final AnimationController _buttonCtrl;
+  late final AnimationController _slideCtrl;
+  late final AnimationController _themeCtrl;
 
-  // Animated colors — interpolate between current and next theme
+  late final Animation<double> _fadeAnim;
+  late final Animation<double> _buttonScale;
+  late final Animation<Offset> _slideAnim;
+
+  // Cross-fade colour animations between page themes
   late Animation<Color?> _primaryAnim;
   late Animation<Color?> _primaryTintAnim;
   late Animation<Color?> _accentAnim;
   late Animation<Color?> _accentTintAnim;
 
   int _currentPage = 0;
-  int _previousPage = 0;
 
+  // Static page content
   static const _pages = [
     _PageData(
-      lottie: 'assets/lottie/paws.json',
-      title: 'Welcome to\nPawAywan',
+      lottie:   'assets/lottie/paws.json',
+      title:    'Welcome to\nPawAywan',
       subtitle: "Your pet's trusted health partner",
-      body:
-      'Find the best veterinary clinics near you across La Union, Philippines — quickly and easily.',
+      body:     'Find the best veterinary clinics near you across La Union, Philippines — quickly and easily.',
     ),
     _PageData(
-      lottie: 'assets/lottie/location.json',
-      title: 'Navigate with\nconfidence',
+      lottie:   'assets/lottie/location.json',
+      title:    'Navigate with\nconfidence',
       subtitle: 'Real-time routing & fares',
-      body:
-      'Get live road directions via OSRM, drive time estimates, and Philippine public transport fare breakdowns.',
+      body:     'Get live road directions via OSRM, drive time estimates, and Philippine public transport fare breakdowns.',
     ),
     _PageData(
-      lottie: 'assets/lottie/star.json',
-      title: 'Manage &\ndiscover',
+      lottie:   'assets/lottie/star.json',
+      title:    'Manage &\ndiscover',
       subtitle: 'Ratings, photos & more',
-      body:
-      'Browse clinic ratings, upload photos, call directly, and add new clinics to keep the community updated.',
+      body:     'Browse clinic ratings, upload photos, call directly, and add new clinics to keep the community updated.',
     ),
   ];
 
@@ -104,54 +112,37 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   void initState() {
     super.initState();
 
-    _fadeCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 400),
-    );
-    _buttonCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 150),
-    );
-    _slideCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 500),
-    );
-    _themeCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 450),
-    );
+    _fadeCtrl   = AnimationController(vsync: this, duration: const Duration(milliseconds: 400));
+    _buttonCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 150));
+    _slideCtrl  = AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
+    _themeCtrl  = AnimationController(vsync: this, duration: const Duration(milliseconds: 450));
 
-    _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeIn);
+    _fadeAnim    = CurvedAnimation(parent: _fadeCtrl,   curve: Curves.easeIn);
     _buttonScale = Tween<double>(begin: 1.0, end: 0.96).animate(
       CurvedAnimation(parent: _buttonCtrl, curve: Curves.easeOut),
     );
-    _slideAnim = Tween<Offset>(
-      begin: const Offset(0, 0.06),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _slideCtrl, curve: Curves.easeOut));
+    _slideAnim = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero).animate(
+      CurvedAnimation(parent: _slideCtrl, curve: Curves.easeOut),
+    );
 
+    // Initialise colour animations at page 0 (no transition needed yet)
     _buildThemeAnimations(0, 0);
 
     _fadeCtrl.forward();
     _slideCtrl.forward();
-    _themeCtrl.value = 1.0;
+    _themeCtrl.value = 1.0; // jump to end so page-0 colours show immediately
   }
 
+  /// Rebuilds the colour tweens to animate from [from] theme to [to] theme.
   void _buildThemeAnimations(int from, int to) {
     final fromTheme = _pageThemes[from];
-    final toTheme = _pageThemes[to];
-    final curved = CurvedAnimation(parent: _themeCtrl, curve: Curves.easeInOut);
+    final toTheme   = _pageThemes[to];
+    final curved    = CurvedAnimation(parent: _themeCtrl, curve: Curves.easeInOut);
 
-    _primaryAnim = ColorTween(begin: fromTheme.primary, end: toTheme.primary)
-        .animate(curved);
-    _primaryTintAnim =
-        ColorTween(begin: fromTheme.primaryTint, end: toTheme.primaryTint)
-            .animate(curved);
-    _accentAnim = ColorTween(begin: fromTheme.accent, end: toTheme.accent)
-        .animate(curved);
-    _accentTintAnim =
-        ColorTween(begin: fromTheme.accentTint, end: toTheme.accentTint)
-            .animate(curved);
+    _primaryAnim     = ColorTween(begin: fromTheme.primary,     end: toTheme.primary).animate(curved);
+    _primaryTintAnim = ColorTween(begin: fromTheme.primaryTint, end: toTheme.primaryTint).animate(curved);
+    _accentAnim      = ColorTween(begin: fromTheme.accent,      end: toTheme.accent).animate(curved);
+    _accentTintAnim  = ColorTween(begin: fromTheme.accentTint,  end: toTheme.accentTint).animate(curved);
   }
 
   @override
@@ -167,17 +158,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   void _onPageChanged(int index) {
     _fadeCtrl.forward(from: 0);
     _slideCtrl.forward(from: 0);
-
-    // Rebuild color animations from previous → new page and play
     _buildThemeAnimations(_currentPage, index);
     _themeCtrl.forward(from: 0);
-
-    setState(() {
-      _previousPage = _currentPage;
-      _currentPage = index;
-    });
+    setState(() => _currentPage = index);
   }
 
+  /// Animates the CTA button press, then advances or finishes onboarding.
   Future<void> _next() async {
     await _buttonCtrl.forward();
     await _buttonCtrl.reverse();
@@ -191,6 +177,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     }
   }
 
+  /// Replaces the screen with [SplashScreen] using a fade transition.
   void _goToApp() {
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
@@ -204,6 +191,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   @override
   Widget build(BuildContext context) {
+    // Transparent status bar so the curved background shows through
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -211,40 +199,35 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       ),
     );
 
-    final size = MediaQuery.of(context).size;
+    final size   = MediaQuery.of(context).size;
     final isLast = _currentPage == _pages.length - 1;
 
     return AnimatedBuilder(
       animation: _themeCtrl,
       builder: (context, _) {
-        final primary = _primaryAnim.value ?? _pageThemes[_currentPage].primary;
-        final primaryTint =
-            _primaryTintAnim.value ?? _pageThemes[_currentPage].primaryTint;
-        final accent = _accentAnim.value ?? _pageThemes[_currentPage].accent;
-        final accentTint =
-            _accentTintAnim.value ?? _pageThemes[_currentPage].accentTint;
+        // Resolve animated colours; fall back to current page theme if null
+        final theme       = _pageThemes[_currentPage];
+        final primary     = _primaryAnim.value     ?? theme.primary;
+        final primaryTint = _primaryTintAnim.value ?? theme.primaryTint;
+        final accent      = _accentAnim.value      ?? theme.accent;
+        final accentTint  = _accentTintAnim.value  ?? theme.accentTint;
 
         return Scaffold(
-          backgroundColor: AppTheme.cardBg,
+          backgroundColor: _cardBg,
           body: Stack(
             children: [
-              // Top decorative shape
+              // Curved tinted background shape
               Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
+                top: 0, left: 0, right: 0,
                 child: _TopDecoration(size: size, color: primaryTint),
               ),
-
               SafeArea(
                 child: Column(
                   children: [
-                    // Top bar
+                    // Top bar: logo + app name + optional Skip button
                     Padding(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 14,
-                      ),
+                          horizontal: 24, vertical: 14),
                       child: Row(
                         children: [
                           _LogoBadge(primary: primary),
@@ -259,14 +242,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                             ),
                           ),
                           const Spacer(),
+                          // Hide Skip on last page — CTA becomes "Get started"
                           if (!isLast)
                             GestureDetector(
                               onTap: _goToApp,
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 7,
-                                ),
+                                    horizontal: 14, vertical: 7),
                                 decoration: BoxDecoration(
                                   color: primaryTint,
                                   borderRadius: BorderRadius.circular(20),
@@ -276,7 +258,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                                   style: TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
-                                    color: AppTheme.textSecondary,
+                                    color: _textSecondary,
                                   ),
                                 ),
                               ),
@@ -285,7 +267,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                       ),
                     ),
 
-                    // Page content
+                    // Swipeable page content
                     Expanded(
                       child: PageView.builder(
                         controller: _pageController,
@@ -302,17 +284,15 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                       ),
                     ),
 
-                    // Bottom controls
+                    // Dot indicators + CTA button
                     Padding(
                       padding: EdgeInsets.fromLTRB(
-                        28,
-                        12,
-                        28,
+                        28, 12, 28,
                         MediaQuery.of(context).padding.bottom + 28,
                       ),
                       child: Column(
                         children: [
-                          // Dot indicators
+                          // Page indicator dots — active dot stretches to a pill
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: List.generate(_pages.length, (i) {
@@ -320,12 +300,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                               return AnimatedContainer(
                                 duration: const Duration(milliseconds: 300),
                                 curve: Curves.easeInOut,
-                                margin:
-                                const EdgeInsets.symmetric(horizontal: 3),
+                                margin: const EdgeInsets.symmetric(horizontal: 3),
                                 width: active ? 24 : 7,
                                 height: 7,
                                 decoration: BoxDecoration(
-                                  color: active ? primary : AppTheme.surface,
+                                  color: active ? primary : _surface,
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                               );
@@ -333,7 +312,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                           ),
                           const SizedBox(height: 24),
 
-                          // CTA button
+                          // CTA: "Continue" on pages 1–2, "Get started" on page 3
                           ScaleTransition(
                             scale: _buttonScale,
                             child: GestureDetector(
@@ -343,9 +322,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                                 height: 56,
                                 decoration: BoxDecoration(
                                   color: primary,
-                                  borderRadius: BorderRadius.circular(
-                                    AppTheme.radiusMd,
-                                  ),
+                                  borderRadius: BorderRadius.circular(_radiusMd),
                                   boxShadow: [
                                     BoxShadow(
                                       color: primary.withOpacity(0.28),
@@ -393,8 +370,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   }
 }
 
-// ── Top decorative shape ──────────────────────────────────────────────────────
+// ---------------------------------------------------------------------------
+// Private sub-widgets
+// ---------------------------------------------------------------------------
 
+/// Curved tinted blob at the top of each onboarding page.
 class _TopDecoration extends StatelessWidget {
   final Size size;
   final Color color;
@@ -413,26 +393,25 @@ class _TopDecoration extends StatelessWidget {
   }
 }
 
+/// Custom clip that produces a bottom-curved rectangular shape.
 class _CurveClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
-    final path = Path();
-    path.lineTo(0, size.height * 0.78);
-    path.quadraticBezierTo(
-      size.width * 0.5, size.height * 1.0,
-      size.width, size.height * 0.78,
-    );
-    path.lineTo(size.width, 0);
-    path.close();
-    return path;
+    return Path()
+      ..lineTo(0, size.height * 0.78)
+      ..quadraticBezierTo(
+        size.width * 0.5, size.height * 1.0,
+        size.width, size.height * 0.78,
+      )
+      ..lineTo(size.width, 0)
+      ..close();
   }
 
   @override
   bool shouldReclip(_CurveClipper oldClipper) => false;
 }
 
-// ── Logo badge ────────────────────────────────────────────────────────────────
-
+/// Small rounded square showing the app logo in the top bar.
 class _LogoBadge extends StatelessWidget {
   final Color primary;
   const _LogoBadge({required this.primary});
@@ -443,9 +422,9 @@ class _LogoBadge extends StatelessWidget {
       width: 36,
       height: 36,
       decoration: BoxDecoration(
-        color: AppTheme.cardBg,
+        color: _cardBg,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppTheme.surface, width: 1),
+        border: Border.all(color: _surface),
         boxShadow: [
           BoxShadow(
             color: primary.withOpacity(0.12),
@@ -459,19 +438,16 @@ class _LogoBadge extends StatelessWidget {
         child: Image.asset(
           'assets/logo/logo.png',
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => Icon(
-            Icons.pets_rounded,
-            color: primary,
-            size: 20,
-          ),
+          errorBuilder: (_, __, ___) =>
+              Icon(Icons.pets_rounded, color: primary, size: 20),
         ),
       ),
     );
   }
 }
 
-// ── Single onboard page ───────────────────────────────────────────────────────
-
+/// Content for a single onboarding page: Lottie animation, subtitle pill,
+/// title, accent divider, and body text.
 class _OnboardPage extends StatelessWidget {
   final _PageData data;
   final Animation<double> fadeAnim;
@@ -500,7 +476,7 @@ class _OnboardPage extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Lottie — no circle, animation directly
+              // Lottie illustration
               SizedBox(
                 width: 270,
                 height: 270,
@@ -510,28 +486,20 @@ class _OnboardPage extends StatelessWidget {
                     data.lottie,
                     fit: BoxFit.fill,
                     repeat: true,
-                    errorBuilder: (_, __, ___) => Icon(
-                      Icons.pets_rounded,
-                      size: 80,
-                      color: accent,
-                    ),
+                    errorBuilder: (_, __, ___) =>
+                        Icon(Icons.pets_rounded, size: 80, color: accent),
                   ),
                 ),
               ),
-
               const SizedBox(height: 36),
 
               // Subtitle pill
               Container(
-                padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                 decoration: BoxDecoration(
                   color: accentTint,
                   borderRadius: BorderRadius.circular(30),
-                  border: Border.all(
-                    color: accent.withOpacity(0.35),
-                    width: 1,
-                  ),
+                  border: Border.all(color: accent.withOpacity(0.35)),
                 ),
                 child: Text(
                   data.subtitle,
@@ -543,25 +511,23 @@ class _OnboardPage extends StatelessWidget {
                   ),
                 ),
               ),
-
               const SizedBox(height: 16),
 
-              // Title
+              // Page title
               Text(
                 data.title,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.w900,
-                  color: AppTheme.textPrimary,
+                  color: _textPrimary,
                   height: 1.2,
                   letterSpacing: -0.5,
                 ),
               ),
-
               const SizedBox(height: 12),
 
-              // Accent divider
+              // Short accent divider bar
               Container(
                 width: 36,
                 height: 3,
@@ -570,16 +536,15 @@ class _OnboardPage extends StatelessWidget {
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
-
               const SizedBox(height: 14),
 
-              // Body text
+              // Body description
               Text(
                 data.body,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 14,
-                  color: AppTheme.textSecondary,
+                  color: _textSecondary,
                   height: 1.6,
                 ),
               ),
@@ -591,8 +556,7 @@ class _OnboardPage extends StatelessWidget {
   }
 }
 
-// ── Page data ─────────────────────────────────────────────────────────────────
-
+/// Immutable data for a single onboarding page.
 class _PageData {
   final String lottie;
   final String title;

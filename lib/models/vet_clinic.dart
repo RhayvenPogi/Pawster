@@ -8,8 +8,8 @@ class VetClinic {
   final String address;
   final String contactNumber;
   final double rating;
-  final String imageUrl; // network URL or empty
-  final String? localImage; // local file path from image_picker
+  final String imageUrl;
+  final String? localImage;
   double? distanceKm;
 
   VetClinic({
@@ -27,7 +27,6 @@ class VetClinic {
 
   bool get isTopRated => rating >= 4.8;
 
-  /// True if we have a locally picked image
   bool get hasLocalImage => localImage != null && localImage!.isNotEmpty;
 
   String get formattedDistance {
@@ -38,10 +37,8 @@ class VetClinic {
     return '${distanceKm!.toStringAsFixed(1)} km away';
   }
 
-  // ── Transport fare estimates (Philippine rates) ──────────────────────────────
-  // Based on LTFRB/DOTr standard rates as of 2024
+  // ── Transport fare estimates (Philippine rates) ───────────────────────────
 
-  /// Jeepney: ₱13 base (first 4km), +₱1.80/km after
   String get jeepneyFare {
     if (distanceKm == null) return '—';
     final d = distanceKm!;
@@ -50,7 +47,6 @@ class VetClinic {
     return '₱${fare.toStringAsFixed(2)}';
   }
 
-  /// Tricycle: ₱20 base (first 2km), +₱3/km after (municipal rate)
   String get tricycleFare {
     if (distanceKm == null) return '—';
     final d = distanceKm!;
@@ -59,7 +55,6 @@ class VetClinic {
     return '₱${fare.toStringAsFixed(2)}';
   }
 
-  /// Bus (provincial): ₱15 base (first 5km), +₱2.20/km after
   String get busFare {
     if (distanceKm == null) return '—';
     final d = distanceKm!;
@@ -68,14 +63,13 @@ class VetClinic {
     return '₱${fare.toStringAsFixed(2)}';
   }
 
-  /// Taxi/GrabCar: ₱40 flag-down + ₱13.50/km
   String get taxiFare {
     if (distanceKm == null) return '—';
     final fare = 40.0 + distanceKm! * 13.50;
     return '₱${fare.toStringAsFixed(2)}';
   }
 
-  // ── SQLite serialization ─────────────────────────────────────────────────────
+  // ── SQLite serialization ──────────────────────────────────────────────────
 
   Map<String, dynamic> toMap() {
     return {

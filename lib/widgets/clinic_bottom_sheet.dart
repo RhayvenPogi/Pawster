@@ -1,7 +1,16 @@
+// lib/widgets/clinic_bottom_sheet.dart
+
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/vet_clinic.dart';
-import '../utils/app_theme.dart';
+
+// ── Inline colour constants (previously AppTheme) ─────────────────────────────
+const _primary       = Color(0xFF388E3C);
+const _secondary     = Color(0xFF1976D2);
+const _accent        = Color(0xFFF57C00);
+const _textPrimary   = Color(0xFF1B2B1C);
+const _textSecondary = Color(0xFF5A7A5C);
 
 class ClinicBottomSheet extends StatelessWidget {
   final VetClinic clinic;
@@ -46,17 +55,19 @@ class ClinicBottomSheet extends StatelessWidget {
               children: [
                 const Spacer(),
                 IconButton(
-                  icon: const Icon(Icons.edit_rounded, color: AppTheme.primary),
+                  icon: const Icon(Icons.edit_rounded, color: _primary),
                   tooltip: 'Edit',
                   onPressed: onEdit,
                 ),
                 IconButton(
-                  icon: const Icon(Icons.delete_outline_rounded, color: Colors.red),
+                  icon: const Icon(Icons.delete_outline_rounded,
+                      color: Colors.red),
                   tooltip: 'Delete',
                   onPressed: onDelete,
                 ),
                 IconButton(
-                  icon: const Icon(Icons.close_rounded, color: AppTheme.textSecondary),
+                  icon: const Icon(Icons.close_rounded,
+                      color: _textSecondary),
                   onPressed: onClose,
                 ),
               ],
@@ -78,10 +89,13 @@ class ClinicBottomSheet extends StatelessWidget {
                 Row(
                   children: [
                     if (isNearest)
-                      _InfoBadge(label: '📍 Nearest to You', color: AppTheme.nearestBadge),
-                    if (isNearest && clinic.isTopRated) const SizedBox(width: 8),
+                      _InfoBadge(
+                          label: '📍 Nearest to You', color: _primary),
+                    if (isNearest && clinic.isTopRated)
+                      const SizedBox(width: 8),
                     if (clinic.isTopRated)
-                      _InfoBadge(label: '⭐ Top Rated', color: AppTheme.topRatedBadge),
+                      _InfoBadge(
+                          label: '⭐ Top Rated', color: _secondary),
                   ],
                 ),
                 const SizedBox(height: 10),
@@ -90,7 +104,7 @@ class ClinicBottomSheet extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
-                    color: AppTheme.textPrimary,
+                    color: _textPrimary,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -98,11 +112,14 @@ class ClinicBottomSheet extends StatelessWidget {
                   children: [
                     ...List.generate(5, (i) {
                       if (i < clinic.rating.floor()) {
-                        return const Icon(Icons.star_rounded, size: 18, color: AppTheme.starColor);
+                        return const Icon(Icons.star_rounded,
+                            size: 18, color: _accent);
                       } else if (i < clinic.rating) {
-                        return const Icon(Icons.star_half_rounded, size: 18, color: AppTheme.starColor);
+                        return const Icon(Icons.star_half_rounded,
+                            size: 18, color: _accent);
                       }
-                      return const Icon(Icons.star_outline_rounded, size: 18, color: AppTheme.starColor);
+                      return const Icon(Icons.star_outline_rounded,
+                          size: 18, color: _accent);
                     }),
                     const SizedBox(width: 6),
                     Text(
@@ -110,36 +127,68 @@ class ClinicBottomSheet extends StatelessWidget {
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: AppTheme.textPrimary,
+                        color: _textPrimary,
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 14),
-                _InfoRow(icon: Icons.location_on_rounded, text: clinic.address, color: AppTheme.primary),
+                _InfoRow(
+                    icon: Icons.location_on_rounded,
+                    text: clinic.address,
+                    color: _primary),
                 const SizedBox(height: 8),
-                _InfoRow(icon: Icons.phone_rounded, text: clinic.contactNumber, color: AppTheme.secondary),
+                _InfoRow(
+                    icon: Icons.phone_rounded,
+                    text: clinic.contactNumber,
+                    color: _secondary),
                 if (clinic.distanceKm != null) ...[
                   const SizedBox(height: 8),
                   _InfoRow(
                     icon: Icons.directions_walk_rounded,
                     text: clinic.formattedDistance,
-                    color: AppTheme.accent,
+                    color: _accent,
                   ),
                 ],
                 const SizedBox(height: 20),
+
+                // Get Directions button
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
                     onPressed: onDirections,
                     icon: const Icon(Icons.navigation_rounded, size: 18),
-                    label: const Text('Get Directions', style: TextStyle(fontWeight: FontWeight.w600)),
+                    label: const Text('Get Directions',
+                        style: TextStyle(fontWeight: FontWeight.w600)),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.secondary,
+                      backgroundColor: _secondary,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                       elevation: 0,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+
+                // Call Clinic button
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      final uri = Uri(scheme: 'tel', path: clinic.contactNumber);
+                      await launchUrl(uri);
+                    },
+                    icon: const Icon(Icons.phone_rounded, size: 18),
+                    label: const Text('Call Clinic',
+                        style: TextStyle(fontWeight: FontWeight.w600)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: _primary,
+                      side: const BorderSide(color: _primary, width: 1.5),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
                 ),
@@ -185,19 +234,20 @@ class _ClinicImage extends StatelessWidget {
     height: height,
     width: double.infinity,
     decoration: BoxDecoration(
-      color: AppTheme.primary.withOpacity(0.1),
+      color: _primary.withOpacity(0.1),
       borderRadius: BorderRadius.circular(16),
     ),
     child: Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(Icons.local_hospital_rounded, size: 64, color: AppTheme.primary.withOpacity(0.4)),
+        Icon(Icons.local_hospital_rounded,
+            size: 64, color: _primary.withOpacity(0.4)),
         const SizedBox(height: 8),
         Text(
           'No Image Available',
           style: TextStyle(
             fontSize: 13,
-            color: AppTheme.primary.withOpacity(0.5),
+            color: _primary.withOpacity(0.5),
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -215,10 +265,12 @@ class _InfoBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(20)),
+      decoration: BoxDecoration(
+          color: color, borderRadius: BorderRadius.circular(20)),
       child: Text(
         label,
-        style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700),
+        style: const TextStyle(
+            color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700),
       ),
     );
   }
@@ -228,7 +280,8 @@ class _InfoRow extends StatelessWidget {
   final IconData icon;
   final String text;
   final Color color;
-  const _InfoRow({required this.icon, required this.text, required this.color});
+  const _InfoRow(
+      {required this.icon, required this.text, required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -247,7 +300,9 @@ class _InfoRow extends StatelessWidget {
         Expanded(
           child: Padding(
             padding: const EdgeInsets.only(top: 6),
-            child: Text(text, style: const TextStyle(fontSize: 14, color: AppTheme.textPrimary)),
+            child: Text(text,
+                style: const TextStyle(
+                    fontSize: 14, color: _textPrimary)),
           ),
         ),
       ],

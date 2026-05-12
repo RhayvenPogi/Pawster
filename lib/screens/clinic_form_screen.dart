@@ -1,13 +1,34 @@
 // lib/screens/clinic_form_screen.dart
+// =============================================================================
+// CLINIC FORM SCREEN — Add or edit a veterinary clinic
+// =============================================================================
+// Supports both create and update modes determined by the optional [clinic]
+// parameter. All fields are validated before submission to the ClinicProvider.
+// =============================================================================
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/vet_clinic.dart';
 import '../services/clinic_provider.dart';
-import '../utils/app_theme.dart';
 
+// ── Inline colour constants (previously AppTheme) ─────────────────────────────
+const _primary       = Color(0xFF388E3C);   // Brand green
+const _surface       = Color(0xFFC8E6C9);   // Mid-green (dividers)
+const _danger        = Color(0xFFE53935);   // Error / delete
+const _background    = Color(0xFFF5F9F3);   // Page background
+const _cardBg        = Color(0xFFFFFFFF);   // Card surfaces
+const _borderLight   = Color(0xFFE0E0E0);   // Neutral borders
+const _textPrimary   = Color(0xFF1B2B1C);   // Headings
+const _textSecondary = Color(0xFF5A7A5C);   // Body text
+const _radiusMd      = 12.0;                // Standard corner radius
+
+// =============================================================================
+// CLINIC FORM SCREEN — StatefulWidget
+// =============================================================================
+// [clinic] is optional; when provided the form pre-fills and operates in
+// edit mode. When null, the form is blank and operates in add mode.
+// =============================================================================
 class ClinicFormScreen extends StatefulWidget {
-  /// Pass a clinic to edit, or null to add a new one.
   final VetClinic? clinic;
 
   const ClinicFormScreen({super.key, this.clinic});
@@ -16,6 +37,13 @@ class ClinicFormScreen extends StatefulWidget {
   State<ClinicFormScreen> createState() => _ClinicFormScreenState();
 }
 
+// =============================================================================
+// CLINIC FORM SCREEN STATE
+// =============================================================================
+// Holds a [GlobalKey<FormState>] for validation and one [TextEditingController]
+// per field. The [_saving] flag disables the save button and shows a spinner
+// while the async provider operation is in flight.
+// =============================================================================
 class _ClinicFormScreenState extends State<ClinicFormScreen> {
   final _formKey = GlobalKey<FormState>();
 
@@ -29,35 +57,49 @@ class _ClinicFormScreenState extends State<ClinicFormScreen> {
 
   bool _saving = false;
 
+  /// True when [widget.clinic] is non-null (edit mode).
   bool get _isEditing => widget.clinic != null;
+
+  // ---------------------------------------------------------------------------
+  // LIFECYCLE
+  // ---------------------------------------------------------------------------
 
   @override
   void initState() {
     super.initState();
+    // Pre-fill controllers with existing clinic data or empty strings.
     final c = widget.clinic;
-    _name    = TextEditingController(text: c?.name ?? '');
-    _address = TextEditingController(text: c?.address ?? '');
-    _contact = TextEditingController(text: c?.contactNumber ?? '');
-    _imageUrl= TextEditingController(text: c?.imageUrl ?? '');
-    _lat     = TextEditingController(text: c?.latitude.toString() ?? '');
-    _lng     = TextEditingController(text: c?.longitude.toString() ?? '');
-    _rating  = TextEditingController(text: c?.rating.toString() ?? '');
+    _name     = TextEditingController(text: c?.name ?? '');
+    _address  = TextEditingController(text: c?.address ?? '');
+    _contact  = TextEditingController(text: c?.contactNumber ?? '');
+    _imageUrl = TextEditingController(text: c?.imageUrl ?? '');
+    _lat      = TextEditingController(text: c?.latitude.toString() ?? '');
+    _lng      = TextEditingController(text: c?.longitude.toString() ?? '');
+    _rating   = TextEditingController(text: c?.rating.toString() ?? '');
   }
 
   @override
   void dispose() {
+    // Dispose every controller to free memory.
     for (final c in [_name, _address, _contact, _imageUrl, _lat, _lng, _rating]) {
       c.dispose();
     }
     super.dispose();
   }
 
+  // ---------------------------------------------------------------------------
+  // SAVE / SUBMIT
+  // ---------------------------------------------------------------------------
+
+  /// Validates the form, builds a [VetClinic] from the controllers, and
+  /// calls either [addClinic] or [updateClinic] on the provider.
+  /// Pops the screen with success feedback on completion.
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
 
     final clinic = VetClinic(
-      id: widget.clinic?.id,
+      id: widget.clinic?.id, // Preserves existing ID in edit mode
       name: _name.text.trim(),
       address: _address.text.trim(),
       contactNumber: _contact.text.trim(),
@@ -68,7 +110,7 @@ class _ClinicFormScreenState extends State<ClinicFormScreen> {
     );
 
     final provider = context.read<ClinicProvider>();
-    final success = _isEditing
+    final success  = _isEditing
         ? await provider.updateClinic(clinic)
         : await provider.addClinic(clinic);
 
@@ -89,20 +131,25 @@ class _ClinicFormScreenState extends State<ClinicFormScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('❌ Something went wrong. Please try again.'),
-            backgroundColor: AppTheme.danger,
+            backgroundColor: _danger,
           ),
         );
       }
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // BUILD
+  // ---------------------------------------------------------------------------
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: _background,
       appBar: AppBar(
         title: Text(_isEditing ? 'Edit clinic' : 'Add new clinic'),
         actions: [
+          // Show loading spinner or save button in the app bar.
           if (_saving)
             const Padding(
               padding: EdgeInsets.all(16),
@@ -110,9 +157,7 @@ class _ClinicFormScreenState extends State<ClinicFormScreen> {
                 width: 20,
                 height: 20,
                 child: CircularProgressIndicator(
-                  color: Colors.white,
-                  strokeWidth: 2,
-                ),
+                    color: Colors.white, strokeWidth: 2),
               ),
             )
           else
@@ -122,9 +167,7 @@ class _ClinicFormScreenState extends State<ClinicFormScreen> {
               label: const Text(
                 'Save',
                 style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                ),
+                    color: Colors.white, fontWeight: FontWeight.w700),
               ),
             ),
         ],
@@ -134,7 +177,7 @@ class _ClinicFormScreenState extends State<ClinicFormScreen> {
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            // ── Basic Info ───────────────────────────────────────────────
+            // ── Basic info section ───────────────────────────────────────────
             _SectionHeader(label: 'Basic info'),
             _Field(
               controller: _name,
@@ -148,9 +191,8 @@ class _ClinicFormScreenState extends State<ClinicFormScreen> {
               controller: _address,
               label: 'Address',
               icon: Icons.location_on_rounded,
-              validator: (v) => (v == null || v.trim().isEmpty)
-                  ? 'Address is required'
-                  : null,
+              validator: (v) =>
+              (v == null || v.trim().isEmpty) ? 'Address is required' : null,
             ),
             const SizedBox(height: 14),
             _Field(
@@ -158,13 +200,12 @@ class _ClinicFormScreenState extends State<ClinicFormScreen> {
               label: 'Contact number',
               icon: Icons.phone_rounded,
               keyboardType: TextInputType.phone,
-              validator: (v) => (v == null || v.trim().isEmpty)
-                  ? 'Contact is required'
-                  : null,
+              validator: (v) =>
+              (v == null || v.trim().isEmpty) ? 'Contact is required' : null,
             ),
             const SizedBox(height: 28),
 
-            // ── Location ─────────────────────────────────────────────────
+            // ── Location section ─────────────────────────────────────────────
             _SectionHeader(label: 'Location'),
             Row(
               children: [
@@ -174,9 +215,7 @@ class _ClinicFormScreenState extends State<ClinicFormScreen> {
                     label: 'Latitude',
                     icon: Icons.my_location_rounded,
                     keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                      signed: true,
-                    ),
+                        decimal: true, signed: true),
                     validator: (v) {
                       final d = double.tryParse(v ?? '');
                       if (d == null) return 'Invalid';
@@ -192,9 +231,7 @@ class _ClinicFormScreenState extends State<ClinicFormScreen> {
                     label: 'Longitude',
                     icon: Icons.explore_rounded,
                     keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                      signed: true,
-                    ),
+                        decimal: true, signed: true),
                     validator: (v) {
                       final d = double.tryParse(v ?? '');
                       if (d == null) return 'Invalid';
@@ -207,13 +244,14 @@ class _ClinicFormScreenState extends State<ClinicFormScreen> {
             ),
             const SizedBox(height: 28),
 
-            // ── Details ──────────────────────────────────────────────────
+            // ── Details section ──────────────────────────────────────────────
             _SectionHeader(label: 'Details'),
             _Field(
               controller: _rating,
               label: 'Rating (0.0 – 5.0)',
               icon: Icons.star_rounded,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType:
+              const TextInputType.numberWithOptions(decimal: true),
               validator: (v) {
                 final d = double.tryParse(v ?? '');
                 if (d == null) return 'Invalid rating';
@@ -230,6 +268,7 @@ class _ClinicFormScreenState extends State<ClinicFormScreen> {
             ),
 
             const SizedBox(height: 36),
+            // Primary action button at the bottom of the form.
             ElevatedButton.icon(
               onPressed: _saving ? null : _save,
               icon: Icon(_isEditing ? Icons.save_rounded : Icons.add_rounded),
@@ -243,8 +282,9 @@ class _ClinicFormScreenState extends State<ClinicFormScreen> {
   }
 }
 
-// ── Section header ────────────────────────────────────────────────────────────
-
+// =============================================================================
+// SECTION HEADER — Vertical accent bar + uppercase label for form grouping
+// =============================================================================
 class _SectionHeader extends StatelessWidget {
   final String label;
   const _SectionHeader({required this.label});
@@ -255,11 +295,12 @@ class _SectionHeader extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
         children: [
+          // 3 px wide green accent bar.
           Container(
             width: 3,
             height: 14,
             decoration: BoxDecoration(
-              color: AppTheme.primary,
+              color: _primary,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -269,7 +310,7 @@ class _SectionHeader extends StatelessWidget {
             style: const TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w700,
-              color: AppTheme.primary,
+              color: _primary,
               letterSpacing: 0.8,
             ),
           ),
@@ -279,8 +320,9 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-// ── Reusable form field ───────────────────────────────────────────────────────
-
+// =============================================================================
+// FIELD — Reusable TextFormField with icon, label, and optional validation
+// =============================================================================
 class _Field extends StatelessWidget {
   final TextEditingController controller;
   final String label;
@@ -298,15 +340,11 @@ class _Field extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Relies entirely on the global inputDecorationTheme in AppTheme.theme
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
       validator: validator,
-      style: const TextStyle(
-        fontSize: 14,
-        color: AppTheme.textPrimary,
-      ),
+      style: const TextStyle(fontSize: 14, color: _textPrimary),
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon),

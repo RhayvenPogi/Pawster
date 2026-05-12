@@ -1,6 +1,15 @@
 // lib/screens/directions_screen.dart
-// Live tracking + OSRM routing + Philippine transport fare estimates
-// Fare rates effective March 19, 2026 (LTFRB)
+// =============================================================================
+// DIRECTIONS SCREEN — Live GPS tracking + OSRM routing + Philippine fare estimates
+// =============================================================================
+// Features:
+//   • Real-time user location stream via Geolocator
+//   • OSRM (Open Source Routing Machine) driving directions
+//   • Fallback straight-line route when OSRM is unavailable
+//   • Animated pulsing user marker on map
+//   • Transport fare estimates based on LTFRB rates (effective March 19, 2026)
+//   • Two-tab layout: Map view and Fare breakdown
+// =============================================================================
 
 import 'dart:math';
 import 'dart:async';
@@ -11,11 +20,33 @@ import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../models/vet_clinic.dart';
-import '../utils/app_theme.dart';
 
+// ── Inline colour constants (previously AppTheme) ─────────────────────────────
+// Replicated here to keep the screen self-contained.
+
+const _primary        = Color(0xFF388E3C);   // Brand green
+const _primaryTint    = Color(0xFFE8F4E2);     // Light green backgrounds
+const _secondary      = Color(0xFF1976D2);     // Blue (route line, links)
+const _secondaryTint  = Color(0xFFE3F0FC);     // Light blue backgrounds
+const _accent         = Color(0xFFF57C00);      // Orange (warnings, highlights)
+const _accentTint     = Color(0xFFFFF3E0);      // Light orange backgrounds
+const _background     = Color(0xFFF5F9F3);      // Page background
+const _cardBg         = Color(0xFFFFFFFF);      // Card surfaces
+const _surface        = Color(0xFFC8E6C9);      // Mid-green (dividers, handles)
+const _borderLight    = Color(0xFFE0E0E0);      // Neutral borders
+const _textPrimary    = Color(0xFF1B2B1C);      // Headings
+const _textSecondary  = Color(0xFF5A7A5C);      // Body text
+const _danger         = Color(0xFFE53935);      // Errors / offline indicator
+const _radiusSm       = 10.0;                   // Small card radius
+const _radiusMd       = 12.0;                   // Standard radius
+const _radiusLg       = 16.0;                   // Large radius
+
+// =============================================================================
+// DIRECTIONS SCREEN — StatefulWidget receiving clinic and starting position
+// =============================================================================
 class DirectionsScreen extends StatefulWidget {
-  final VetClinic clinic;
-  final Position currentPosition;
+  final VetClinic clinic;           // Destination veterinary clinic
+  final Position currentPosition;   // User's GPS position when screen opened
 
   const DirectionsScreen({
     super.key,
@@ -27,58 +58,83 @@ class DirectionsScreen extends StatefulWidget {
   State<DirectionsScreen> createState() => _DirectionsScreenState();
 }
 
+// =============================================================================
+// DIRECTIONS SCREEN STATE
+// =============================================================================
+// Manages:
+//   • OSRM route fetching and polyline rendering
+//   • Live GPS stream subscription for real-time tracking
+//   • Animated user marker position updates
+//   • Tab controller for Map / Fares tabs
+//   • Camera follow mode (auto-centre on user)
+// =============================================================================
 class _DirectionsScreenState extends State<DirectionsScreen>
     with TickerProviderStateMixin {
   final MapController _mapController = MapController();
   late TabController _tabController;
 
-  // Route data
+  // Route data populated by OSRM or fallback logic.
   List<LatLng> _routePoints = [];
-  double _distanceKm  = 0;
-  double _durationMin = 0;
-  bool _isLoadingRoute = true;
-  String? _routeError;
+  double _distanceKm  = 0;    // Total route distance in kilometres
+  double _durationMin = 0;    // Estimated driving duration in minutes
+  bool _isLoadingRoute = true; // Shows spinner while first route is fetched
+  String? _routeError;         // Non-null when OSRM fails and fallback is used
 
-  // Live tracking
+  // Live tracking state.
   StreamSubscription<Position>? _positionStream;
-  Position? _currentPosition;
-  LatLng? _animatedUserLatLng;
-  bool _isTracking = false;
-  bool _followUser  = true;
+  Position? _currentPosition;     // Latest GPS fix
+  LatLng? _animatedUserLatLng;      // Smoothed LatLng for marker animation
+  bool _isTracking = false;         // True while position stream is active
+  bool _followUser  = true;          // Auto-centre map on user when true
 
-  int _tabIndex = 0;
+  int _tabIndex = 0;                // Currently selected tab (0 = Map, 1 = Fares)
+
+  // ---------------------------------------------------------------------------
+  // LIFECYCLE
+  // ---------------------------------------------------------------------------
 
   @override
   void initState() {
     super.initState();
+    // Two tabs: Map and Fares.
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(() {
       if (mounted) setState(() => _tabIndex = _tabController.index);
     });
+
+    // Seed initial position from the value passed by HomeScreen.
     _currentPosition = widget.currentPosition;
     _animatedUserLatLng = LatLng(
       widget.currentPosition.latitude,
       widget.currentPosition.longitude,
     );
+
+    // Fetch route immediately, then start listening for GPS updates.
     _getRouteFromOSRM(widget.currentPosition);
     _startTracking();
   }
 
   @override
   void dispose() {
+    // Cancel GPS stream to prevent memory leaks and battery drain.
     _positionStream?.cancel();
     _tabController.dispose();
     super.dispose();
   }
 
-  // ── Live location tracking ─────────────────────────────────────────────────
+  // ---------------------------------------------------------------------------
+  // LIVE LOCATION TRACKING
+  // ---------------------------------------------------------------------------
 
+  /// Subscribes to Geolocator's position stream with high accuracy.
+  /// Re-fetches the OSRM route whenever the user moves > 50 m from the
+  /// previous route origin to keep directions up-to-date.
   void _startTracking() {
     setState(() => _isTracking = true);
     _positionStream = Geolocator.getPositionStream(
       locationSettings: const LocationSettings(
         accuracy: LocationAccuracy.high,
-        distanceFilter: 10,
+        distanceFilter: 10, // Notify every 10 metres of movement
       ),
     ).listen((position) {
       if (!mounted) return;
@@ -87,6 +143,7 @@ class _DirectionsScreenState extends State<DirectionsScreen>
         _animatedUserLatLng = LatLng(position.latitude, position.longitude);
       });
 
+      // Auto-pan camera if follow mode is enabled.
       if (_followUser && mounted) {
         _mapController.move(
           LatLng(position.latitude, position.longitude),
@@ -94,6 +151,7 @@ class _DirectionsScreenState extends State<DirectionsScreen>
         );
       }
 
+      // Re-calculate route if user has drifted > 50 m from last origin.
       final prev = _routePoints.isNotEmpty ? _routePoints.first : null;
       if (prev != null) {
         final moved = _haversineKm(
@@ -105,8 +163,14 @@ class _DirectionsScreenState extends State<DirectionsScreen>
     }, onError: (_) => setState(() => _isTracking = false));
   }
 
-  // ── OSRM routing ───────────────────────────────────────────────────────────
+  // ---------------------------------------------------------------------------
+  // OSRM ROUTING
+  // ---------------------------------------------------------------------------
 
+  /// Queries OSRM's public demo server for a driving route between the
+  /// user's current position and the destination clinic.
+  /// On success: parses GeoJSON geometry, distance, and duration.
+  /// On failure: falls back to a straight-line polyline with estimated time.
   Future<void> _getRouteFromOSRM(Position from) async {
     final origin = '${from.longitude},${from.latitude}';
     final dest   = '${widget.clinic.longitude},${widget.clinic.latitude}';
@@ -119,7 +183,8 @@ class _DirectionsScreenState extends State<DirectionsScreen>
       await http.get(Uri.parse(url)).timeout(const Duration(seconds: 10));
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        if (data['routes'] != null && (data['routes'] as List).isNotEmpty) {
+        if (data['routes'] != null &&
+            (data['routes'] as List).isNotEmpty) {
           final route  = data['routes'][0];
           final coords = route['geometry']['coordinates'] as List;
           final points = coords
@@ -137,6 +202,7 @@ class _DirectionsScreenState extends State<DirectionsScreen>
               _isLoadingRoute = false;
               _routeError     = null;
             });
+            // On first successful load, fit camera to show entire route.
             if (wasLoading && points.isNotEmpty) {
               _mapController.fitCamera(
                 CameraFit.bounds(
@@ -149,11 +215,15 @@ class _DirectionsScreenState extends State<DirectionsScreen>
           return;
         }
       }
-    } catch (_) {}
+    } catch (_) {
+      // Swallow network/parse errors and proceed to fallback.
+    }
 
     _setFallbackRoute(from);
   }
 
+  /// Generates a 6-point straight-line polyline from origin to destination.
+  /// Estimates duration assuming an average speed of 40 km/h.
   void _setFallbackRoute(Position from) {
     final origin = LatLng(from.latitude, from.longitude);
     final dest   = LatLng(widget.clinic.latitude, widget.clinic.longitude);
@@ -174,17 +244,22 @@ class _DirectionsScreenState extends State<DirectionsScreen>
       setState(() {
         _routePoints    = points;
         _distanceKm     = d;
-        _durationMin    = d / 40 * 60;
+        _durationMin    = d / 40 * 60; // 40 km/h straight-line estimate
         _isLoadingRoute = false;
         _routeError     = 'Using straight-line estimate (OSRM unavailable)';
       });
     }
   }
 
-  // ── Haversine ──────────────────────────────────────────────────────────────
+  // ---------------------------------------------------------------------------
+  // HAVERSINE FORMULA
+  // ---------------------------------------------------------------------------
 
+  /// Calculates the great-circle distance between two lat/lng points.
+  /// Returns distance in kilometres. Used for fallback routing and
+  /// triggering re-route thresholds.
   double _haversineKm(double la1, double lo1, double la2, double lo2) {
-    const R   = 6371.0;
+    const R   = 6371.0; // Earth radius in km
     final dLat = (la2 - la1) * pi / 180;
     final dLon = (lo2 - lo1) * pi / 180;
     final a = sin(dLat / 2) * sin(dLat / 2) +
@@ -193,29 +268,41 @@ class _DirectionsScreenState extends State<DirectionsScreen>
     return R * 2 * atan2(sqrt(a), sqrt(1 - a));
   }
 
-  // ── Fare helpers (LTFRB, Mar 19 2026) ─────────────────────────────────────
+  // ---------------------------------------------------------------------------
+  // FARE HELPERS (LTFRB standard rates — effective March 19, 2026)
+  // ---------------------------------------------------------------------------
 
+  /// Jeepney fare: ₱14 base for first 4 km, then ₱2.00/km.
+  /// Returns a "min – max" string with 10 % upper variance.
   String _jeepney(double d) {
     final min = d <= 4 ? 14.0 : 14.0 + (d - 4) * 2.00;
     return '₱${min.toStringAsFixed(2)} – ₱${(min * 1.10).toStringAsFixed(2)}';
   }
 
+  /// Tricycle fare: ₱20 base for first 2 km, then ₱3.00/km.
+  /// Returns a "min – max" string with 20 % upper variance.
   String _tricycle(double d) {
     final min = d <= 2 ? 20.0 : 20.0 + (d - 2) * 3.00;
     return '₱${min.toStringAsFixed(2)} – ₱${(min * 1.20).toStringAsFixed(2)}';
   }
 
+  /// Ordinary (non-aircon) bus: ₱20 base for first 5 km, then ₱1.85/km.
+  /// Returns a "min – max" string with 8 % upper variance.
   String _busOrdinary(double d) {
     final min = d <= 5 ? 20.0 : 20.0 + (d - 5) * 1.85;
     return '₱${min.toStringAsFixed(2)} – ₱${(min * 1.08).toStringAsFixed(2)}';
   }
 
+  /// Air-conditioned / big bus: ₱50 base for first 5 km, then ₱2.20/km.
+  /// Returns a "min – max" string with 8 % upper variance.
   String _busAircon(double d) {
     final min = d <= 5 ? 50.0 : 50.0 + (d - 5) * 2.20;
     return '₱${min.toStringAsFixed(2)} – ₱${(min * 1.08).toStringAsFixed(2)}';
   }
 
-  // ── Build ──────────────────────────────────────────────────────────────────
+  // ---------------------------------------------------------------------------
+  // BUILD
+  // ---------------------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
@@ -224,18 +311,20 @@ class _DirectionsScreenState extends State<DirectionsScreen>
     final destLatLng = LatLng(widget.clinic.latitude, widget.clinic.longitude);
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: _background,
       appBar: AppBar(
         title: Text(widget.clinic.name, overflow: TextOverflow.ellipsis),
         actions: [
+          // Live tracking status pill (green = active, red = error/off).
           Padding(
             padding: const EdgeInsets.only(right: 12),
             child: Center(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.18),
-                  borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                  borderRadius: BorderRadius.circular(_radiusSm),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -246,8 +335,8 @@ class _DirectionsScreenState extends State<DirectionsScreen>
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: _isTracking
-                            ? const Color(0xFF69F0AE)
-                            : AppTheme.danger,
+                            ? const Color(0xFF69F0AE) // Bright green
+                            : _danger,
                       ),
                     ),
                     const SizedBox(width: 5),
@@ -276,9 +365,8 @@ class _DirectionsScreenState extends State<DirectionsScreen>
           tabs: const [
             Tab(icon: Icon(Icons.map_rounded, size: 18), text: 'Map'),
             Tab(
-              icon: Icon(Icons.directions_bus_rounded, size: 18),
-              text: 'Fares',
-            ),
+                icon: Icon(Icons.directions_bus_rounded, size: 18),
+                text: 'Fares'),
           ],
         ),
       ),
@@ -288,8 +376,12 @@ class _DirectionsScreenState extends State<DirectionsScreen>
     );
   }
 
-  // ── Map Tab ────────────────────────────────────────────────────────────────
+  // ---------------------------------------------------------------------------
+  // MAP TAB
+  // ---------------------------------------------------------------------------
 
+  /// Builds the interactive map with route polyline, user marker, destination
+  /// marker, info bar, and floating action buttons.
   Widget _buildMapTab(LatLng userLatLng, LatLng destLatLng) {
     final markerLatLng = _animatedUserLatLng ?? userLatLng;
 
@@ -297,23 +389,23 @@ class _DirectionsScreenState extends State<DirectionsScreen>
       children: [
         Column(
           children: [
-            // Fallback warning banner
+            // Warning banner shown when OSRM fallback is active.
             if (_routeError != null)
               Container(
                 padding:
                 const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                color: AppTheme.accentTint,
+                color: _accentTint,
                 child: Row(
                   children: [
                     const Icon(Icons.warning_amber_rounded,
-                        color: AppTheme.accent, size: 16),
+                        color: _accent, size: 16),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         _routeError!,
                         style: const TextStyle(
                           fontSize: 12,
-                          color: AppTheme.textSecondary,
+                          color: _textSecondary,
                         ),
                       ),
                     ),
@@ -321,39 +413,39 @@ class _DirectionsScreenState extends State<DirectionsScreen>
                 ),
               ),
 
-            // Info bar
+            // Info bar: distance, duration, jeepney estimate.
             Container(
               padding:
               const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              color: AppTheme.primaryTint,
+              color: _primaryTint,
               child: Row(
                 children: [
                   Expanded(
                     child: _InfoTile(
                       icon: Icons.straighten_rounded,
-                      iconColor: AppTheme.secondary,
+                      iconColor: _secondary,
                       label: _isLoadingRoute
                           ? '—'
                           : '${_distanceKm.toStringAsFixed(1)} km',
                       sublabel: 'Distance',
                     ),
                   ),
-                  Container(width: 1, height: 32, color: AppTheme.surface),
+                  Container(width: 1, height: 32, color: _surface),
                   Expanded(
                     child: _InfoTile(
                       icon: Icons.timer_rounded,
-                      iconColor: AppTheme.accent,
+                      iconColor: _accent,
                       label: _isLoadingRoute
                           ? '—'
                           : '${_durationMin.toStringAsFixed(0)} min',
                       sublabel: 'Drive time',
                     ),
                   ),
-                  Container(width: 1, height: 32, color: AppTheme.surface),
+                  Container(width: 1, height: 32, color: _surface),
                   Expanded(
                     child: _InfoTile(
                       icon: Icons.directions_bus_rounded,
-                      iconColor: AppTheme.primary,
+                      iconColor: _primary,
                       label: _isLoadingRoute
                           ? '—'
                           : _jeepney(_distanceKm).split(' –').first,
@@ -364,50 +456,48 @@ class _DirectionsScreenState extends State<DirectionsScreen>
               ),
             ),
 
-            // Map
+            // Map canvas.
             Expanded(
               child: FlutterMap(
                 mapController: _mapController,
                 options: MapOptions(
                   initialCenter: userLatLng,
                   initialZoom: 13,
+                  // Disable follow mode when user manually pans the map.
                   onPositionChanged: (_, hasGesture) {
                     if (hasGesture) setState(() => _followUser = false);
                   },
                 ),
                 children: [
+                  // OpenStreetMap base tiles.
                   TileLayer(
                     urlTemplate:
                     'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                     userAgentPackageName: 'com.example.pawaywan',
                   ),
+                  // Route polyline (only rendered after OSRM/fallback success).
                   if (_routePoints.isNotEmpty)
                     PolylineLayer(
                       polylines: [
                         Polyline(
                           points: _routePoints,
-                          color: AppTheme.secondary,
+                          color: _secondary,
                           strokeWidth: 5,
                         ),
                       ],
                     ),
+                  // User and destination markers.
                   MarkerLayer(
                     markers: [
-                      // Animated user marker
                       Marker(
                         point: markerLatLng,
                         width: 56,
                         height: 56,
-                        child: _AnimatedUserMarker(
-                          color: AppTheme.secondary,
-                        ),
+                        child:
+                        _AnimatedUserMarker(color: _secondary),
                       ),
-                      // Destination marker
                       _buildMarker(
-                        destLatLng,
-                        AppTheme.primary,
-                        Icons.local_hospital_rounded,
-                      ),
+                          destLatLng, _primary, Icons.local_hospital_rounded),
                     ],
                   ),
                 ],
@@ -416,7 +506,7 @@ class _DirectionsScreenState extends State<DirectionsScreen>
           ],
         ),
 
-        // FABs
+        // Floating action buttons: re-centre on user, fit route to screen.
         Positioned(
           right: 16,
           bottom: 16,
@@ -428,11 +518,10 @@ class _DirectionsScreenState extends State<DirectionsScreen>
                   setState(() => _followUser = true);
                   _mapController.move(markerLatLng, 15);
                 },
-                backgroundColor:
-                _followUser ? AppTheme.primary : AppTheme.cardBg,
+                backgroundColor: _followUser ? _primary : _cardBg,
                 child: Icon(
                   Icons.my_location_rounded,
-                  color: _followUser ? Colors.white : AppTheme.primary,
+                  color: _followUser ? Colors.white : _primary,
                 ),
               ),
               const SizedBox(height: 8),
@@ -449,15 +538,15 @@ class _DirectionsScreenState extends State<DirectionsScreen>
                     );
                   }
                 },
-                backgroundColor: AppTheme.cardBg,
+                backgroundColor: _cardBg,
                 child: const Icon(Icons.fit_screen_rounded,
-                    color: AppTheme.secondary),
+                    color: _secondary),
               ),
             ],
           ),
         ),
 
-        // Loading overlay
+        // Full-screen loading overlay while first route is being fetched.
         if (_isLoadingRoute)
           Positioned.fill(
             child: Container(
@@ -466,20 +555,19 @@ class _DirectionsScreenState extends State<DirectionsScreen>
                 child: Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    color: AppTheme.cardBg,
-                    borderRadius:
-                    BorderRadius.circular(AppTheme.radiusLg),
-                    border: Border.all(color: AppTheme.borderLight),
+                    color: _cardBg,
+                    borderRadius: BorderRadius.circular(_radiusLg),
+                    border: Border.all(color: _borderLight),
                   ),
                   child: const Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      CircularProgressIndicator(color: AppTheme.primary),
+                      CircularProgressIndicator(color: _primary),
                       SizedBox(height: 14),
                       Text(
                         'Getting route...',
                         style: TextStyle(
-                          color: AppTheme.textSecondary,
+                          color: _textSecondary,
                           fontSize: 13,
                         ),
                       ),
@@ -493,6 +581,7 @@ class _DirectionsScreenState extends State<DirectionsScreen>
     );
   }
 
+  /// Helper to build a circular destination marker with a white border.
   Marker _buildMarker(LatLng point, Color color, IconData icon) {
     return Marker(
       point: point,
@@ -504,7 +593,8 @@ class _DirectionsScreenState extends State<DirectionsScreen>
           shape: BoxShape.circle,
           border: Border.all(color: Colors.white, width: 3),
           boxShadow: [
-            BoxShadow(color: color.withOpacity(0.45), blurRadius: 10),
+            BoxShadow(
+                color: color.withOpacity(0.45), blurRadius: 10),
           ],
         ),
         child: Icon(icon, color: Colors.white, size: 20),
@@ -512,8 +602,12 @@ class _DirectionsScreenState extends State<DirectionsScreen>
     );
   }
 
-  // ── Fares Tab ──────────────────────────────────────────────────────────────
+  // ---------------------------------------------------------------------------
+  // FARES TAB
+  // ---------------------------------------------------------------------------
 
+  /// Builds a scrollable list of fare estimate cards for jeepney, tricycle,
+  /// ordinary bus, and aircon bus. Includes a disclaimer footer.
   Widget _buildFaresTab() {
     final d = _distanceKm;
 
@@ -522,12 +616,12 @@ class _DirectionsScreenState extends State<DirectionsScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header card
+          // Header card showing clinic name and route summary.
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppTheme.primary,
-              borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+              color: _primary,
+              borderRadius: BorderRadius.circular(_radiusLg),
             ),
             child: Row(
               children: [
@@ -535,8 +629,7 @@ class _DirectionsScreenState extends State<DirectionsScreen>
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.18),
-                    borderRadius:
-                    BorderRadius.circular(AppTheme.radiusMd),
+                    borderRadius: BorderRadius.circular(_radiusMd),
                   ),
                   child: const Icon(Icons.directions_bus_rounded,
                       color: Colors.white, size: 28),
@@ -577,20 +670,21 @@ class _DirectionsScreenState extends State<DirectionsScreen>
             style: TextStyle(
               fontWeight: FontWeight.w700,
               fontSize: 15,
-              color: AppTheme.textPrimary,
+              color: _textPrimary,
             ),
           ),
           const SizedBox(height: 2),
           const Text(
             'LTFRB standard rates · min – max range',
-            style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+            style: TextStyle(fontSize: 12, color: _textSecondary),
           ),
           const SizedBox(height: 14),
 
+          // Fare estimate cards.
           _FareCard(
             icon: Icons.airport_shuttle_rounded,
-            iconColor: AppTheme.accent,
-            iconBg: AppTheme.accentTint,
+            iconColor: _accent,
+            iconBg: _accentTint,
             name: 'Jeepney',
             fare: _isLoadingRoute ? '—' : _jeepney(d),
             details: d <= 4
@@ -600,8 +694,8 @@ class _DirectionsScreenState extends State<DirectionsScreen>
           ),
           _FareCard(
             icon: Icons.electric_rickshaw_rounded,
-            iconColor: AppTheme.primary,
-            iconBg: AppTheme.primaryTint,
+            iconColor: _primary,
+            iconBg: _primaryTint,
             name: 'Tricycle',
             fare: _isLoadingRoute ? '—' : _tricycle(d),
             details: d <= 2
@@ -611,8 +705,8 @@ class _DirectionsScreenState extends State<DirectionsScreen>
           ),
           _FareCard(
             icon: Icons.directions_bus_rounded,
-            iconColor: AppTheme.secondary,
-            iconBg: AppTheme.secondaryTint,
+            iconColor: _secondary,
+            iconBg: _secondaryTint,
             name: 'Bus — ordinary',
             fare: _isLoadingRoute ? '—' : _busOrdinary(d),
             details: d <= 5
@@ -634,19 +728,18 @@ class _DirectionsScreenState extends State<DirectionsScreen>
 
           const SizedBox(height: 16),
 
-          // Disclaimer
+          // Disclaimer footer.
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: AppTheme.primaryTint,
-              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-              border: Border.all(color: AppTheme.surface),
+              color: _primaryTint,
+              borderRadius: BorderRadius.circular(_radiusMd),
+              border: Border.all(color: _surface),
             ),
             child: const Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.info_outline_rounded,
-                    size: 16, color: AppTheme.primary),
+                Icon(Icons.info_outline_rounded, size: 16, color: _primary),
                 SizedBox(width: 10),
                 Expanded(
                   child: Text(
@@ -655,7 +748,7 @@ class _DirectionsScreenState extends State<DirectionsScreen>
                         'surcharges. Actual fares may differ. Updates live as you move.',
                     style: TextStyle(
                       fontSize: 11,
-                      color: AppTheme.textSecondary,
+                      color: _textSecondary,
                       height: 1.5,
                     ),
                   ),
@@ -670,8 +763,9 @@ class _DirectionsScreenState extends State<DirectionsScreen>
   }
 }
 
-// ── Animated user marker ───────────────────────────────────────────────────────
-
+// =============================================================================
+// ANIMATED USER MARKER — Pulsing radar-style dot showing live GPS position
+// =============================================================================
 class _AnimatedUserMarker extends StatefulWidget {
   final Color color;
   const _AnimatedUserMarker({required this.color});
@@ -688,6 +782,7 @@ class _AnimatedUserMarkerState extends State<_AnimatedUserMarker>
   @override
   void initState() {
     super.initState();
+    // 1.5 s repeating pulse animation.
     _pulseCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1500),
@@ -710,7 +805,7 @@ class _AnimatedUserMarkerState extends State<_AnimatedUserMarker>
       builder: (_, __) => Stack(
         alignment: Alignment.center,
         children: [
-          // Outer pulsing ring
+          // Outermost fading ripple ring.
           Opacity(
             opacity: 1.0 - _pulseAnim.value,
             child: Transform.scale(
@@ -725,7 +820,7 @@ class _AnimatedUserMarkerState extends State<_AnimatedUserMarker>
               ),
             ),
           ),
-          // Inner accent ring
+          // Middle translucent ring.
           Container(
             width: 36,
             height: 36,
@@ -733,12 +828,10 @@ class _AnimatedUserMarkerState extends State<_AnimatedUserMarker>
               shape: BoxShape.circle,
               color: widget.color.withOpacity(0.15),
               border: Border.all(
-                color: widget.color.withOpacity(0.4),
-                width: 1.5,
-              ),
+                  color: widget.color.withOpacity(0.4), width: 1.5),
             ),
           ),
-          // Core dot
+          // Solid inner dot with navigation arrow icon.
           Container(
             width: 24,
             height: 24,
@@ -754,11 +847,8 @@ class _AnimatedUserMarkerState extends State<_AnimatedUserMarker>
                 ),
               ],
             ),
-            child: const Icon(
-              Icons.navigation_rounded,
-              color: Colors.white,
-              size: 12,
-            ),
+            child: const Icon(Icons.navigation_rounded,
+                color: Colors.white, size: 12),
           ),
         ],
       ),
@@ -766,8 +856,9 @@ class _AnimatedUserMarkerState extends State<_AnimatedUserMarker>
   }
 }
 
-// ── Widgets ────────────────────────────────────────────────────────────────────
-
+// =============================================================================
+// INFO TILE — Small icon + label + sublabel used in the map info bar
+// =============================================================================
 class _InfoTile extends StatelessWidget {
   final IconData icon;
   final Color iconColor;
@@ -793,18 +884,20 @@ class _InfoTile extends StatelessWidget {
           style: const TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w700,
-            color: AppTheme.textPrimary,
+            color: _textPrimary,
           ),
         ),
-        Text(
-          sublabel,
-          style: const TextStyle(fontSize: 10, color: AppTheme.textSecondary),
-        ),
+        Text(sublabel,
+            style:
+            const TextStyle(fontSize: 10, color: _textSecondary)),
       ],
     );
   }
 }
 
+// =============================================================================
+// FARE CARD — Row showing transport mode, fare range, and usage tip
+// =============================================================================
 class _FareCard extends StatelessWidget {
   final IconData icon;
   final Color iconColor;
@@ -830,22 +923,24 @@ class _FareCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppTheme.cardBg,
-        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        border: Border.all(color: AppTheme.borderLight),
+        color: _cardBg,
+        borderRadius: BorderRadius.circular(_radiusMd),
+        border: Border.all(color: _borderLight),
       ),
       child: Row(
         children: [
+          // Mode icon in a coloured rounded square.
           Container(
             width: 46,
             height: 46,
             decoration: BoxDecoration(
               color: iconBg,
-              borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+              borderRadius: BorderRadius.circular(_radiusSm),
             ),
             child: Icon(icon, color: iconColor, size: 24),
           ),
           const SizedBox(width: 12),
+          // Name, rate formula, and usage tip.
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -855,17 +950,13 @@ class _FareCard extends StatelessWidget {
                   style: const TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 14,
-                    color: AppTheme.textPrimary,
+                    color: _textPrimary,
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  details,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: AppTheme.textSecondary,
-                  ),
-                ),
+                Text(details,
+                    style: const TextStyle(
+                        fontSize: 11, color: _textSecondary)),
                 Text(
                   tip,
                   style: TextStyle(
@@ -878,6 +969,7 @@ class _FareCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
+          // Fare amount right-aligned.
           Text(
             fare,
             textAlign: TextAlign.right,
