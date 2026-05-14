@@ -20,7 +20,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.pawstar.pawster.model.ActivityLog;
 import com.pawstar.pawster.model.User;
+import com.pawstar.pawster.repository.ActivityLogRepository;
 import com.pawstar.pawster.repository.UserRepository;
 import com.pawstar.pawster.security.JwtUtils;
 import com.pawstar.pawster.service.EmailService;
@@ -53,11 +55,12 @@ public class AuthController {
     @Value("${google.client.id:placeholder}")
     private String googleClientId;
 
-    @Autowired private AuthenticationManager authenticationManager;
-    @Autowired private UserRepository        userRepository;
-    @Autowired private PasswordEncoder       encoder;
-    @Autowired private JwtUtils              jwtUtils;
-    @Autowired private EmailService          emailService;
+    @Autowired private AuthenticationManager  authenticationManager;
+    @Autowired private UserRepository         userRepository;
+    @Autowired private PasswordEncoder        encoder;
+    @Autowired private JwtUtils               jwtUtils;
+    @Autowired private EmailService           emailService;
+    @Autowired private ActivityLogRepository  activityLogRepository;
 
     // ── Cookie helpers ────────────────────────────────────────────────────────
 
@@ -83,6 +86,21 @@ public class AuthController {
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 
+    // ── Activity log helper ───────────────────────────────────────────────────
+
+    private void logLogin(String userName, Integer userId, String details) {
+        try {
+            ActivityLog log = new ActivityLog();
+            log.setAction("Login");
+            log.setDetails(details);
+            log.setUserName(userName);
+            log.setUserId(userId);
+            activityLogRepository.save(log);
+        } catch (Exception e) {
+            // non-fatal — don't break login if logging fails
+        }
+    }
+
     // =========================================================================
     // POST /api/auth/login
     // =========================================================================
@@ -102,6 +120,7 @@ public class AuthController {
         if (ADMIN_EMAIL.equals(email) && ADMIN_PASSWORD.equals(password)) {
             String jwt = jwtUtils.generateToken(ADMIN_EMAIL, "admin");
             addJwtCookie(response, jwt);
+            logLogin("Admin", null, "Admin logged in");
             return ResponseEntity.ok(Map.of(
                     "success",  true,
                     "message",  "Admin login successful!",
@@ -137,6 +156,10 @@ public class AuthController {
                 : "php/index.php";
 
         addJwtCookie(response, jwt);
+        logLogin(
+            user.getFirstName() + " " + user.getLastName(),
+            user.getId(),
+            user.getRole() + " logged in");
         return ResponseEntity.ok(toDtoNoToken(user, redirect, jwt));
     }
 
@@ -240,14 +263,12 @@ public class AuthController {
         String firstName = (String) payload.get("given_name");
         String lastName  = (String) payload.get("family_name");
 
-        // Normalise nulls — payload fields may be absent for some Google accounts
         if (isBlank(firstName)) firstName = email.split("@")[0];
         if (isBlank(lastName))  lastName  = "";
 
         User user = userRepository.findByEmail(email).orElse(null);
 
         if (user == null) {
-            // New social-login user — randomise password so local login is blocked
             user = new User(
                     firstName, lastName, email,
                     /*phone*/      "",
@@ -271,6 +292,10 @@ public class AuthController {
                 : "php/index.php";
 
         addJwtCookie(response, jwt);
+        logLogin(
+            user.getFirstName() + " " + user.getLastName(),
+            user.getId(),
+            "Google login");
         return ResponseEntity.ok(toDtoNoToken(user, redirect, jwt));
     }
 

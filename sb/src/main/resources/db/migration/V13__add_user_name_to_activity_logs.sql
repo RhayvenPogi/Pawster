@@ -1,0 +1,1 @@
+ALTER TABLE activity_logs ADD COLUMN IF NOT EXISTS user_name VARCHAR(255);

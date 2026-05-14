@@ -50,7 +50,7 @@ const CHAT_ALLOWED_PATHS = [
 ];
 
 function AppInner() {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
   const location = useLocation();
   const [chatOpen, setChatOpen] = useState(false);
   const [unread,   setUnread]   = useState(0);
@@ -66,9 +66,9 @@ function AppInner() {
   const hideNavbar = ['/', '/landing', '/login', '/register', '/forgot-password', '/admin'].includes(location.pathname);
 
   const showChatButton =
-    user &&
-    user.role !== "admin" &&
-    CHAT_ALLOWED_PATHS.includes(location.pathname);
+  !!user &&
+  user.role !== "admin" &&
+  CHAT_ALLOWED_PATHS.includes(location.pathname);
 
   return (
     <>
@@ -78,6 +78,7 @@ function AppInner() {
 
       {showChatButton && (
         <MessagingModal
+          key={user?.id}
           user={user}
           isOpen={chatOpen}
           onClose={() => setChatOpen(false)}
@@ -86,7 +87,7 @@ function AppInner() {
       )}
 
       {showChatButton && (
-        <div style={{ position: "fixed", bottom: 28, right: 28, zIndex: 997 }}>
+        <div key={`chat-btn-${user?.id}`} style={{ position: "fixed", bottom: 28, right: 28, zIndex: 997 }}>
           <button
             onClick={toggleChat}
             title="Messages"

@@ -82,6 +82,11 @@ public class MessageService {
         messageRepository.markUserMessagesReadForAdmin(userId);
     }
 
+    // ── Delete conversation
+    public void deleteConversation(Integer userId) {
+        messageRepository.deleteByUserId(userId);
+    }
+
     // ── Conversation summaries
     public List<MessageDto.ConversationSummary> getConversationSummaries() {
 

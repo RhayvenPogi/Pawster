@@ -499,6 +499,8 @@ export default function MissingPetsPanel({ show, onStatsChange }) {
   const [toast, setToast]           = useState(null);
   const [editPet, setEditPet]       = useState(null);
   const [saving, setSaving]         = useState(false);
+  const [page, setPage]             = useState(1);
+  const PAGE_SIZE = 15;
 
   usePageTitle("Missing Pets Management");
 
@@ -520,6 +522,7 @@ export default function MissingPetsPanel({ show, onStatsChange }) {
   }, []);
 
   useEffect(() => { if (show) fetchPets(); }, [show, fetchPets]);
+  useEffect(() => { setPage(1); }, [statusFilter, typeFilter, search]);
 
   const handleApprove = async (pet) => {
     try {
@@ -604,6 +607,9 @@ export default function MissingPetsPanel({ show, onStatsChange }) {
     return matchStatus && matchType && matchSearch;
   });
 
+  const totalPages   = Math.ceil(filtered.length / PAGE_SIZE);
+  const pagedPets    = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
   if (!show) return null;
 
   const STAT_CARDS = [
@@ -655,91 +661,105 @@ export default function MissingPetsPanel({ show, onStatsChange }) {
       )}
 
       {/* ── Header ── */}
-      <div className="flex items-end justify-between flex-wrap gap-4 mb-6">
+      <div className="flex items-start justify-between flex-wrap gap-3 mb-6 pb-5 border-b border-[rgba(180,140,60,0.2)]">
         <div>
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-[rgba(180,90,34,0.10)] border border-[rgba(180,90,34,0.28)] text-[#B45A22] mb-2">
-            <Icons.Paw size={11} /> Community Reports
-          </span>
-          <h2 className="text-[clamp(1.5rem,5vw,2rem)] font-black text-[#1a4a08] leading-tight m-0"
-            style={{ fontFamily: "'Playfair Display', serif" }}>
-            <em className="italic text-[#B45A22]">Missing</em> Pets
-          </h2>
-          <p className="text-xs font-bold text-[#6a7a50] mt-1 leading-relaxed">
-            {counts.all} total &middot; {counts.pending} pending &middot; {counts.approved} approved &middot; {counts.rejected} rejected &middot; {counts.resolved} reunited
+          <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[#B45A22] mb-1.5 flex items-center gap-1.5">
+            <Icons.Paw size={10} /> Community Reports
           </p>
+          <h2 className="text-[clamp(1.25rem,4vw,1.6rem)] font-black text-[#1a4a08] leading-tight m-0 tracking-tight"
+            style={{ fontFamily: "'Playfair Display', serif" }}>
+            Missing Pets Management
+          </h2>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
+            {[
+              { label: "Total",    value: counts.all,      color: "text-[#1a4a08]" },
+              { label: "Pending",  value: counts.pending,  color: "text-amber-600" },
+              { label: "Approved", value: counts.approved, color: "text-green-700" },
+              { label: "Rejected", value: counts.rejected, color: "text-red-600"   },
+              { label: "Reunited", value: counts.resolved, color: "text-blue-600"  },
+            ].map(({ label, value, color }) => (
+              <span key={label} className="text-[11px] font-bold text-[#6a7a50]">
+                <span className={`font-black text-sm ${color}`}>{value}</span> {label}
+              </span>
+            ))}
+          </div>
         </div>
         <button onClick={fetchPets}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-extrabold text-sm text-[#1c4f09] bg-[rgba(90,170,48,0.12)] border border-[rgba(90,170,48,0.30)] hover:bg-[rgba(90,170,48,0.2)] cursor-pointer transition-colors">
-          <Icons.RefreshCw size={14} /> Refresh
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-xs text-[#1c4f09] bg-transparent border border-[rgba(90,170,48,0.35)] hover:bg-[rgba(90,170,48,0.08)] cursor-pointer transition-colors mt-1">
+          <Icons.RefreshCw size={13} /> Refresh
         </button>
       </div>
 
-      {/* ── Stat cards — fluid wrap ── */}
-      <div className="grid gap-2.5 mb-5"
-        style={{ gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 120px), 1fr))" }}>
-        {STAT_CARDS.map(({ label, value, Icon, bg, text }) => (
-          <div key={label} className={`${bg} rounded-2xl p-3 flex items-center gap-2.5 border border-black/[0.08]`}>
-            <Icon size={16} style={{ flexShrink: 0, opacity: 0.7 }} className={text} />
-            <div>
-              <p className={`text-xl font-black leading-none ${text}`}>{value}</p>
-              <p className="text-[9px] font-black text-[#6a7a50] uppercase tracking-widest mt-0.5">{label}</p>
-            </div>
-          </div>
-        ))}
-      </div>
 
-      {/* ── Filters ── */}
-      <div className="flex gap-2 flex-wrap items-center mb-4">
-        {/* Status pill group */}
-        <div className="inline-flex gap-0.5 bg-[rgba(255,248,220,0.7)] rounded-full p-1 border border-[rgba(180,140,60,0.28)] flex-wrap">
-          {STATUS_FILTERS.map(({ val, label, active }) => (
-            <button key={val} onClick={() => setStatus(val)}
-              className={`px-3 py-1.5 rounded-full text-xs font-extrabold border-none cursor-pointer transition-all whitespace-nowrap ${statusFilter === val ? active : "bg-transparent text-[#3a5020] hover:bg-[rgba(180,140,60,0.08)]"}`}>
-              {label}
-              {val !== "all" && counts[val] > 0 && <span className="opacity-60 ml-1">({counts[val]})</span>}
-            </button>
-          ))}
-        </div>
-
-        {/* Type pill group */}
-        <div className="inline-flex gap-0.5 bg-[rgba(255,248,220,0.7)] rounded-full p-1 border border-[rgba(180,140,60,0.28)]">
-          {[["all", "All", "bg-[#555] text-white"], ["lost", "Lost", "bg-red-600 text-white"], ["found", "Found", "bg-[#1c4f09] text-white"]].map(([val, label, active]) => (
-            <button key={val} onClick={() => setType(val)}
-              className={`px-3 py-1.5 rounded-full text-xs font-extrabold border-none cursor-pointer transition-all ${typeFilter === val ? active : "bg-transparent text-[#3a5020] hover:bg-[rgba(180,140,60,0.08)]"}`}>
-              {label}
-            </button>
-          ))}
-        </div>
+      {/* ── Filters inline with search ── */}
+      <div className="flex gap-2 flex-wrap items-center mb-5">
 
         {/* Search */}
-        <div className="flex-1 min-w-[160px] relative">
+        <div className="flex-1 relative" style={{ minWidth: 180 }}>
           <span className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#9aaa80]">
-            <Icons.Search size={14} />
+            <Icons.Search size={13} />
           </span>
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search name, breed, area…"
-            className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-[rgba(180,140,60,0.28)] bg-[rgba(255,250,232,0.88)] font-bold text-sm text-[#1a4a08] outline-none focus:border-[#B45A22] focus:ring-2 focus:ring-[rgba(180,90,34,0.12)] transition-all" />
+            className="w-full pl-8 pr-3 py-2 rounded-lg border border-[rgba(180,140,60,0.28)] bg-[rgba(255,250,232,0.9)] font-semibold text-sm text-[#1a4a08] outline-none focus:border-[#B45A22] focus:ring-2 focus:ring-[rgba(180,90,34,0.10)] transition-all placeholder:text-[#b4a870] placeholder:font-normal" />
         </div>
 
+        {/* Status dropdown */}
+        <div className="relative">
+          <select
+            value={statusFilter}
+            onChange={e => setStatus(e.target.value)}
+            className="appearance-none pl-3 pr-7 py-2 rounded-lg border text-[11px] font-extrabold cursor-pointer outline-none transition-all bg-[rgba(255,250,232,0.9)]"
+            style={{
+              borderColor: statusFilter !== "all" ? "#1a4a08" : "rgba(180,140,60,0.28)",
+              color: statusFilter !== "all" ? "#1a4a08" : "#3a5020",
+            }}>
+            <option value="all">All Status ({counts.all})</option>
+            <option value="pending">Pending ({counts.pending})</option>
+            <option value="approved">Approved ({counts.approved})</option>
+            <option value="rejected">Rejected ({counts.rejected})</option>
+            <option value="resolved">Reunited ({counts.resolved})</option>
+          </select>
+          <span className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[#9aaa80]">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M6 9l6 6 6-6"/></svg>
+          </span>
+        </div>
+
+        {/* Type dropdown */}
+        <div className="relative">
+          <select
+            value={typeFilter}
+            onChange={e => setType(e.target.value)}
+            className="appearance-none pl-3 pr-7 py-2 rounded-lg border text-[11px] font-extrabold cursor-pointer outline-none transition-all bg-[rgba(255,250,232,0.9)]"
+            style={{
+              borderColor: typeFilter !== "all" ? "#1a4a08" : "rgba(180,140,60,0.28)",
+              color: typeFilter !== "all" ? "#1a4a08" : "#3a5020",
+            }}>
+            <option value="all">All Types</option>
+            <option value="lost">Lost ({counts.lost})</option>
+            <option value="found">Found ({counts.found})</option>
+          </select>
+          <span className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[#9aaa80]">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M6 9l6 6 6-6"/></svg>
+          </span>
+        </div>
+
+        {/* Clear */}
         {(statusFilter !== "all" || typeFilter !== "all" || search) && (
           <button onClick={() => { setStatus("all"); setType("all"); setSearch(""); }}
-            className="px-3 py-2 rounded-xl text-xs font-extrabold border border-[rgba(180,140,60,0.28)] bg-[rgba(255,248,220,0.7)] text-[#6a7a50] cursor-pointer hover:bg-[rgba(180,140,60,0.1)] transition-colors whitespace-nowrap flex items-center gap-1">
-            <Icons.X size={11} /> Clear
+            className="px-3 py-2 rounded-lg text-[11px] font-bold border border-[rgba(180,140,60,0.28)] bg-transparent text-[#6a7a50] cursor-pointer hover:bg-[rgba(180,140,60,0.08)] transition-colors whitespace-nowrap flex items-center gap-1">
+            <Icons.X size={10} /> Clear
           </button>
+        )}
+
+        {search && (
+          <span className="text-[11px] font-semibold text-[#9aaa80] whitespace-nowrap">
+            {filtered.length} result{filtered.length !== 1 ? "s" : ""}
+          </span>
         )}
       </div>
 
-      {/* ── Attention banners ── */}
-      {counts.pending > 0 && statusFilter !== "pending" && (
-        <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-amber-50 border border-amber-200 mb-4 cursor-pointer hover:bg-amber-100 transition-colors"
-          onClick={() => setStatus("pending")}>
-          <Icons.Clock size={14} style={{ color: "#b45309", flexShrink: 0 }} />
-          <p className="text-xs font-extrabold text-amber-700 m-0">
-            {counts.pending} report{counts.pending !== 1 ? "s" : ""} awaiting review —{" "}
-            <span className="underline">click to filter</span>
-          </p>
-        </div>
-      )}
+      
       {counts.resolved > 0 && statusFilter !== "resolved" && (
         <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-blue-50 border border-blue-200 mb-4 cursor-pointer hover:bg-blue-100 transition-colors"
           onClick={() => setStatus("resolved")}>
@@ -781,9 +801,9 @@ export default function MissingPetsPanel({ show, onStatsChange }) {
             ))}
           </div>
 
-          {filtered.map((pet, i) => {
+          {pagedPets.map((pet, i) => {
             const isCat = pet.species?.toLowerCase() === "cat";
-            const isLast = i === filtered.length - 1;
+            const isLast = i === pagedPets.length - 1;
             return (
               <div key={pet.id}
                 className="pet-table-row cursor-pointer transition-colors hover:bg-[rgba(90,170,48,0.05)]"
@@ -855,32 +875,32 @@ export default function MissingPetsPanel({ show, onStatsChange }) {
                 <div className="flex gap-1 flex-wrap" onClick={e => e.stopPropagation()}>
                   {[
                     {
-                      label: "View", Icon: Icons.Eye,
+                      Icon: Icons.Eye,
                       cls: "bg-blue-50 border-blue-200 text-blue-700",
                       onClick: () => setSelected(pet),
                       show: true,
                     },
                     {
-                      label: "Edit", Icon: Icons.Edit,
+                      Icon: Icons.Edit,
                       cls: "bg-amber-50 border-amber-200 text-amber-700",
                       onClick: () => setEditPet(pet),
                       show: true,
                     },
                     {
-                      label: "Approve", Icon: Icons.Check,
+                      Icon: Icons.Check,
                       cls: "bg-green-50 border-green-200 text-green-700",
                       onClick: () => setConfirmAct({ pet, action: "approve" }),
                       show: pet.status === "pending" || !pet.status || pet.status === "rejected",
                     },
                     {
-                      label: pet.status === "approved" ? "Revoke" : "Reject",
+
                       Icon: pet.status === "approved" ? Icons.Slash : Icons.X,
                       cls: "bg-red-50 border-red-200 text-red-600",
                       onClick: () => setConfirmAct({ pet, action: "reject" }),
                       show: pet.status === "pending" || !pet.status || pet.status === "approved",
                     },
                     {
-                      label: "Delete", Icon: Icons.Trash,
+                      Icon: Icons.Trash,
                       cls: "bg-red-50 border-red-200 text-red-600",
                       onClick: () => setConfirmDel(pet),
                       show: true,
@@ -900,9 +920,32 @@ export default function MissingPetsPanel({ show, onStatsChange }) {
       )}
 
       {!loading && filtered.length > 0 && (
-        <p className="text-right text-[11px] font-bold text-[#9aaa80] mt-2">
-          Showing {filtered.length} of {pets.length} report{pets.length !== 1 ? "s" : ""}
-        </p>
+        <div className="flex items-center justify-between flex-wrap gap-3 mt-3">
+          <p className="text-[11px] font-semibold text-[#9aaa80] m-0">
+            Showing {Math.min((page - 1) * PAGE_SIZE + 1, filtered.length)}–{Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length} report{filtered.length !== 1 ? "s" : ""}
+          </p>
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1 flex-wrap">
+              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                className="px-3 py-1.5 rounded-lg text-[11px] font-bold border border-[rgba(180,140,60,0.28)] bg-transparent text-[#3a5020] cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed hover:bg-[rgba(180,140,60,0.07)] transition-colors">
+                ← Prev
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
+                <button key={n} onClick={() => setPage(n)}
+                  className={`w-8 h-8 rounded-lg text-[11px] font-bold border cursor-pointer transition-all
+                    ${n === page
+                      ? "bg-[#1a4a08] text-white border-[#1a4a08] shadow-sm"
+                      : "bg-transparent border-[rgba(180,140,60,0.28)] text-[#3a5020] hover:bg-[rgba(180,140,60,0.07)]"}`}>
+                  {n}
+                </button>
+              ))}
+              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+                className="px-3 py-1.5 rounded-lg text-[11px] font-bold border border-[rgba(180,140,60,0.28)] bg-transparent text-[#3a5020] cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed hover:bg-[rgba(180,140,60,0.07)] transition-colors">
+                Next →
+              </button>
+            </div>
+          )}
+        </div>
       )}
 
       {/* ── Modals ── */}

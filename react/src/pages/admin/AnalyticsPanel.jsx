@@ -385,7 +385,7 @@ function ScatterPlot({ records, colors }) {
 // ── SUB-COMPONENTS ────────────────────────────────────────────────────────────
 function LiveBadge({ lastUpdated, polling }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.72rem", fontWeight: 700, color: "#6a7a50" }}>
+    <div className="an-live-badge" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.72rem", fontWeight: 700, color: "#6a7a50" }}>
       <span style={{ width: 7, height: 7, borderRadius: "50%", background: polling ? "#d4880a" : "#5aaa30", display: "inline-block", boxShadow: polling ? "none" : "0 0 0 3px rgba(90,170,48,0.2)" }} />
       {polling ? "Refreshing…" : "Live · auto-refreshes every 30s"}
       {lastUpdated && !polling && <span style={{ color: "#9aaa80", marginLeft: 4 }}>· {lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>}
@@ -396,7 +396,7 @@ function LiveBadge({ lastUpdated, polling }) {
 function ViewTabs({ view, onChange, colorKey }) {
   const activeColor = colorKey === "adopt" ? "#1c4f09" : "#1a8a6a";
   return (
-    <div style={{ display: "flex", gap: 3, background: "rgba(180,140,60,0.10)", borderRadius: 8, padding: 3 }}>
+    <div className="an-view-tabs" style={{ display: "flex", gap: 3, background: "rgba(180,140,60,0.10)", borderRadius: 8, padding: 3 }}>
       {["weekly", "monthly", "yearly"].map(v => {
         const isActive = view === v;
         return (
@@ -446,7 +446,7 @@ function ScatterLegend({ colors }) {
 function SummaryCard({ label, value, sub, accentColor, bgColor }) {
   return (
     <div style={{ background: bgColor, border: `1px solid ${accentColor}22`, borderRadius: 12, padding: "14px 16px" }}>
-      <div style={{ fontSize: "1.55rem", fontWeight: 900, color: accentColor, lineHeight: 1, fontFamily: "'Playfair Display',Georgia,serif" }}>{value}</div>
+      <div className="an-summary-val" style={{ fontSize: "1.55rem", fontWeight: 900, color: accentColor, lineHeight: 1, fontFamily: "'Playfair Display',Georgia,serif" }}>{value}</div>
       <div style={{ fontSize: "0.70rem", fontWeight: 800, color: "#6a7a50", textTransform: "uppercase", letterSpacing: "0.05em", marginTop: 4 }}>{label}</div>
       <div style={{ fontSize: "0.65rem", fontWeight: 700, color: "#9aaa80", marginTop: 4 }}>{sub}</div>
     </div>
@@ -467,7 +467,7 @@ function FilterBar({ years, selectedYear, onYearChange, dateRange, onDateRangeCh
     paddingRight: 28, minWidth: 110, cursor: "pointer",
   };
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+    <div className="an-filter-bar" style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
       <span style={{ fontSize: "0.67rem", fontWeight: 900, color: "#9aaa80", letterSpacing: "0.05em" }}>YEAR</span>
       <select style={selectStyle} value={selectedYear} onChange={e => onYearChange(e.target.value === "all" ? "all" : Number(e.target.value))}>
         <option value="all">All Years</option>
@@ -577,16 +577,16 @@ export default function AnalyticsPanel({ show }) {
     <div style={{ display: "flex", flexDirection: "column", gap: 18, fontFamily: "'Nunito',sans-serif", animation: "fadeUp 0.25s ease both" }}>
 
       {/* ── Header */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+      <div className="an-header" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
         <div>
           <h2 style={{ fontFamily: "'Playfair Display',Georgia,serif", fontSize: "1.45rem", fontWeight: 800, color: T.textPrimary, margin: 0 }}>Analytics</h2>
-          <p style={{ color: T.textSecondary, fontSize: "0.82rem", fontWeight: 700, marginTop: 3, margin: 0 }}>Adoption and rehoming trends with real-time data.</p>
+          
         </div>
         <LiveBadge lastUpdated={lastUpdated} polling={polling} />
       </div>
 
       {/* ── Summary cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12 }}>
+      <div className="an-grid-4" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12 }}>
         <SummaryCard label="Total Adoptions"   value={adoptions.length}  sub={`${adoptPending} pending`}        accentColor="#1c4f09" bgColor="rgba(90,170,48,0.10)"    />
         <SummaryCard label="Total Rehomings"   value={rehomings.length}  sub={`${rehomePending} pending`}       accentColor="#d4880a" bgColor="rgba(212,136,10,0.10)"   />
         <SummaryCard label="In Filtered View"  value={filteredAdopt.length + filteredRehome.length} sub={`${filteredAdopt.length} adopt · ${filteredRehome.length} rehome`} accentColor="#1a8a6a" bgColor="rgba(26,138,106,0.10)" />
@@ -603,11 +603,13 @@ export default function AnalyticsPanel({ show }) {
       </div>
 
       {/* ── Line charts */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+      <div className="an-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+
+        {/* Adoption line chart */}
 
         {/* Adoption line chart */}
         <div style={dashCard}>
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 }}>
+          <div className="an-chart-head" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 }}>
             <div>
               <div style={{ fontSize: "0.88rem", fontWeight: 800, color: T.textPrimary }}>Adoption Activity</div>
               <div style={{ fontSize: "0.70rem", fontWeight: 700, color: T.textSecondary, marginTop: 2 }}>Requests over time by status</div>
@@ -620,7 +622,7 @@ export default function AnalyticsPanel({ show }) {
 
         {/* Rehome line chart */}
         <div style={dashCard}>
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 }}>
+          <div className="an-chart-head" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 }}>
             <div>
               <div style={{ fontSize: "0.88rem", fontWeight: 800, color: T.textPrimary }}>Rehoming Activity</div>
               <div style={{ fontSize: "0.70rem", fontWeight: 700, color: T.textSecondary, marginTop: 2 }}>Requests over time by status</div>
@@ -633,7 +635,8 @@ export default function AnalyticsPanel({ show }) {
       </div>
 
       {/* ── Scatter plots */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+       <div className="an-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+
 
         {/* Adoption scatter */}
         <div style={dashCard}>
@@ -659,7 +662,7 @@ export default function AnalyticsPanel({ show }) {
       {/* ── Status breakdown table */}
       <div style={dashCard}>
         {sectionTitle("Status Breakdown — Adoptions vs Rehomings")}
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <table className="an-table" style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ borderBottom: "1.5px solid rgba(180,140,60,0.22)" }}>
               {["Status", "Adoptions", "Rehomings", "Total"].map((h, i) => (
@@ -685,7 +688,24 @@ export default function AnalyticsPanel({ show }) {
         </table>
       </div>
 
-      <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}`}</style>
+      <style>{`
+        @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+        @media(max-width:640px){
+          .an-grid-2{grid-template-columns:1fr!important;}
+          .an-grid-4{grid-template-columns:1fr 1fr!important;}
+          .an-header{flex-direction:column!important;align-items:flex-start!important;gap:6px!important;}
+          .an-filter-bar{flex-direction:column!important;align-items:flex-start!important;gap:8px!important;}
+          .an-filter-row{flex-wrap:wrap!important;gap:6px!important;}
+          .an-view-tabs button{padding:3px 7px!important;font-size:0.62rem!important;}
+          .an-chart-head{flex-direction:column!important;align-items:flex-start!important;gap:6px!important;}
+          .an-table th,.an-table td{padding:7px 6px!important;font-size:0.72rem!important;}
+          .an-summary-val{font-size:1.2rem!important;}
+          .an-live-badge{font-size:0.65rem!important;}
+        }
+        @media(max-width:400px){
+          .an-grid-4{grid-template-columns:1fr!important;}
+        }
+      `}</style>
     </div>
   );
 }

@@ -21,8 +21,9 @@ function makeDjFetch(token) {
 }
 
 const TYPE_INFO = {
-  "7_day":  { label: "7-Day Feedback Report",  icon: "fa-calendar-week", color: "#1c7a09", bg: "rgba(28,122,9,0.08)"  },
-  "30_day": { label: "30-Day Feedback Report", icon: "fa-calendar-alt",  color: "#1a5fbf", bg: "rgba(26,95,191,0.08)" },
+  "7_day":  { label: "7-Day Feedback Report",  icon: "fa-calendar-week",  color: "#1c7a09", bg: "rgba(28,122,9,0.08)"   },
+  "30_day": { label: "30-Day Feedback Report", icon: "fa-calendar-alt",   color: "#1a5fbf", bg: "rgba(26,95,191,0.08)"  },
+  "90_day": { label: "90-Day Feedback Report", icon: "fa-calendar-check", color: "#7b2fbf", bg: "rgba(123,47,191,0.08)" },
 };
 
 // ── Star Rating ───────────────────────────────────────────────────────────────
@@ -542,6 +543,7 @@ export default function FollowUpReports() {
   const totalPending = dueSurveys.length;
   const due7Day      = dueSurveys.filter(s => s.survey_type === "7_day");
   const due30Day     = dueSurveys.filter(s => s.survey_type === "30_day");
+  const due90Day     = dueSurveys.filter(s => s.survey_type === "90_day");
 
   return (
     <div style={{ minHeight: "100vh", background: "#EDDABB", fontFamily: "'Nunito',sans-serif", color: "#1a2e0a" }}>
@@ -586,6 +588,9 @@ export default function FollowUpReports() {
             {(data.pending.some(s => s.survey_type === "30_day") || data.completed.some(s => s.survey_type === "30_day")) && (
               <PollIndicator label="30-Day" intervalMs={POLL_30DAY} lastPolled={last30} />
             )}
+            {(data.pending.some(s => s.survey_type === "90_day") || data.completed.some(s => s.survey_type === "90_day")) && (
+              <PollIndicator label="90-Day" intervalMs={POLL_30DAY} lastPolled={last30} />
+            )}
           </div>
         )}
 
@@ -621,7 +626,7 @@ export default function FollowUpReports() {
                 <div>
                   <div style={{ fontWeight: 900, fontSize: "0.9rem", color: "#1a4a08" }}>
                     You have {totalPending} feedback report{totalPending > 1 ? "s" : ""} ready to submit
-                    {due7Day.length > 0 && due30Day.length > 0 && ` (${due7Day.length} × 7-day, ${due30Day.length} × 30-day)`}
+                    {(due7Day.length > 0 || due30Day.length > 0 || due90Day.length > 0) && ` (${[due7Day.length > 0 && `${due7Day.length} × 7-day`, due30Day.length > 0 && `${due30Day.length} × 30-day`, due90Day.length > 0 && `${due90Day.length} × 90-day`].filter(Boolean).join(", ")})`}
                   </div>
                   <div style={{ fontWeight: 700, fontSize: "0.78rem", color: "#5a7a40", marginTop: "0.1rem" }}>
                     Include photos to help our team see how your pet is settling in.
@@ -651,7 +656,6 @@ export default function FollowUpReports() {
               </div>
             )}
 
-            {/* Due Now */}
             {tab === "pending" && (
               dueSurveys.length > 0 ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
@@ -678,6 +682,19 @@ export default function FollowUpReports() {
                       </div>
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: "1rem" }}>
                         {due30Day.map(s => <ReportCard key={s.id} survey={s} onOpen={setActive} />)}
+                      </div>
+                    </div>
+                  )}
+                  {due90Day.length > 0 && (
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.75rem" }}>
+                        <div style={{ height: 3, width: 20, borderRadius: 2, background: TYPE_INFO["90_day"].color }} />
+                        <span style={{ fontSize: "0.7rem", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.08em", color: TYPE_INFO["90_day"].color }}>
+                          90-Day Reports <span style={{ opacity: 0.6 }}>· polls every 60s</span>
+                        </span>
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: "1rem" }}>
+                        {due90Day.map(s => <ReportCard key={s.id} survey={s} onOpen={setActive} />)}
                       </div>
                     </div>
                   )}

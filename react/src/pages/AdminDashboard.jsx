@@ -835,28 +835,29 @@ export default function AdminDashboard() {
         unreadMessages={stats.unread_messages}
       />
       <main
-        className="min-h-screen relative z-10 overflow-auto transition-all duration-300"
-        style={{ marginLeft: sidebarWidth, paddingTop: 64, transitionTimingFunction: "cubic-bezier(0.4,0,0.2,1)" }}
+        className="relative z-10 transition-all duration-300"
+        style={{ marginLeft: sidebarWidth, paddingTop: 64, transitionTimingFunction: "cubic-bezier(0.4,0,0.2,1)", minHeight: "calc(100vh - 64px)" }}
       >
-        <div className="p-6">
-          {panel === "overview"    && <DashboardPanel   stats={stats} onNav={setPanel} user={user} onStatsChange={fetchStats} />}
-          {panel === "analytics"   && <AnalyticsPanel   show={panel === "analytics"} />}
-          {panel === "animals"     && <AnimalsPanel     show onStatsChange={fetchStats} />}
-          {panel === "adoptions"   && <RequestsPanel    type="adoptions" show onStatsChange={fetchStats} />}
-          {panel === "rehome"      && <RequestsPanel    type="rehoming"    show onStatsChange={fetchStats} />}
-          {panel === "surveys"     && <SurveysPanel     show onStatsChange={fetchStats} />}
-          {panel === "missingpets" && <MissingPetsPanel show onStatsChange={fetchStats} />}
-
-          {/* Always mounted so WebSocket stays alive */}
-          <div style={{ display: panel === "messaging" ? "block" : "none" }}>
-            <AdminMessagingPanel user={normalizedAuthUser} onUnreadChange={handleUnreadChange} />
-          </div>
-
-          {panel === "users"    && <UsersPanel    show onStatsChange={fetchStats} />}
-          {panel === "activity" && <ActivityPanel show onStatsChange={fetchStats} />}
-          {panel === "map"      && <GeoMapPanel   show user={user} onStatsChange={fetchStats} />}
-          {panel === "profile"  && <ProfilePanel  user={user} onUserUpdate={updateUser} onStatsChange={fetchStats} />}
+        {/* Always mounted so WebSocket stays alive — no padding, full height */}
+        <div style={{ display: panel === "messaging" ? "flex" : "none", height: "calc(100vh - 64px)" }}>
+          <AdminMessagingPanel user={normalizedAuthUser} onUnreadChange={handleUnreadChange} />
         </div>
+
+        {panel !== "messaging" && (
+          <div className="p-6">
+            {panel === "overview"    && <DashboardPanel   stats={stats} onNav={setPanel} user={user} onStatsChange={fetchStats} />}
+            {panel === "analytics"   && <AnalyticsPanel   show={panel === "analytics"} />}
+            {panel === "animals"     && <AnimalsPanel     show onStatsChange={fetchStats} />}
+            {panel === "adoptions"   && <RequestsPanel    type="adoptions" show onStatsChange={fetchStats} />}
+            {panel === "rehome"      && <RequestsPanel    type="rehoming"    show onStatsChange={fetchStats} />}
+            {panel === "surveys"     && <SurveysPanel     show onStatsChange={fetchStats} />}
+            {panel === "missingpets" && <MissingPetsPanel show onStatsChange={fetchStats} />}
+            {panel === "users"    && <UsersPanel    show onStatsChange={fetchStats} />}
+            {panel === "activity" && <ActivityPanel show onStatsChange={fetchStats} />}
+            {panel === "map"      && <GeoMapPanel   show user={user} onStatsChange={fetchStats} />}
+            {panel === "profile"  && <ProfilePanel  user={user} onUserUpdate={updateUser} onStatsChange={fetchStats} />}
+          </div>
+        )}
       </main>
 
       {profileModal.open && (

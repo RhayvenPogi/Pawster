@@ -325,9 +325,7 @@ export default function DashboardPanel({ stats = {}, onNav, user }) {
           <h2 style={{ fontFamily: "'Playfair Display',Georgia,serif", fontSize: "1.45rem", fontWeight: 800, color: T.textPrimary, margin: 0 }}>
             Good day, {user?.firstName || "Administrator"}
           </h2>
-          <p style={{ color: T.textSecondary, fontSize: "0.82rem", fontWeight: 700, marginTop: 3, margin: 0 }}>
-            Here is a snapshot of the shelter right now.
-          </p>
+          
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <LiveBadge lastUpdated={lastUpdated} polling={polling} />

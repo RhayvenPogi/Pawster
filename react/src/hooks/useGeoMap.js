@@ -8,7 +8,7 @@ export const SB             = import.meta.env.VITE_API_BASE ?? "http://localhost
 export const REGION1_CENTER = [16.5, 120.4];
 export const REGION1_ZOOM   = 8;
 const GEO_CACHE_KEY  = "pawster_geo_cache_v5"; // bumped → old cache auto-ignored
-const USER_PINS_KEY  = "pawster_user_pins_v5"; // bumped → forces fresh geocode
+const USER_PINS_KEY  = "pawster_user_pins_v7";
 const PET_PINS_KEY   = "pawster_pet_pins_v5";  // bumped → forces fresh geocode
 const CACHE_TTL_MS   = 10 * 60 * 1000;
 
@@ -21,10 +21,18 @@ export const PROVINCES = {
 };
 
 export const PROVINCE_CENTERS = {
-  "Ilocos Norte": { lat: 18.1977, lng: 120.5937 },
-  "Ilocos Sur":   { lat: 17.5747, lng: 120.3872 },
-  "La Union":     { lat: 16.6159, lng: 120.3166 },
-  "Pangasinan":   { lat: 16.0430, lng: 120.3330 },
+  "Ilocos Norte":     { lat: 18.1977, lng: 120.5937 },
+  "Ilocos Sur":       { lat: 17.5747, lng: 120.3872 },
+  "La Union":         { lat: 16.6159, lng: 120.3166 },
+  "Pangasinan":       { lat: 16.0430, lng: 120.3330 },
+  // CAR
+  "Baguio City":      { lat: 16.4023, lng: 120.5960 },
+  "Benguet":          { lat: 16.5500, lng: 120.7000 },
+  "Abra":             { lat: 17.5955, lng: 120.6195 },
+  "Apayao":           { lat: 18.0197, lng: 121.1841 },
+  "Ifugao":           { lat: 16.8333, lng: 121.1000 },
+  "Kalinga":          { lat: 17.4144, lng: 121.4441 },
+  "Mountain Province":{ lat: 17.0883, lng: 120.9780 },
 };
 
 const R1 = { minLat: 15.50, maxLat: 18.70, minLng: 119.60, maxLng: 121.10 };
@@ -119,9 +127,60 @@ export const CITY_CENTERS = {
   "bolinao":           { lat: 16.3833, lng: 119.8833, province: "Pangasinan"   },
   "dasol":             { lat: 15.9833, lng: 119.8833, province: "Pangasinan"   },
   "masinloc":          { lat: 15.5333, lng: 119.9500, province: "Pangasinan"   },
-  // Baguio — technically CAR but users often enter it
-  "baguio":            { lat: 16.4023, lng: 120.5960, province: "La Union"     },
-  "baguio city":       { lat: 16.4023, lng: 120.5960, province: "La Union"     },
+  // ── Baguio City (CAR chartered city) ──
+  "baguio":            { lat: 16.4023, lng: 120.5960, province: "Baguio City"      },
+  "baguio city":       { lat: 16.4023, lng: 120.5960, province: "Baguio City"      },
+  // ── Benguet ──
+  "la trinidad":       { lat: 16.4619, lng: 120.5870, province: "Benguet"          },
+  "itogon":            { lat: 16.3667, lng: 120.6833, province: "Benguet"          },
+  "tublay":            { lat: 16.4833, lng: 120.6333, province: "Benguet"          },
+  "bokod":             { lat: 16.5167, lng: 120.7667, province: "Benguet"          },
+  "kabayan":           { lat: 16.5833, lng: 120.8333, province: "Benguet"          },
+  "atok":              { lat: 16.5500, lng: 120.7167, province: "Benguet"          },
+  "kibungan":          { lat: 16.5000, lng: 120.6667, province: "Benguet"          },
+  "buguias":           { lat: 16.7000, lng: 120.8000, province: "Benguet"          },
+  "bakun":             { lat: 16.6167, lng: 120.6500, province: "Benguet"          },
+  "mankayan":          { lat: 16.8667, lng: 120.7833, province: "Benguet"          },
+  "sablan":            { lat: 16.4833, lng: 120.5333, province: "Benguet"          },
+  "tuba":              { lat: 16.4167, lng: 120.5333, province: "Benguet"          },
+  "kapangan":          { lat: 16.5500, lng: 120.6000, province: "Benguet"          },
+  // ── Abra ──
+  "bangued":           { lat: 17.5955, lng: 120.6195, province: "Abra"             },
+  "bucay":             { lat: 17.5333, lng: 120.6667, province: "Abra"             },
+  "dolores":           { lat: 17.7000, lng: 120.7000, province: "Abra"             },
+  "lagangilang":       { lat: 17.6167, lng: 120.7000, province: "Abra"             },
+  "pidigan":           { lat: 17.6500, lng: 120.5833, province: "Abra"             },
+  "tayum":             { lat: 17.5667, lng: 120.6000, province: "Abra"             },
+  "villaviciosa":      { lat: 17.5167, lng: 120.5500, province: "Abra"             },
+  "manabo":            { lat: 17.6833, lng: 120.8167, province: "Abra"             },
+  // ── Apayao ──
+  "kabugao":           { lat: 18.0197, lng: 121.1841, province: "Apayao"           },
+  "luna apayao":       { lat: 17.9833, lng: 121.0500, province: "Apayao"           },
+  "conner":            { lat: 17.8167, lng: 121.2167, province: "Apayao"           },
+  "calanasan":         { lat: 18.2167, lng: 121.0833, province: "Apayao"           },
+  "pudtol":            { lat: 17.9000, lng: 121.1833, province: "Apayao"           },
+  "santa marcela":     { lat: 17.8500, lng: 121.2667, province: "Apayao"           },
+  // ── Ifugao ──
+  "lagawe":            { lat: 16.8167, lng: 121.1000, province: "Ifugao"           },
+  "banaue":            { lat: 16.9167, lng: 121.0583, province: "Ifugao"           },
+  "hungduan":          { lat: 16.8667, lng: 121.0000, province: "Ifugao"           },
+  "kiangan":           { lat: 16.7667, lng: 121.0833, province: "Ifugao"           },
+  "lamut":             { lat: 16.8333, lng: 121.1333, province: "Ifugao"           },
+  // ── Kalinga ──
+  "tabuk":             { lat: 17.4144, lng: 121.4441, province: "Kalinga"          },
+  "lubuagan":          { lat: 17.3833, lng: 121.1833, province: "Kalinga"          },
+  "tanudan":           { lat: 17.2667, lng: 121.2000, province: "Kalinga"          },
+  "pinukpuk":          { lat: 17.6500, lng: 121.3667, province: "Kalinga"          },
+  "rizal kalinga":     { lat: 17.6833, lng: 121.4167, province: "Kalinga"          },
+  // ── Mountain Province ──
+  "bontoc":            { lat: 17.0883, lng: 120.9780, province: "Mountain Province" },
+  "sagada":            { lat: 17.0833, lng: 120.9000, province: "Mountain Province" },
+  "bauko":             { lat: 17.0167, lng: 120.8833, province: "Mountain Province" },
+  "besao":             { lat: 17.0500, lng: 120.9000, province: "Mountain Province" },
+  "natonin":           { lat: 17.1667, lng: 121.1000, province: "Mountain Province" },
+  "paracelis":         { lat: 17.2500, lng: 121.3833, province: "Mountain Province" },
+  "sabangan":          { lat: 16.9833, lng: 120.9167, province: "Mountain Province" },
+  "tadian":            { lat: 16.9500, lng: 120.8500, province: "Mountain Province" },
 };
 
 const PROV_MAP = {
@@ -135,15 +194,37 @@ const PROV_MAP = {
 export function inRegion1(lat, lng) {
   return lat >= R1.minLat && lat <= R1.maxLat && lng >= R1.minLng && lng <= R1.maxLng;
 }
-export function guessProvince(lat) {
-  if (lat >= 18.0) return "Ilocos Norte";
-  if (lat >= 17.0) return "Ilocos Sur";
-  if (lat >= 16.3) return "La Union";
-  if (lat >= 15.7) return "Pangasinan";
+export function guessProvince(lat, lng) {
+  // Baguio City bounding box check first
+  if (lat >= 16.36 && lat <= 16.44 && lng >= 120.56 && lng <= 120.63) return "Baguio City";
+  // CAR province approximate lat bands
+  if (lat >= 17.2 && lat <= 18.2) return "Abra";
+  if (lat >= 17.5 && lat <= 18.5) return "Apayao";
+  if (lat >= 16.2 && lat <= 16.9) return "Benguet";
+  if (lat >= 16.7 && lat <= 17.2) return "Ifugao";
+  if (lat >= 17.0 && lat <= 18.0) return "Kalinga";
+  if (lat >= 16.5 && lat <= 17.1) return "Mountain Province";
   return null;
 }
+
+const CAR_PROV_MAP = {
+  "baguio":            "Baguio City",
+  "baguio city":       "Baguio City",
+  "benguet":           "Benguet",
+  "abra":              "Abra",
+  "apayao":            "Apayao",
+  "ifugao":            "Ifugao",
+  "kalinga":           "Kalinga",
+  "mountain province": "Mountain Province",
+  "mt. province":      "Mountain Province",
+  "mt province":       "Mountain Province",
+};
+
 export function detectProvince(text) {
   const t = (text || "").toLowerCase();
+  // Check CAR areas first
+  for (const [k, v] of Object.entries(CAR_PROV_MAP)) { if (t.includes(k)) return v; }
+  // Fall back to Region 1
   for (const [k, v] of Object.entries(PROV_MAP)) { if (t.includes(k)) return v; }
   return null;
 }
@@ -178,6 +259,12 @@ export function loadPinCache(key) {
 export function savePinCache(key, data) {
   try { localStorage.setItem(key, JSON.stringify({ ts: Date.now(), data })); } catch {}
 }
+
+export function petCacheHasNewIds(cachedPets, approvedPets) {
+  const cachedIds = new Set((cachedPets || []).map(p => String(p.id)));
+  return approvedPets.some(p => !cachedIds.has(String(p.id)));
+}
+
 export function pinCacheAge(key) {
   try {
     const c = JSON.parse(localStorage.getItem(key) || "null");
@@ -217,24 +304,25 @@ export async function geocodeUser(user) {
 
   if (addr && city) {
     await sleep(1100);
-    const r = await nominatim(`${addr}, ${city}, ${user.province || "Ilocos Region"}, Philippines`);
-    if (r && inRegion1(r.lat, r.lng)) {
-      return { lat: r.lat + jitter(0.001), lng: r.lng + jitter(0.001), province: prov || guessProvince(r.lat), inRegion: true, precision: precisionFromType(r.type), nominatimLabel: r.displayName };
+    const r = await nominatim(`${addr}, ${city}, ${user.province || ""}, Philippines`);
+    if (r) {
+      const resolvedProv = prov || guessProvince(r.lat, r.lng);
+      return { lat: r.lat + jitter(0.001), lng: r.lng + jitter(0.001), province: resolvedProv, city: resolvedProv === "Baguio City" ? "Baguio City" : undefined, inRegion: true, precision: precisionFromType(r.type), nominatimLabel: r.displayName };
     }
     const stripped = addr.replace(/^\d+[\s\-,]*/, "").trim();
     if (stripped && stripped !== addr) {
       await sleep(1100);
-      const r2 = await nominatim(`${stripped}, ${city}, ${user.province || "Ilocos Region"}, Philippines`);
-      if (r2 && inRegion1(r2.lat, r2.lng)) {
-        return { lat: r2.lat + jitter(0.001), lng: r2.lng + jitter(0.001), province: prov || guessProvince(r2.lat), inRegion: true, precision: precisionFromType(r2.type), nominatimLabel: r2.displayName };
+      const r2 = await nominatim(`${stripped}, ${city}, ${user.province || ""}, Philippines`);
+      if (r2) {
+        return { lat: r2.lat + jitter(0.001), lng: r2.lng + jitter(0.001), province: prov || guessProvince(r2.lat, r2.lng), inRegion: true, precision: precisionFromType(r2.type), nominatimLabel: r2.displayName };
       }
     }
   }
   if (city && !cityFB) {
     await sleep(1100);
-    const r = await nominatim(`${city}, ${user.province || "Ilocos Region"}, Philippines`);
-    if (r && inRegion1(r.lat, r.lng)) {
-      return { lat: r.lat + jitter(0.005), lng: r.lng + jitter(0.005), province: prov || guessProvince(r.lat), inRegion: true, precision: "city", nominatimLabel: r.displayName };
+    const r = await nominatim(`${city}, ${user.province || ""}, Philippines`);
+    if (r) {
+      return { lat: r.lat + jitter(0.005), lng: r.lng + jitter(0.005), province: prov || guessProvince(r.lat, r.lng), inRegion: true, precision: "city", nominatimLabel: r.displayName };
     }
   }
   if (cityFB) {
@@ -272,14 +360,15 @@ export async function geocodePet(pet) {
     await sleep(1100);
     const r = await nominatim(`${addr}, ${area}, Philippines`);
     if (r && inRegion1(r.lat, r.lng)) {
-      return { lat: r.lat + jitter(0.001), lng: r.lng + jitter(0.001), province: prov || guessProvince(r.lat), inRegion: true, precision: precisionFromType(r.type), nominatimLabel: r.displayName };
+      const resolvedProv = prov || guessProvince(r.lat, r.lng);
+      return { lat: r.lat + jitter(0.001), lng: r.lng + jitter(0.001), province: resolvedProv, city: resolvedProv === "Baguio City" ? "Baguio City" : undefined, inRegion: true, precision: precisionFromType(r.type), nominatimLabel: r.displayName };
     }
   }
   if (area && !cityFB) {
     await sleep(1100);
     const r = await nominatim(`${area}, Philippines`);
     if (r && inRegion1(r.lat, r.lng)) {
-      return { lat: r.lat + jitter(0.005), lng: r.lng + jitter(0.005), province: prov || guessProvince(r.lat), inRegion: true, precision: "city", nominatimLabel: r.displayName };
+      return { lat: r.lat + jitter(0.005), lng: r.lng + jitter(0.005), province: prov || guessProvince(r.lat, r.lng), inRegion: true, precision: "city", nominatimLabel: r.displayName };
     }
   }
   if (cityFB) {
@@ -315,6 +404,42 @@ export async function phpApi(action, params = {}) {
   });
   return res.json();
 }
+
+export async function fetchAndGeocodePets() {
+  const token = localStorage.getItem("pawster_token") || "";
+  const res = await fetch(`${SB}/api/missing-pets/admin/all`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) return null;
+  const mp = await res.json();
+  const approved = (mp || []).filter(p => p.status === "approved");
+
+  const cachedPetPins = loadPinCache(PET_PINS_KEY);
+  const cached = cachedPetPins?.data || [];
+
+  if (!petCacheHasNewIds(cached, approved)) {
+    return cached;
+  }
+
+  const cachedMap = new Map(cached.map(p => [String(p.id), p]));
+  const needsGeo = approved.filter(p => !cachedMap.has(String(p.id)));
+  const alreadyGeo = approved
+    .filter(p => cachedMap.has(String(p.id)))
+    .map(p => cachedMap.get(String(p.id)));
+
+  if (needsGeo.length === 0) return alreadyGeo;
+
+  const geoResults = await geocodeBatch(needsGeo, geocodePet, () => {});
+  const newlyGeocoded = needsGeo
+    .map((pet, i) => geoResults[i]?.inRegion ? { ...pet, _geo: geoResults[i] } : null)
+    .filter(Boolean);
+
+  const all = [...alreadyGeo, ...newlyGeocoded];
+  savePinCache(PET_PINS_KEY, all);
+  return all;
+}
+
+
 
 // ─── MAIN HOOK ────────────────────────────────────────────────────────────────
 export function useGeoMap(show) {
@@ -443,13 +568,24 @@ export function useGeoMap(show) {
       setGeocodedUsers(geocodedU);
       savePinCache(USER_PINS_KEY, geocodedU);
 
-      const petGeo = await geocodeBatch(approved, geocodePet, done => {
-        setGeocodingProgress(p => ({ ...p, done: users.length + done }));
-      });
-      const geocodedP = approved
+      const cachedPetPins2 = loadPinCache(PET_PINS_KEY);
+      const cachedPetMap   = new Map((cachedPetPins2?.data || []).map(p => [String(p.id), p]));
+      const petsNeedingGeo = approved.filter(p => !cachedPetMap.has(String(p.id)));
+      const alreadyCached  = approved
+        .filter(p => cachedPetMap.has(String(p.id)))
+        .map(p => cachedPetMap.get(String(p.id)));
+
+      const petGeo = petsNeedingGeo.length > 0
+        ? await geocodeBatch(petsNeedingGeo, geocodePet, done => {
+            setGeocodingProgress(p => ({ ...p, done: users.length + done }));
+          })
+        : [];
+
+      const newlyGeocodedP = petsNeedingGeo
         .map((pet, i) => petGeo[i]?.inRegion ? { ...pet, _geo: petGeo[i] } : null)
         .filter(Boolean);
 
+      const geocodedP = [...alreadyCached, ...newlyGeocodedP];
       setMissingPets(geocodedP);
       savePinCache(PET_PINS_KEY, geocodedP);
       setGeocodingProgress({ done: 0, total: 0, active: false });

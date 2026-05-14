@@ -35,6 +35,10 @@ public class AdminUserController {
         String email     = body.getOrDefault("email",     "").trim();
         String phone     = body.getOrDefault("phone",     "").trim();
         String role      = body.getOrDefault("role",      "user").trim().toLowerCase();
+        String address   = body.getOrDefault("address",   "").trim();
+        String city      = body.getOrDefault("city",      "").trim();
+        String province  = body.getOrDefault("province",  "").trim();
+        String zip       = body.getOrDefault("zip",       "").trim();
 
         // ── Validation ───────────────────────────────────────────────────────
         if (firstName.isEmpty() || lastName.isEmpty() || email.isEmpty() || phone.isEmpty()) {
@@ -67,6 +71,10 @@ public class AdminUserController {
         user.setRole(role);
         user.setStatus("approved");
         user.setIsActive(1);
+        user.setAddress(address);
+        user.setCity(city);
+        user.setProvince(province);
+        user.setZip(zip);
         userRepository.save(user);
 
         System.out.println("✅ User saved to DB with id: " + user.getId());

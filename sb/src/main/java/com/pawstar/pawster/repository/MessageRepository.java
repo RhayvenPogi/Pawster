@@ -15,6 +15,9 @@ public interface MessageRepository extends MongoRepository<Message, String> {
     /** All messages in a conversation, oldest-first */
     List<Message> findByUserIdOrderByCreatedAtAsc(Integer userId);
 
+    /** Delete all messages in a conversation */
+    void deleteByUserId(Integer userId);
+
     /** Unread messages sent by admin that the user hasn't read */
     long countByUserIdAndSenderRoleAndIsReadFalse(Integer userId, String senderRole);
 

@@ -189,8 +189,8 @@ function ForgotPasswordStep({ onSubmit }) {
   }
 
   return (
-    <div style={{ position: "relative", zIndex: 10, display: "flex", alignItems: "center", height: "100vh", width: "100vw", maxWidth: 1920, margin: "0 auto", padding: "0 6vw", gap: "2vw" }}>
-      <div style={{ flex: 1, position: "relative", height: "100vh", overflow: "visible" }}>
+    <div className="fp-layout" style={{ position: "relative", zIndex: 10, display: "flex", alignItems: "center", height: "100vh", width: "100vw", maxWidth: 1920, margin: "0 auto", padding: "0 6vw", gap: "2vw" }}>
+      <div className="fp-left" style={{ flex: 1, position: "relative", height: "100vh", overflow: "visible" }}>
         <div style={{ position: "absolute", inset: 0, zIndex: 5, pointerEvents: "none" }}>
           {pawData.map((p, i) => (
             <PawSVG key={i} style={{ position: "absolute", top: p.top, left: p.left, bottom: p.bottom, width: p.width, height: p.width, fill: p.fill, transform: `rotate(${p.rotate}deg)` }} />
@@ -209,7 +209,7 @@ function ForgotPasswordStep({ onSubmit }) {
         </div>
       </div>
 
-      <div style={{ width: 400, minWidth: 400, flexShrink: 0, alignSelf: "center", marginRight: "3vw", display: "flex", flexDirection: "column", justifyContent: "center", padding: "2.2rem 2.6rem", background: "rgba(255,248,225,0.38)", backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)", border: "1.5px solid rgba(255,238,190,0.50)", borderRadius: 26, boxShadow: "0 8px 40px rgba(160,105,30,0.13),0 2px 10px rgba(0,0,0,0.06)" }}>
+      <div className="fp-card" style={{ width: 400, minWidth: 400, flexShrink: 0, alignSelf: "center", marginRight: "3vw", display: "flex", flexDirection: "column", justifyContent: "center", padding: "2.2rem 2.6rem", background: "rgba(255,248,225,0.38)", backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)", border: "1.5px solid rgba(255,238,190,0.50)", borderRadius: 26, boxShadow: "0 8px 40px rgba(160,105,30,0.13),0 2px 10px rgba(0,0,0,0.06)" }}>
         <h2 style={{ fontSize: "clamp(1.8rem,2.4vw,2.6rem)", fontWeight: 900, color: "#1a4a08", textAlign: "center", marginBottom: "0.4rem" }}>Forgot Password</h2>
         <p style={{ fontSize: "0.88rem", fontWeight: 600, color: "#3a6020", textAlign: "center", lineHeight: 1.55, marginBottom: "1.8rem" }}>
           We'll help you recover access to your account
@@ -337,7 +337,7 @@ function OtpStep({ email, onVerify, onResend, onBack }) {
         <PawSVG key={i} style={{ position: "fixed", top: p.top, left: p.left, bottom: p.bottom, right: p.right, width: p.width, height: p.width, fill: p.fill, transform: `rotate(${p.rotate}deg)`, zIndex: 5, pointerEvents: "none" }} />
       ))}
 
-      <div style={{ width: 520, maxWidth: "92vw", padding: "2.8rem 3rem", background: "rgba(237,218,187,0.55)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", border: "1.5px solid rgba(255,238,190,0.60)", borderRadius: 26, boxShadow: "0 8px 40px rgba(160,105,30,0.15)", textAlign: "center", zIndex: 10 }}>
+      <div className="fp-center-card" style={{ width: 520, maxWidth: "92vw", padding: "2.8rem 3rem", background: "rgba(237,218,187,0.55)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", border: "1.5px solid rgba(255,238,190,0.60)", borderRadius: 26, boxShadow: "0 8px 40px rgba(160,105,30,0.15)", textAlign: "center", zIndex: 10 }}>
         <h2 style={{ fontFamily: "'Nunito',sans-serif", fontWeight: 900, fontSize: "clamp(1.7rem,2.5vw,2.2rem)", color: "#1a4a08", marginBottom: "0.5rem" }}>Verify your Account</h2>
         <p style={{ fontFamily: "'Nunito',sans-serif", fontWeight: 600, fontSize: "0.92rem", color: "#3a6020", marginBottom: "2rem", lineHeight: 1.55 }}>
           We've sent a PIN to <strong>{email}</strong><br />Please enter it to verify your account
@@ -367,7 +367,7 @@ function OtpStep({ email, onVerify, onResend, onBack }) {
                 value={digit}
                 onChange={e => handleChange(e.target.value, i)}
                 onKeyDown={e => handleKeyDown(e, i)}
-                style={{ width: 56, height: 64, textAlign: "center", fontSize: "1.6rem", fontWeight: 900, fontFamily: "'Nunito',sans-serif", color: "#1a4a08", background: "rgba(255,250,232,0.65)", border: `2px solid ${digit ? "#1c4f09" : "#5aaa30"}`, borderRadius: 10, outline: "none", transition: "border-color 0.18s,box-shadow 0.18s,background 0.18s", caretColor: "#1c4f09" }}
+                className="otp-input" style={{ width: 56, height: 64, textAlign: "center", fontSize: "1.6rem", fontWeight: 900, fontFamily: "'Nunito',sans-serif", color: "#1a4a08", background: "rgba(255,250,232,0.65)", border: `2px solid ${digit ? "#1c4f09" : "#5aaa30"}`, borderRadius: 10, outline: "none", transition: "border-color 0.18s,box-shadow 0.18s,background 0.18s", caretColor: "#1c4f09" }}
                 onFocus={e => { e.target.style.borderColor = "#1c4f09"; e.target.style.boxShadow = "0 0 0 3px rgba(28,79,9,0.12)"; e.target.style.background = "rgba(255,255,240,0.85)"; }}
                 onBlur={e => { e.target.style.borderColor = digit ? "#1c4f09" : "#5aaa30"; e.target.style.boxShadow = "none"; e.target.style.background = "rgba(255,250,232,0.65)"; }}
               />
@@ -448,7 +448,7 @@ function ResetPasswordStep({ onReset }) {
         <PawSVG key={i} style={{ position: "fixed", top: p.top, left: p.left, bottom: p.bottom, right: p.right, width: p.width, height: p.width, fill: p.fill, transform: `rotate(${p.rotate}deg)`, zIndex: 5, pointerEvents: "none" }} />
       ))}
 
-      <div style={{ width: 520, maxWidth: "92vw", padding: "2.8rem 3rem", background: "rgba(237,218,187,0.55)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", border: "1.5px solid rgba(255,238,190,0.60)", borderRadius: 26, boxShadow: "0 8px 40px rgba(160,105,30,0.15)", zIndex: 10 }}>
+      <div className="fp-center-card" style={{ width: 520, maxWidth: "92vw", padding: "2.8rem 3rem", background: "rgba(237,218,187,0.55)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", border: "1.5px solid rgba(255,238,190,0.60)", borderRadius: 26, boxShadow: "0 8px 40px rgba(160,105,30,0.15)", zIndex: 10 }}>
         <h2 style={{ fontFamily: "'Nunito',sans-serif", fontWeight: 900, fontSize: "clamp(1.7rem,2.5vw,2.2rem)", color: "#1a4a08", marginBottom: "0.4rem", textAlign: "center" }}>Reset Your Password</h2>
         <p style={{ fontFamily: "'Nunito',sans-serif", fontWeight: 600, fontSize: "0.9rem", color: "#3a6020", textAlign: "center", marginBottom: "2rem" }}>
           Choose a strong new password for your account
@@ -569,6 +569,14 @@ export default function ForgotPasswordPage() {
         @keyframes bobQ{0%,100%{transform:translateY(0) rotate(-5deg)}50%{transform:translateY(-18px) rotate(5deg)}}
         @keyframes spin{to{transform:rotate(360deg)}}
         input::placeholder{color:#a09060;font-style:italic;font-weight:600;}
+        @media(max-width:640px){
+          html,body{overflow-y:auto;}
+          .fp-layout{flex-direction:column!important;align-items:center!important;justify-content:flex-start!important;padding:80px 1.2rem 2rem!important;gap:0!important;height:auto!important;min-height:100vh!important;}
+          .fp-left{display:none!important;}
+          .fp-card{width:100%!important;min-width:0!important;margin:0!important;padding:1.8rem 1.4rem!important;}
+          .fp-center-card{width:100%!important;max-width:100%!important;padding:2rem 1.4rem!important;margin:0 1rem!important;}
+          .otp-input{width:42px!important;height:52px!important;font-size:1.3rem!important;}
+        }
       `}</style>
 
       <MeshBackground />

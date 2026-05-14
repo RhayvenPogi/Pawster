@@ -6,6 +6,7 @@ import {
   PageHeader, SearchBar, roleBadge
 } from "../../shared";
 import { usePageTitle } from "../../hooks/usePageTitle";
+import api from "../../config/axios"; // ← ADDED
 
 // ─── Inline field error ───────────────────────────────────────────────────────
 function FieldErr({ msg }) {
@@ -49,6 +50,7 @@ export default function UsersPanel({ show: isVisible }) {
   const { show: toast }           = useToast();
 
   usePageTitle("User Management");
+
   // ── Load users ────────────────────────────────────────────────────────────
   const load = useCallback(async () => {
     setLoading(true);
@@ -115,7 +117,6 @@ export default function UsersPanel({ show: isVisible }) {
   };
 
   // ── Open edit modal ───────────────────────────────────────────────────────
-  // FIX: normalize zip so the edit form always shows the saved value
   const openEdit = (u) => {
     setForm({ ...u, zip: u.zip || u.zip_code || "" });
     setErrs({});
@@ -142,8 +143,7 @@ export default function UsersPanel({ show: isVisible }) {
 
     try {
       if (form.id) {
-        // Edit — goes through PHP
-        // FIX: send 'zip' (not 'zip_code') — PHP updateUser reads $this->body('zip')
+        // ── Edit — goes through PHP ──────────────────────────────────────
         const r = await phpApi("update_user", {
           id:         form.id,
           first_name: form.first_name,
@@ -166,31 +166,32 @@ export default function UsersPanel({ show: isVisible }) {
         }
 
       } else {
-        // Add — goes through PHP so all fields (address, city, province, zip) are saved
-        const r = await phpApi("add_user", {
-          first_name: form.first_name,
-          last_name:  form.last_name,
-          email:      form.email,
-          phone:      form.phone,
-          role:       form.role,
-          is_active:  form.is_active ?? 1,
-          address:    form.address  || "",
-          city:       form.city     || "",
-          province:   form.province || "",
-          zip:        form.zip      || "",
+        // ── Add — goes through Spring Boot so email is sent ──────────────
+        const r = await api.post("/api/admin/users", {
+          firstName: form.first_name,
+          lastName:  form.last_name,
+          email:     form.email,
+          phone:     form.phone,
+          role:      form.role,
+          address:   form.address  || "",
+          city:      form.city     || "",
+          province:  form.province || "",
+          zip:       form.zip      || "",
         });
-        if (r.success) {
+        if (r.data?.success) {
           toast("User added successfully!", "success");
           setModal(null);
           load();
         } else {
-          setErrs({ api: r.message || "Error adding user" });
+          setErrs({ api: r.data?.message || "Error adding user" });
         }
       }
 
     } catch (err) {
       console.error("save user error:", err);
-      setErrs({ api: "Server error — check console for details" });
+      // Axios throws on non-2xx — extract the message from the response if available
+      const message = err?.response?.data?.message || "Server error — check console for details";
+      setErrs({ api: message });
     }
   };
 
@@ -223,9 +224,17 @@ export default function UsersPanel({ show: isVisible }) {
     }
   };
 
+  const PAGE_SIZE = 10;
+  const [page, setPage] = useState(1);
+
   const filtered = users.filter(u =>
     `${u.first_name} ${u.last_name} ${u.email}`.toLowerCase().includes(search.toLowerCase())
   );
+
+  useEffect(() => { setPage(1); }, [search, roleFilter]);
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const isAdd  = modal === "add";
   const isEdit = modal === "edit";
@@ -248,14 +257,15 @@ export default function UsersPanel({ show: isVisible }) {
             onClick={openAdd}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-black text-white transition-all hover:shadow-lg hover:opacity-90"
             style={{ background: "#1c4f09" }}>
-            + Add User
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add User
           </button>
         }
       />
 
       {/* ── Filters ───────────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap gap-3 items-end">
-        <div className="w-[360px]">
+      <div className="flex flex-col sm:flex-row flex-wrap gap-3 items-stretch sm:items-end">
+        <div className="w-full sm:w-[360px]">
           <SearchBar value={search} onChange={setSearch} placeholder="Search users…" />
         </div>
         <div className="flex items-center gap-2 text-sm font-bold">
@@ -268,104 +278,225 @@ export default function UsersPanel({ show: isVisible }) {
         </div>
       </div>
 
-      {/* ── Table ─────────────────────────────────────────────────────────── */}
+      {/* ── Table (desktop) / Cards (mobile) ──────────────────────────────── */}
       {loading ? (
         <div className="flex items-center justify-center py-20">
           <div className="w-8 h-8 rounded-full border-2 border-green-600 border-t-transparent animate-spin" />
         </div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-16 text-sm font-semibold" style={{ color: "#9aaa80" }}>
+          No users found.
+        </div>
       ) : (
-        <Table
-          headers={["User", "Email", "Phone", "Role", "Status", "ID File", "Joined", "Last Login", "Actions"]}
-          empty="No users found.">
-          {filtered.map(u => (
-            <Tr key={u.id}>
+        <>
+          {/* ── Desktop table ── */}
+          <div className="hidden md:block">
+            <Table
+              headers={["User", "Email", "Phone", "Role", "Status", "ID File", "Joined", "Last Login", "Actions"]}
+              empty="No users found.">
+              {paged.map(u => (
+                <Tr key={u.id}>
+                  <Td>
+                    <div className="flex items-center gap-2.5">
+                      <div
+                        className="w-9 h-9 rounded-full flex-shrink-0 border-2 border-green-200 overflow-hidden"
+                        style={{ background: "linear-gradient(135deg,#1c4f09,#2a7010)" }}>
+                        {u.photo_name ? (
+                          <img src={`/api/users/${u.id}/photo/public`} alt="avatar"
+                            className="w-full h-full object-cover"
+                            onError={e => { e.target.style.display = "none"; }} />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-white font-black text-xs">
+                            {(u.first_name?.[0] || "").toUpperCase()}{(u.last_name?.[0] || "").toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <div className="font-black text-sm">{u.first_name} {u.last_name}</div>
+                        <div className="text-[11px] font-semibold" style={{ color: "#9aaa80" }}>#{u.id}</div>
+                      </div>
+                    </div>
+                  </Td>
+                  <Td>{u.email}</Td>
+                  <Td className="text-xs">{u.phone || "—"}</Td>
+                  <Td><Badge color={roleBadge(u.role)}>{u.role}</Badge></Td>
+                  <Td><Badge color={u.is_active == 1 ? "green" : "red"}>{u.is_active == 1 ? "Active" : "Inactive"}</Badge></Td>
+                  <Td>
+                    {u.id_file_name ? (
+                      <button onClick={() => viewId(u)}
+                        className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold border transition-all hover:bg-green-50 hover:border-green-400 hover:text-green-700"
+                        style={{ borderColor: "#c5d8a0", color: "#4a7020" }}>
+                        🪪 View ID
+                      </button>
+                    ) : (
+                      <span className="text-xs font-semibold" style={{ color: "#c0b080" }}>None</span>
+                    )}
+                  </Td>
+                  <Td className="text-xs whitespace-nowrap">
+                    {u.created_at
+                      ? new Date(u.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                      : "—"}
+                  </Td>
+                  <Td className="text-xs">
+                    {u.last_login
+                      ? new Date(u.last_login).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+                      : <span style={{ color: "#c0b080" }}>Never</span>}
+                  </Td>
+                  <Td>
+                    <div className="flex gap-1.5">
+                       <button onClick={() => openEdit(u)}
+                        className="px-2.5 py-1.5 rounded-lg text-xs font-black border hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 transition-all flex items-center justify-center"
+                        style={{ borderColor: "#ddd0a8", color: "#7a9060" }} title="Edit">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                      </button>
+                      <button onClick={() => toggleStatus(u)}
+                        className="px-2.5 py-1.5 rounded-lg text-xs font-black border hover:bg-amber-50 hover:text-amber-700 hover:border-amber-300 transition-all flex items-center justify-center"
+                        style={{ borderColor: "#ddd0a8", color: "#7a9060" }}
+                        title={u.is_active == 1 ? "Deactivate" : "Activate"}>
+                        {u.is_active == 1
+                          ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+                          : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+                      </button>
+                      <button onClick={() => setDel(u)}
+                        className="px-2.5 py-1.5 rounded-lg text-xs font-black border hover:bg-red-50 hover:text-red-600 hover:border-red-300 transition-all flex items-center justify-center"
+                        style={{ borderColor: "#ddd0a8", color: "#7a9060" }} title="Delete">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                      </button>
+                    </div>
+                  </Td>
+                </Tr>
+              ))}
+            </Table>
+          </div>
 
-              {/* Avatar + name */}
-              <Td>
-                <div className="flex items-center gap-2.5">
+          {/* ── Mobile cards ── */}
+          <div className="flex flex-col gap-3 md:hidden">
+            {paged.map(u => (
+              <div key={u.id}
+                className="rounded-2xl border p-4 flex flex-col gap-3"
+                style={{ background: "rgba(255,252,232,0.9)", borderColor: "rgba(180,140,60,0.28)" }}>
+
+                {/* Top row: avatar + name + badges */}
+                <div className="flex items-center gap-3">
                   <div
-                    className="w-9 h-9 rounded-full flex-shrink-0 border-2 border-green-200 overflow-hidden"
+                    className="w-11 h-11 rounded-full flex-shrink-0 border-2 border-green-200 overflow-hidden"
                     style={{ background: "linear-gradient(135deg,#1c4f09,#2a7010)" }}>
                     {u.photo_name ? (
-                      <img
-                        src={`/api/users/${u.id}/photo/public`}
-                        alt="avatar"
+                      <img src={`/api/users/${u.id}/photo/public`} alt="avatar"
                         className="w-full h-full object-cover"
-                        onError={e => { e.target.style.display = "none"; }}
-                      />
+                        onError={e => { e.target.style.display = "none"; }} />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-white font-black text-xs">
+                      <div className="w-full h-full flex items-center justify-center text-white font-black text-sm">
                         {(u.first_name?.[0] || "").toUpperCase()}{(u.last_name?.[0] || "").toUpperCase()}
                       </div>
                     )}
                   </div>
-                  <div>
-                    <div className="font-black text-sm">{u.first_name} {u.last_name}</div>
-                    <div className="text-[11px] font-semibold" style={{ color: "#9aaa80" }}>#{u.id}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-black text-sm truncate">{u.first_name} {u.last_name}</div>
+                    <div className="text-[11px] font-semibold truncate" style={{ color: "#9aaa80" }}>#{u.id} · {u.email}</div>
+                  </div>
+                  <div className="flex flex-col gap-1 items-end flex-shrink-0">
+                    <Badge color={roleBadge(u.role)}>{u.role}</Badge>
+                    <Badge color={u.is_active == 1 ? "green" : "red"}>{u.is_active == 1 ? "Active" : "Inactive"}</Badge>
                   </div>
                 </div>
-              </Td>
 
-              <Td>{u.email}</Td>
-              <Td className="text-xs">{u.phone || "—"}</Td>
-              <Td><Badge color={roleBadge(u.role)}>{u.role}</Badge></Td>
-              <Td><Badge color={u.is_active == 1 ? "green" : "red"}>{u.is_active == 1 ? "Active" : "Inactive"}</Badge></Td>
-
-              {/* ID file */}
-              <Td>
-                {u.id_file_name ? (
-                  <button
-                    onClick={() => viewId(u)}
-                    className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold border transition-all hover:bg-green-50 hover:border-green-400 hover:text-green-700"
-                    style={{ borderColor: "#c5d8a0", color: "#4a7020" }}
-                    title={u.id_file_name}>
-                    🪪 View ID
-                  </button>
-                ) : (
-                  <span className="text-xs font-semibold" style={{ color: "#c0b080" }}>None</span>
-                )}
-              </Td>
-
-              {/* Joined */}
-              <Td className="text-xs whitespace-nowrap">
-                {u.created_at
-                  ? new Date(u.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-                  : "—"}
-              </Td>
-
-              {/* Last login */}
-              <Td className="text-xs">
-                {u.last_login
-                  ? new Date(u.last_login).toLocaleDateString("en-US", { month: "short", day: "numeric" })
-                  : <span style={{ color: "#c0b080" }}>Never</span>}
-              </Td>
-
-              {/* Actions */}
-              <Td>
-                <div className="flex gap-1.5">
-                  <button
-                    onClick={() => openEdit(u)}
-                    className="px-2.5 py-1.5 rounded-lg text-xs font-black border hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 transition-all"
-                    style={{ borderColor: "#ddd0a8", color: "#7a9060" }}
-                    title="Edit">✏</button>
-                  <button
-                    onClick={() => toggleStatus(u)}
-                    className="px-2.5 py-1.5 rounded-lg text-xs font-black border hover:bg-amber-50 hover:text-amber-700 hover:border-amber-300 transition-all"
-                    style={{ borderColor: "#ddd0a8", color: "#7a9060" }}
-                    title={u.is_active == 1 ? "Deactivate" : "Activate"}>
-                    {u.is_active == 1 ? "🚫" : "✅"}
-                  </button>
-                  <button
-                    onClick={() => setDel(u)}
-                    className="px-2.5 py-1.5 rounded-lg text-xs font-black border hover:bg-red-50 hover:text-red-600 hover:border-red-300 transition-all"
-                    style={{ borderColor: "#ddd0a8", color: "#7a9060" }}
-                    title="Delete">🗑</button>
+                {/* Detail grid */}
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+                  <div>
+                    <span className="font-black uppercase tracking-wide text-[10px]" style={{ color: "#9aaa80" }}>Phone</span>
+                    <div className="font-bold" style={{ color: "#3a5020" }}>{u.phone || "—"}</div>
+                  </div>
+                  <div>
+                    <span className="font-black uppercase tracking-wide text-[10px]" style={{ color: "#9aaa80" }}>Joined</span>
+                    <div className="font-bold" style={{ color: "#3a5020" }}>
+                      {u.created_at ? new Date(u.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="font-black uppercase tracking-wide text-[10px]" style={{ color: "#9aaa80" }}>Last Login</span>
+                    <div className="font-bold" style={{ color: "#3a5020" }}>
+                      {u.last_login ? new Date(u.last_login).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : <span style={{ color: "#c0b080" }}>Never</span>}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="font-black uppercase tracking-wide text-[10px]" style={{ color: "#9aaa80" }}>ID File</span>
+                    <div className="mt-0.5">
+                      {u.id_file_name ? (
+                        <button onClick={() => viewId(u)}
+                          className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-bold border transition-all"
+                          style={{ borderColor: "#c5d8a0", color: "#4a7020" }}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+                          View ID
+                        </button>
+                      ) : (
+                        <span style={{ color: "#c0b080" }}>None</span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </Td>
 
-            </Tr>
-          ))}
-        </Table>
+                {/* Action buttons */}
+                <div className="flex gap-2 pt-1 border-t" style={{ borderColor: "rgba(180,140,60,0.18)" }}>
+                  <button onClick={() => openEdit(u)}
+                    className="flex-1 py-2 rounded-xl text-xs font-black border transition-all hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 flex items-center justify-center gap-1.5"
+                    style={{ borderColor: "#ddd0a8", color: "#7a9060" }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    Edit
+                  </button>
+                  <button onClick={() => toggleStatus(u)}
+                    className="flex-1 py-2 rounded-xl text-xs font-black border transition-all hover:bg-amber-50 hover:text-amber-700 hover:border-amber-300 flex items-center justify-center gap-1.5"
+                    style={{ borderColor: "#ddd0a8", color: "#7a9060" }}>
+                    {u.is_active == 1
+                      ? <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>Deactivate</>
+                      : <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Activate</>}
+                  </button>
+                  <button onClick={() => setDel(u)}
+                    className="px-3 py-2 rounded-xl text-xs font-black border transition-all hover:bg-red-50 hover:text-red-600 hover:border-red-300 flex items-center justify-center"
+                    style={{ borderColor: "#ddd0a8", color: "#7a9060" }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* ── Pagination ── */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between flex-wrap gap-3 mt-1">
+              <p className="text-[11px] font-semibold" style={{ color: "#9aaa80" }}>
+                Showing {Math.min((page - 1) * PAGE_SIZE + 1, filtered.length)}–{Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length} users
+              </p>
+              <div className="flex items-center gap-1 flex-wrap">
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="px-3 py-1.5 rounded-lg text-[11px] font-bold border transition-colors disabled:opacity-35 disabled:cursor-not-allowed"
+                  style={{ borderColor: "rgba(180,140,60,0.28)", color: "#3a5020" }}>
+                  ← Prev
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
+                  <button key={n} onClick={() => setPage(n)}
+                    className="w-8 h-8 rounded-lg text-[11px] font-bold border transition-all"
+                    style={{
+                      background:   n === page ? "#1a4a08" : "transparent",
+                      color:        n === page ? "#fff"    : "#3a5020",
+                      borderColor:  n === page ? "#1a4a08" : "rgba(180,140,60,0.28)",
+                    }}>
+                    {n}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="px-3 py-1.5 rounded-lg text-[11px] font-bold border transition-colors disabled:opacity-35 disabled:cursor-not-allowed"
+                  style={{ borderColor: "rgba(180,140,60,0.28)", color: "#3a5020" }}>
+                  Next →
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* ── Add / Edit Modal ─────────────────────────────────────────────────── */}
@@ -373,7 +504,7 @@ export default function UsersPanel({ show: isVisible }) {
         open={!!modal}
         onClose={() => setModal(null)}
         title={isEdit ? "Edit User" : step === 1 ? "Add New User" : "Add New User — Address"}
-        icon="👤"
+        icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>}
         footer={
           <>
             {/* Back (add step 2) or Cancel */}
@@ -387,7 +518,10 @@ export default function UsersPanel({ show: isVisible }) {
             {isAdd && step === 1 ? (
               <BtnConfirm onClick={handleNext}>Next →</BtnConfirm>
             ) : (
-              <BtnConfirm onClick={save}>💾 Save</BtnConfirm>
+              <BtnConfirm onClick={save}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 5 }}><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                Save
+              </BtnConfirm>
             )}
           </>
         }>
@@ -407,7 +541,8 @@ export default function UsersPanel({ show: isVisible }) {
           <>
             {isAdd && (
               <div className="bg-green-50 border border-green-200 rounded-xl px-3 py-2 text-green-700 text-xs font-bold flex items-center gap-2">
-                ✉️ A random password will be auto-generated and emailed to the user.
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                A random password will be auto-generated and emailed to the user.
               </div>
             )}
 
@@ -555,7 +690,7 @@ export default function UsersPanel({ show: isVisible }) {
         open={!!delModal}
         onClose={() => setDel(null)}
         title="Confirm Delete"
-        icon="🗑"
+        icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>}
         footer={
           <>
             <BtnCancel onClick={() => setDel(null)} />
@@ -573,7 +708,7 @@ export default function UsersPanel({ show: isVisible }) {
         open={!!idPreview}
         onClose={() => setIdPreview(null)}
         title="ID Verification"
-        icon="🪪"
+        icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>}
         className="!w-full !max-w-full !p-0"
         contentClassName="!p-0 !overflow-visible"
         footer={
@@ -584,7 +719,8 @@ export default function UsersPanel({ show: isVisible }) {
                 download={idPreview.name}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black border transition-all hover:bg-green-50 hover:border-green-400 hover:text-green-700"
                 style={{ borderColor: "#c5d8a0", color: "#4a7020" }}>
-                ⬇ Download
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Download
               </a>
             )}
             <BtnCancel onClick={() => setIdPreview(null)} />

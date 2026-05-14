@@ -1059,6 +1059,8 @@ export default function RequestsPanel({ type, show, onStatsChange }) {
   const [filter,       setFilter]       = useState("all");
   const [typeFilter,   setTypeFilter]   = useState("all");
   const [search,       setSearch]       = useState("");        // ← ADDED
+  const [page,         setPage]         = useState(1);   // ← ADD THIS
+  const PAGE_SIZE = 12;                                   // ← ADD THIS (cards per page)
   const [rejectId,     setRejectId]     = useState(null);
   const [viewTarget,   setViewTarget]   = useState(null);
   const [editTarget,   setEditTarget]   = useState(null);
@@ -1083,6 +1085,7 @@ export default function RequestsPanel({ type, show, onStatsChange }) {
   }, [type]);
 
   useEffect(() => { if (show) load(filter); }, [show, filter, load]);
+  useEffect(() => { setPage(1); }, [search, filter, typeFilter]);
 
   // ── ADDED: Search filter logic ─────────────────────────────────────────────
   const filteredRecords = useMemo(() => {
@@ -1141,6 +1144,8 @@ export default function RequestsPanel({ type, show, onStatsChange }) {
 
   // ── CHANGED: use filteredRecords instead of records ─────────────────────────
   const visibleRecords = filteredRecords.filter(r => typeFilter === "all" || r.request_type === typeFilter);
+  const totalPages     = Math.ceil(visibleRecords.length / PAGE_SIZE);
+  const pagedRecords   = visibleRecords.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const counts = tabs.reduce((acc, t) => ({ ...acc, [t]: t === "all" ? visibleRecords.length : visibleRecords.filter(r => r.status === t).length }), {});
 
   const rescueCount = filteredRecords.filter(r => r.request_type === "rescue").length;
@@ -1159,99 +1164,70 @@ export default function RequestsPanel({ type, show, onStatsChange }) {
           </div>
         </div>
 
-        {type === "rehoming" && (
-          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-            {[
-              { label: "Total",    value: filteredRecords.length },
-              { label: "Pending",  value: filteredRecords.filter(r => r.status === "Pending").length, warn: true },
-              { label: "Rehoming", value: rehomeCount },
-              { label: "Rescue",   value: rescueCount },
-            ].map(({ label: l, value, warn }) => (
-              <div key={l} style={{ borderRadius: 8, border: `1px solid ${warn && value > 0 ? C.amberBdr : C.border}`, padding: "0.5rem 0.875rem", textAlign: "center", background: C.surface }}>
-                <div style={{ fontSize: "1.1rem", fontWeight: 900, color: warn && value > 0 ? C.amber : C.green }}>{value}</div>
-                <div style={{ fontSize: "0.6rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textMute }}>{l}</div>
-              </div>
-            ))}
-          </div>
-        )}
+       
       </div>
 
-      {/* ── ADDED: Search bar ───────────────────────────────────────────────── */}
-      <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "center" }}>
-        <div style={{ position: "relative", flex: 1, minWidth: 240, maxWidth: 420 }}>
+      {/* Search + Filters inline */}
+      <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap", alignItems: "center" }}>
+
+        {/* Search */}
+        <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.textMute} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ position: "absolute", left: "0.75rem", top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
-            <circle cx="11" cy="11" r="8" />
-            <path d="M21 21l-4.35-4.35" />
+            <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
           </svg>
           <input
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder={type === "adoptions" ? "Search by name, email, animal, city…" : "Search by pet name, owner, species, breed…"}
-            style={{
-              ...inputSt,
-              paddingLeft: "2.25rem",
-              paddingRight: search ? "2rem" : "0.75rem",
-              width: "100%",
-            }}
+            placeholder={type === "adoptions" ? "Search name, email, animal, city…" : "Search pet, owner, species, breed…"}
+            style={{ ...inputSt, paddingLeft: "2.25rem", paddingRight: search ? "2rem" : "0.75rem", background: "rgba(255,253,240,0.95)", color: "#1a2e0a" }}
           />
           {search && (
-            <button
-              onClick={() => setSearch("")}
-              style={{
-                position: "absolute",
-                right: "0.5rem",
-                top: "50%",
-                transform: "translateY(-50%)",
-                width: 18,
-                height: 18,
-                borderRadius: "50%",
-                border: "none",
-                background: C.border,
-                color: C.textMute,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "0.65rem",
-                fontWeight: 800,
-                padding: 0,
-              }}
-            >
-              ✕
-            </button>
+            <button onClick={() => setSearch("")} style={{ position: "absolute", right: "0.5rem", top: "50%", transform: "translateY(-50%)", width: 18, height: 18, borderRadius: "50%", border: "none", background: C.border, color: C.textMute, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.65rem", fontWeight: 800, padding: 0 }}>✕</button>
           )}
         </div>
+
+        {/* Status dropdown */}
+        <div style={{ position: "relative" }}>
+          <select
+            value={filter}
+            onChange={e => setFilter(e.target.value)}
+            style={{ ...inputSt, width: "auto", paddingRight: "2rem", appearance: "none", WebkitAppearance: "none", background: "rgba(255,253,240,0.95)", cursor: "pointer", color: filter !== "all" ? C.green : C.text, fontWeight: filter !== "all" ? 800 : 600, border: `1px solid ${filter !== "all" ? C.green : C.border}` }}
+          >
+            {tabs.map(t => (
+              <option key={t} value={t}>
+                {t === "all" ? "All Status" : t}{counts[t] > 0 ? ` (${counts[t]})` : ""}
+              </option>
+            ))}
+          </select>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={C.textMute} strokeWidth="2.5" strokeLinecap="round" style={{ position: "absolute", right: "0.6rem", top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        </div>
+
+        {/* Type dropdown — rehoming only */}
+        {type === "rehoming" && (
+          <div style={{ position: "relative" }}>
+            <select
+              value={typeFilter}
+              onChange={e => setTypeFilter(e.target.value)}
+              style={{ ...inputSt, width: "auto", paddingRight: "2rem", appearance: "none", WebkitAppearance: "none", background: "rgba(255,253,240,0.95)", cursor: "pointer", color: typeFilter !== "all" ? C.green : C.text, fontWeight: typeFilter !== "all" ? 800 : 600, border: `1px solid ${typeFilter !== "all" ? C.green : C.border}` }}
+            >
+              <option value="all">All Types ({filteredRecords.length})</option>
+              <option value="rehome">Rehoming ({rehomeCount})</option>
+              <option value="rescue">Rescue / Surrender ({rescueCount})</option>
+            </select>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={C.textMute} strokeWidth="2.5" strokeLinecap="round" style={{ position: "absolute", right: "0.6rem", top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </div>
+        )}
+
         {search && (
           <span style={{ fontSize: "0.72rem", fontWeight: 600, color: C.textMute, whiteSpace: "nowrap" }}>
             {visibleRecords.length} result{visibleRecords.length !== 1 ? "s" : ""}
           </span>
         )}
-      </div>
-      {/* ─────────────────────────────────────────────────────────────────────── */}
-
-      {type === "rehoming" && (
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
-          <span style={{ fontSize: "0.65rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.07em", color: C.textMute }}>Type</span>
-          {[{ key: "all", label: "All" }, { key: "rehome", label: "Rehoming" }, { key: "rescue", label: "Rescue / Surrender" }].map(t => (
-            <button key={t.key} onClick={() => setTypeFilter(t.key)}
-              style={{ padding: "0.35rem 0.75rem", borderRadius: 6, fontSize: "0.75rem", fontWeight: 700, border: `1px solid ${typeFilter === t.key ? C.green : C.border}`, background: typeFilter === t.key ? C.greenBg : "transparent", color: typeFilter === t.key ? C.green : C.textSub, cursor: "pointer", fontFamily: font }}>
-              {t.label} <span style={{ fontWeight: 600, opacity: 0.7, marginLeft: "0.2rem" }}>({t.key === "all" ? filteredRecords.length : t.key === "rescue" ? rescueCount : rehomeCount})</span>
-            </button>
-          ))}
-        </div>
-      )}
-
-      <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
-        {tabs.map(t => (
-          <button key={t} onClick={() => setFilter(t)}
-            style={{ padding: "0.4rem 0.875rem", borderRadius: 6, fontSize: "0.75rem", fontWeight: filter === t ? 800 : 700, border: `1px solid ${filter === t ? C.green : C.border}`, background: filter === t ? C.greenBg : "transparent", color: filter === t ? C.green : C.textSub, cursor: "pointer", fontFamily: font, display: "flex", alignItems: "center", gap: "0.35rem" }}>
-            {t === "all" ? "All" : t}
-            {counts[t] > 0 && (
-              <span style={{ fontSize: "0.65rem", fontWeight: 800, padding: "0.1rem 0.35rem", borderRadius: 4, background: filter === t ? C.green : "#f0ece2", color: filter === t ? "#fff" : C.textMute }}>{counts[t]}</span>
-            )}
-          </button>
-        ))}
       </div>
 
       {loading ? (
@@ -1266,9 +1242,28 @@ export default function RequestsPanel({ type, show, onStatsChange }) {
         </div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: "1rem" }}>
-          {visibleRecords.map((r, i) => (
+          {pagedRecords.map((r, i) => (
             <RequestCard key={r.id || i} r={r} type={type} onApprove={approve} onReject={id => setRejectId(id)} onView={setViewTarget} onEdit={setEditTarget} onDelete={setDeleteTarget} />
           ))}
+        </div>
+      )}
+       
+       {totalPages > 1 && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.4rem", flexWrap: "wrap", paddingTop: "0.5rem" }}>
+          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+            style={{ padding: "0.4rem 0.75rem", borderRadius: 6, border: `1px solid ${C.border}`, background: "transparent", color: page === 1 ? C.textMute : C.textSub, cursor: page === 1 ? "not-allowed" : "pointer", fontFamily: font, fontWeight: 700, fontSize: "0.78rem" }}>
+            ← Prev
+          </button>
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
+            <button key={n} onClick={() => setPage(n)}
+              style={{ width: 32, height: 32, borderRadius: 6, border: `1px solid ${n === page ? C.green : C.border}`, background: n === page ? C.greenBg : "transparent", color: n === page ? C.green : C.textSub, cursor: "pointer", fontFamily: font, fontWeight: n === page ? 800 : 700, fontSize: "0.78rem" }}>
+              {n}
+            </button>
+          ))}
+          <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+            style={{ padding: "0.4rem 0.75rem", borderRadius: 6, border: `1px solid ${C.border}`, background: "transparent", color: page === totalPages ? C.textMute : C.textSub, cursor: page === totalPages ? "not-allowed" : "pointer", fontFamily: font, fontWeight: 700, fontSize: "0.78rem" }}>
+            Next →
+          </button>
         </div>
       )}
 

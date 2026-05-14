@@ -9,6 +9,7 @@ import api from "../../config/axios";
 import { usePageTitle } from "../../hooks/usePageTitle";
 
 const TYPE_COLORS = { Dog: "#2a7010", Cat: "#7a3dc0", Bird: "#0a7ab4", Rabbit: "#c87820", Other: "#6a7a50" };
+const PAGE_SIZE = 10;
 
 // ── SVG icon components ────────────────────────────────────────────────────────
 function IcoDog({ size = 20, color = "currentColor" }) {
@@ -214,39 +215,39 @@ function normaliseSb(a) {
   };
 }
 
-// ── Mobile animal card (replaces table row on small screens) ─────────────────
+// ── Animal card (mobile) ──────────────────────────────────────────────────────
 function AnimalCard({ animal, onEdit, onDelete }) {
   return (
     <div style={{
       background: "rgba(255,248,225,0.85)", border: "1.5px solid rgba(180,140,60,0.22)",
-      borderRadius: 12, padding: "14px 16px",
+      borderRadius: 12, padding: "12px 14px",
       display: "flex", alignItems: "flex-start", gap: 12,
       boxShadow: "0 2px 8px rgba(100,70,20,0.07)",
     }}>
-      <AnimalAvatar animal={animal} size={48} />
+      <AnimalAvatar animal={animal} size={44} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-          <span style={{ fontWeight: 900, fontSize: "0.92rem", color: "#1a4a08" }}>{animal.name}</span>
-          <div style={{ display: "flex", gap: 6 }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 6, flexWrap: "wrap" }}>
+          <span style={{ fontWeight: 900, fontSize: "0.88rem", color: "#1a4a08" }}>{animal.name}</span>
+          <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
             <Badge color={healthBadge(animal.health)}>{animal.health}</Badge>
             <Badge color={statusBadge(animal.status)}>{animal.status}</Badge>
           </div>
         </div>
-        <div style={{ marginTop: 4, fontSize: "0.78rem", color: "#6a7a50", fontWeight: 700 }}>
+        <div style={{ marginTop: 3, fontSize: "0.75rem", color: "#6a7a50", fontWeight: 700 }}>
           {[animal.type, animal.breed, animal.age].filter(Boolean).join(" · ") || "—"}
         </div>
-        <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+        <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
           <button onClick={() => onEdit(animal)}
-            style={{ flex: 1, padding: "6px 0", borderRadius: 8, fontSize: "0.75rem", fontWeight: 800,
+            style={{ flex: 1, padding: "5px 0", borderRadius: 8, fontSize: "0.72rem", fontWeight: 800,
                      border: "1.5px solid #ddd0a8", color: "#7a9060", background: "rgba(255,255,255,0.6)",
-                     cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
-            <IcoEdit size={13} color="#7a9060" /> Edit
+                     cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
+            <IcoEdit size={12} color="#7a9060" /> Edit
           </button>
           <button onClick={() => onDelete(animal)}
-            style={{ flex: 1, padding: "6px 0", borderRadius: 8, fontSize: "0.75rem", fontWeight: 800,
+            style={{ flex: 1, padding: "5px 0", borderRadius: 8, fontSize: "0.72rem", fontWeight: 800,
                      border: "1.5px solid rgba(192,48,48,0.25)", color: "#c03030", background: "rgba(192,48,48,0.05)",
-                     cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
-            <IcoTrash size={13} color="#c03030" /> Delete
+                     cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
+            <IcoTrash size={12} color="#c03030" /> Delete
           </button>
         </div>
       </div>
@@ -254,10 +255,67 @@ function AnimalCard({ animal, onEdit, onDelete }) {
   );
 }
 
+// ── Pagination ────────────────────────────────────────────────────────────────
+function Pagination({ page, totalPages, onChange }) {
+  if (totalPages <= 1) return null;
+
+  const pages = [];
+  for (let i = 1; i <= totalPages; i++) {
+    // always show first, last, current, and ±1 around current
+    if (
+      i === 1 || i === totalPages ||
+      i === page || i === page - 1 || i === page + 1
+    ) {
+      pages.push(i);
+    } else if (i === page - 2 || i === page + 2) {
+      pages.push("…");
+    }
+  }
+  // dedupe the ellipses
+  const deduped = pages.filter((p, i) => p !== "…" || pages[i - 1] !== "…");
+
+  const btnSt = (active) => ({
+    minWidth: 32, height: 32, borderRadius: 8, border: "none",
+    background: active ? "#1c4f09" : "rgba(255,253,240,0.95)",
+    border: active ? "none" : "1px solid rgba(180,140,60,0.32)",
+    color: active ? "#fff" : "#5a7040",
+    fontWeight: active ? 900 : 700, fontSize: "0.78rem",
+    cursor: active ? "default" : "pointer",
+    display: "flex", alignItems: "center", justifyContent: "center",
+    padding: "0 6px",
+    transition: "all 0.15s",
+  });
+
+  const navSt = (disabled) => ({
+    height: 32, padding: "0 10px", borderRadius: 8,
+    border: "1px solid rgba(180,140,60,0.32)",
+    background: "rgba(255,253,240,0.95)",
+    color: disabled ? "#c0b080" : "#5a7040",
+    fontWeight: 700, fontSize: "0.78rem",
+    cursor: disabled ? "not-allowed" : "pointer",
+    opacity: disabled ? 0.5 : 1,
+    transition: "all 0.15s",
+  });
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+      <button style={navSt(page === 1)} disabled={page === 1} onClick={() => onChange(page - 1)}>← Prev</button>
+      {deduped.map((p, i) =>
+        p === "…"
+          ? <span key={`e${i}`} style={{ color: "#9aaa80", fontSize: "0.78rem", padding: "0 2px" }}>…</span>
+          : <button key={p} style={btnSt(p === page)} onClick={() => p !== page && onChange(p)}>{p}</button>
+      )}
+      <button style={navSt(page === totalPages)} disabled={page === totalPages} onClick={() => onChange(page + 1)}>Next →</button>
+    </div>
+  );
+}
+
+// ── Main panel ────────────────────────────────────────────────────────────────
 export default function AnimalsPanel({ show }) {
   const [animals,     setAnimals]     = useState([]);
   const [loading,     setLoading]     = useState(false);
   const [search,      setSearch]      = useState("");
+  const [page,        setPage]        = useState(1);
   const [modal,       setModal]       = useState(null);
   const [form,        setForm]        = useState({});
   const [formErrs,    setFormErrs]    = useState({});
@@ -311,6 +369,9 @@ export default function AnimalsPanel({ show }) {
   }, []);
 
   useEffect(() => { if (show) load(); }, [show, load]);
+
+  // Reset to page 1 when search changes
+  useEffect(() => { setPage(1); }, [search]);
 
   const openAdd = () => {
     setForm({ type: "Dog", health: "Healthy", status: "Available" });
@@ -409,9 +470,13 @@ export default function AnimalsPanel({ show }) {
     } catch { toast("Error deleting", "error"); }
   };
 
-  const filtered = animals.filter(a =>
+  // ── Filtering + pagination ─────────────────────────────────────────────────
+  const filtered   = animals.filter(a =>
     `${a.name} ${a.type} ${a.breed}`.toLowerCase().includes(search.toLowerCase())
   );
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage   = Math.min(page, totalPages);
+  const paginated  = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   return (
     <div className="flex flex-col gap-5">
@@ -422,17 +487,23 @@ export default function AnimalsPanel({ show }) {
           gap: 12px;
         }
         @media (max-width: 480px) {
-          .animals-form-grid {
-            grid-template-columns: 1fr;
-          }
+          .animals-form-grid { grid-template-columns: 1fr; }
         }
         .animals-card-list {
           display: flex;
           flex-direction: column;
           gap: 10px;
         }
+        /* Make table horizontally scrollable on small screens */
+        .animals-table-wrap {
+          width: 100%;
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+          border-radius: 12px;
+        }
       `}</style>
 
+      {/* ── Header ── */}
       <PageHeader
         title="Manage Animals"
         subtitle="Add, edit or update animals in the shelter"
@@ -445,57 +516,85 @@ export default function AnimalsPanel({ show }) {
         }
       />
 
-      <SearchBar value={search} onChange={setSearch} placeholder="Search animals…" />
+      {/* ── Search + count ── */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ flex: 1, minWidth: 200 }}>
+          <SearchBar value={search} onChange={setSearch} placeholder="Search animals…" />
+        </div>
+        {filtered.length > 0 && (
+          <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "#9aaa80", whiteSpace: "nowrap" }}>
+            {filtered.length} animal{filtered.length !== 1 ? "s" : ""}
+            {search && ` found`}
+          </span>
+        )}
+      </div>
 
+      {/* ── Content ── */}
       {loading ? (
         <div className="flex items-center justify-center py-20">
           <div className="w-8 h-8 rounded-full border-2 border-green-600 border-t-transparent animate-spin" />
         </div>
+      ) : paginated.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "40px 0", color: "#9aaa80", fontSize: "0.85rem", fontWeight: 700 }}>
+          {search ? `No animals matching "${search}"` : "No animals yet — add one!"}
+        </div>
       ) : isMobile ? (
         /* ── Mobile: card list ── */
-        <div className="animals-card-list">
-          {filtered.length === 0
-            ? <div style={{ textAlign: "center", padding: "40px 0", color: "#9aaa80", fontSize: "0.85rem", fontWeight: 700 }}>No animals yet — add one!</div>
-            : filtered.map(a => (
-                <AnimalCard key={a.id} animal={a} onEdit={openEdit} onDelete={setDel} />
-              ))
-          }
-        </div>
+        <>
+          <div className="animals-card-list">
+            {paginated.map(a => (
+              <AnimalCard key={a.id} animal={a} onEdit={openEdit} onDelete={setDel} />
+            ))}
+          </div>
+          <Pagination page={safePage} totalPages={totalPages} onChange={setPage} />
+        </>
       ) : (
-        /* ── Desktop: table ── */
-        <Table
-          headers={["Animal", "Type", "Breed", "Age", "Health", "Status", "Actions"]}
-          empty="No animals yet — add one!">
-          {filtered.map(a => (
-            <Tr key={a.id}>
-              <Td>
-                <div className="flex items-center gap-2.5">
-                  <AnimalAvatar animal={a} size={38} />
-                  <span className="font-black">{a.name}</span>
-                </div>
-              </Td>
-              <Td>{a.type}</Td>
-              <Td>{a.breed || <span style={{ color: "#c0b080" }}>—</span>}</Td>
-              <Td>{a.age   || <span style={{ color: "#c0b080" }}>—</span>}</Td>
-              <Td><Badge color={healthBadge(a.health)}>{a.health}</Badge></Td>
-              <Td><Badge color={statusBadge(a.status)}>{a.status}</Badge></Td>
-              <Td>
-                <div className="flex gap-2">
-                  <button onClick={() => openEdit(a)}
-                    className="px-3 py-1.5 rounded-lg text-xs font-black border transition-all hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700"
-                    style={{ borderColor: "#ddd0a8", color: "#7a9060", display: "inline-flex", alignItems: "center", gap: 4 }}>
-                    <IcoEdit size={12} color="#7a9060" /> Edit
-                  </button>
-                  <button onClick={() => setDel(a)}
-                    className="px-3 py-1.5 rounded-lg text-xs font-black border transition-all hover:bg-red-50 hover:border-red-300 hover:text-red-600"
-                    style={{ borderColor: "#ddd0a8", color: "#7a9060", display: "inline-flex", alignItems: "center", gap: 4 }}>
-                    <IcoTrash size={12} color="#7a9060" />
-                  </button>
-                </div>
-              </Td>
-            </Tr>
-          ))}
-        </Table>
+        /* ── Desktop: table with horizontal scroll wrapper ── */
+        <>
+          <div className="animals-table-wrap">
+            <Table
+              headers={["Animal", "Type", "Breed", "Age", "Health", "Status", "Actions"]}
+              empty="No animals yet — add one!">
+              {paginated.map(a => (
+                <Tr key={a.id}>
+                  <Td>
+                    <div className="flex items-center gap-2.5">
+                      <AnimalAvatar animal={a} size={38} />
+                      <span className="font-black">{a.name}</span>
+                    </div>
+                  </Td>
+                  <Td>{a.type}</Td>
+                  <Td>{a.breed || <span style={{ color: "#c0b080" }}>—</span>}</Td>
+                  <Td>{a.age   || <span style={{ color: "#c0b080" }}>—</span>}</Td>
+                  <Td><Badge color={healthBadge(a.health)}>{a.health}</Badge></Td>
+                  <Td><Badge color={statusBadge(a.status)}>{a.status}</Badge></Td>
+                  <Td>
+                    <div className="flex gap-2">
+                      <button onClick={() => openEdit(a)}
+                        className="px-3 py-1.5 rounded-lg text-xs font-black border transition-all hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700"
+                        style={{ borderColor: "#ddd0a8", color: "#7a9060", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                        <IcoEdit size={12} color="#7a9060" /> Edit
+                      </button>
+                      <button onClick={() => setDel(a)}
+                        className="px-3 py-1.5 rounded-lg text-xs font-black border transition-all hover:bg-red-50 hover:border-red-300 hover:text-red-600"
+                        style={{ borderColor: "#ddd0a8", color: "#7a9060", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                        <IcoTrash size={12} color="#7a9060" />
+                      </button>
+                    </div>
+                  </Td>
+                </Tr>
+              ))}
+            </Table>
+          </div>
+          <Pagination page={safePage} totalPages={totalPages} onChange={setPage} />
+        </>
+      )}
+
+      {/* ── Page info ── */}
+      {totalPages > 1 && (
+        <div style={{ textAlign: "center", fontSize: "0.7rem", fontWeight: 600, color: "#b0a07a" }}>
+          Showing {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, filtered.length)} of {filtered.length}
+        </div>
       )}
 
       {/* ── Add / Edit Modal ── */}

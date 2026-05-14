@@ -7,6 +7,7 @@
  * Updated: fully mobile-responsive; SVG icons replace all emoji
  */
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { usePageTitle } from "../../hooks/usePageTitle";
 const DJANGO = import.meta.env.VITE_DJANGO_API ?? "http://localhost:8000";
 
@@ -330,7 +331,10 @@ function ReportDetailModal({ s, open, onClose }) {
   const rating   = parseInt(s.rating || 0);
   const isHealth = s.health_flag || s.showing_illness;
   const photos   = normalizePhotos(s.photos);
-  const reportTypeLabel = s.survey_type === "7_day" ? "7-Day Feedback Report" : "30-Day Feedback Report";
+  const reportTypeLabel =
+  s.survey_type === "7_day"  ? "7-Day Feedback Report"  :
+  s.survey_type === "30_day" ? "30-Day Feedback Report" :
+                               "90-Day Feedback Report";
 
   const fields = [
     ["Adopter",         s.adopter_name],
@@ -347,12 +351,13 @@ function ReportDetailModal({ s, open, onClose }) {
     ["Rating",          `${rating}/5 stars`],
   ];
 
-  return (
+  return createPortal(
     <div
       style={{
-        position: "fixed", inset: 0, zIndex: 700,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        padding: "clamp(0.5rem, 3vw, 1rem)",
+        position: "fixed", inset: 0, zIndex: 9999,
+        display: "flex", alignItems: "flex-start", justifyContent: "center",
+        padding: "clamp(1rem, 4vw, 2rem) clamp(0.5rem, 3vw, 1rem)",
+        overflowY: "auto",
         background: "rgba(10,6,2,0.65)", backdropFilter: "blur(8px)",
       }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
@@ -514,7 +519,8 @@ function ReportDetailModal({ s, open, onClose }) {
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -624,7 +630,8 @@ function ReportCard({ s, onView }) {
               padding: "0.2rem 0.55rem", borderRadius: 50,
               background: "rgba(59,130,246,0.12)", color: "#2563eb",
             }}>
-              {s.survey_type === "7_day" ? "7-Day" : "30-Day"}
+              {s.survey_type === "7_day"  ? "7-Day"  :
+              s.survey_type === "30_day" ? "30-Day" : "90-Day"}
             </span>
             {isHealth && (
               <span style={{
@@ -737,6 +744,8 @@ export default function SurveyPanel({ show }) {
   const [loading,    setLoading]    = useState(false);
   const [filter,     setFilter]     = useState("all");
   const [viewTarget, setViewTarget] = useState(null);
+  const [page,       setPage]       = useState(1);
+  const PAGE_SIZE = 12;
   usePageTitle("Feedback Reports");
 
   const load = async (f) => {
@@ -744,7 +753,7 @@ export default function SurveyPanel({ show }) {
     try {
       let url = "/api/surveys/admin/";
       const params = new URLSearchParams();
-      if (f === "7_day" || f === "30_day") params.set("survey_type", f);
+      if (f === "7_day" || f === "30_day" || f === "90_day") params.set("survey_type", f);
       if (f === "health") params.set("health_flag", "true");
       if ([...params].length) url += "?" + params.toString();
       const res  = await djFetch(url);
@@ -755,7 +764,10 @@ export default function SurveyPanel({ show }) {
   };
 
   useEffect(() => { if (show) load(filter); }, [show, filter]);
+  useEffect(() => { setPage(1); }, [filter]);
 
+  const totalPages  = Math.ceil(reports.length / PAGE_SIZE);
+  const pagedReports = reports.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const avgRating   = reports.length
     ? (reports.reduce((s, x) => s + parseInt(x.rating || 0), 0) / reports.length).toFixed(1)
     : "—";
@@ -763,11 +775,12 @@ export default function SurveyPanel({ show }) {
   const withPhotos  = reports.filter(s => normalizePhotos(s.photos).length > 0).length;
 
   const tabs = [
-    { key: "all",    label: "All" },
-    { key: "7_day",  label: "7-Day" },
-    { key: "30_day", label: "30-Day" },
-    { key: "health", label: "Health flags", warn: true },
-  ];
+  { key: "all",    label: "All" },
+  { key: "7_day",  label: "7-Day" },
+  { key: "30_day", label: "30-Day" },
+  { key: "90_day", label: "90-Day" },
+  { key: "health", label: "Health flags", warn: true },
+];
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "clamp(0.875rem, 3vw, 1.25rem)" }}>
@@ -901,9 +914,28 @@ export default function SurveyPanel({ show }) {
           gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 280px), 1fr))",
           gap: "clamp(0.625rem, 2vw, 1rem)",
         }}>
-          {reports.map((s, i) => (
+          {pagedReports.map((s, i) => (
             <ReportCard key={s.id || i} s={s} onView={setViewTarget} />
           ))}
+        </div>
+      )}
+
+      {totalPages > 1 && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.4rem", flexWrap: "wrap", paddingTop: "0.5rem" }}>
+          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+            style={{ padding: "0.4rem 0.75rem", borderRadius: 12, border: "1px solid #ddd0a8", background: "transparent", color: page === 1 ? "#9aaa80" : "#7a9060", cursor: page === 1 ? "not-allowed" : "pointer", fontWeight: 700, fontSize: "0.78rem" }}>
+            ← Prev
+          </button>
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
+            <button key={n} onClick={() => setPage(n)}
+              style={{ width: 32, height: 32, borderRadius: 12, border: `1px solid ${n === page ? "#16a34a" : "#ddd0a8"}`, background: n === page ? "#16a34a" : "transparent", color: n === page ? "#fff" : "#7a9060", cursor: "pointer", fontWeight: n === page ? 900 : 700, fontSize: "0.78rem" }}>
+              {n}
+            </button>
+          ))}
+          <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+            style={{ padding: "0.4rem 0.75rem", borderRadius: 12, border: "1px solid #ddd0a8", background: "transparent", color: page === totalPages ? "#9aaa80" : "#7a9060", cursor: page === totalPages ? "not-allowed" : "pointer", fontWeight: 700, fontSize: "0.78rem" }}>
+            Next →
+          </button>
         </div>
       )}
 

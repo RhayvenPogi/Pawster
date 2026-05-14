@@ -98,7 +98,82 @@ async function fetchSbAnimals() {
   return [];
 }
 
-const TYPE_EMOJI  = { Dog: "🐕", Cat: "🐈", Bird: "🐦", Rabbit: "🐇" };
+const TYPE_SVG = {
+  Dog: (
+    <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width:"100%", height:"100%" }}>
+      <ellipse cx="32" cy="38" rx="18" ry="14" fill="currentColor" opacity=".18"/>
+      <ellipse cx="32" cy="36" rx="14" ry="11" fill="currentColor" opacity=".32"/>
+      <circle cx="32" cy="28" r="10" fill="currentColor" opacity=".55"/>
+      <ellipse cx="24" cy="20" rx="5" ry="8" rx="4" ry="7" fill="currentColor" opacity=".45" transform="rotate(-15 24 20)"/>
+      <ellipse cx="40" cy="20" rx="4" ry="7" fill="currentColor" opacity=".45" transform="rotate(15 40 20)"/>
+      <circle cx="29" cy="27" r="1.8" fill="currentColor" opacity=".8"/>
+      <circle cx="35" cy="27" r="1.8" fill="currentColor" opacity=".8"/>
+      <ellipse cx="32" cy="31" rx="3" ry="2" fill="currentColor" opacity=".5"/>
+      <path d="M14 40 Q10 44 12 50 Q16 48 18 44" fill="currentColor" opacity=".3"/>
+      <path d="M50 40 Q54 44 52 50 Q48 48 46 44" fill="currentColor" opacity=".3"/>
+    </svg>
+  ),
+  Cat: (
+    <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width:"100%", height:"100%" }}>
+      <ellipse cx="32" cy="38" rx="16" ry="13" fill="currentColor" opacity=".18"/>
+      <circle cx="32" cy="28" r="11" fill="currentColor" opacity=".50"/>
+      <polygon points="20,22 22,8 28,20" fill="currentColor" opacity=".50"/>
+      <polygon points="44,22 42,8 36,20" fill="currentColor" opacity=".50"/>
+      <circle cx="28.5" cy="27" r="2" fill="currentColor" opacity=".8"/>
+      <circle cx="35.5" cy="27" r="2" fill="currentColor" opacity=".8"/>
+      <ellipse cx="32" cy="31" rx="2.5" ry="1.8" fill="currentColor" opacity=".5"/>
+      <path d="M32 31 Q28 33 24 32" stroke="currentColor" strokeWidth="1" opacity=".4" fill="none"/>
+      <path d="M32 31 Q36 33 40 32" stroke="currentColor" strokeWidth="1" opacity=".4" fill="none"/>
+      <path d="M32 31 Q28 34 23 34" stroke="currentColor" strokeWidth="1" opacity=".3" fill="none"/>
+      <path d="M32 31 Q36 34 41 34" stroke="currentColor" strokeWidth="1" opacity=".3" fill="none"/>
+      <path d="M20 42 Q18 50 22 52" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity=".25" fill="none"/>
+      <path d="M44 42 Q48 50 44 54" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity=".25" fill="none"/>
+    </svg>
+  ),
+  Bird: (
+    <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width:"100%", height:"100%" }}>
+      <ellipse cx="32" cy="36" rx="13" ry="16" fill="currentColor" opacity=".20"/>
+      <ellipse cx="32" cy="34" rx="10" ry="13" fill="currentColor" opacity=".38"/>
+      <circle cx="32" cy="24" r="9" fill="currentColor" opacity=".55"/>
+      <path d="M23 22 Q16 18 14 24 Q18 26 23 24" fill="currentColor" opacity=".40"/>
+      <circle cx="29" cy="22" r="2" fill="currentColor" opacity=".85"/>
+      <circle cx="35" cy="22" r="2" fill="currentColor" opacity=".85"/>
+      <path d="M28 27 L32 29 L36 27" fill="currentColor" opacity=".45"/>
+      <path d="M26 46 Q24 54 28 56" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity=".30" fill="none"/>
+      <path d="M38 46 Q40 54 36 56" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity=".30" fill="none"/>
+    </svg>
+  ),
+  Rabbit: (
+    <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width:"100%", height:"100%" }}>
+      <ellipse cx="32" cy="40" rx="15" ry="12" fill="currentColor" opacity=".18"/>
+      <ellipse cx="32" cy="37" rx="11" ry="10" fill="currentColor" opacity=".42"/>
+      <circle cx="32" cy="29" r="9" fill="currentColor" opacity=".52"/>
+      <ellipse cx="25" cy="14" rx="4" ry="11" fill="currentColor" opacity=".40"/>
+      <ellipse cx="39" cy="14" rx="4" ry="11" fill="currentColor" opacity=".40"/>
+      <circle cx="28.5" cy="28" r="1.8" fill="currentColor" opacity=".85"/>
+      <circle cx="35.5" cy="28" r="1.8" fill="currentColor" opacity=".85"/>
+      <ellipse cx="32" cy="32" rx="2.5" ry="1.5" fill="currentColor" opacity=".45"/>
+      <path d="M32 32 Q27 34 22 33" stroke="currentColor" strokeWidth="1" opacity=".35" fill="none"/>
+      <path d="M32 32 Q37 34 42 33" stroke="currentColor" strokeWidth="1" opacity=".35" fill="none"/>
+      <ellipse cx="42" cy="40" rx="4" ry="3" fill="currentColor" opacity=".30"/>
+    </svg>
+  ),
+};
+function AnimalSvg({ type, size = "5rem", opacity = 0.2, color = "currentColor" }) {
+  const svg = TYPE_SVG[type];
+  return (
+    <div style={{ width: size, height: size, opacity, color, flexShrink: 0 }}>
+      {svg ?? (
+        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width:"100%", height:"100%" }}>
+          <ellipse cx="32" cy="40" rx="18" ry="12" fill="currentColor" opacity=".18"/>
+          <circle cx="32" cy="28" r="11" fill="currentColor" opacity=".45"/>
+          <circle cx="28" cy="26" r="2" fill="currentColor" opacity=".8"/>
+          <circle cx="36" cy="26" r="2" fill="currentColor" opacity=".8"/>
+        </svg>
+      )}
+    </div>
+  );
+}
 const STATUS_META = {
   Available: { dot: "#6cde28", glow: "#6cde28", text: "#9de860", ring: "rgba(80,200,30,.32)",  bg: "rgba(70,190,30,.18)"  },
   Pending:   { dot: "#e07820", glow: "#e07820", text: "#f0a060", ring: "rgba(200,100,25,.30)", bg: "rgba(180,90,30,.18)"  },
@@ -211,7 +286,7 @@ function HeroPetCard({ pets, loading }) {
   if (!pets.length) return null;
 
   const pet   = pets[idx];
-  const emoji = TYPE_EMOJI[pet.type] ?? "🐾";
+  
   const photo = pet._resolvedPhotoUrl;
   const video = pet._resolvedVideoUrl;
   const sm    = STATUS_META[pet.status] ?? STATUS_META.Available;
@@ -240,7 +315,9 @@ function HeroPetCard({ pets, loading }) {
         <div className="relative w-full rounded-[29px] overflow-hidden" style={{ height: 560, background: "#0f0d08" }}>
 
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[1]"
-            style={{ fontSize: "8rem", opacity: 0.12 }}>{emoji}</div>
+            style={{ color: "#b4903a" }}>
+            <AnimalSvg type={pet.type} size="10rem" opacity={0.12} color="#b4903a" />
+          </div>
 
           {photo && (
             <img
@@ -313,7 +390,7 @@ function HeroPetCard({ pets, loading }) {
                 opacity: hovering ? 1 : 0.75,
               }}
             >
-              {emoji} {pet.type}
+              <AnimalSvg type={pet.type} size="0.9rem" opacity={1} color="rgba(255,232,148,.85)" /> {pet.type}
             </div>
 
             <div
@@ -382,7 +459,7 @@ function FeaturedCard({ animal, delay = 0 }) {
   const [hov, setHov]       = useState(false);
   const [imgErr, setImgErr] = useState(false);
   const photo = animal._resolvedPhotoUrl;
-  const emoji = TYPE_EMOJI[animal.type] ?? "🐾";
+ 
   const sm    = STATUS_META[animal.status] ?? STATUS_META.Available;
 
   return (
@@ -401,7 +478,9 @@ function FeaturedCard({ animal, delay = 0 }) {
       onMouseLeave={() => setHov(false)}
     >
       <div className="relative overflow-hidden" style={{ height: 196, borderBottom: "1px solid rgba(180,140,60,0.22)", background: "linear-gradient(135deg,rgba(255,244,210,.7),rgba(255,236,190,.5))" }}>
-        <div className="absolute inset-0 flex items-center justify-center" style={{ fontSize: "4.5rem", opacity: 0.2 }}>{emoji}</div>
+        <div className="absolute inset-0 flex items-center justify-center" style={{ color: "#b4903a" }}>
+          <AnimalSvg type={animal.type} size="6rem" opacity={0.2} color="#b4903a" />
+        </div>
 
         <span
           className="absolute top-[10px] left-[10px] z-10 inline-flex items-center gap-[5px] text-[0.58rem] font-extrabold px-[8px] py-[3px] rounded-[20px] uppercase tracking-[.05em]"
@@ -415,7 +494,7 @@ function FeaturedCard({ animal, delay = 0 }) {
           className="absolute top-[10px] right-[10px] z-10 text-[0.58rem] font-extrabold px-[8px] py-[3px] rounded-[20px] uppercase tracking-[.05em]"
           style={{ background: "rgba(10,6,2,.52)", backdropFilter: "blur(8px)", color: "rgba(255,232,148,.85)", border: "1px solid rgba(255,210,80,.18)" }}
         >
-          {emoji} {animal.type}
+          <AnimalSvg type={animal.type} size="0.85rem" opacity={1} color="rgba(255,232,148,.85)" /> {animal.type}
         </span>
 
         {photo && !imgErr && (
@@ -688,7 +767,7 @@ export default function HomePage() {
             {[...animals, ...animals].map((a, i) => (
               <div key={i} className="flex items-center gap-[6px] mx-[22px] text-[0.70rem] font-extrabold uppercase tracking-[.08em] whitespace-nowrap"
                 style={{ color:"#4a6a20" }}>
-                <span style={{ fontSize:"1rem" }}>{TYPE_EMOJI[a.type] ?? "🐾"}</span>
+                <AnimalSvg type={a.type} size="1.1rem" opacity={0.7} color="#4a6a20" />
                 {a.name}
                 <span style={{ color:"rgba(180,140,60,.5)", marginLeft:"4px" }}>·</span>
               </div>
@@ -753,7 +832,11 @@ export default function HomePage() {
       <div className="relative z-10 px-10 py-[18px] border-t border-b"
         style={{ background:"linear-gradient(135deg,rgba(180,90,34,0.10),rgba(212,136,10,0.07))", borderColor:"rgba(180,90,34,0.22)" }}>
         <div className="max-w-[1100px] mx-auto flex items-center gap-5 flex-wrap">
-          <span className="text-[1.9rem] flex-shrink-0" style={{ animation:"floatY 4s ease-in-out infinite" }}>🔍</span>
+          <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"
+            className="flex-shrink-0" style={{ width:"2rem", height:"2rem", animation:"floatY 4s ease-in-out infinite", color:"#B45A22" }}>
+            <circle cx="26" cy="26" r="16" stroke="currentColor" strokeWidth="5" fill="none" opacity=".7"/>
+            <path d="M38 38 L54 54" stroke="currentColor" strokeWidth="5" strokeLinecap="round" opacity=".7"/>
+          </svg>
           <div className="flex-1 min-w-[200px]">
             <div className="text-[0.94rem] font-black" style={{ color:"#192e08" }}>Lost or Found a Pet in Baguio City or the Cordillera Region?</div>
             <div className="text-[0.79rem] font-semibold mt-[2px]" style={{ color:"#7a8a5a" }}>Our community-powered board helps reunite animals with their families.</div>
@@ -788,7 +871,9 @@ export default function HomePage() {
               : (
                 <div className="col-span-full py-[5rem] text-center rounded-[20px] border"
                   style={{ borderColor:"rgba(180,140,60,0.22)", background:"rgba(255,249,228,0.70)" }}>
-                  <span className="text-[3.5rem] block mb-3" style={{ opacity:.25 }}>🐾</span>
+                  <div className="flex justify-center mb-3">
+                    <AnimalSvg type="Dog" size="3.5rem" opacity={0.25} color="#1c4f09" />
+                  </div>
                   <p className="font-bold text-[0.95rem]" style={{ color:"#7a8a5a" }}>No animals available right now — check back soon.</p>
                 </div>
               )
@@ -817,7 +902,14 @@ export default function HomePage() {
               style={{ background:"radial-gradient(circle,rgba(180,90,34,.12),transparent 70%)" }} />
             <div className="absolute bottom-[-40px] left-[-40px] w-[180px] h-[180px] rounded-full pointer-events-none"
               style={{ background:"radial-gradient(circle,rgba(212,136,10,.10),transparent 70%)" }} />
-            <span className="text-[5.5rem] flex-shrink-0 relative z-10" style={{ animation:"floatY 5s ease-in-out infinite" }}>🏡</span>
+            <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"
+              className="flex-shrink-0 relative z-10" style={{ width:"5rem", height:"5rem", animation:"floatY 5s ease-in-out infinite", color:"#B45A22" }}>
+              <path d="M8 30 L32 8 L56 30" stroke="currentColor" strokeWidth="4" strokeLinejoin="round" fill="none" opacity=".6"/>
+              <path d="M14 26 L14 56 L50 56 L50 26" fill="currentColor" opacity=".15"/>
+              <path d="M14 26 L14 56 L50 56 L50 26" stroke="currentColor" strokeWidth="3.5" strokeLinejoin="round" fill="none" opacity=".6"/>
+              <rect x="24" y="38" width="16" height="18" rx="3" fill="currentColor" opacity=".35"/>
+              <rect x="36" y="28" width="10" height="10" rx="2" fill="currentColor" opacity=".25"/>
+            </svg>
             <div className="flex-1 relative z-10">
               <h2 className="font-black leading-tight mb-[14px]"
                 style={{ fontFamily:"'Playfair Display',serif", fontSize:"clamp(1.8rem,3.2vw,2.6rem)", color:"#192e08" }}>
@@ -846,10 +938,12 @@ export default function HomePage() {
               boxShadow:"0 16px 64px rgba(28,79,9,0.16)",
               padding:"clamp(2.5rem,6vw,5rem)",
             }}>
-            <div className="absolute bottom-[-2rem] right-[2rem] text-[10rem] pointer-events-none select-none"
-              style={{ opacity:.035, transform:"rotate(-15deg)" }}>🐾</div>
-            <div className="absolute top-[-1.5rem] left-[1.5rem] text-[7rem] pointer-events-none select-none"
-              style={{ opacity:.025, transform:"rotate(20deg)" }}>🐾</div>
+            <div className="absolute bottom-[-2rem] right-[2rem] pointer-events-none select-none" style={{ opacity:.035, transform:"rotate(-15deg)" }}>
+              <AnimalSvg type="Dog" size="10rem" opacity={1} color="#1c4f09" />
+            </div>
+            <div className="absolute top-[-1.5rem] left-[1.5rem] pointer-events-none select-none" style={{ opacity:.025, transform:"rotate(20deg)" }}>
+              <AnimalSvg type="Cat" size="7rem" opacity={1} color="#1c4f09" />
+            </div>
 
             <div className="inline-flex items-center gap-[6px] rounded-[50px] px-[14px] py-[6px] text-[0.67rem] font-extrabold uppercase tracking-[.1em] italic mb-[18px] border"
               style={{ background:"rgba(28,79,9,0.08)", borderColor:"rgba(90,170,48,0.28)", color:"#1c4f09" }}>

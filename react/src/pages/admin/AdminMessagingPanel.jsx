@@ -1,6 +1,7 @@
 // pages/admin/AdminMessagingPanel.jsx
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useMessaging } from "../../hooks/useMessaging";
+import api from "../../config/axios";
 import {
   AttachmentToolbar,
   AttachmentPreview,
@@ -219,11 +220,61 @@ export default function AdminMessagingPanel({ user, onUnreadChange }) {
   const bottomRef   = useRef(null);
   const textareaRef = useRef(null);
 
-  
+  const [swipeOffsets,  setSwipeOffsets]  = useState({});
+  const [swipeActive,   setSwipeActive]   = useState({});
+  const [deleteModal,   setDeleteModal]   = useState(null); // { uid, name }
+  const deleteModalRef = useRef(null);
+  const swipeTouchStart  = useRef({});
+  const swipeCurrentOffset = useRef({});  // tracks live offset to avoid stale closure
+  const SWIPE_THRESHOLD  = 72;
+
+  const triggerDelete = useCallback((uid, name) => {
+    setSwipeOffsets(prev => ({ ...prev, [uid]: 0 }));
+    const modal = { uid, name };
+    deleteModalRef.current = modal;
+    setDeleteModal(modal);
+  }, []);
+
+  const closeAllSwipes = useCallback((exceptUid) => {
+    setSwipeOffsets(prev => {
+      const next = {};
+      Object.keys(prev).forEach(k => { if (k !== String(exceptUid)) next[k] = 0; else next[k] = prev[k]; });
+      return next;
+    });
+  }, []);
+
   const {
     messages, setMessages, connected, unreadCount,
     conversations, loadHistory, sendMessage, uploadFile, markRead, fetchConversations,
   } = useMessaging(user, activeUserId);
+
+  const confirmDelete = useCallback(async () => {
+    const modal = deleteModalRef.current;
+    if (!modal) return;
+    const { uid } = modal;
+    deleteModalRef.current = null;
+    setDeleteModal(null);
+
+    // Optimistically remove from sidebar immediately
+    setSwipeOffsets(prev => { const n = { ...prev }; delete n[uid]; return n; });
+
+    // Clear active chat if it was the deleted one
+    if (activeUserId === uid) {
+      setActiveUserId(null);
+      setActiveUserName("");
+      setActiveUserPhotoUrl(null);
+      setMessages([]);
+    }
+
+    try {
+      await api.delete(`/api/messages/conversation/${uid}`);
+    } catch (err) {
+      console.error("[delete] fetch error", err);
+      setToast("Failed to delete conversation.");
+    }
+
+    fetchConversations();
+  }, [activeUserId, setMessages, fetchConversations]);
 
   useEffect(() => { onUnreadChange?.(unreadCount); }, [unreadCount, onUnreadChange]);
 
@@ -344,9 +395,56 @@ export default function AdminMessagingPanel({ user, onUnreadChange }) {
   });
 
   return (
-    <div style={{ display:"flex", borderRadius:16, overflow:"hidden", height:"calc(100vh - 140px)", minHeight:520, border:"1px solid rgba(90,160,50,0.28)", background:"rgba(252,250,240,0.7)", backdropFilter:"blur(16px)", fontFamily:"'Nunito', sans-serif" }}>
+    <div style={{ display:"flex", borderRadius:0, overflow:"hidden", height:"100%", width:"100%", minHeight:0, border:"none", background:"rgba(252,250,240,0.7)", backdropFilter:"blur(16px)", fontFamily:"'Nunito', sans-serif" }}>
       {lightboxSrc && <Lightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />}
       {toast && <Toast message={toast} onDone={() => setToast(null)} />}
+
+      {deleteModal && (
+        <div
+          onClick={() => setDeleteModal(null)}
+          style={{
+            position:"fixed", inset:0, zIndex:9000,
+            background:"rgba(10,20,5,0.55)", backdropFilter:"blur(4px)",
+            display:"flex", alignItems:"center", justifyContent:"center",
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background:"#fffdf0", borderRadius:18, padding:"28px 28px 22px",
+              width:320, boxShadow:"0 20px 60px rgba(0,0,0,0.22), 0 4px 16px rgba(0,0,0,0.1)",
+              border:"1px solid rgba(170,135,55,0.25)", fontFamily:"'Nunito', sans-serif",
+              display:"flex", flexDirection:"column", alignItems:"center", gap:14,
+            }}
+          >
+            <div style={{ width:52, height:52, borderRadius:14, background:"rgba(180,44,22,0.1)", border:"1.5px solid rgba(180,44,22,0.22)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#b42c16" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M9 6V4h6v2"/>
+              </svg>
+            </div>
+            <div style={{ textAlign:"center" }}>
+              <p style={{ margin:0, fontSize:15, fontWeight:800, color:"#1a2e0a" }}>Delete Conversation?</p>
+              <p style={{ margin:"6px 0 0", fontSize:12.5, fontWeight:500, color:"#6b7280", lineHeight:1.5 }}>
+                This will permanently delete your conversation with <strong style={{ color:"#1a4a08" }}>{deleteModal.name}</strong>. This cannot be undone.
+              </p>
+            </div>
+            <div style={{ display:"flex", gap:10, width:"100%", marginTop:4 }}>
+              <button
+                onClick={() => setDeleteModal(null)}
+                style={{ flex:1, padding:"10px 0", borderRadius:10, border:"1.5px solid rgba(170,135,55,0.3)", background:"transparent", fontSize:13, fontWeight:700, color:"#5a7840", cursor:"pointer", fontFamily:"'Nunito', sans-serif" }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                style={{ flex:1, padding:"10px 0", borderRadius:10, border:"none", background:"#b42c16", fontSize:13, fontWeight:800, color:"#fff", cursor:"pointer", fontFamily:"'Nunito', sans-serif", boxShadow:"0 2px 8px rgba(180,44,22,0.3)" }}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ═══ LEFT SIDEBAR ══════════════════════════════════════════════════════ */}
       <aside style={{ width:272, flexShrink:0, display:"flex", flexDirection:"column", borderRight:"1px solid rgba(170,135,55,0.22)", background:"rgba(255,250,228,0.88)" }}>
@@ -383,33 +481,113 @@ export default function AdminMessagingPanel({ user, onUnreadChange }) {
             filtered.map(conv => {
               const isActive = activeUserId === conv.userId;
               const convPhotoUrl = userPhotoSrc(conv.userId, conv.userPhotoUrl);
+              const uid    = conv.userId;
+              const offset = swipeOffsets[uid] ?? 0;
+
               return (
-                <button key={conv.userId}
-                  onClick={() => openConversation(conv.userId, conv.userName, convPhotoUrl)}
-                  style={{ width:"100%", textAlign:"left", padding:"10px 14px", background: isActive ? "rgba(90,160,50,0.12)" : "transparent", borderLeft:`3px solid ${isActive ? "#4a8f20" : "transparent"}`, borderBottom:"1px solid rgba(170,135,55,0.1)", borderTop:"none", borderRight:"none", cursor:"pointer", fontFamily:"'Nunito', sans-serif" }}
-                  onMouseEnter={e => { if (!isActive) e.currentTarget.style.background="rgba(90,160,50,0.06)"; }}
-                  onMouseLeave={e => { if (!isActive) e.currentTarget.style.background="transparent"; }}
-                >
-                  <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                    <div style={{ position:"relative", flexShrink:0 }}>
-                      <Avatar name={conv.userName} photoUrl={convPhotoUrl} size={36} />
-                      {conv.unreadCount > 0 && (
-                        <span style={{ position:"absolute", top:-3, right:-3, minWidth:16, height:16, borderRadius:8, background:"#c2581e", color:"#fff", fontSize:9, fontWeight:800, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 3px", border:"1.5px solid rgba(255,250,228,0.9)" }}>
-                          {conv.unreadCount > 9 ? "9+" : conv.unreadCount}
-                        </span>
-                      )}
+                <div key={uid} style={{ position:"relative", overflow:"hidden", borderBottom:"1px solid rgba(170,135,55,0.1)" }}>
+
+                  {/* red delete zone — only rendered when this row is swiped */}
+                  {offset > 0 && (
+                    <div style={{
+                      position:"absolute", top:0, right:0, bottom:0,
+                      width: SWIPE_THRESHOLD,
+                      background:"#b42c16",
+                      display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:2,
+                    }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M9 6V4h6v2"/>
+                      </svg>
+                      <span style={{ fontSize:9, fontWeight:800, color:"#fff", letterSpacing:"0.05em" }}>DELETE</span>
                     </div>
-                    <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:4 }}>
-                        <span style={{ fontSize:12.5, fontWeight: conv.unreadCount > 0 ? 800 : 700, color:"#1a4a08", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{conv.userName}</span>
-                        <span style={{ fontSize:10, fontWeight:600, color:"#8a9e70", flexShrink:0 }}>{timeAgo(conv.lastMessageAt)}</span>
+                  )}
+
+                  {/* sliding row */}
+                  <button
+                    onClick={() => {
+                      if (offset > 6) { setSwipeOffsets(prev => ({ ...prev, [uid]: 0 })); return; }
+                      openConversation(uid, conv.userName, convPhotoUrl);
+                    }}
+                    onTouchStart={e => {
+                      closeAllSwipes(uid);
+                      swipeTouchStart.current[uid] = e.touches[0].clientX;
+                      setSwipeActive(prev => ({ ...prev, [uid]: true }));
+                    }}
+                    onTouchMove={e => {
+                      const dx = swipeTouchStart.current[uid] - e.touches[0].clientX;
+                      const clamped = Math.max(0, Math.min(dx, SWIPE_THRESHOLD));
+                      swipeCurrentOffset.current[uid] = clamped;
+                      setSwipeOffsets(prev => ({ ...prev, [uid]: clamped }));
+                    }}
+                    onTouchEnd={() => {
+                      setSwipeActive(prev => ({ ...prev, [uid]: false }));
+                      const cur = swipeCurrentOffset.current[uid] ?? 0;
+                      if (cur >= SWIPE_THRESHOLD) {
+                        triggerDelete(uid, conv.userName);
+                      } else {
+                        setSwipeOffsets(prev => ({ ...prev, [uid]: cur >= SWIPE_THRESHOLD / 2 ? SWIPE_THRESHOLD : 0 }));
+                      }
+                    }}
+                    onMouseDown={e => {
+                      e.preventDefault();
+                      closeAllSwipes(uid);
+                      swipeTouchStart.current[uid] = e.clientX;
+                      swipeCurrentOffset.current[uid] = 0;
+                      setSwipeActive(prev => ({ ...prev, [uid]: true }));
+                      const onMove = (me) => {
+                        const dx = swipeTouchStart.current[uid] - me.clientX;
+                        const clamped = Math.max(0, Math.min(dx, SWIPE_THRESHOLD));
+                        swipeCurrentOffset.current[uid] = clamped;
+                        setSwipeOffsets(prev => ({ ...prev, [uid]: clamped }));
+                      };
+                      const onUp = () => {
+                        setSwipeActive(prev => ({ ...prev, [uid]: false }));
+                        const cur = swipeCurrentOffset.current[uid] ?? 0;
+                        if (cur >= SWIPE_THRESHOLD) {
+                          triggerDelete(uid, conv.userName);
+                        } else {
+                          setSwipeOffsets(prev => ({ ...prev, [uid]: cur >= SWIPE_THRESHOLD / 2 ? SWIPE_THRESHOLD : 0 }));
+                        }
+                        window.removeEventListener("mousemove", onMove);
+                        window.removeEventListener("mouseup", onUp);
+                      };
+                      window.addEventListener("mousemove", onMove);
+                      window.addEventListener("mouseup", onUp);
+                    }}
+                    style={{
+                      width:"100%", textAlign:"left", padding:"10px 14px",
+                      background: isActive ? "rgba(90,160,50,0.12)" : "transparent",
+                      borderLeft:`3px solid ${isActive ? "#4a8f20" : "transparent"}`,
+                      borderTop:"none", borderRight:"none", borderBottom:"none",
+                      cursor:"pointer", fontFamily:"'Nunito', sans-serif",
+                      transform:`translateX(-${offset}px)`,
+                      transition: swipeActive[uid] ? "none" : "transform 0.22s ease",
+                      position:"relative", zIndex:1,
+                    }}
+                    onMouseEnter={e => { if (!isActive) e.currentTarget.style.background="rgba(90,160,50,0.06)"; }}
+                    onMouseLeave={e => { if (!isActive) e.currentTarget.style.background="transparent"; }}
+                  >
+                    <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                      <div style={{ position:"relative", flexShrink:0 }}>
+                        <Avatar name={conv.userName} photoUrl={convPhotoUrl} size={36} />
+                        {conv.unreadCount > 0 && (
+                          <span style={{ position:"absolute", top:-3, right:-3, minWidth:16, height:16, borderRadius:8, background:"#c2581e", color:"#fff", fontSize:9, fontWeight:800, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 3px", border:"1.5px solid rgba(255,250,228,0.9)" }}>
+                            {conv.unreadCount > 9 ? "9+" : conv.unreadCount}
+                          </span>
+                        )}
                       </div>
-                      <p style={{ margin:"2px 0 0", fontSize:11.5, fontWeight: conv.unreadCount > 0 ? 700 : 500, color: conv.unreadCount > 0 ? "#3a5820" : "#8a9e70", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                        {conv.lastMessage || "📎 Attachment"}
-                      </p>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:4 }}>
+                          <span style={{ fontSize:12.5, fontWeight: conv.unreadCount > 0 ? 800 : 700, color:"#1a4a08", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{conv.userName}</span>
+                          <span style={{ fontSize:10, fontWeight:600, color:"#8a9e70", flexShrink:0 }}>{timeAgo(conv.lastMessageAt)}</span>
+                        </div>
+                        <p style={{ margin:"2px 0 0", fontSize:11.5, fontWeight: conv.unreadCount > 0 ? 700 : 500, color: conv.unreadCount > 0 ? "#3a5820" : "#8a9e70", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                          {conv.lastMessage || "📎 Attachment"}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                </button>
+                  </button>
+                </div>
               );
             })
           )}

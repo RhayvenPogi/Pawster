@@ -13,6 +13,7 @@ class FollowUpSurvey(models.Model):
     SURVEY_TYPE = [
         ("7_day",  "7-Day Follow-Up"),
         ("30_day", "30-Day Follow-Up"),
+        ("90_day", "90-Day Follow-Up"),
     ]
     STATUS = [("Pending", "Pending"), ("Completed", "Completed")]
 

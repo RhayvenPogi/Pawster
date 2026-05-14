@@ -162,6 +162,10 @@ function applyFilters(list, q, t, s) {
     return true;
   });
 }
+function paginateList(list, page, pageSize) {
+  const start = (page - 1) * pageSize;
+  return list.slice(start, start + pageSize);
+}
 
 // ─── Reveal hook ─────────────────────────────────────────────────────────────
 function useReveal() {
@@ -499,7 +503,7 @@ function AdoptStepContent({ step, form, set, setV, animal, errs }) {
               <i className="fas fa-info-circle" style={{ marginRight:"0.4rem" }} />What happens after approval?
             </div>
             <p style={{ fontSize:"0.79rem", fontWeight:700, color:"#3a5020", lineHeight:1.65, margin:0 }}>
-              Our team will contact you within 24–48 hours. Follow-up check-ins at <strong>7 days</strong> and <strong>30 days</strong>.
+              Our team will contact you within 24–48 hours. Follow-up check-ins at <strong>7 days</strong>, <strong>30 days</strong> and <strong>90 days</strong>.
             </p>
           </div>
         </div>
@@ -904,7 +908,7 @@ function AdoptModal({ animal, user, onClose, onSuccess }) {
 }
 
 // ─── Animal Card ──────────────────────────────────────────────────────────────
-function AnimalCard({ animal, index, onAdopt }) {
+function AnimalCard({ animal, index, onAdopt, onDetail }) {
   const [ref, vis]          = useReveal();
   const [hov, setHov]       = useState(false);
   const [imgErr, setImgErr] = useState(false);
@@ -916,7 +920,8 @@ function AnimalCard({ animal, index, onAdopt }) {
   return (
     <div ref={ref}
       style={{ borderRadius:18, overflow:"hidden", border:`1px solid ${hov?"rgba(90,170,48,0.42)":"rgba(180,140,60,0.28)"}`, display:"flex", flexDirection:"column", background:"rgba(255,248,225,0.75)", backdropFilter:"blur(14px)", boxShadow:hov?"0 8px 40px rgba(100,70,20,0.20)":"0 4px 24px rgba(100,70,20,0.13)", transform:vis?(hov?"translateY(-5px)":"translateY(0)"):"translateY(20px)", opacity:vis?1:0, transition:"all 0.3s", transitionDelay:(index%4)*70+"ms", cursor:"pointer" }}
-      onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}>
+      onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
+      onClick={() => onDetail(animal)}>
       <div style={{ position:"relative", height:190, display:"flex", alignItems:"center", justifyContent:"center", background:"linear-gradient(135deg,rgba(255,248,220,0.6),rgba(255,240,200,0.4))", borderBottom:"1px solid rgba(180,140,60,0.28)", overflow:"hidden" }}>
         <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:"5rem" }}>{emoji}</div>
         {photoSrc && !imgErr && (
@@ -937,7 +942,7 @@ function AnimalCard({ animal, index, onAdopt }) {
           </p>
         )}
         {isAvail ? (
-          <button onClick={() => onAdopt(animal)} style={{ width:"100%", marginTop:"0.875rem", display:"flex", alignItems:"center", justifyContent:"center", gap:"0.4rem", padding:"0.5625rem", borderRadius:9, fontSize:"0.78rem", fontWeight:900, border:`1px solid ${hov?"#1c4f09":"rgba(90,170,48,0.3)"}`, background:hov?"#1c4f09":"rgba(28,79,9,0.08)", color:hov?"#fff":"#1c4f09", cursor:"pointer", fontFamily:"'Nunito',sans-serif", transition:"all 0.2s" }}>
+          <button onClick={(e) => { e.stopPropagation(); onAdopt(animal); }} style={{ width:"100%", marginTop:"0.875rem", display:"flex", alignItems:"center", justifyContent:"center", gap:"0.4rem", padding:"0.5625rem", borderRadius:9, fontSize:"0.78rem", fontWeight:900, border:`1px solid ${hov?"#1c4f09":"rgba(90,170,48,0.3)"}`, background:hov?"#1c4f09":"rgba(28,79,9,0.08)", color:hov?"#fff":"#1c4f09", cursor:"pointer", fontFamily:"'Nunito',sans-serif", transition:"all 0.2s" }}>
             <i className="fas fa-heart" /> Adopt {animal.name}
           </button>
         ) : (
@@ -983,6 +988,318 @@ function FilterBar({ search, type, status, onSearch, onType, onStatus, onSubmit,
   );
 }
 
+function PaginatedGrid({ animals, page, setPage, pageSize, onAdopt, onDetail }) {
+  const totalPages = Math.ceil(animals.length / pageSize);
+  const paginated  = animals.slice((page - 1) * pageSize, page * pageSize);
+
+  const pageNums = Array.from({ length: totalPages }, (_, i) => i + 1)
+    .filter(n => n === 1 || n === totalPages || Math.abs(n - page) <= 1)
+    .reduce((acc, n, idx, arr) => {
+      if (idx > 0 && n - arr[idx - 1] > 1) acc.push("…");
+      acc.push(n);
+      return acc;
+    }, []);
+
+  const base = {
+    fontFamily: "'Nunito',sans-serif", fontWeight: 900, fontSize: "0.83rem",
+    border: "1px solid rgba(180,140,60,0.28)", cursor: "pointer", borderRadius: 10,
+    background: "rgba(255,248,220,0.85)", color: "#3a5020",
+  };
+
+  return (
+    <>
+      <div style={{ display:"grid", gap:"1.25rem", marginTop:"0.25rem", gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))" }}>
+        {paginated.map((a, i) => (
+          <AnimalCard key={`${a._source}-${a.id}`} animal={a} index={i} onAdopt={onAdopt} onDetail={onDetail} />
+        ))}
+      </div>
+
+      {totalPages > 1 && (
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:"0.5rem", marginTop:"2rem", flexWrap:"wrap" }}>
+          <button
+            onClick={() => { setPage(p => Math.max(1, p - 1)); window.scrollTo({ top:0, behavior:"smooth" }); }}
+            disabled={page === 1}
+            style={{ ...base, padding:"0.55rem 1rem", opacity: page===1 ? 0.4 : 1, cursor: page===1 ? "not-allowed" : "pointer", display:"flex", alignItems:"center", gap:"0.35rem" }}>
+            <i className="fas fa-chevron-left" style={{ fontSize:"0.7rem" }} /> Prev
+          </button>
+
+          {pageNums.map((n, idx) =>
+            n === "…"
+              ? <span key={`gap-${idx}`} style={{ color:"#9aaa80", fontWeight:900 }}>…</span>
+              : <button key={n} onClick={() => { setPage(n); window.scrollTo({ top:0, behavior:"smooth" }); }}
+                  style={{ ...base, width:36, height:36,
+                    border:     page===n ? "2px solid #1c4f09" : "1px solid rgba(180,140,60,0.28)",
+                    background: page===n ? "#1c4f09" : "rgba(255,248,220,0.85)",
+                    color:      page===n ? "#fff"    : "#3a5020" }}>
+                  {n}
+                </button>
+          )}
+
+          <button
+            onClick={() => { setPage(p => Math.min(totalPages, p + 1)); window.scrollTo({ top:0, behavior:"smooth" }); }}
+            disabled={page === totalPages}
+            style={{ ...base, padding:"0.55rem 1rem", opacity: page===totalPages ? 0.4 : 1, cursor: page===totalPages ? "not-allowed" : "pointer", display:"flex", alignItems:"center", gap:"0.35rem" }}>
+            Next <i className="fas fa-chevron-right" style={{ fontSize:"0.7rem" }} />
+          </button>
+        </div>
+      )}
+
+      <p style={{ textAlign:"center", marginTop:"0.75rem", fontSize:"0.78rem", fontWeight:700, color:"#9aaa80" }}>
+        Page {page} of {totalPages} · {animals.length} animal{animals.length !== 1 ? "s" : ""}
+      </p>
+    </>
+  );
+}
+
+// ─── Animal Detail Modal ──────────────────────────────────────────────────────
+function AnimalDetailModal({ animal, onClose, onAdopt }) {
+  const [imgErr, setImgErr] = useState(false);
+  const photoSrc = animal._resolvedPhotoUrl || null;
+  const emoji    = TYPE_EMOJI[animal.type] ?? "🐾";
+  const isAvail  = animal.status === "Available";
+
+  const healthCls = {
+    Healthy:          "bg-green-100 text-green-800 border border-green-200",
+    "Needs Care":     "bg-amber-100 text-amber-800 border border-amber-200",
+    "Under Treatment":"bg-red-100   text-red-800   border border-red-200",
+  };
+  const statusCls = {
+    Available:      "bg-green-100 text-green-800 border border-green-200",
+    Pending:        "bg-amber-100 text-amber-800 border border-amber-200",
+    Adopted:        "bg-gray-100  text-gray-600  border border-gray-200",
+    "Not Available":"bg-red-100   text-red-800   border border-red-200",
+  };
+
+  const InfoRow = ({ icon, label, value }) => {
+    if (!value) return null;
+    return (
+      <div className="flex items-start gap-3 rounded-xl px-3 py-2.5"
+        style={{ background: "rgba(28,79,9,0.05)", border: "1px solid rgba(90,170,48,0.15)" }}>
+        <i className={`fas fa-${icon} mt-0.5 text-xs w-3.5 text-center flex-shrink-0`}
+          style={{ color: "#5aaa30" }} />
+        <div className="min-w-0">
+          <p className="text-[0.63rem] font-black uppercase tracking-widest mb-0.5"
+            style={{ color: "#6a7a50" }}>{label}</p>
+          <p className="text-sm font-bold leading-snug truncate"
+            style={{ color: "#1a4a08" }}>{value}</p>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[700] flex items-end sm:items-center justify-center p-0 sm:p-4"
+      style={{ background: "rgba(10,6,2,0.68)", backdropFilter: "blur(10px)" }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div
+        className="w-full sm:max-w-lg flex flex-col overflow-hidden"
+        style={{
+          borderRadius: "22px",
+          border: "1px solid rgba(180,140,60,0.30)",
+          background: "rgba(255,252,235,0.99)",
+          boxShadow: "0 28px 72px rgba(40,20,5,0.48)",
+          animation: "detailSlideUp .32s cubic-bezier(.22,.68,0,1.12) both",
+          maxHeight: "92dvh",
+          /* desktop overrides */
+        }}
+        /* on sm+ screens, use a centered modal shape instead */
+      >
+        {/* drag pill — mobile only */}
+        <div className="flex justify-center pt-2.5 pb-1 sm:hidden flex-shrink-0">
+          <div className="w-10 h-1 rounded-full" style={{ background: "rgba(180,140,60,0.35)" }} />
+        </div>
+
+        {/* ── Photo hero ── */}
+        <div
+          className="relative flex-shrink-0 flex items-center justify-center overflow-hidden"
+          style={{
+            height: "clamp(160px, 38vw, 220px)",
+            background: "linear-gradient(135deg,rgba(255,248,220,0.7),rgba(255,235,180,0.5))",
+          }}
+        >
+          {/* emoji fallback */}
+          <div className="text-[5rem] opacity-20 select-none">{emoji}</div>
+
+          {photoSrc && !imgErr && (
+            <img
+              src={photoSrc} alt={animal.name}
+              className="absolute inset-0 w-full h-full object-cover"
+              onError={() => setImgErr(true)}
+            />
+          )}
+
+          {/* bottom fade so name reads cleanly */}
+          <div
+            className="absolute bottom-0 left-0 right-0 h-20 pointer-events-none"
+            style={{ background: "linear-gradient(to top, rgba(255,252,235,0.99), transparent)" }}
+          />
+
+          {/* status pill */}
+          <span
+            className={`absolute top-3 right-3 px-2.5 py-0.5 rounded-full text-[0.68rem] font-black uppercase tracking-wide ${statusCls[animal.status] ?? "bg-gray-100 text-gray-600 border border-gray-200"}`}
+          >
+            {animal.status}
+          </span>
+
+          {/* close button */}
+          <button
+            onClick={onClose}
+            className="absolute top-3 left-3 w-8 h-8 rounded-lg flex items-center justify-center transition-opacity hover:opacity-80"
+            style={{
+              border: "1px solid rgba(192,48,48,0.25)",
+              background: "rgba(255,252,235,0.92)",
+              color: "#c03030",
+              backdropFilter: "blur(4px)",
+            }}
+          >
+            <i className="fas fa-times text-xs" />
+          </button>
+
+          {/* name overlay */}
+          <div className="absolute bottom-2.5 left-4 right-4">
+            <h2
+              className="font-black leading-tight truncate"
+              style={{
+                fontFamily: "'Playfair Display',serif",
+                fontSize: "clamp(1.2rem,5vw,1.5rem)",
+                color: "#1a4a08",
+                textShadow: "0 2px 12px rgba(255,252,235,0.95), 0 0 2px rgba(255,252,235,0.9)",
+              }}
+            >
+              {animal.name}
+            </h2>
+            {(animal.type || animal.breed) && (
+              <p className="text-xs font-bold mt-0.5" style={{ color: "#5a7040" }}>
+                {[animal.type, animal.breed].filter(Boolean).join(" · ")}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* ── Scrollable body ── */}
+        <div className="flex-1 overflow-y-auto px-4 pt-3 pb-2 flex flex-col gap-3">
+
+          {/* health + status pills */}
+          <div className="flex flex-wrap gap-1.5">
+            {animal.health && (
+              <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[0.7rem] font-black ${healthCls[animal.health] ?? "bg-gray-100 text-gray-600 border border-gray-200"}`}>
+                <i className="fas fa-heartbeat text-[0.6rem]" />{animal.health}
+              </span>
+            )}
+            {animal.status && (
+              <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[0.7rem] font-black ${statusCls[animal.status] ?? "bg-gray-100 text-gray-600 border border-gray-200"}`}>
+                <i className="fas fa-tag text-[0.6rem]" />{animal.status}
+              </span>
+            )}
+          </div>
+
+          {/* info grid — 2 col on sm+, 1 col on tiny screens */}
+          <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 gap-2">
+            <InfoRow icon="paw"           label="Type"   value={animal.type} />
+            <InfoRow icon="dna"           label="Breed"  value={animal.breed} />
+            <InfoRow icon="birthday-cake" label="Age"    value={animal.age} />
+            <InfoRow icon="venus-mars"    label="Gender" value={animal.gender} />
+          </div>
+
+          {animal.description && (
+            <div
+              className="rounded-xl px-3.5 py-3"
+              style={{ background: "rgba(28,79,9,0.05)", border: "1px solid rgba(90,170,48,0.15)" }}
+            >
+              <p className="text-[0.63rem] font-black uppercase tracking-widest mb-1.5"
+                style={{ color: "#6a7a50" }}>
+                <i className="fas fa-info-circle mr-1" />About
+              </p>
+              <p className="text-sm font-bold leading-relaxed m-0" style={{ color: "#3a5020" }}>
+                {animal.description}
+              </p>
+            </div>
+          )}
+
+          {animal.notes && (
+            <div
+              className="rounded-xl px-3.5 py-3"
+              style={{ background: "rgba(224,120,32,0.07)", border: "1px solid rgba(224,120,32,0.20)" }}
+            >
+              <p className="text-[0.63rem] font-black uppercase tracking-widest mb-1.5"
+                style={{ color: "#b46010" }}>
+                <i className="fas fa-sticky-note mr-1" />Notes
+              </p>
+              <p className="text-sm font-bold leading-relaxed m-0" style={{ color: "#6a3a10" }}>
+                {animal.notes}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* ── Footer ── */}
+        <div
+          className="flex-shrink-0 flex gap-2.5 px-4 py-3"
+          style={{ borderTop: "1px solid rgba(180,140,60,0.18)", background: "rgba(255,252,235,0.97)" }}
+        >
+          <button
+            onClick={onClose}
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-black transition-opacity hover:opacity-80"
+            style={{
+              background: "rgba(255,248,220,0.75)",
+              border: "1px solid rgba(180,140,60,0.28)",
+              color: "#3a5020",
+              fontFamily: "'Nunito',sans-serif",
+            }}
+          >
+            <i className="fas fa-arrow-left text-xs" /> Back
+          </button>
+
+          {isAvail ? (
+            <button
+              onClick={() => { onClose(); onAdopt(animal); }}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-black text-white transition-all hover:opacity-90 active:scale-[0.98]"
+              style={{
+                background: "#1c4f09",
+                border: "none",
+                fontFamily: "'Nunito',sans-serif",
+                boxShadow: "0 4px 16px rgba(28,79,9,0.30)",
+              }}
+            >
+              <i className="fas fa-heart text-xs" /> Adopt {animal.name}
+            </button>
+          ) : (
+            <div
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold opacity-50"
+              style={{
+                background: "rgba(100,100,100,0.07)",
+                border: "1px solid rgba(150,150,150,0.25)",
+                color: "#6a7a50",
+                fontFamily: "'Nunito',sans-serif",
+              }}
+            >
+              <i className="fas fa-clock text-xs" /> {animal.status}
+            </div>
+          )}
+        </div>
+
+        {/* Safe-area padding for notched phones */}
+        <div className="flex-shrink-0 sm:hidden" style={{ height: "env(safe-area-inset-bottom, 0px)" }} />
+      </div>
+
+      <style>{`
+        @keyframes detailSlideUp {
+          from { opacity: 0; transform: translateY(32px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @media (min-width: 640px) {
+          @keyframes detailSlideUp {
+            from { opacity: 0; transform: scale(0.94) translateY(10px); }
+            to   { opacity: 1; transform: scale(1)    translateY(0); }
+          }
+        }
+      `}</style>
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function FindAPet() {
   const { user } = useAuth();
@@ -999,7 +1316,9 @@ export default function FindAPet() {
   const [showReview,  setReview]   = useState(false);
   const [showForm,    setShowForm] = useState(false);
   const [toast,       setToast]    = useState(null);
-  const [totalCount,  setTotal]    = useState(0);
+  const [page,        setPage]     = useState(1);
+  const [detailAnimal, setDetailAnimal] = useState(null);
+  const PAGE_SIZE = 12;
 
   usePageTitle('Find a Pet');
 
@@ -1023,7 +1342,6 @@ export default function FindAPet() {
         .sort((a, b) => (a.name ?? "").localeCompare(b.name ?? ""));
 
       allAnimalsRef.current = merged;
-      setTotal(merged.length);
 
       if (merged.length === 0 && phpAnimals.length === 0 && sbAnimals.length === 0) {
         setError("Could not load animals. Make sure both servers are running.");
@@ -1042,7 +1360,9 @@ export default function FindAPet() {
   useEffect(() => { fetchAnimals(); }, []);
 
   const showToast        = (msg, kind = "ok") => setToast({ message: msg, type: kind });
-  const handleAdoptClick = (animal) => { setAdopt(animal); setReview(true); setShowForm(false); };
+  const handleAdoptClick  = (animal) => { setAdopt(animal); setReview(true); setShowForm(false); };
+  const handleDetailOpen  = (animal) => { setDetailAnimal(animal); };
+  const handleDetailAdopt = (animal) => { setDetailAnimal(null); setAdopt(animal); setReview(true); setShowForm(false); };
   const [reviewedUser, setReviewedUser] = useState(null);
   const handleContinue = (updatedUser) => {
     setReviewedUser(updatedUser);
@@ -1055,11 +1375,13 @@ export default function FindAPet() {
     const resolvedQ = q !== undefined ? q : search;
     const resolvedT = t !== undefined ? t : type;
     const resolvedS = s !== undefined ? s : status;
+    setPage(1);
     setAnimals(applyFilters(allAnimalsRef.current, resolvedQ, resolvedT, resolvedS));
   }, [search, type, status]);
 
   const handleClear = () => {
     setSearch(""); setType("all"); setStatus("all");
+    setPage(1);
     setAnimals(allAnimalsRef.current);
   };
 
@@ -1116,7 +1438,7 @@ export default function FindAPet() {
           <p style={{ fontSize:"0.82rem", fontWeight:700, color:"#6a7a50", marginBottom:"0.75rem" }}>
             {animals.length === allAnimalsRef.current.length
               ? `Showing all ${animals.length} animal${animals.length !== 1 ? "s" : ""}`
-              : `Showing ${animals.length} of ${totalCount} animal${totalCount !== 1 ? "s" : ""}`}
+              : `Showing ${animals.length} of ${allAnimalsRef.current.length} animal${allAnimalsRef.current.length !== 1 ? "s" : ""}`}
             {search ? ` matching "${search}"` : ""}
           </p>
         )}
@@ -1165,11 +1487,14 @@ export default function FindAPet() {
         )}
 
         {!loading && !error && animals.length > 0 && (
-          <div style={{ display:"grid", gap:"1.25rem", marginTop:"0.25rem", gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))" }}>
-            {animals.map((a, i) => (
-              <AnimalCard key={`${a._source}-${a.id}`} animal={a} index={i} onAdopt={handleAdoptClick} />
-            ))}
-          </div>
+          <PaginatedGrid
+  animals={animals}
+  page={page}
+  setPage={setPage}
+  pageSize={PAGE_SIZE}
+  onAdopt={handleAdoptClick}
+  onDetail={handleDetailOpen}
+/>
         )}
       </div>
 
@@ -1208,6 +1533,14 @@ export default function FindAPet() {
           </div>
         </div>
       </footer>
+
+      {detailAnimal && (
+  <AnimalDetailModal
+    animal={detailAnimal}
+    onClose={() => setDetailAnimal(null)}
+    onAdopt={handleDetailAdopt}
+  />
+)}
 
       {showReview && adoptTarget && (
         <ReviewDetailsModal

@@ -368,7 +368,7 @@ export default function MissingPets() {
             {[['all', 'All Posts'], ['lost', 'Lost'], ['found', 'Found']].map(([val, lbl]) => (
               <button key={val} onClick={() => setFilter(val)}
                 style={{ padding: '0.45rem 1.3rem', borderRadius: 50, fontSize: '0.82rem', fontWeight: 800, border: 'none', cursor: 'pointer', fontFamily: "'Nunito',sans-serif", background: filter === val ? (val === 'lost' ? '#c03030' : val === 'found' ? '#1c4f09' : '#1a4a08') : 'transparent', color: filter === val ? '#fff' : '#3a5020', transition: 'all 0.15s' }}>
-                {lbl}
+                <><span style={{ display:'inline-block', width:8, height:8, borderRadius:'50%', background: val === 'lost' ? (form.type === val ? '#ff9999' : '#c03030') : (form.type === val ? '#99ee99' : '#1c4f09'), marginRight:6, verticalAlign:'middle' }} />{lbl}</>
               </button>
             ))}
           </div>
@@ -391,7 +391,7 @@ export default function MissingPets() {
 
         {!loading && filtered.length === 0 && (
           <div style={{ textAlign: 'center', padding: '4rem 0', color: '#3a5020' }}>
-            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🐾</div>
+            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}><svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width: '3rem', height: '3rem', color: '#B45A22', opacity: 0.5 }}><circle cx="20" cy="18" r="6" fill="currentColor"/><circle cx="44" cy="18" r="6" fill="currentColor"/><circle cx="12" cy="32" r="5" fill="currentColor"/><circle cx="52" cy="32" r="5" fill="currentColor"/><ellipse cx="32" cy="44" rx="14" ry="11" fill="currentColor"/></svg></div>
             <div style={{ fontFamily: "'Playfair Display',serif", fontSize: '1.3rem', fontWeight: 900, marginBottom: '0.5rem' }}>No reports yet</div>
             <p style={{ fontSize: '0.88rem', fontWeight: 700, color: '#6a7a50' }}>Be the first to post a missing or found pet in this area.</p>
           </div>
@@ -405,7 +405,7 @@ export default function MissingPets() {
                   <div style={{ position: 'relative', height: 200, overflow: 'hidden', borderRadius: '20px 20px 0 0' }}>
                     <PetPhoto pet={pet} />
                     <span style={{ position: 'absolute', top: 10, left: 10, padding: '0.25rem 0.75rem', borderRadius: 50, fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', background: pet.type === 'lost' ? 'rgba(192,48,48,0.90)' : 'rgba(28,79,9,0.90)', color: '#fff', backdropFilter: 'blur(6px)' }}>
-                      {pet.type === 'lost' ? '🔴 Lost' : '🟢 Found'}
+                      {pet.type === 'lost' ? <><span style={{ display:'inline-block', width:8, height:8, borderRadius:'50%', background:'#ff4444', marginRight:5, verticalAlign:'middle' }} />Lost</> : <><span style={{ display:'inline-block', width:8, height:8, borderRadius:'50%', background:'#44dd44', marginRight:5, verticalAlign:'middle' }} />Found</>}
                     </span>
                     {pet.resolvedByUser && (
                       <span style={{ position: 'absolute', bottom: 10, left: 10, padding: '0.25rem 0.75rem', borderRadius: 50, fontSize: '0.65rem', fontWeight: 800, background: 'rgba(24,95,165,0.88)', color: '#fff' }}>✅ Resolved</span>
@@ -514,7 +514,7 @@ export default function MissingPets() {
                     <div>
                       <FLabel>Report Type</FLabel>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        {[['lost', '🔴 Lost'], ['found', '🟢 Found']].map(([val, lbl]) => (
+                        {[['lost', 'Lost'], ['found', 'Found']].map(([val, lbl]) => (
                           <button type="button" key={val} onClick={() => updateField('type', val)}
                             style={{ flex: 1, padding: '0.65rem', borderRadius: 10, fontWeight: 800, fontSize: '0.85rem', cursor: 'pointer', fontFamily: "'Nunito',sans-serif", border: form.type === val ? 'none' : '1px solid rgba(180,140,60,0.28)', background: form.type === val ? (val === 'lost' ? '#c03030' : '#1c4f09') : 'rgba(255,250,232,0.7)', color: form.type === val ? '#fff' : '#3a5020' }}>
                             {lbl}

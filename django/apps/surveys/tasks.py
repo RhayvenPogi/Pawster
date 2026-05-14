@@ -15,31 +15,32 @@ from utils.email_service import send_email
 
 logger = logging.getLogger(__name__)
 
+_LOGO_URL = "https://i.imgur.com/qVRCfX7.png"
 
 def _send_survey_ready_email(user, animal_name, survey_type):
-    label = "7-day" if survey_type == "7_day" else "30-day"
-    days  = "7 days" if survey_type == "7_day" else "30 days"
+    label = "7-day" if survey_type == "7_day" else "30-day" if survey_type == "30_day" else "90-day"
+    days  = "7 days" if survey_type == "7_day" else "30 days" if survey_type == "30_day" else "90 days"
     try:
         html = (
             f'<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;'
             f'background:#fffdf5;border:1.5px solid #e8d8a0;border-radius:16px;overflow:hidden;">'
             f'<div style="background:#1c4f09;padding:28px 32px;text-align:center;">'
-            f'<h1 style="margin:0;color:#fff;font-size:26px;font-weight:900;">🐾 Pawster</h1>'
+            f'<img src="{_LOGO_URL}" alt="Pawster" style="height:64px;width:auto;margin-bottom:10px;" />'
             f'<p style="margin:6px 0 0;color:#a8d890;font-size:13px;">Every Pet Deserves Love</p>'
             f'</div><div style="padding:32px;">'
-            f'<h2 style="color:#1a4a08;">Time for your {label} check-in! 📋</h2>'
+            f'<h2 style="color:#1a4a08;">Time for your {label} check-in!</h2>'
             f'<p style="color:#3a5020;">Hi {user.first_name or user.username},</p>'
             f'<p style="color:#3a5020;">It\'s been {days} since you adopted <strong>{animal_name}</strong>!</p>'
             f'<p style="color:#3a5020;">Please fill in your short follow-up survey:</p>'
             f'<a href="{settings.APP_BASE_URL}/followup-surveys" '
             f'style="display:inline-block;background:#1c4f09;color:#fff;'
-            f'padding:13px 36px;border-radius:50px;text-decoration:none;font-weight:900;">Fill Out Survey →</a>'
+            f'padding:13px 36px;border-radius:50px;text-decoration:none;font-weight:900;">Fill Out Survey</a>'
             f'</div>'
             f'<div style="background:#f5f0e0;padding:16px 32px;text-align:center;">'
             f'<p style="font-size:11px;color:#9a8a60;">— The Pawster Team</p>'
             f'</div></div>'
         )
-        send_email(user.email, f"🐾 Your {label} follow-up for {animal_name} is ready", html)
+        send_email(user.email, f"Your {label} follow-up for {animal_name} is ready", html)
     except Exception as e:
         logger.warning(f"Failed to send survey email to {user.email}: {e}")
 
@@ -62,7 +63,7 @@ def create_followup_surveys_for_adoption(adoption_id: int):
 
     base = adoption.adoption_date or timezone.now()
 
-    for survey_type, delta in [("7_day", timedelta(seconds=30)), ("30_day", timedelta(seconds=60))]:
+    for survey_type, delta in [("7_day", timedelta(seconds=30)), ("30_day", timedelta(seconds=60)), ("90_day", timedelta(seconds=90))]:
         survey, created = FollowUpSurvey.objects.get_or_create(
             adoption=adoption,
             survey_type=survey_type,
@@ -77,10 +78,10 @@ def create_followup_surveys_for_adoption(adoption_id: int):
 
     Notification.objects.create(
         user=adoption.user,
-        title="Follow-up surveys scheduled 📋",
+        title="Follow-up surveys scheduled",
         body=(
-            f"You'll receive two short check-in surveys for {adoption.animal_name} — "
-            f"one at 7 days and one at 30 days after adoption."
+            f"You'll receive three short check-in surveys for {adoption.animal_name} — "
+            f"at 7 days, 30 days, and 90 days after adoption."
         ),
         notif_type="survey_scheduled",
     )
@@ -104,7 +105,7 @@ def schedule_followup_surveys():
 
     for adoption in approved:
         base = adoption.adoption_date
-        for survey_type, delta in [("7_day", timedelta(seconds=30)), ("30_day", timedelta(seconds=60))]:
+        for survey_type, delta in [("7_day", timedelta(seconds=30)), ("30_day", timedelta(seconds=60)), ("90_day", timedelta(seconds=90))]:
             due_date = base + delta
 
             survey, created = FollowUpSurvey.objects.get_or_create(
@@ -121,7 +122,7 @@ def schedule_followup_surveys():
                 created_count += 1
 
             if survey.status == "Pending" and now >= due_date and adoption.user.email:
-                label = "7-day" if survey_type == "7_day" else "30-day"
+                label = "7-day" if survey_type == "7_day" else "30-day" if survey_type == "30_day" else "90-day"
 
                 already_notified = Notification.objects.filter(
                     user=adoption.user,
@@ -133,7 +134,7 @@ def schedule_followup_surveys():
                     _send_survey_ready_email(adoption.user, adoption.animal_name, survey_type)
                     Notification.objects.create(
                         user=adoption.user,
-                        title=f"Follow-up survey ready — {adoption.animal_name} 📋",
+                        title=f"Follow-up survey ready — {adoption.animal_name}",
                         body=f"Your {label} check-in survey for {adoption.animal_name} is now available.",
                         notif_type="survey_due",
                     )

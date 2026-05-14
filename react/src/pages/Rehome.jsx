@@ -823,7 +823,7 @@ function PreFormCard({ onStart }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", padding: "2.5rem 1.5rem", gap: "1.25rem" }}>
       <div style={{ width: 64, height: 64, borderRadius: 18, background: "rgba(180,90,34,0.10)", border: "1px solid rgba(180,90,34,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <i className="fas fa-hands-holding-heart" style={{ fontSize: "1.5rem", color: "#B45A22" }} />
+        <i className="fas fa-hand-holding-heart" style={{ fontSize: "1.5rem", color: "#B45A22" }} />
       </div>
       <div>
         <div style={{ fontFamily: "'Playfair Display',serif", fontSize: "1.2rem", fontWeight: 900, color: "#1a4a08", marginBottom: "0.4rem" }}>Rehome / Rescue a pet</div>

@@ -201,6 +201,18 @@ public void handleAdminMessage(
         return ResponseEntity.ok(messageService.getConversationSummaries());
     }
 
+    @DeleteMapping("/api/messages/conversation/{userId}")
+    public ResponseEntity<Map<String, Boolean>> deleteConversation(
+            @PathVariable Integer userId,
+            @AuthenticationPrincipal UserDetails principal) {
+
+        User caller = resolveUser(principal);
+        if (caller == null) return ResponseEntity.status(401).build();
+        if (!"admin".equalsIgnoreCase(caller.getRole())) return ResponseEntity.status(403).build();
+
+        messageService.deleteConversation(userId);
+        return ResponseEntity.ok(Map.of("success", true));
+    }
 
     @PostMapping("/api/messages/bot-reply")
     public ResponseEntity<Map<String, Object>> botReply(

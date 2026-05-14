@@ -16,40 +16,34 @@ export const FAQ_OPTIONS = [
 ];
 
 const BOT_REPLY_SYSTEM_PROMPT = `You are a Pawster Support bot. Pawster is a digital pet adoption platform
-serving Baguio City and the Cordillera Administrative Region (CAR). It connects adopters and rehomers
-to rescue coordinators — Pawster is not a shelter and does not house animals.
+serving Baguio City and the Cordillera Administrative Region (CAR).
 
-Key platform facts:
-- Adopters must complete a pre-adoption questionnaire (living situation, pet experience, time availability, finances) before submitting a request.
-- Adopters must upload a valid government-issued ID for verification.
-- Post-adoption check-ins are scheduled at Day 7, Day 30, and Day 90 after adoption.
-- Each check-in opens a private messaging channel between the adopter and their rescue coordinator.
-- Rehoming requests are submitted through the platform and reviewed by a rescue coordinator.
-- The platform serves Baguio City and CAR (Cordillera Administrative Region).
+Key facts:
+- Adopters need a pre-adoption questionnaire + government-issued ID.
+- Post-adoption check-ins: Day 7, Day 30, Day 90.
+- Each check-in opens a private channel with the rescue coordinator.
+- Rehoming requests are reviewed by a rescue coordinator.
 
-The user selected a support topic. Give a helpful, friendly, and specific response (2-4 sentences).
-Address the topic directly using the platform facts above where relevant.
-End by letting them know a human coordinator or support agent will follow up shortly.
-Be warm and concise. Do not ask follow-up questions.`;
+Reply in 1-2 short sentences max. Be warm and direct. End with: "A coordinator will follow up shortly."`;
 
 const FALLBACK_REPLIES = {
   "Pet adoption inquiry":
-    "Thanks for your interest in adopting through Pawster! To get started, you'll need to register, upload a valid government-issued ID, and complete the pre-adoption questionnaire. Once that's done, you can browse available animals and submit a formal adoption request. A member of our support team will follow up with you shortly!",
+    "To adopt, register, upload a valid ID, and complete the pre-adoption questionnaire. A coordinator will follow up shortly!",
 
   "Adoption application status":
-    "We understand the wait can be exciting! Application review times vary by rescue coordinator, but most requests receive a response within a few business days. You can track your application status directly in your Pawster profile. A support agent will follow up to help you further shortly.",
+    "Most requests are reviewed within a few business days — check your profile for updates. A coordinator will follow up shortly!",
 
   "Post-adoption check-in concern":
-    "Congrats on your adoption! Post-adoption check-ins are scheduled at Day 7, Day 30, and Day 90 — each one opens a private messaging channel between you and your rescue coordinator. If you're having trouble submitting a check-in or reaching your coordinator, our team will look into it right away. A support agent will follow up with you shortly.",
+    "Check-ins are scheduled at Day 7, Day 30, and Day 90 via a private channel with your coordinator. A coordinator will follow up shortly!",
 
   "Rehoming or rescue request":
-    "We're here to help you through this. You can submit a rehoming or rescue request directly through the platform, and a rescue coordinator will review it and coordinate next steps with you. Please make sure your account is verified so the process goes smoothly. A support team member will follow up with you shortly.",
+    "Submit a rehoming request through the platform and a rescue coordinator will review it. A coordinator will follow up shortly!",
 
   "Account or technical problem":
-    "Sorry for the trouble! Whether it's a login issue, a problem with your ID upload, or something else on the platform, our technical team will investigate and get things sorted for you. A support agent will follow up as soon as possible.",
+    "Sorry for the trouble! Our team will investigate and get things sorted. A coordinator will follow up shortly!",
 
   "General inquiry":
-    "Thanks for reaching out to Pawster! We're a digital adoption platform serving Baguio City and the Cordillera Administrative Region, connecting adopters with rescue coordinators. Whatever your question, our support team will get back to you with a detailed response very soon.",
+    "We serve Baguio City and CAR, connecting adopters with rescue coordinators. A coordinator will follow up shortly!",
 };
 
 export function useBotReply({ sendMessage, messages, onBotTypingChange, sessionKey, setMessages }) {
@@ -141,23 +135,31 @@ export function useBotReply({ sendMessage, messages, onBotTypingChange, sessionK
       let replyText = "";
 
       try {
-        const response = await fetch(`${OLLAMA_URL}/api/chat`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model: OLLAMA_MODEL,
-            stream: false,
-            messages: [
-              { role: "system", content: BOT_REPLY_SYSTEM_PROMPT },
-              { role: "user",   content: `The user's selected topic is: "${replyTopic}". Provide a helpful temporary answer about this topic.` },
-            ],
-          }),
-        });
-        if (!response.ok) throw new Error(`Ollama ${response.status}`);
-        const data = await response.json();
-        replyText = data.message?.content?.trim() ?? "";
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 1000); // 2s max
+        try {
+          const response = await fetch(`${OLLAMA_URL}/api/chat`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            signal: controller.signal,
+            body: JSON.stringify({
+              model: OLLAMA_MODEL,
+              stream: false,
+              messages: [
+                { role: "system", content: BOT_REPLY_SYSTEM_PROMPT },
+                { role: "user", content: `Topic: "${replyTopic}". Reply in 1-2 sentences only.` },
+              ],
+            }),
+          });
+          clearTimeout(timeout);
+          if (!response.ok) throw new Error(`Ollama ${response.status}`);
+          const data = await response.json();
+          replyText = data.message?.content?.trim() ?? "";
+        } finally {
+          clearTimeout(timeout);
+        }
       } catch {
-        // Ollama unavailable — use topic-specific fallback
+        // Ollama unavailable or timed out — use fallback instantly
         replyText = FALLBACK_REPLIES[replyTopic]
           ?? "Thank you for reaching out to Pawster! Our support team has been notified and will get back to you shortly.";
       }

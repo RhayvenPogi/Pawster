@@ -162,7 +162,7 @@ class AdminDashboardController
         $stmt->execute(compact('name', 'type', 'breed', 'age', 'health', 'status', 'notes', 'photo'));
         $id = (int) $stmt->fetchColumn();
 
-        $this->logActivity('Add Animal', "Added animal: $name (ID $id)");
+        $this->logActivity('Add Animal', "Added animal: $name (ID $id)", $this->adminId());
         $this->ok(['id' => $id, 'photo' => $photo], 'Animal added.');
     }
 
@@ -191,7 +191,7 @@ class AdminDashboardController
         );
         $stmt->execute(compact('name', 'type', 'breed', 'age', 'health', 'status', 'notes', 'photo', 'id'));
 
-        $this->logActivity('Update Animal', "Updated animal ID $id: $name");
+        $this->logActivity('Update Animal', "Updated animal ID $id: $name", $this->adminId());
         $this->ok(['photo' => $photo], 'Animal updated.');
     }
 
@@ -252,7 +252,7 @@ class AdminDashboardController
         $table = $tableMap[$type];
         $this->db()->prepare("DELETE FROM $table WHERE id = :id")->execute(['id' => $id]);
 
-        $this->logActivity('Delete', "Deleted $type ID $id");
+        $this->logActivity('Delete', "Deleted $type ID $id", $this->adminId());
         $this->ok(null, ucfirst($type) . ' deleted.');
     }
 
@@ -304,7 +304,7 @@ class AdminDashboardController
             $stmt->execute(compact('status', 'id'));
         }
 
-        $this->logActivity('Update Request', "Set $type request ID $id to $status");
+        $this->logActivity('Update Request', "Set $type request ID $id to $status", $this->adminId());
         $this->ok(null, "Request $status.");
     }
 
@@ -433,7 +433,7 @@ class AdminDashboardController
         ));
         $id = (int) $stmt->fetchColumn();
 
-        $this->logActivity('Add User', "Created user: $email (ID $id)");
+        $this->logActivity('Add User', "Created user: $email (ID $id)", $this->adminId());
         $this->ok(['id' => $id], 'User created.');
     }
 
@@ -509,7 +509,7 @@ class AdminDashboardController
             ));
         }
 
-        $this->logActivity('Update User', "Updated user ID $id: $email");
+        $this->logActivity('Update User', "Updated user ID $id: $email", $this->adminId());
         $this->ok(null, 'User updated.');
     }
 
@@ -526,7 +526,7 @@ class AdminDashboardController
             ->prepare("UPDATE users SET is_active = :isActive WHERE id = :id")
             ->execute(compact('isActive', 'id'));
 
-        $this->logActivity('Toggle Status', "Set user ID $id active=$isActive");
+        $this->logActivity('Toggle Status', "Set user ID $id active=$isActive", $this->adminId());
         $this->ok(null, 'Status updated.');
     }
 
@@ -568,7 +568,7 @@ class AdminDashboardController
             "UPDATE users SET first_name=:firstName, last_name=:lastName, email=:email, phone=:phone WHERE id=:adminId"
         )->execute(compact('firstName', 'lastName', 'email', 'phone', 'adminId'));
 
-        $this->logActivity('Update Profile', "Admin ID $adminId updated profile");
+        $this->logActivity('Update Profile', "Admin ID $adminId updated profile", $adminId);
         $this->ok([
             'first_name' => $firstName,
             'last_name'  => $lastName,
@@ -601,7 +601,7 @@ class AdminDashboardController
         $db->prepare("UPDATE users SET password_hash = :hash WHERE id = :adminId")
             ->execute(compact('hash', 'adminId'));
 
-        $this->logActivity('Change Password', "Admin ID $adminId changed password");
+        $this->logActivity('Change Password', "Admin ID $adminId changed password", $adminId);
         $this->ok(null, 'Password updated.');
     }
 
@@ -637,7 +637,7 @@ class AdminDashboardController
              ->prepare("UPDATE users SET photo = :url WHERE id = :adminId")
              ->execute(compact('url', 'adminId'));
 
-        $this->logActivity('Upload Photo', "Admin ID $adminId uploaded photo");
+        $this->logActivity('Upload Photo', "Admin ID $adminId uploaded photo", $adminId);
         $this->ok(['url' => $url], 'Photo uploaded.');
     }
 
@@ -705,15 +705,24 @@ class AdminDashboardController
     }
 
     private function logActivity(string $action, string $details, ?int $userId = null): void
-    {
-        try {
-            $this->db()->prepare(
-                "INSERT INTO activity_logs (action, details, user_id) VALUES (:action, :details, :userId)"
-            )->execute(compact('action', 'details', 'userId'));
-        } catch (\Throwable) {
-            // non-fatal
+{
+    try {
+        $name = null;
+        if ($userId) {
+            $stmt = $this->db()->prepare(
+                "SELECT first_name || ' ' || last_name FROM users WHERE id = :id"
+            );
+            $stmt->execute(['id' => $userId]);
+            $name = $stmt->fetchColumn() ?: null;
         }
+        $this->db()->prepare(
+            "INSERT INTO activity_logs (action, details, user_id, user_name)
+             VALUES (:action, :details, :userId, :name)"
+        )->execute(compact('action', 'details', 'userId', 'name'));
+    } catch (\Throwable) {
+        // non-fatal
     }
+}
 
     private function getIdFile(): void
     {
