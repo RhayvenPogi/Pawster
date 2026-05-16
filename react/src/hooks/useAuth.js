@@ -57,7 +57,7 @@ export const useAuth = () => {
         localStorage.setItem('pawster_user', JSON.stringify(data));
 
         if (data.role === 'admin') navigate('/admin');
-        else navigate('/home');
+        // else navigate('/home'); ← removed, LoginPage handles this via LoadingScreen
 
         return data;
     }, [navigate]);
@@ -99,7 +99,7 @@ export const useAuth = () => {
         localStorage.setItem('pawster_user', JSON.stringify(data));
 
         if (data.role === 'admin') navigate('/admin');
-        else navigate('/home');
+        // else navigate('/home'); ← removed, LoginPage handles this via LoadingScreen
 
         return data;
     }, [navigate]);

@@ -65,6 +65,12 @@ export default function ActivityPanel({ show }) {
     if (show) load();
   }, [show]);
 
+  useEffect(() => {
+    if (!show) return;
+    const id = setInterval(load, 30_000);
+    return () => clearInterval(id);
+  }, [show]);
+
   // ── Derived counts (always from raw `logs`, never from filtered slice) ──────
   const todayStr      = new Date().toDateString();
   const loginCount    = logs.filter(a => a.action === "Login").length;

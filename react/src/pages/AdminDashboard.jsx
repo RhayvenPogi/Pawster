@@ -5,6 +5,7 @@ import { useAuth } from "../hooks/useAuth";
 import logo from "../images/logo.png";
 import { usePageTitle } from "../hooks/usePageTitle";
 
+import LoadingScreen from "./LoadingScreen";
 import DashboardPanel from "./admin/DashboardPanel";
 import AnimalsPanel from "./admin/AnimalsPanel";
 import RequestsPanel from "./admin/RequestsPanel";
@@ -135,6 +136,7 @@ function MeshBackground() {
         @keyframes dotPulse { 0%,100%{box-shadow:0 0 0 0 rgba(90,170,48,0.4)} 50%{box-shadow:0 0 0 6px rgba(90,170,48,0)} }
         @keyframes fadeUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
         @keyframes spin { to{transform:rotate(360deg)} }
+        @keyframes pageFadeIn { from{opacity:0} to{opacity:1} }
         .dot-pulse { animation: dotPulse 2s ease infinite; }
         .fade-up { animation: fadeUp 0.25s ease both; }
         .spinning { animation: spin 0.7s linear infinite; }
@@ -723,6 +725,7 @@ export default function AdminDashboard() {
     total_records:     0,
     unread_messages:   0,
   });
+  const [ready, setReady]               = useState(false);
   const [refreshKey, setRefreshKey]     = useState(0);
   const { toasts, show: toast }         = useToast();
   const [profileModal, setProfileModal] = useState({ open: false, tab: "profile" });
@@ -784,7 +787,19 @@ export default function AdminDashboard() {
     }
   }, []);
 
-  useEffect(() => { fetchStats(); }, [fetchStats, refreshKey]);
+  useEffect(() => {
+    const MIN_DISPLAY = 2800;
+    const start = Date.now();
+    fetchStats().then(() => {
+      const elapsed = Date.now() - start;
+      const remaining = MIN_DISPLAY - elapsed;
+      if (remaining > 0) {
+        setTimeout(() => setReady(true), remaining);
+      } else {
+        setReady(true);
+      }
+    });
+  }, [fetchStats, refreshKey]);
   useEffect(() => {
     const interval = setInterval(fetchStats, 5_000);
     return () => clearInterval(interval);
@@ -795,6 +810,7 @@ export default function AdminDashboard() {
   }, []);
 
   if (!user) return null;
+  if (!ready) return <LoadingScreen destination="" />;
 
   const refresh = () => {
     setRefreshKey(k => k + 1);
@@ -812,7 +828,7 @@ export default function AdminDashboard() {
   const sidebarWidth = collapsed ? 64 : 252;
 
   return (
-    <div className="font-['Nunito',sans-serif] text-[#1a2e0a]">
+    <div className="font-['Nunito',sans-serif] text-[#1a2e0a]" style={{ animation: "pageFadeIn 0.6s ease both" }}>
       <MeshBackground />
       <Sidebar
         active={panel}

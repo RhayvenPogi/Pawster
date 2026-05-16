@@ -639,7 +639,7 @@ export default function HomePage() {
   ].filter(Boolean);
 
   return (
-    <div className="relative overflow-x-hidden" style={{ fontFamily: "'Nunito', sans-serif", color: "#1a2e0a" }}>
+    <div className="relative overflow-x-hidden" style={{ fontFamily: "'Nunito', sans-serif", color: "#1a2e0a", animation: "pageFadeIn 0.6s ease both" }}>
 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,800;0,900;1,700;1,800;1,900&family=Nunito:ital,wght@0,400;0,600;0,700;0,800;0,900;1,700&family=DM+Mono:wght@400;500&display=swap');
@@ -655,6 +655,7 @@ export default function HomePage() {
         @keyframes dotPulse   { 0%,100%{box-shadow:0 0 0 0 rgba(90,170,48,.5)} 50%{box-shadow:0 0 0 7px rgba(90,170,48,0)} }
         @keyframes floatY     { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
         @keyframes shimmer    { 0%{background-position:-600px 0} 100%{background-position:600px 0} }
+        @keyframes pageFadeIn { from{opacity:0} to{opacity:1} }
         @keyframes cardFloat  { 0%,100%{transform:translateY(0)} 40%{transform:translateY(-10px) rotate(.3deg)} 75%{transform:translateY(-5px) rotate(-.2deg)} }
         @keyframes tickerMove { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
         @keyframes pulseLine  { 0%,100%{opacity:.3} 50%{opacity:.75} }

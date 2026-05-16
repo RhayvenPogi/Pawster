@@ -4,6 +4,7 @@ import { GoogleLogin } from "@react-oauth/google";
 import logo from "../images/logo.png";
 import dog from "../images/dog.png";
 import { usePageTitle } from "../hooks/usePageTitle";
+import LoadingScreen from "./LoadingScreen";
 
 function MeshBackground() {
   const orbRefs = useRef([]);
@@ -127,6 +128,7 @@ export default function LoginPage() {
   const [alert, setAlert]       = useState({ type: "", msg: "" });
   const [loading, setLoading]   = useState(false);
   const [leaving, setLeaving]   = useState(false);
+  const [showLoader, setShowLoader] = useState(null);
 
   usePageTitle("Sign in");
 
@@ -155,9 +157,11 @@ export default function LoginPage() {
     setLoading(true);
     setAlert({ type: "", msg: "" });
     try {
-      await login(email.trim(), password);
+      const data = await login(email.trim(), password);
       if (remember) localStorage.setItem("pawster_email", email.trim());
       else          localStorage.removeItem("pawster_email");
+      setLoading(false);
+      setShowLoader(data?.role === "admin" ? "admin" : "user");
     } catch (err) {
       setAlert({ type: "error", msg: err.response?.data?.message || "Invalid email or password." });
       setLoading(false);
@@ -168,7 +172,9 @@ export default function LoginPage() {
     setLoading(true);
     setAlert({ type: "", msg: "" });
     try {
-      await googleLogin(credentialResponse);
+      const data = await googleLogin(credentialResponse);
+      setLoading(false);
+      setShowLoader(data?.role === "admin" ? "admin" : "user");
     } catch (err) {
       setAlert({ type: "error", msg: err.response?.data?.message || "Google sign-in failed. Please try again." });
       setLoading(false);
@@ -195,6 +201,10 @@ export default function LoginPage() {
 
   return (
     <>
+      {showLoader && (
+          <LoadingScreen destination={showLoader === "admin" ? "/admin" : "/home"} />
+      )}
+
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
         *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
@@ -376,14 +386,7 @@ export default function LoginPage() {
                 opacity: loading ? 0.65 : 1,
               }}
             >
-              {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="spin-anim">
-                    <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
-                  </svg>
-                  Signing in…
-                </span>
-              ) : "Sign in →"}
+              {loading ? "Signing in…" : "Sign in →"}
             </button>
           </form>
 
