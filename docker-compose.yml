@@ -1,6 +1,23 @@
+# ── Shared Django/Celery env anchor ───────────────────────────────────────────
+x-django-env: &django-env
+  DJANGO_SETTINGS_MODULE: pawster.settings
+  DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
+  DEBUG: ${DEBUG}
+  DB_HOST: db
+  DB_PORT: 5432
+  DB_NAME: ${POSTGRES_DB}
+  DB_USER: ${POSTGRES_USER}
+  DB_PASSWORD: ${POSTGRES_PASSWORD}
+  REDIS_URL: redis://redis:6379/0
+  CELERY_BROKER_URL: redis://redis:6379/0
+  CELERY_RESULT_BACKEND: redis://redis:6379/0
+  JWT_SECRET: ${JWT_SECRET}
+  BREVO_API_KEY: ${BREVO_API_KEY}
+  DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL}
+
 services:
 
-  # ── Service Registry ────────────────────────────────────────────────────────
+  # ── Service Registry ──────────────────────────────────────────────────────
   eureka-server:
     image: maven:3.9.9-eclipse-temurin-17
     container_name: pawster_eureka_server
@@ -18,7 +35,7 @@ services:
       retries: 8
       start_period: 30s
 
-  # ── API Gateway ─────────────────────────────────────────────────────────────
+  # ── API Gateway ───────────────────────────────────────────────────────────
   api-gateway:
     image: maven:3.9.9-eclipse-temurin-17
     container_name: pawster_api_gateway
@@ -36,25 +53,25 @@ services:
     working_dir: /app
     command: mvn spring-boot:run
 
-  # ── Database ─────────────────────────────────────────────────────────────────
+  # ── PostgreSQL ────────────────────────────────────────────────────────────
   db:
     image: postgres:15-alpine
     container_name: pawster_postgres_db
     environment:
-      POSTGRES_DB: pawster_db
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     ports:
       - "5434:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user -d pawster_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 5
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
-  # ── Redis ────────────────────────────────────────────────────────────────────
+  # ── Redis ─────────────────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
     container_name: pawster_redis
@@ -66,16 +83,16 @@ services:
       timeout: 3s
       retries: 5
 
-  # ── MongoDB (Messages) ───────────────────────────────────────────────────────
+  # ── MongoDB ───────────────────────────────────────────────────────────────
   mongodb:
     image: mongo:7
     container_name: pawster_mongodb
     ports:
       - "27017:27017"
     environment:
-      MONGO_INITDB_ROOT_USERNAME: user
-      MONGO_INITDB_ROOT_PASSWORD: password
-      MONGO_INITDB_DATABASE: pawster_messages
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_USER}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_PASSWORD}
+      - MONGO_INITDB_DATABASE=${MONGO_DB}
     volumes:
       - mongodb_data:/data/db
     healthcheck:
@@ -84,7 +101,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # ── Spring Boot (Auth + Animals) ─────────────────────────────────────────────
+  # ── Spring Boot ───────────────────────────────────────────────────────────
   sb:
     image: eclipse-temurin:17-jdk-alpine
     container_name: pawster_springboot_app
@@ -93,18 +110,18 @@ services:
         condition: service_healthy
       eureka-server:
         condition: service_healthy
-      mongodb:                    # ← add
+      mongodb:
         condition: service_healthy
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/pawster_db
-      - SPRING_DATASOURCE_USERNAME=user
-      - SPRING_DATASOURCE_PASSWORD=password
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/${POSTGRES_DB}
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
       - JWT_SECRET=${JWT_SECRET}
       - SPRING_DEVTOOLS_RESTART_ENABLED=true
       - BREVO_API_KEY=${BREVO_API_KEY}
-      - APP_BASE_URL=http://localhost:3000
+      - APP_BASE_URL=${APP_BASE_URL_FRONTEND}
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
-      - MONGO_URI=mongodb://user:password@mongodb:27017/pawster_messages?authSource=admin   # ← add
+      - MONGO_URI=mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongodb:27017/${MONGO_DB}?authSource=admin
     volumes:
       - ./sb:/app
       - ~/.m2:/root/.m2
@@ -112,7 +129,7 @@ services:
     working_dir: /app
     command: ./mvnw spring-boot:run
 
-  # ── PHP API ──────────────────────────────────────────────────────────────────
+  # ── PHP ───────────────────────────────────────────────────────────────────
   php:
     build:
       context: ./php
@@ -124,15 +141,15 @@ services:
     environment:
       - DB_HOST=db
       - DB_PORT=5432
-      - DB_USER=user
-      - DB_PASSWORD=password
-      - DB_NAME=pawster_db
+      - DB_USER=${POSTGRES_USER}
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      - DB_NAME=${POSTGRES_DB}
       - JWT_SECRET=${JWT_SECRET}
     volumes:
       - ./php:/var/www/html
       - php_vendor:/var/www/html/vendor
 
-  # ── Django API ───────────────────────────────────────────────────────────────
+  # ── Django ────────────────────────────────────────────────────────────────
   django:
     build:
       context: ./django
@@ -144,24 +161,11 @@ services:
       redis:
         condition: service_healthy
     environment:
-      - DJANGO_SETTINGS_MODULE=pawster.settings
-      - DJANGO_SECRET_KEY=django-super-secret-change-in-production
-      - DEBUG=True
-      - DB_HOST=db
-      - DB_PORT=5432
-      - DB_NAME=pawster_db
-      - DB_USER=user
-      - DB_PASSWORD=password
-      - REDIS_URL=redis://redis:6379/0
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - ALLOWED_HOSTS=localhost,127.0.0.1,django
-      - CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
-      - JWT_SECRET=${JWT_SECRET}
-      - BREVO_API_KEY=${BREVO_API_KEY}
-      - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL}
-      - APP_BASE_URL=http://localhost:8000
-      - SPRING_BOOT_API=http://sb:8080
+      <<: *django-env
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+      APP_BASE_URL: ${APP_BASE_URL_BACKEND}
+      SPRING_BOOT_API: http://sb:8080
     volumes:
       - ./django:/app
     working_dir: /app
@@ -175,7 +179,7 @@ services:
       retries: 5
       start_period: 20s
 
-  # ── Celery Worker ─────────────────────────────────────────────────────────────
+  # ── Celery Worker ─────────────────────────────────────────────────────────
   celery_worker:
     build:
       context: ./django
@@ -189,26 +193,14 @@ services:
       django:
         condition: service_healthy
     environment:
-      - DJANGO_SETTINGS_MODULE=pawster.settings
-      - DJANGO_SECRET_KEY=django-super-secret-change-in-production
-      - DEBUG=True
-      - DB_HOST=db
-      - DB_PORT=5432
-      - DB_NAME=pawster_db
-      - DB_USER=user
-      - DB_PASSWORD=password
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - JWT_SECRET=${JWT_SECRET}
-      - BREVO_API_KEY=${BREVO_API_KEY}
-      - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL}
-      - APP_BASE_URL=http://localhost:3000
+      <<: *django-env
+      APP_BASE_URL: ${APP_BASE_URL_FRONTEND}
     volumes:
       - ./django:/app
     working_dir: /app
     command: celery -A pawster worker --loglevel=info
 
-  # ── Celery Beat ───────────────────────────────────────────────────────────────
+  # ── Celery Beat ───────────────────────────────────────────────────────────
   celery_beat:
     build:
       context: ./django
@@ -222,20 +214,8 @@ services:
       django:
         condition: service_healthy
     environment:
-      - DJANGO_SETTINGS_MODULE=pawster.settings
-      - DJANGO_SECRET_KEY=django-super-secret-change-in-production
-      - DEBUG=True
-      - DB_HOST=db
-      - DB_PORT=5432
-      - DB_NAME=pawster_db
-      - DB_USER=user
-      - DB_PASSWORD=password
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - JWT_SECRET=${JWT_SECRET}
-      - BREVO_API_KEY=${BREVO_API_KEY}
-      - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL}
-      - APP_BASE_URL=http://localhost:3000
+      <<: *django-env
+      APP_BASE_URL: ${APP_BASE_URL_FRONTEND}
     volumes:
       - ./django:/app
     working_dir: /app
@@ -243,7 +223,7 @@ services:
       celery -A pawster beat --loglevel=info
       --scheduler django_celery_beat.schedulers:DatabaseScheduler
 
-  # ── Ollama (Local LLM) ────────────────────────────────────────────────────────
+  # ── Ollama ────────────────────────────────────────────────────────────────
   ollama:
     image: ollama/ollama
     container_name: pawster_ollama
@@ -259,7 +239,7 @@ services:
        ollama pull llama3.2 &&
        wait"
 
-  # ── React Frontend ────────────────────────────────────────────────────────────
+  # ── React Frontend ────────────────────────────────────────────────────────
   react:
     image: node:20-alpine
     container_name: pawster_react_front
@@ -269,11 +249,11 @@ services:
     ports:
       - "3000:5173"
     environment:
-      - VITE_API_BASE_URL=http://localhost:8000
-      - VITE_DJANGO_API_URL=http://localhost:8000
-      - VITE_PHP_API_URL=http://localhost:8000
-      - VITE_OLLAMA_URL=http://localhost:11434       # ← added
-      - VITE_GOOGLE_CLIENT_ID=764828654585-2mus78u3vsj13nma0259bb35t5ghloob.apps.googleusercontent.com
+      - VITE_API_BASE_URL=${VITE_API_BASE_URL}
+      - VITE_DJANGO_API_URL=${VITE_DJANGO_API_URL}
+      - VITE_PHP_API_URL=${VITE_PHP_API_URL}
+      - VITE_OLLAMA_URL=${VITE_OLLAMA_URL}
+      - VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
       - CHOKIDAR_USEPOLLING=true
     volumes:
       - ./react:/app
@@ -284,5 +264,5 @@ services:
 volumes:
   postgres_data:
   php_vendor:
-  ollama_data:    # ← added
+  ollama_data:
   mongodb_data:
