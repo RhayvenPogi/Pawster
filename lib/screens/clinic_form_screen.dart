@@ -1,4 +1,3 @@
-// lib/screens/clinic_form_screen.dart
 // =============================================================================
 // CLINIC FORM SCREEN — Add or edit a veterinary clinic
 // =============================================================================
@@ -6,10 +5,12 @@
 // parameter. All fields are validated before submission to the ClinicProvider.
 // =============================================================================
 
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/vet_clinic.dart';
 import '../services/clinic_provider.dart';
+
 
 // ── Inline colour constants (previously AppTheme) ─────────────────────────────
 const _primary       = Color(0xFF388E3C);   // Brand green
@@ -22,31 +23,49 @@ const _textPrimary   = Color(0xFF1B2B1C);   // Headings
 const _textSecondary = Color(0xFF5A7A5C);   // Body text
 const _radiusMd      = 12.0;                // Standard corner radius
 
+
 // =============================================================================
-// CLINIC FORM SCREEN — StatefulWidget
+// CLINIC FORM SCREEN
 // =============================================================================
-// [clinic] is optional; when provided the form pre-fills and operates in
-// edit mode. When null, the form is blank and operates in add mode.
+/// A full-screen form for creating or updating a [VetClinic].
+///
+/// Pass a [clinic] to enter **edit mode** — all fields are pre-filled and the
+/// provider's [ClinicProvider.updateClinic] is called on save.
+/// Omit [clinic] (or pass null) to enter **add mode** — fields start blank and
+/// [ClinicProvider.addClinic] is called instead.
+///
+/// The screen pops with `true` on success so the caller can react
+/// (e.g. refresh a list).
 // =============================================================================
 class ClinicFormScreen extends StatefulWidget {
+  /// The clinic to edit, or null when adding a new one.
   final VetClinic? clinic;
 
+
   const ClinicFormScreen({super.key, this.clinic});
+
 
   @override
   State<ClinicFormScreen> createState() => _ClinicFormScreenState();
 }
 
+
 // =============================================================================
 // CLINIC FORM SCREEN STATE
 // =============================================================================
-// Holds a [GlobalKey<FormState>] for validation and one [TextEditingController]
-// per field. The [_saving] flag disables the save button and shows a spinner
-// while the async provider operation is in flight.
+/// Manages form state for [ClinicFormScreen].
+///
+/// One [TextEditingController] is created per field and disposed together in
+/// [dispose]. The [_formKey] drives inline validation. [_saving] is true while
+/// the async provider call is in flight, which disables the save button and
+/// replaces it with a [CircularProgressIndicator].
 // =============================================================================
 class _ClinicFormScreenState extends State<ClinicFormScreen> {
+  /// Key used to trigger [Form] validation programmatically.
   final _formKey = GlobalKey<FormState>();
 
+
+  // One controller per editable field.
   late final TextEditingController _name;
   late final TextEditingController _address;
   late final TextEditingController _contact;
@@ -55,19 +74,26 @@ class _ClinicFormScreenState extends State<ClinicFormScreen> {
   late final TextEditingController _lng;
   late final TextEditingController _rating;
 
+
+  /// True while the provider save operation is awaited.
+  /// Prevents double-submission and shows a loading indicator.
   bool _saving = false;
 
-  /// True when [widget.clinic] is non-null (edit mode).
+
+  /// Convenience getter — true when the screen was opened with an existing clinic.
   bool get _isEditing => widget.clinic != null;
+
 
   // ---------------------------------------------------------------------------
   // LIFECYCLE
   // ---------------------------------------------------------------------------
 
+
   @override
   void initState() {
     super.initState();
-    // Pre-fill controllers with existing clinic data or empty strings.
+    // Pre-fill each controller with the existing clinic's data, or an empty
+    // string when adding a new clinic.
     final c = widget.clinic;
     _name     = TextEditingController(text: c?.name ?? '');
     _address  = TextEditingController(text: c?.address ?? '');
@@ -78,28 +104,36 @@ class _ClinicFormScreenState extends State<ClinicFormScreen> {
     _rating   = TextEditingController(text: c?.rating.toString() ?? '');
   }
 
+
   @override
   void dispose() {
-    // Dispose every controller to free memory.
+    // Dispose all controllers together to avoid memory leaks.
     for (final c in [_name, _address, _contact, _imageUrl, _lat, _lng, _rating]) {
       c.dispose();
     }
     super.dispose();
   }
 
+
   // ---------------------------------------------------------------------------
   // SAVE / SUBMIT
   // ---------------------------------------------------------------------------
 
-  /// Validates the form, builds a [VetClinic] from the controllers, and
-  /// calls either [addClinic] or [updateClinic] on the provider.
-  /// Pops the screen with success feedback on completion.
+
+  /// Validates the form, constructs a [VetClinic] from field values, and
+  /// delegates to the appropriate [ClinicProvider] method.
+  ///
+  /// On success: pops the route with `true` and shows a confirmation snackbar.
+  /// On failure: shows an error snackbar and re-enables the save button.
+  /// No-ops immediately if validation fails.
   Future<void> _save() async {
+    // Abort early if any field fails its validator.
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
 
+
     final clinic = VetClinic(
-      id: widget.clinic?.id, // Preserves existing ID in edit mode
+      id: widget.clinic?.id, // Preserved in edit mode; null triggers auto-increment on insert.
       name: _name.text.trim(),
       address: _address.text.trim(),
       contactNumber: _contact.text.trim(),
@@ -109,11 +143,16 @@ class _ClinicFormScreenState extends State<ClinicFormScreen> {
       rating: double.parse(_rating.text.trim()),
     );
 
+
     final provider = context.read<ClinicProvider>();
-    final success  = _isEditing
+    // Choose the correct provider operation based on mode.
+    final success = _isEditing
         ? await provider.updateClinic(clinic)
         : await provider.addClinic(clinic);
 
+
+    // Guard against setState/Navigator calls if the widget was unmounted
+    // while the async operation was in flight.
     if (mounted) {
       setState(() => _saving = false);
       if (success) {
@@ -138,9 +177,11 @@ class _ClinicFormScreenState extends State<ClinicFormScreen> {
     }
   }
 
+
   // ---------------------------------------------------------------------------
   // BUILD
   // ---------------------------------------------------------------------------
+
 
   @override
   Widget build(BuildContext context) {
@@ -149,7 +190,8 @@ class _ClinicFormScreenState extends State<ClinicFormScreen> {
       appBar: AppBar(
         title: Text(_isEditing ? 'Edit clinic' : 'Add new clinic'),
         actions: [
-          // Show loading spinner or save button in the app bar.
+          // While saving: replace the save button with a compact spinner so
+          // the user knows work is in progress.
           if (_saving)
             const Padding(
               padding: EdgeInsets.all(16),
@@ -177,7 +219,7 @@ class _ClinicFormScreenState extends State<ClinicFormScreen> {
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            // ── Basic info section ───────────────────────────────────────────
+            // ── Basic info ─────────────────────────────────────────────────
             _SectionHeader(label: 'Basic info'),
             _Field(
               controller: _name,
@@ -205,7 +247,10 @@ class _ClinicFormScreenState extends State<ClinicFormScreen> {
             ),
             const SizedBox(height: 28),
 
-            // ── Location section ─────────────────────────────────────────────
+
+            // ── Location ───────────────────────────────────────────────────
+            // Latitude and longitude sit side-by-side to save vertical space
+            // and visually group them as a coordinate pair.
             _SectionHeader(label: 'Location'),
             Row(
               children: [
@@ -244,7 +289,8 @@ class _ClinicFormScreenState extends State<ClinicFormScreen> {
             ),
             const SizedBox(height: 28),
 
-            // ── Details section ──────────────────────────────────────────────
+
+            // ── Details ────────────────────────────────────────────────────
             _SectionHeader(label: 'Details'),
             _Field(
               controller: _rating,
@@ -260,6 +306,7 @@ class _ClinicFormScreenState extends State<ClinicFormScreen> {
               },
             ),
             const SizedBox(height: 14),
+            // Image URL is optional — no validator is attached.
             _Field(
               controller: _imageUrl,
               label: 'Image URL (optional)',
@@ -267,8 +314,10 @@ class _ClinicFormScreenState extends State<ClinicFormScreen> {
               keyboardType: TextInputType.url,
             ),
 
+
             const SizedBox(height: 36),
-            // Primary action button at the bottom of the form.
+            // Bottom action button mirrors the app-bar save action for
+            // ergonomic reach on long forms.
             ElevatedButton.icon(
               onPressed: _saving ? null : _save,
               icon: Icon(_isEditing ? Icons.save_rounded : Icons.add_rounded),
@@ -282,12 +331,21 @@ class _ClinicFormScreenState extends State<ClinicFormScreen> {
   }
 }
 
+
 // =============================================================================
-// SECTION HEADER — Vertical accent bar + uppercase label for form grouping
+// _SectionHeader
+// =============================================================================
+/// A compact section label rendered as a 3 px green accent bar beside
+/// uppercase text.
+///
+/// Used to visually group related fields within the form (e.g. "Basic info",
+/// "Location", "Details") without the visual weight of a full [Divider].
 // =============================================================================
 class _SectionHeader extends StatelessWidget {
+  /// The text to display, rendered in uppercase by the widget itself.
   final String label;
   const _SectionHeader({required this.label});
+
 
   @override
   Widget build(BuildContext context) {
@@ -295,7 +353,7 @@ class _SectionHeader extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
         children: [
-          // 3 px wide green accent bar.
+          // Narrow vertical bar acting as a brand-coloured accent.
           Container(
             width: 3,
             height: 14,
@@ -320,15 +378,37 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
+
 // =============================================================================
-// FIELD — Reusable TextFormField with icon, label, and optional validation
+// _Field
+// =============================================================================
+/// A reusable [TextFormField] with a leading icon, label, configurable
+/// keyboard type, and an optional validator.
+///
+/// Kept intentionally thin — any field-specific behaviour (keyboard type,
+/// validation logic) is injected by the parent so this widget stays generic.
 // =============================================================================
 class _Field extends StatelessWidget {
+  /// Controls the field's text value and selection.
   final TextEditingController controller;
+
+
+  /// Label shown as a floating hint inside the field.
   final String label;
+
+
+  /// Icon displayed in the leading position of the input decoration.
   final IconData icon;
+
+
+  /// Keyboard layout hint. Defaults to the system default when null.
   final TextInputType? keyboardType;
+
+
+  /// Validation callback. Return a non-null error string to mark the field
+  /// invalid; return null to indicate the value is acceptable.
   final String? Function(String?)? validator;
+
 
   const _Field({
     required this.controller,
@@ -337,6 +417,7 @@ class _Field extends StatelessWidget {
     this.keyboardType,
     this.validator,
   });
+
 
   @override
   Widget build(BuildContext context) {
@@ -352,3 +433,6 @@ class _Field extends StatelessWidget {
     );
   }
 }
+
+
+

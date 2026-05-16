@@ -3,22 +3,45 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/vet_clinic.dart';
 
-// Colors used across this file (forest-green brand palette)
-const Color _primary       = Color(0xFF388E3C);
-const Color _secondary     = Color(0xFF1976D2);
-const Color _accent        = Color(0xFFF57C00); // star / rating colour
-const Color _textPrimary   = Color(0xFF1B2B1C);
-const Color _textSecondary = Color(0xFF5A7A5C);
 
-/// Card that represents a single vet clinic in the list view.
-/// Highlights the nearest clinic with a green border and shows
-/// "Nearest" / "Top Rated" badges over the clinic image.
+// ---------------------------------------------------------------------------
+// Theme constants — centralised so colour changes only need one edit.
+// ---------------------------------------------------------------------------
+const Color _primary       = Color(0xFF388E3C); // green  – brand / nearest badge
+const Color _secondary     = Color(0xFF1976D2); // blue   – top-rated badge / directions
+const Color _accent        = Color(0xFFF57C00); // orange – always used for stars & edit
+const Color _textPrimary   = Color(0xFF1B2B1C); // dark   – clinic name
+const Color _textSecondary = Color(0xFF5A7A5C); // muted  – address / meta text
+
+
+// ---------------------------------------------------------------------------
+// ClinicCard
+// ---------------------------------------------------------------------------
+/// A card widget that displays a summary of a [VetClinic].
+///
+/// Shows the clinic photo, name, address, star rating, distance, and three
+/// quick-action buttons (Directions, Call, Edit).  An optional green border
+/// highlights the nearest clinic, and badges overlay the hero image when
+/// the clinic is nearest and/or top-rated.
 class ClinicCard extends StatelessWidget {
   final VetClinic clinic;
+
+
+  /// When `true` a green border and a "📍 Nearest" badge are shown.
   final bool isNearest;
+
+
+  /// Called when the user taps anywhere on the card (opens detail view).
   final VoidCallback onTap;
+
+
+  /// Called when the user taps the Directions button.
   final VoidCallback onDirections;
+
+
+  /// Called when the user taps the Edit button.
   final VoidCallback onEdit;
+
 
   const ClinicCard({
     super.key,
@@ -29,8 +52,13 @@ class ClinicCard extends StatelessWidget {
     required this.onEdit,
   });
 
+
   @override
   Widget build(BuildContext context) {
+    final displayRating = clinic.displayRating; // resolved rating (local or Google)
+    final isTopRated    = clinic.isTopRated;    // true when rating ≥ threshold
+
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -45,20 +73,24 @@ class ClinicCard extends StatelessWidget {
               offset: const Offset(0, 4),
             ),
           ],
-          // Green border marks the nearest clinic
+          // Highlight the nearest clinic with a coloured border.
           border: isNearest ? Border.all(color: _primary, width: 2) : null,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Clinic image with overlaid Nearest / Top Rated badges
+            // ── Hero image with overlaid badges ──────────────────────────
             Stack(
               children: [
+                // Rounded top corners so the image fits the card shape.
                 ClipRRect(
                   borderRadius:
                   const BorderRadius.vertical(top: Radius.circular(14)),
                   child: _ClinicImage(clinic: clinic, height: 130),
                 ),
+
+
+                // Badges sit at the bottom-left of the image.
                 Positioned(
                   bottom: 8,
                   left: 10,
@@ -66,9 +98,9 @@ class ClinicCard extends StatelessWidget {
                     children: [
                       if (isNearest)
                         _Badge(label: '📍 Nearest', color: _primary),
-                      if (isNearest && clinic.isTopRated)
-                        const SizedBox(width: 6),
-                      if (clinic.isTopRated)
+                      if (isNearest && isTopRated)
+                        const SizedBox(width: 6), // spacing between badges
+                      if (isTopRated)
                         _Badge(label: '⭐ Top Rated', color: _secondary),
                     ],
                   ),
@@ -76,13 +108,14 @@ class ClinicCard extends StatelessWidget {
               ],
             ),
 
-            // Name, address, rating, distance, and action buttons
+
+            // ── Text + action area ────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.all(14),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Clinic name
+                  // Clinic name — single line, truncated if too long.
                   Text(
                     clinic.name,
                     style: const TextStyle(
@@ -95,7 +128,8 @@ class ClinicCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
 
-                  // Address row
+
+                  // Address row with a pin icon.
                   Row(
                     children: [
                       const Icon(Icons.location_on_outlined,
@@ -114,30 +148,52 @@ class ClinicCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
 
-                  // Star rating + walking distance
+
+                  // Rating row: stars | numeric value | review count | distance
                   Row(
                     children: [
-                      _RatingStars(rating: clinic.rating),
-                      const SizedBox(width: 6),
+                      // 5-star visual indicator (always orange).
+                      _RatingStars(rating: displayRating),
+                      const SizedBox(width: 5),
+
+
+                      // Numeric rating, e.g. "4.5".
                       Text(
-                        clinic.rating.toStringAsFixed(1),
+                        displayRating.toStringAsFixed(1),
                         style: const TextStyle(
-                          fontSize: 13,
+                          fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: _textPrimary,
+                          color: _accent,
                         ),
                       ),
+
+
+                      // Review count shown only when reviews exist.
+                      if (clinic.reviewCount > 0) ...[
+                        const SizedBox(width: 3),
+                        Text(
+                          '(${clinic.reviewCount})',
+                          style: const TextStyle(
+                              fontSize: 11, color: _textSecondary),
+                        ),
+                      ],
+
+
                       const Spacer(),
+
+
+                      // Distance from the user's current location.
                       if (clinic.distanceKm != null)
                         Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
                             const Icon(Icons.directions_walk_rounded,
-                                size: 14, color: _primary),
-                            const SizedBox(width: 3),
+                                size: 13, color: _primary),
+                            const SizedBox(width: 2),
                             Text(
-                              clinic.formattedDistance,
+                              clinic.formattedDistance, // e.g. "1.2 km"
                               style: const TextStyle(
-                                fontSize: 12,
+                                fontSize: 11,
                                 fontWeight: FontWeight.w600,
                                 color: _primary,
                               ),
@@ -148,9 +204,11 @@ class ClinicCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
 
-                  // Directions, Call, and Edit buttons
+
+                  // ── Quick-action buttons ──────────────────────────────
                   Row(
                     children: [
+                      // Opens the device's maps app to the clinic.
                       Expanded(
                         child: _ActionButton(
                           icon: Icons.navigation_rounded,
@@ -160,23 +218,30 @@ class ClinicCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 6),
+
+
+                      // Dials the clinic's contact number via tel: URI.
                       Expanded(
                         child: _ActionButton(
                           icon: Icons.phone_rounded,
                           label: 'Call',
                           color: _primary,
                           onTap: () async {
-                            final uri = Uri(scheme: 'tel', path: clinic.contactNumber);
+                            final uri =
+                            Uri(scheme: 'tel', path: clinic.contactNumber);
                             await launchUrl(uri);
                           },
                         ),
                       ),
                       const SizedBox(width: 6),
+
+
+                      // Opens the edit form for this clinic.
                       Expanded(
                         child: _ActionButton(
                           icon: Icons.edit_rounded,
                           label: 'Edit',
-                          color: Colors.orange,
+                          color: _accent,
                           onTap: onEdit,
                         ),
                       ),
@@ -192,41 +257,52 @@ class ClinicCard extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Private sub-widgets
-// ---------------------------------------------------------------------------
 
-/// Shows the clinic image from local storage, a network URL, or a placeholder.
+// ---------------------------------------------------------------------------
+// _ClinicImage
+// ---------------------------------------------------------------------------
+/// Resolves and displays the best available image for a clinic.
+///
+/// Priority order:
+///   1. Local file path (user-captured photo)
+///   2. Remote URL (e.g. Google Places photo)
+///   3. Placeholder with a hospital icon
 class _ClinicImage extends StatelessWidget {
   final VetClinic clinic;
   final double height;
 
+
   const _ClinicImage({required this.clinic, required this.height});
+
 
   @override
   Widget build(BuildContext context) {
-    // Priority: local file → network URL → placeholder
+    // 1️⃣  Prefer a locally stored image (fastest, works offline).
     if (clinic.hasLocalImage) {
-      return Image.file(
-        File(clinic.localImage!),
-        height: height,
-        width: double.infinity,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => _placeholder(),
-      );
+      return Image.file(File(clinic.localImage!),
+          height: height,
+          width: double.infinity,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _placeholder());
     }
+
+
+    // 2️⃣  Fall back to a network image.
     if (clinic.imageUrl.isNotEmpty) {
-      return Image.network(
-        clinic.imageUrl,
-        height: height,
-        width: double.infinity,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => _placeholder(),
-      );
+      return Image.network(clinic.imageUrl,
+          height: height,
+          width: double.infinity,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _placeholder());
     }
+
+
+    // 3️⃣  No image available — show a branded placeholder.
     return _placeholder();
   }
 
+
+  /// A lightly tinted box with a hospital icon used when no photo exists.
   Widget _placeholder() => Container(
     height: height,
     width: double.infinity,
@@ -237,25 +313,28 @@ class _ClinicImage extends StatelessWidget {
         Icon(Icons.local_hospital_rounded,
             size: 48, color: _primary.withOpacity(0.4)),
         const SizedBox(height: 6),
-        Text(
-          'No Image Available',
-          style: TextStyle(
-            fontSize: 12,
-            color: _primary.withOpacity(0.5),
-            fontWeight: FontWeight.w500,
-          ),
-        ),
+        Text('No Image Available',
+            style: TextStyle(
+                fontSize: 12,
+                color: _primary.withOpacity(0.5),
+                fontWeight: FontWeight.w500)),
       ],
     ),
   );
 }
 
-/// Pill-shaped coloured label (e.g. "Nearest", "Top Rated").
+
+// ---------------------------------------------------------------------------
+// _Badge
+// ---------------------------------------------------------------------------
+/// A small pill-shaped label used to mark a clinic as nearest or top-rated.
 class _Badge extends StatelessWidget {
   final String label;
   final Color color;
 
+
   const _Badge({required this.label, required this.color});
+
 
   @override
   Widget build(BuildContext context) {
@@ -264,28 +343,36 @@ class _Badge extends StatelessWidget {
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.circular(20),
+        // Soft shadow matches the badge colour for a glowing effect.
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(0.4),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
+              color: color.withOpacity(0.4),
+              blurRadius: 6,
+              offset: const Offset(0, 2))
         ],
       ),
-      child: Text(
-        label,
-        style: const TextStyle(
-            color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
-      ),
+      child: Text(label,
+          style: const TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w700)),
     );
   }
 }
 
-/// Five-star row supporting full, half, and empty stars.
+
+// ---------------------------------------------------------------------------
+// _RatingStars
+// ---------------------------------------------------------------------------
+/// Renders a 5-star rating indicator using filled, half, and outline icons.
+///
+/// Stars are always [_accent] (orange) for consistency across all screens.
 class _RatingStars extends StatelessWidget {
   final double rating;
 
+
   const _RatingStars({required this.rating});
+
 
   @override
   Widget build(BuildContext context) {
@@ -293,22 +380,33 @@ class _RatingStars extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: List.generate(5, (i) {
         if (i < rating.floor()) {
+          // Fully filled star.
           return const Icon(Icons.star_rounded, size: 14, color: _accent);
         } else if (i < rating) {
+          // Half-filled star for fractional ratings (e.g. 3.7 → 3 full + 1 half).
           return const Icon(Icons.star_half_rounded, size: 14, color: _accent);
         }
+        // Empty star for the remainder.
         return const Icon(Icons.star_outline_rounded, size: 14, color: _accent);
       }),
     );
   }
 }
 
-/// Tappable icon + label button used for the Directions, Call, and Edit actions.
+
+// ---------------------------------------------------------------------------
+// _ActionButton
+// ---------------------------------------------------------------------------
+/// A compact icon + label button used in the card's action row.
+///
+/// The button uses a lightly tinted background and a subtle border derived
+/// from [color], keeping each action visually distinct without being loud.
 class _ActionButton extends StatelessWidget {
   final IconData icon;
   final String label;
   final Color color;
   final VoidCallback onTap;
+
 
   const _ActionButton({
     required this.icon,
@@ -317,6 +415,7 @@ class _ActionButton extends StatelessWidget {
     required this.onTap,
   });
 
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -324,23 +423,26 @@ class _ActionButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 9),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withOpacity(0.1),   // tinted background
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: color.withOpacity(0.3)),
+          border: Border.all(color: color.withOpacity(0.3)), // subtle outline
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(icon, size: 16, color: color),
             const SizedBox(height: 2),
-            Text(
-              label,
-              style: TextStyle(
-                  fontSize: 11, fontWeight: FontWeight.w600, color: color),
-            ),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: color)),
           ],
         ),
       ),
     );
   }
 }
+
+
+

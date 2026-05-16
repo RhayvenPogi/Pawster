@@ -1,6 +1,5 @@
-// lib/screens/home_screen.dart
 // =============================================================================
-// HOME SCREEN — Main map + clinic list interface for PawAywan
+// HOME SCREEN — Main map + clinic list interface for Pawnagaywan
 // =============================================================================
 // This screen combines an interactive map (flutter_map) with a draggable
 // bottom sheet showing nearby veterinary clinics. It supports:
@@ -209,7 +208,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                    success ? '✅ Clinic added!' : '❌ Failed to add clinic'),
+                    success ? 'Clinic added!' : 'Failed to add clinic'),
                 backgroundColor: success ? _primary : _danger,
               ),
             );
@@ -245,7 +244,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                    success ? '✅ Clinic updated!' : '❌ Failed to update'),
+                    success ? 'Clinic updated!' : 'Failed to update'),
                 backgroundColor: success ? _primary : _danger,
               ),
             );
@@ -303,8 +302,8 @@ class _HomeScreenState extends State<HomeScreen> {
           SnackBar(
             content: Text(
               success
-                  ? '🗑️ "${clinic.name}" deleted'
-                  : '❌ Could not delete clinic',
+                  ? '"${clinic.name}" deleted'
+                  : 'Could not delete clinic',
             ),
             backgroundColor: success ? _danger : _textSecondary,
           ),
@@ -476,7 +475,7 @@ class _TopBar extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'PawAywan',
+                      'PAWNAGAYWAN',
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: Colors.white,

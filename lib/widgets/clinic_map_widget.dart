@@ -41,7 +41,7 @@ class ClinicMapWidget extends StatelessWidget {
             // OpenStreetMap tile layer
             TileLayer(
               urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              userAgentPackageName: 'com.example.vetclinic_locator',
+              userAgentPackageName: 'com.pawnagaywan.vetclinic_locator',
               maxNativeZoom: 19,
             ),
 
@@ -127,7 +127,7 @@ class _UserLocationMarkerState extends State<_UserLocationMarker>
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _animation,
-      builder: (_, __) => Stack(
+      builder: (_, _) => Stack(
         alignment: Alignment.center,
         children: [
           // Pulsing outer ring

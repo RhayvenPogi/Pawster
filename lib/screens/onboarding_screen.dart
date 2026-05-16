@@ -90,7 +90,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   static const _pages = [
     _PageData(
       lottie:   'assets/lottie/paws.json',
-      title:    'Welcome to\nPawAywan',
+      title:    'Welcome to\nPAWNAGAYWAN',
       subtitle: "Your pet's trusted health partner",
       body:     'Find the best veterinary clinics near you across La Union, Philippines — quickly and easily.',
     ),
@@ -98,7 +98,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       lottie:   'assets/lottie/location.json',
       title:    'Navigate with\nconfidence',
       subtitle: 'Real-time routing & fares',
-      body:     'Get live road directions via OSRM, drive time estimates, and Philippine public transport fare breakdowns.',
+      body:     'Get live road directions, drive time estimates, and Philippine public transport fare breakdowns.',
     ),
     _PageData(
       lottie:   'assets/lottie/star.json',
@@ -181,8 +181,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   void _goToApp() {
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        pageBuilder: (_, __, ___) => const SplashScreen(),
-        transitionsBuilder: (_, anim, __, child) =>
+        pageBuilder: (_, _, _) => const SplashScreen(),
+        transitionsBuilder: (_, anim, _, child) =>
             FadeTransition(opacity: anim, child: child),
         transitionDuration: const Duration(milliseconds: 500),
       ),
@@ -233,7 +233,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                           _LogoBadge(primary: primary),
                           const SizedBox(width: 10),
                           Text(
-                            'PawAywan',
+                            'PAWNAGAYWAN',
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w800,
@@ -438,7 +438,7 @@ class _LogoBadge extends StatelessWidget {
         child: Image.asset(
           'assets/logo/logo.png',
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) =>
+          errorBuilder: (_, _, _) =>
               Icon(Icons.pets_rounded, color: primary, size: 20),
         ),
       ),
@@ -486,7 +486,7 @@ class _OnboardPage extends StatelessWidget {
                     data.lottie,
                     fit: BoxFit.fill,
                     repeat: true,
-                    errorBuilder: (_, __, ___) =>
+                    errorBuilder: (_, _, _) =>
                         Icon(Icons.pets_rounded, size: 80, color: accent),
                   ),
                 ),
