@@ -55,6 +55,7 @@ public class SecurityConfig {
                                                                 "/api/auth/verify-otp",
                                                                 "/api/auth/reset-password",
                                                                 "/api/auth/google", 
+                                                                "/api/auth/complete-profile", 
                                                                 "/swagger-ui.html",
                                                                 "/error")
                                                 .permitAll()

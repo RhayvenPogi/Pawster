@@ -1,40 +1,210 @@
 openapi: 3.0.0
 info:
-  title: Admin Dashboard API
+  title: Pawster Admin Dashboard API
   version: 1.0.0
-  description: Action-based Admin Dashboard API using PHP (single endpoint with action parameter)
+  description: |
+    Action-based Admin Dashboard API for the Pawster pet adoption platform.
+    Built with PHP 8.2 + Apache, backed by PostgreSQL.
+
+    **Authentication:** All `/admin/dashboard` endpoints require a JWT issued by the
+    Spring Boot backend, supplied either as `Authorization: Bearer <token>` or an
+    HttpOnly `jwt` cookie. The token is verified with HS256 using `JWT_SECRET`
+    (base-64-encoded env var).
+
+    **Routing:** The PHP layer exposes only two URL paths:
+    - `GET  /health` — unauthenticated health check
+    - `GET  /admin/dashboard?action=<action>` — all read actions
+    - `POST /admin/dashboard?action=<action>` — all write/mutation actions
+
+    The `action` query parameter selects which operation to run.
 
 servers:
-  url: http://localhost:8081
+  - url: http://localhost:8081
+    description: Local development (Docker / Apache on port 8081)
 
+# ── Security ──────────────────────────────────────────────────────────────────
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        HS256 JWT issued by the Spring Boot backend.
+        Accepted from the `Authorization: Bearer` header **or** an HttpOnly `jwt` cookie.
+
+  schemas:
+    # ── Shared error envelope ────────────────────────────────────────────────
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: An error occurred.
+
+    # ── Data models ──────────────────────────────────────────────────────────
+    Animal:
+      type: object
+      properties:
+        id:          { type: integer, example: 1 }
+        name:        { type: string,  example: Buddy }
+        type:        { type: string,  example: Dog }
+        breed:       { type: string,  example: Labrador }
+        age:         { type: string,  example: "2 years" }
+        health:
+          type: string
+          enum: [Healthy, Needs Care, Under Treatment]
+          example: Healthy
+        status:
+          type: string
+          enum: [Available, Adopted, Rehomed]
+          example: Available
+        notes:       { type: string,  example: Vaccinated and friendly }
+        photo:       { type: string,  nullable: true, example: /uploads/animals/animal_1234_ab.jpg }
+        created_at:  { type: string,  format: date-time }
+
+    AdoptionRequest:
+      type: object
+      properties:
+        id:          { type: integer, example: 5 }
+        user_id:     { type: integer, example: 3 }
+        animal_id:   { type: integer, example: 1 }
+        status:
+          type: string
+          enum: [Pending, Approved, Rejected]
+          example: Pending
+        reject_note: { type: string, nullable: true }
+        created_at:  { type: string, format: date-time }
+
+    RehomeRequest:
+      type: object
+      properties:
+        id:          { type: integer, example: 8 }
+        user_id:     { type: integer, example: 3 }
+        status:
+          type: string
+          enum: [Pending, Approved, Rejected]
+          example: Pending
+        reject_note: { type: string, nullable: true }
+        created_at:  { type: string, format: date-time }
+
+    Survey:
+      type: object
+      properties:
+        id:           { type: integer, example: 1 }
+        user_id:      { type: integer, example: 3 }
+        answers:      { type: object, additionalProperties: true }
+        created_at:   { type: string, format: date-time }
+
+    User:
+      type: object
+      properties:
+        id:           { type: integer, example: 3 }
+        first_name:   { type: string,  example: Juan }
+        last_name:    { type: string,  example: Dela Cruz }
+        email:        { type: string,  example: juan@example.com }
+        phone:        { type: string,  example: "09171234567" }
+        role:         { type: string,  enum: [user, admin], example: user }
+        is_active:    { type: integer, enum: [0, 1], example: 1 }
+        address:      { type: string,  nullable: true }
+        city:         { type: string,  nullable: true }
+        province:     { type: string,  nullable: true }
+        zip_code:     { type: string,  nullable: true }
+        photo_name:   { type: string,  nullable: true }
+        id_file_name: { type: string,  nullable: true }
+        last_login:   { type: string,  format: date-time, nullable: true }
+        created_at:   { type: string,  format: date-time }
+
+    ActivityLog:
+      type: object
+      properties:
+        id:         { type: integer, example: 10 }
+        action:     { type: string,  example: Add Animal }
+        details:    { type: string,  example: "Added animal: Buddy (ID 1)" }
+        user_id:    { type: integer, nullable: true, example: 1 }
+        user_name:  { type: string,  nullable: true, example: Admin User }
+        created_at: { type: string,  format: date-time }
+
+    Stats:
+      type: object
+      properties:
+        animals:           { type: integer, example: 120 }
+        adoptions:         { type: integer, example: 45 }
+        rehome:            { type: integer, example: 12 }
+        users:             { type: integer, example: 80 }
+        pending_adoptions: { type: integer, example: 8 }
+        pending_rehome:    { type: integer, example: 3 }
+        surveys:           { type: integer, example: 10 }
+        health_healthy:    { type: integer, example: 90 }
+        health_care:       { type: integer, example: 20 }
+        health_treatment:  { type: integer, example: 10 }
+        missing_pets:      { type: integer, example: 5 }
+        activity_today:    { type: integer, example: 17 }
+        total_records:     { type: integer, example: 177 }
+
+    ChartData:
+      type: object
+      properties:
+        weekly:
+          type: array
+          description: Adoption request counts for the last 7 days (oldest → newest).
+          items: { type: integer }
+          example: [3, 5, 2, 8, 4, 7, 1]
+        monthly:
+          type: array
+          description: Adoption request counts per calendar month (Jan–Dec) for the current year.
+          items: { type: integer }
+          example: [5, 10, 8, 12, 7, 9, 11, 6, 4, 3, 2, 0]
+
+    NominatimResult:
+      type: object
+      description: Raw jsonv2 result from the Nominatim OpenStreetMap geocoder (Philippines only).
+      properties:
+        place_id:     { type: integer }
+        display_name: { type: string }
+        lat:          { type: string }
+        lon:          { type: string }
+        type:         { type: string }
+        importance:   { type: number }
+
+# ── Paths ─────────────────────────────────────────────────────────────────────
 paths:
+
+  # ── Health check ─────────────────────────────────────────────────────────
   /health:
     get:
       summary: Health check
+      description: Returns a simple status object. No authentication required.
+      operationId: healthCheck
       responses:
         '200':
-          description: Service is running
+          description: Service is running.
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  status:
-                    type: string
-                    example: ok
-                  message:
-                    type: string
-                    example: Service is running
+                  status:   { type: string, example: ok }
+                  service:  { type: string, example: php-api }
 
+  # ── Admin dashboard — GET actions ─────────────────────────────────────────
   /admin/dashboard:
     get:
-      summary: GET actions for admin dashboard
+      summary: Admin dashboard — read actions
+      description: |
+        All read (non-mutating) operations are dispatched through this single endpoint
+        using the `action` query parameter.
+      operationId: adminDashboardGet
       security:
         - bearerAuth: []
       parameters:
         - name: action
           in: query
           required: true
+          description: The operation to perform.
           schema:
             type: string
             enum:
@@ -47,330 +217,200 @@ paths:
               - get_activity
               - get_chart_data
               - get_id_file
-        - name: user_id
-          in: query
-          required: false
-          schema:
-            type: integer
+              - nominatim_search
+
+        # ── Optional filters (usage depends on action) ───────────────────────
         - name: type
           in: query
           required: false
+          description: |
+            `get_requests` — `adoptions` (default) or `rehome`.
+            `delete` (POST) — `animal` or `user`.
           schema:
             type: string
+
         - name: status
           in: query
           required: false
+          description: Filter by status (used by `get_requests`).
           schema:
             type: string
+
         - name: limit
           in: query
           required: false
+          description: Maximum rows to return (used by `get_requests`). Default 200.
           schema:
             type: integer
             example: 200
+
+        - name: role
+          in: query
+          required: false
+          description: Filter by user role (used by `get_users`). Omit or `all` for all roles.
+          schema:
+            type: string
+            enum: [user, admin, all]
+
+        - name: user_id
+          in: query
+          required: false
+          description: Target user ID (required for `get_id_file`).
+          schema:
+            type: integer
+
+        - name: q
+          in: query
+          required: false
+          description: Free-text search query (required for `nominatim_search`).
+          schema:
+            type: string
+            example: Tarlac City
+
       responses:
         '200':
-          description: Successful response (varies by action)
+          description: Successful response — shape varies by action.
           content:
             application/json:
               schema:
                 oneOf:
-                  - title: stats
+                  - title: stats / get_dashboard_stats
                     type: object
                     properties:
-                      success:
-                        type: boolean
-                        example: true
+                      success: { type: boolean, example: true }
+                      message: { type: string,  example: OK }
                       data:
-                        type: object
-                        properties:
-                          total_animals:
-                            type: integer
-                            example: 120
-                          total_users:
-                            type: integer
-                            example: 45
-                          total_requests:
-                            type: integer
-                            example: 30
-                          total_surveys:
-                            type: integer
-                            example: 10
-                          pending_requests:
-                            type: integer
-                            example: 8
+                        $ref: '#/components/schemas/Stats'
 
                   - title: get_animals
                     type: object
                     properties:
-                      success:
-                        type: boolean
-                        example: true
+                      success: { type: boolean, example: true }
                       data:
                         type: array
                         items:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              example: 1
-                            name:
-                              type: string
-                              example: Buddy
-                            type:
-                              type: string
-                              example: Dog
-                            breed:
-                              type: string
-                              example: Labrador
-                            age:
-                              type: string
-                              example: 2 years
-                            health:
-                              type: string
-                              example: Healthy
-                            status:
-                              type: string
-                              example: Available
-                            notes:
-                              type: string
-                              example: Vaccinated and friendly
-                            photo:
-                              type: string
-                              example: uploads/buddy.jpg
+                          $ref: '#/components/schemas/Animal'
 
                   - title: get_requests
                     type: object
+                    description: |
+                      Returns adoption requests (`type=adoptions`, default) or
+                      rehome requests (`type=rehome`).
                     properties:
-                      success:
-                        type: boolean
-                        example: true
+                      success: { type: boolean, example: true }
                       data:
                         type: array
                         items:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              example: 5
-                            user_id:
-                              type: integer
-                              example: 3
-                            animal_id:
-                              type: integer
-                              example: 1
-                            status:
-                              type: string
-                              example: Pending
-                            created_at:
-                              type: string
-                              format: date-time
-                              example: "2024-01-15T10:30:00Z"
+                          oneOf:
+                            - $ref: '#/components/schemas/AdoptionRequest'
+                            - $ref: '#/components/schemas/RehomeRequest'
 
                   - title: get_surveys
                     type: object
                     properties:
-                      success:
-                        type: boolean
-                        example: true
+                      success: { type: boolean, example: true }
                       data:
                         type: array
                         items:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              example: 1
-                            user_id:
-                              type: integer
-                              example: 3
-                            answers:
-                              type: object
-                              additionalProperties: true
-                            submitted_at:
-                              type: string
-                              format: date-time
-                              example: "2024-01-15T10:30:00Z"
+                          $ref: '#/components/schemas/Survey'
 
                   - title: get_users
                     type: object
+                    description: |
+                      Returns all users (or filtered by `role`).
+                      Excludes `password_hash`. Includes address fields.
                     properties:
-                      success:
-                        type: boolean
-                        example: true
+                      success: { type: boolean, example: true }
                       data:
                         type: array
                         items:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              example: 3
-                            first_name:
-                              type: string
-                              example: Juan
-                            last_name:
-                              type: string
-                              example: Dela Cruz
-                            email:
-                              type: string
-                              example: juan@example.com
-                            phone:
-                              type: string
-                              example: "09171234567"
-                            role:
-                              type: string
-                              example: user
-                            is_active:
-                              type: integer
-                              example: 1
-                            created_at:
-                              type: string
-                              format: date-time
-                              example: "2024-01-01T00:00:00Z"
+                          $ref: '#/components/schemas/User'
 
                   - title: get_users_geo
                     type: object
+                    description: |
+                      Same columns as `get_users` — returns all users with full
+                      address fields for map/geo display. No role filter applied.
                     properties:
-                      success:
-                        type: boolean
-                        example: true
+                      success: { type: boolean, example: true }
                       data:
                         type: array
                         items:
-                          type: object
-                          properties:
-                            user_id:
-                              type: integer
-                              example: 3
-                            city:
-                              type: string
-                              example: Manila
-                            region:
-                              type: string
-                              example: NCR
-                            country:
-                              type: string
-                              example: Philippines
-                            count:
-                              type: integer
-                              example: 5
+                          $ref: '#/components/schemas/User'
 
                   - title: get_activity
                     type: object
+                    description: Last 200 activity log entries, newest first.
                     properties:
-                      success:
-                        type: boolean
-                        example: true
+                      success: { type: boolean, example: true }
                       data:
                         type: array
                         items:
-                          type: object
-                          properties:
-                            id:
-                              type: integer
-                              example: 10
-                            user_id:
-                              type: integer
-                              example: 3
-                            action:
-                              type: string
-                              example: Adopted Buddy
-                            timestamp:
-                              type: string
-                              format: date-time
-                              example: "2024-01-15T10:30:00Z"
+                          $ref: '#/components/schemas/ActivityLog'
 
                   - title: get_chart_data
                     type: object
                     properties:
-                      success:
-                        type: boolean
-                        example: true
+                      success: { type: boolean, example: true }
                       data:
-                        type: object
-                        properties:
-                          labels:
-                            type: array
-                            items:
-                              type: string
-                            example: ["Jan", "Feb", "Mar", "Apr"]
-                          datasets:
-                            type: array
-                            items:
-                              type: object
-                              properties:
-                                label:
-                                  type: string
-                                  example: Adoptions
-                                data:
-                                  type: array
-                                  items:
-                                    type: integer
-                                  example: [5, 10, 8, 12]
+                        $ref: '#/components/schemas/ChartData'
 
                   - title: get_id_file
-                    type: object
-                    properties:
-                      success:
-                        type: boolean
-                        example: true
-                      data:
-                        type: object
-                        properties:
-                          user_id:
-                            type: integer
-                            example: 3
-                          file_url:
-                            type: string
-                            example: uploads/ids/user3_id.jpg
-                          uploaded_at:
-                            type: string
-                            format: date-time
-                            example: "2024-01-10T08:00:00Z"
+                    description: |
+                      Streams the user's ID file as raw binary with the stored
+                      `Content-Type` header. **Not** a JSON response.
+                    content:
+                      application/octet-stream:
+                        schema:
+                          type: string
+                          format: binary
+
+                  - title: nominatim_search
+                    description: |
+                      Proxies a request to the Nominatim geocoder filtered to the
+                      Philippines (`countrycodes=ph`). Returns the raw jsonv2 array.
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/NominatimResult'
 
         '401':
-          description: Unauthorized – missing or invalid token
+          description: Missing or invalid JWT.
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-              example:
-                success: false
-                message: Unauthorized. Invalid or missing token.
-
-        '403':
-          description: Forbidden – insufficient permissions
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-              example:
-                success: false
-                message: Forbidden. You do not have access to this resource.
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              example: { success: false, message: "No authentication token found. Please log in." }
 
         '404':
-          description: Not found – action or resource does not exist
+          description: Unknown action or resource not found.
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-              example:
-                success: false
-                message: Resource not found.
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              example: { success: false, message: "Unknown action: foo" }
 
         '500':
-          description: Internal server error
+          description: Server or database error.
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-              example:
-                success: false
-                message: An unexpected server error occurred.
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              example: { success: false, message: "Database error: ..." }
 
+    # ── Admin dashboard — POST actions ──────────────────────────────────────
     post:
-      summary: POST actions for admin dashboard
+      summary: Admin dashboard — write / mutation actions
+      description: |
+        All mutating operations are dispatched through this single endpoint using
+        the `action` query parameter.
+
+        Body encoding:
+        - `upload_photo` and `add_animal` / `update_animal` (when attaching a photo) use
+          `multipart/form-data`.
+        - All other actions accept either `application/json` or
+          `application/x-www-form-urlencoded` (PHP reads `$_POST` first, then the
+          JSON body, so JSON is recommended for non-file requests).
+
+        Every mutating action is recorded in the `activity_logs` table with the
+        acting user's ID and display name (resolved from the JWT `sub` claim).
+      operationId: adminDashboardPost
       security:
         - bearerAuth: []
       parameters:
@@ -383,325 +423,336 @@ paths:
               - add_animal
               - update_animal
               - delete
+              - get_requests       # also accepted via POST (type/status/limit in body)
               - update_request
+              - get_surveys        # also accepted via POST
+              - get_users          # also accepted via POST (role in body)
               - add_user
               - update_user
               - update_user_status
+              - get_id_file        # also accepted via POST
+              - get_activity       # also accepted via POST
+              - get_chart_data     # also accepted via POST
               - update_profile
               - change_password
               - upload_photo
+              - nominatim_search   # also accepted via POST (q in body)
+
       requestBody:
         required: false
         content:
           application/json:
             schema:
               oneOf:
-                - title: add_animal
+
+                # ── add_animal ──────────────────────────────────────────────
+                - title: add_animal (JSON — no photo)
                   type: object
-                  required:
-                    - name
+                  required: [name]
                   properties:
-                    name:
-                      type: string
-                      example: Buddy
-                    type:
-                      type: string
-                      example: Dog
-                    breed:
-                      type: string
-                      example: Labrador
-                    age:
-                      type: string
-                      example: 2 years
+                    name:   { type: string, example: Buddy }
+                    type:   { type: string, example: Dog, default: Dog }
+                    breed:  { type: string, example: Labrador }
+                    age:    { type: string, example: "2 years" }
                     health:
                       type: string
-                      example: Healthy
+                      enum: [Healthy, Needs Care, Under Treatment]
+                      default: Healthy
                     status:
                       type: string
-                      example: Available
-                    notes:
-                      type: string
-                      example: Friendly and vaccinated
+                      enum: [Available, Adopted, Rehomed]
+                      default: Available
+                    notes:  { type: string, example: Friendly and vaccinated }
 
-                - title: update_animal
+                # ── update_animal ───────────────────────────────────────────
+                - title: update_animal (JSON — no photo)
                   type: object
-                  required:
-                    - id
+                  required: [id, name]
                   properties:
-                    id:
-                      type: integer
-                      example: 1
-                    name:
+                    id:             { type: integer, example: 1 }
+                    name:           { type: string,  example: Buddy }
+                    type:           { type: string,  example: Dog }
+                    breed:          { type: string,  example: Labrador }
+                    age:            { type: string,  example: "2 years" }
+                    health:         { type: string }
+                    status:         { type: string }
+                    notes:          { type: string }
+                    existing_photo:
                       type: string
-                    type:
-                      type: string
-                    breed:
-                      type: string
-                    age:
-                      type: string
-                    health:
-                      type: string
-                    status:
-                      type: string
-                    notes:
-                      type: string
+                      nullable: true
+                      description: |
+                        Current photo URL. Preserved when no new file is uploaded.
+                        Ignored if a new `photo` file is attached.
 
+                # ── delete ──────────────────────────────────────────────────
                 - title: delete
                   type: object
-                  required:
-                    - id
+                  required: [type, id]
                   properties:
+                    type:
+                      type: string
+                      enum: [animal, user]
+                      description: Record type to delete.
                     id:
                       type: integer
                       example: 1
 
+                # ── update_request ──────────────────────────────────────────
                 - title: update_request
                   type: object
-                  required:
-                    - id
-                    - status
+                  required: [id, status]
                   properties:
+                    type:
+                      type: string
+                      enum: [adoptions, rehome]
+                      default: adoptions
+                      description: Which table to update.
                     id:
                       type: integer
                       example: 5
                     status:
                       type: string
+                      enum: [Pending, Approved, Rejected]
                       example: Approved
+                    reason:
+                      type: string
+                      nullable: true
+                      description: |
+                        Rejection note — stored in `reject_note` column.
+                        Required when status is `Rejected`.
 
+                # ── add_user ────────────────────────────────────────────────
                 - title: add_user
                   type: object
-                  required:
-                    - first_name
-                    - last_name
-                    - email
-                    - password
-                    - phone
+                  required: [first_name, last_name, email, phone]
+                  description: |
+                    Password is auto-generated (random 16-hex chars, bcrypt-hashed).
+                    The caller does **not** supply a password.
                   properties:
-                    first_name:
-                      type: string
-                      example: Juan
-                    last_name:
-                      type: string
-                      example: Dela Cruz
-                    email:
-                      type: string
-                      example: juan@example.com
-                    phone:
-                      type: string
-                      example: "09171234567"
-                    password:
-                      type: string
-                      example: secret123
-                    role:
-                      type: string
-                      example: user
-                    is_active:
-                      type: integer
-                      example: 1
+                    first_name: { type: string, example: Juan }
+                    last_name:  { type: string, example: Dela Cruz }
+                    email:      { type: string, example: juan@example.com }
+                    phone:      { type: string, example: "09171234567" }
+                    role:       { type: string, enum: [user, admin], default: user }
+                    is_active:  { type: integer, enum: [0, 1], default: 1 }
+                    address:    { type: string }
+                    city:       { type: string }
+                    province:   { type: string }
+                    zip:        { type: string }
 
+                # ── update_user ─────────────────────────────────────────────
                 - title: update_user
                   type: object
-                  required:
-                    - user_id
+                  required: [id, first_name, email]
                   properties:
-                    user_id:
-                      type: integer
-                      example: 3
-                    first_name:
+                    id:         { type: integer, example: 3 }
+                    first_name: { type: string,  example: Juan }
+                    last_name:  { type: string,  example: Dela Cruz }
+                    email:      { type: string,  example: juan@example.com }
+                    phone:      { type: string,  example: "09171234567" }
+                    password:
                       type: string
-                    last_name:
-                      type: string
-                    email:
-                      type: string
-                    phone:
-                      type: string
-                    role:
-                      type: string
+                      nullable: true
+                      description: |
+                        Optional — supply only to change the user's password.
+                        Must be ≥ 8 characters. Bcrypt-hashed server-side.
+                    role:       { type: string, enum: [user, admin] }
+                    is_active:  { type: integer, enum: [0, 1] }
+                    address:    { type: string }
+                    city:       { type: string }
+                    province:   { type: string }
+                    zip:        { type: string }
 
+                # ── update_user_status ──────────────────────────────────────
                 - title: update_user_status
                   type: object
-                  required:
-                    - user_id
-                    - is_active
+                  required: [id, is_active]
                   properties:
-                    user_id:
-                      type: integer
-                      example: 3
-                    is_active:
-                      type: integer
-                      example: 0
+                    id:        { type: integer, example: 3 }
+                    is_active: { type: integer, enum: [0, 1], example: 0 }
 
+                # ── update_profile ──────────────────────────────────────────
                 - title: update_profile
+                  description: |
+                    Updates the authenticated admin's own profile.
+                    User ID is taken from the JWT `sub` claim — **not** the request body.
                   type: object
+                  required: [first_name, email]
                   properties:
-                    first_name:
-                      type: string
-                    last_name:
-                      type: string
-                    phone:
-                      type: string
-                    email:
-                      type: string
+                    first_name: { type: string, example: Admin }
+                    last_name:  { type: string, example: User }
+                    email:      { type: string, example: admin@pawster.com }
+                    phone:      { type: string, example: "09171234567" }
 
+                # ── change_password ─────────────────────────────────────────
                 - title: change_password
+                  description: |
+                    Changes the authenticated admin's own password.
+                    User ID is taken from the JWT `sub` claim — **not** the request body.
                   type: object
-                  required:
-                    - old_password
-                    - new_password
+                  required: [current_password, new_password, confirm_password]
                   properties:
-                    old_password:
+                    current_password:
                       type: string
                       example: oldpass123
                     new_password:
                       type: string
                       example: newpass456
+                      description: Must be ≥ 8 characters.
+                    confirm_password:
+                      type: string
+                      example: newpass456
+                      description: Must match `new_password`.
 
           multipart/form-data:
             schema:
-              title: upload_photo
+              description: |
+                Used for `upload_photo`, and for `add_animal` / `update_animal`
+                when attaching an image file. All other fields (name, type, etc.)
+                are sent as regular form fields alongside the file.
               type: object
               properties:
+                # Animal fields (add_animal / update_animal)
+                name:           { type: string }
+                type:           { type: string }
+                breed:          { type: string }
+                age:            { type: string }
+                health:         { type: string }
+                status:         { type: string }
+                notes:          { type: string }
+                existing_photo: { type: string }
+                id:             { type: integer, description: "Required for update_animal." }
+                # Photo file — accepted for add_animal, update_animal, upload_photo
                 photo:
                   type: string
                   format: binary
+                  description: |
+                    Image file (JPEG, PNG, GIF, or WEBP). Max 2 MB.
+                    For `add_animal` / `update_animal`: stored in `/uploads/animals/`.
+                    For `upload_photo`: stored in `/uploads/` and linked to the
+                    authenticated admin's `users.photo` column.
 
       responses:
         '200':
-          description: Successful response (varies by action)
+          description: Action completed successfully.
           content:
             application/json:
               schema:
                 oneOf:
-                  - title: add_animal / add_user
+                  - title: add_animal
                     type: object
                     properties:
-                      success:
-                        type: boolean
-                        example: true
-                      message:
-                        type: string
-                        example: Record added successfully.
-                      id:
-                        type: integer
-                        example: 42
+                      success: { type: boolean, example: true }
+                      message: { type: string,  example: Animal added. }
+                      data:
+                        type: object
+                        properties:
+                          id:    { type: integer, example: 42 }
+                          photo: { type: string,  nullable: true, example: /uploads/animals/animal_1234_ab.jpg }
 
-                  - title: update_animal / update_user / update_user_status / update_profile / update_request
+                  - title: update_animal
                     type: object
                     properties:
-                      success:
-                        type: boolean
-                        example: true
-                      message:
-                        type: string
-                        example: Record updated successfully.
+                      success: { type: boolean, example: true }
+                      message: { type: string,  example: Animal updated. }
+                      data:
+                        type: object
+                        properties:
+                          photo: { type: string, nullable: true }
 
                   - title: delete
                     type: object
                     properties:
-                      success:
-                        type: boolean
-                        example: true
-                      message:
-                        type: string
-                        example: Record deleted successfully.
+                      success: { type: boolean, example: true }
+                      message: { type: string,  example: Animal deleted. }
+
+                  - title: update_request
+                    type: object
+                    properties:
+                      success: { type: boolean, example: true }
+                      message: { type: string,  example: Request Approved. }
+
+                  - title: add_user
+                    type: object
+                    properties:
+                      success: { type: boolean, example: true }
+                      message: { type: string,  example: User created. }
+                      data:
+                        type: object
+                        properties:
+                          id: { type: integer, example: 12 }
+
+                  - title: update_user / update_user_status
+                    type: object
+                    properties:
+                      success: { type: boolean, example: true }
+                      message: { type: string,  example: User updated. }
+
+                  - title: update_profile
+                    type: object
+                    properties:
+                      success: { type: boolean, example: true }
+                      message: { type: string,  example: Profile updated. }
+                      data:
+                        type: object
+                        properties:
+                          first_name: { type: string }
+                          last_name:  { type: string }
+                          email:      { type: string }
 
                   - title: change_password
                     type: object
                     properties:
-                      success:
-                        type: boolean
-                        example: true
-                      message:
-                        type: string
-                        example: Password changed successfully.
+                      success: { type: boolean, example: true }
+                      message: { type: string,  example: Password updated. }
 
                   - title: upload_photo
                     type: object
                     properties:
-                      success:
-                        type: boolean
-                        example: true
-                      message:
-                        type: string
-                        example: Photo uploaded successfully.
-                      file_url:
-                        type: string
-                        example: uploads/photos/user3_photo.jpg
+                      success: { type: boolean, example: true }
+                      message: { type: string,  example: Photo uploaded. }
+                      data:
+                        type: object
+                        properties:
+                          url: { type: string, example: /uploads/admin_1_1716000000.jpg }
 
         '400':
-          description: Bad request – missing or invalid parameters
+          description: Bad request — missing or invalid fields.
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-              example:
-                success: false
-                message: Missing required fields.
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              example: { success: false, message: Animal name is required. }
 
         '401':
-          description: Unauthorized – missing or invalid token
+          description: Missing or invalid JWT.
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-              example:
-                success: false
-                message: Unauthorized. Invalid or missing token.
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              example: { success: false, message: "Token has expired. Please log in again." }
 
         '403':
-          description: Forbidden – insufficient permissions
+          description: Forbidden — insufficient permissions.
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-              example:
-                success: false
-                message: Forbidden. You do not have access to this resource.
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
 
         '404':
-          description: Not found – record does not exist
+          description: Unknown action or record not found.
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-              example:
-                success: false
-                message: Record not found.
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              example: { success: false, message: "Unknown action: foo" }
 
         '422':
-          description: Unprocessable entity – validation error
+          description: Validation error (e.g. email already in use).
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-              example:
-                success: false
-                message: Validation failed. Email is already in use.
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              example: { success: false, message: Email already in use. }
 
         '500':
-          description: Internal server error
+          description: Server or database error.
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-              example:
-                success: false
-                message: An unexpected server error occurred.
-
-components:
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-
-  schemas:
-    ErrorResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-          example: false
-        message:
-          type: string
-          example: An error occurred.
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              example: { success: false, message: "Database error: ..." }

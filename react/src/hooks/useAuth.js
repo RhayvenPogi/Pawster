@@ -1,4 +1,5 @@
-// ── useAuth.js ────────────────────────────────────────────────────────────────
+// useAuth.js — full file
+
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../config/axios';
@@ -57,7 +58,7 @@ export const useAuth = () => {
         localStorage.setItem('pawster_user', JSON.stringify(data));
 
         if (data.role === 'admin') navigate('/admin');
-        // else navigate('/home'); ← removed, LoginPage handles this via LoadingScreen
+        // else LoginPage handles via LoadingScreen
 
         return data;
     }, [navigate]);
@@ -98,8 +99,12 @@ export const useAuth = () => {
         setUser(data);
         localStorage.setItem('pawster_user', JSON.stringify(data));
 
-        if (data.role === 'admin') navigate('/admin');
-        // else navigate('/home'); ← removed, LoginPage handles this via LoadingScreen
+        if (data.role === 'admin') {
+            navigate('/admin');
+        } else if (data.profileComplete === false) {
+            navigate('/complete-profile');   // ← gate incomplete Google users
+        }
+        // else LoginPage handles via LoadingScreen
 
         return data;
     }, [navigate]);
@@ -107,8 +112,9 @@ export const useAuth = () => {
     return {
         user,
         setUser,
-        isAuthenticated: !!user,
-        isAdmin:         user?.role === 'admin',
+        isAuthenticated:   !!user,
+        isAdmin:           user?.role === 'admin',
+        isProfileComplete: user?.profileComplete !== false,   // ← new
         isLoading,
         login,
         register,

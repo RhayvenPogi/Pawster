@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: Pawstar API
-  version: 1.0.0
+  version: 2.0.0
   description: >
     Full REST API for the Pawstar Spring Boot backend.
     Security rules are derived directly from SecurityConfig.java.
@@ -10,29 +10,41 @@ info:
     🔐 Auth        = any valid JWT (user or admin)
     🛡️  Admin only  = JWT with role admin/ADMIN
 
+    **Storage:** PostgreSQL (JPA) for all entities except Messages, which use MongoDB.
+    **File uploads:** multipart/form-data; max 500 MB per request (configured in application.properties).
+    **Auth transport:** JWT issued as HttpOnly cookie `jwt` on login/register.
+    Bearer token in `Authorization` header also accepted as fallback.
+
 servers:
   - url: http://localhost:8080
 
 security:
-  - bearerAuth: []   # default — overridden per-operation where needed
+  - bearerAuth: []
 
 tags:
   - name: Auth
-    description: 🔓 All public except /me (any valid JWT)
+    description: 🔓 All public. `/me` returns 401 if no valid JWT. Google OAuth and profile-completion included.
   - name: Users
     description: 🔐 Authenticated — owner or admin
   - name: Animals
-    description: GET public · POST/PUT/DELETE admin (mark-adopted & mark-pending public)
+    description: GET public · POST(JSON)/mark-adopted/mark-pending/from-rehoming public · admin for other writes
   - name: Adoption
-    description: POST/GET my-requests/DELETE auth · GET all/PATCH admin
+    description: POST/GET my-requests/DELETE auth · GET all/single/PATCH admin
   - name: Rehome
-    description: POST/GET my-requests/DELETE auth · GET all/PATCH admin
+    description: POST/GET my-requests/DELETE auth · GET all/single/PATCH admin
   - name: Surveys
     description: POST/GET my-surveys auth · GET all/single admin
   - name: Missing Pets
-    description: 🔓 GET & POST public · admin routes require admin role
+    description: 🔓 GET approved & POST public · admin sub-routes require auth
   - name: Pet Comments
-    description: 🔓 GET public · POST auth · DELETE admin
+    description: 🔓 GET public · POST auth · DELETE auth
+  - name: Messages (REST)
+    description: 🔐 All authenticated. Admin-only endpoints noted individually.
+  - name: Messages (WebSocket)
+    description: >
+      STOMP over SockJS at `/ws/chat`. Authenticate on CONNECT via
+      `Authorization: Bearer <token>` or `token` STOMP header.
+      Application prefix `/app`. Broker prefixes `/topic`, `/queue`, `/user`.
   - name: Activity Logs
     description: 🛡️ Admin only
   - name: Admin Users
@@ -42,13 +54,11 @@ tags:
 paths:
 
   # ── Auth ─────────────────────────────────────────────────────────────────────
-  # SecurityConfig: login, register, logout, me, forgot-password,
-  #                 verify-otp, reset-password → permitAll
 
   /api/auth/login:
     post:
       tags: [Auth]
-      summary: 🔓 Login with email and password
+      summary: 🔓 Login with email and password (form fields)
       security: []
       requestBody:
         required: true
@@ -66,7 +76,7 @@ paths:
                   example: secret123
       responses:
         '200':
-          description: Login successful
+          description: Login successful — JWT set as HttpOnly cookie `jwt` and returned in body
           content:
             application/json:
               schema:
@@ -89,6 +99,9 @@ paths:
                       redirect:
                         type: string
                         example: php/index.php
+                      profileComplete:
+                        type: boolean
+                        example: true
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -98,6 +111,10 @@ paths:
     post:
       tags: [Auth]
       summary: 🔓 Register a new user (multipart with ID file)
+      description: >
+        All fields are required. `idFile` must be JPG, PNG, or PDF under 5 MB.
+        On success, a JWT cookie is set and the token is returned in the body.
+        `profileComplete` is set to `true` for normal registration.
       security: []
       requestBody:
         required: true
@@ -131,6 +148,7 @@ paths:
                   example: "09171234567"
                 password:
                   type: string
+                  description: Minimum 8 characters
                   example: secret123
                 address:
                   type: string
@@ -154,9 +172,129 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserDto'
+                allOf:
+                  - $ref: '#/components/schemas/UserDto'
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: true
+                      message:
+                        type: string
+                        example: Registration successful!
+                      token:
+                        type: string
+                        example: eyJhbGciOiJIUzI1NiJ9...
         '400':
           $ref: '#/components/responses/BadRequest'
+
+  /api/auth/google:
+    post:
+      tags: [Auth]
+      summary: 🔓 Login or register via Google ID token
+      description: >
+        Verifies a Google ID token. If the email is new, a user account is created
+        with `profileComplete: false` — the frontend must redirect to complete-profile.
+        On success, a JWT cookie is set and the token is returned in the body.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token:
+                  type: string
+                  description: Google ID token from the Google Sign-In SDK
+                  example: eyJhbGciOiJSUzI1NiIsImtpZCI6...
+      responses:
+        '200':
+          description: Google login successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/UserDto'
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: true
+                      token:
+                        type: string
+                      message:
+                        type: string
+                        example: Login successful!
+                      redirect:
+                        type: string
+                        example: php/index.php
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/auth/complete-profile:
+    put:
+      tags: [Auth]
+      summary: 🔐 Complete profile for Google-authenticated users
+      description: >
+        Required for users who registered via Google OAuth and have
+        `profileComplete: false`. Sets phone, address, and uploads ID file.
+        Sets `profileComplete: true` on success.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [phone, address, city, province, zip, idFile]
+              properties:
+                phone:
+                  type: string
+                  example: "09171234567"
+                  description: PH number format (09XXXXXXXXX or +639XXXXXXXXX)
+                address:
+                  type: string
+                  example: 123 Rizal St
+                city:
+                  type: string
+                  example: Manila
+                province:
+                  type: string
+                  example: Metro Manila
+                zip:
+                  type: string
+                  example: "1000"
+                idFile:
+                  type: string
+                  format: binary
+                  description: Government-issued ID — JPG, PNG, or PDF, max 5 MB
+      responses:
+        '200':
+          description: Profile completed successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/UserDto'
+                  - type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: true
+                      message:
+                        type: string
+                        example: Profile completed successfully!
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
 
   /api/auth/logout:
     post:
@@ -174,7 +312,11 @@ paths:
   /api/auth/me:
     get:
       tags: [Auth]
-      summary: 🔓 Get currently authenticated user (permitAll — returns 401 if no JWT)
+      summary: 🔓 Get currently authenticated user (returns 401 if no valid JWT)
+      description: >
+        SecurityConfig marks this `permitAll`, but the handler inspects
+        `SecurityContextHolder` and returns 401 for unauthenticated requests.
+        Returns a static map for the hardcoded admin account.
       security: []
       responses:
         '200':
@@ -189,7 +331,8 @@ paths:
   /api/auth/forgot-password:
     post:
       tags: [Auth]
-      summary: 🔓 Request a password-reset OTP
+      summary: 🔓 Request a password-reset OTP (sent via Brevo/email)
+      description: Always returns 200 to prevent email enumeration. OTP expires in 10 minutes.
       security: []
       requestBody:
         required: true
@@ -233,7 +376,7 @@ paths:
                   example: "482910"
       responses:
         '200':
-          description: OTP verified
+          description: OTP verified — `resetOtpVerified` flag set on user
           content:
             application/json:
               schema:
@@ -254,6 +397,7 @@ paths:
     post:
       tags: [Auth]
       summary: 🔓 Reset password after OTP verification
+      description: Requires `resetOtpVerified` to be true for the email. Clears OTP fields on success.
       security: []
       requestBody:
         required: true
@@ -268,6 +412,7 @@ paths:
                   example: juan@example.com
                 newPassword:
                   type: string
+                  description: Minimum 8 characters
                   example: NewPass@123
       responses:
         '200':
@@ -284,12 +429,12 @@ paths:
   /api/auth/id-file/{userId}:
     get:
       tags: [Auth]
-      summary: 🔐 Serve a user's uploaded ID file
+      summary: 🔐 Serve a user's uploaded ID file (inline, MIME-typed)
       parameters:
         - $ref: '#/components/parameters/UserIdPath'
       responses:
         '200':
-          description: ID file bytes (PDF / JPG / PNG)
+          description: ID file bytes (PDF / JPG / PNG) — served inline with correct Content-Type
           content:
             application/octet-stream:
               schema:
@@ -301,8 +446,6 @@ paths:
           $ref: '#/components/responses/NotFound'
 
   # ── Users ─────────────────────────────────────────────────────────────────────
-  # SecurityConfig: /api/users/*/photo/public → permitAll
-  #                 everything else            → anyRequest().authenticated()
 
   /api/users/{id}:
     get:
@@ -322,7 +465,10 @@ paths:
 
     put:
       tags: [Users]
-      summary: 🔐 Update profile (text fields + optional photo); owner or admin only
+      summary: 🔐 Update profile text fields and optional photo; owner or admin only
+      description: >
+        Only provided fields are updated. Email changes are checked for uniqueness.
+        Photo must be JPG, PNG, or WEBP under 5 MB.
       parameters:
         - $ref: '#/components/parameters/UserIdOrMe'
       requestBody:
@@ -354,7 +500,7 @@ paths:
                   description: JPG, PNG, or WEBP — max 5 MB
       responses:
         '200':
-          description: Updated user profile
+          description: Updated user profile (DTO — no password hash or raw bytes)
           content:
             application/json:
               schema:
@@ -383,6 +529,7 @@ paths:
                   example: oldpass123
                 newPassword:
                   type: string
+                  description: Minimum 8 characters
                   example: NewPass@456
       responses:
         '200':
@@ -404,7 +551,7 @@ paths:
         - $ref: '#/components/parameters/UserIdOrMe'
       responses:
         '200':
-          description: ID file bytes
+          description: ID file bytes — served inline with correct Content-Type and Content-Disposition
           content:
             application/octet-stream:
               schema:
@@ -447,12 +594,12 @@ paths:
   /api/users/{id}/photo:
     get:
       tags: [Users]
-      summary: 🔐 Get profile photo; owner or admin only
+      summary: 🔐 Get profile photo bytes; owner or admin only
       parameters:
         - $ref: '#/components/parameters/UserIdOrMe'
       responses:
         '200':
-          description: Photo image bytes
+          description: Photo image bytes with correct Content-Type
           content:
             image/jpeg:
               schema:
@@ -466,7 +613,8 @@ paths:
   /api/users/{id}/photo/public:
     get:
       tags: [Users]
-      summary: 🔓 Get profile photo with no auth (cached 7 days)
+      summary: 🔓 Get profile photo with no auth (cached 7 days via Cache-Control)
+      description: Only accepts numeric IDs (not "me"). Returns 400 for non-numeric path segment.
       security: []
       parameters:
         - name: id
@@ -483,17 +631,12 @@ paths:
               schema:
                 type: string
                 format: binary
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '404':
           $ref: '#/components/responses/NotFound'
 
   # ── Animals ───────────────────────────────────────────────────────────────────
-  # GET /**           → permitAll
-  # POST mark-adopted → permitAll
-  # POST mark-pending → permitAll
-  # POST /            → permitAll (note: controller enforces auth via Authentication param)
-  # POST /**          → admin
-  # PUT  /**          → admin
-  # DELETE /**        → admin
 
   /api/animals:
     get:
@@ -521,30 +664,60 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Animal'
+                  $ref: '#/components/schemas/AnimalDto'
 
     post:
       tags: [Animals]
-      summary: 🛡️ Create a new animal (admin only)
+      summary: 🔓/🛡️ Create a new animal
+      description: >
+        SecurityConfig permits `POST /api/animals` without auth.
+        The controller accepts both `multipart/form-data` (with optional `photo` file)
+        and `application/json` (with optional `photoData` base64 + `photoType`).
+        In practice, the admin panel uses the multipart variant.
+        Wildcard `POST /api/animals/**` requires admin.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AnimalRequestMultipart'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnimalRequestJson'
       responses:
         '201':
           description: Animal created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Animal'
+                $ref: '#/components/schemas/AnimalDto'
         '400':
           $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
+
+  /api/animals/from-rehoming:
+    post:
+      tags: [Animals]
+      summary: 🔓 Create animal from an approved rehome request (called internally by Django)
+      description: >
+        Accepts JSON only. Accepts `photoData` (raw base64, no data URI prefix)
+        and `photoType` (MIME). Forces `status: Available` and `health: Healthy`
+        if not provided. Logged as actor `rehoming-approval`.
+      security: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AnimalRequest'
+              $ref: '#/components/schemas/AnimalRequestJson'
+      responses:
+        '201':
+          description: Animal created from rehoming approval
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnimalDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
 
   /api/animals/{id}:
     get:
@@ -559,28 +732,34 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Animal'
+                $ref: '#/components/schemas/AnimalDto'
         '404':
           $ref: '#/components/responses/NotFound'
 
     put:
       tags: [Animals]
       summary: 🛡️ Update an animal (admin only)
+      description: >
+        Accepts both `multipart/form-data` and `application/json`.
+        Photo is only replaced if a new one is provided; otherwise existing photo is kept.
       parameters:
         - $ref: '#/components/parameters/IntIdPath'
       requestBody:
         required: true
         content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AnimalRequestMultipart'
           application/json:
             schema:
-              $ref: '#/components/schemas/AnimalRequest'
+              $ref: '#/components/schemas/AnimalRequestJson'
       responses:
         '200':
           description: Updated animal
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Animal'
+                $ref: '#/components/schemas/AnimalDto'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -611,6 +790,9 @@ paths:
     post:
       tags: [Animals]
       summary: 🔓 Mark an animal as Adopted (called by Django after approval)
+      description: >
+        Finds the first animal with `status = Available OR Pending` whose name
+        contains `animalName` (case-insensitive) and sets status to `Adopted`.
       security: []
       requestBody:
         required: true
@@ -625,7 +807,7 @@ paths:
                   example: Buddy
       responses:
         '200':
-          description: Result
+          description: Result (success may be false if no matching animal found)
           content:
             application/json:
               schema:
@@ -636,7 +818,10 @@ paths:
   /api/animals/mark-pending:
     post:
       tags: [Animals]
-      summary: 🔓 Mark an animal as Pending (called by Django on submission)
+      summary: 🔓 Mark an animal as Pending (called by Django on adoption submission)
+      description: >
+        Finds the first animal with `status = Available` whose name contains
+        `animalName` (case-insensitive) and sets status to `Pending`.
       security: []
       requestBody:
         required: true
@@ -651,7 +836,7 @@ paths:
                   example: Buddy
       responses:
         '200':
-          description: Result
+          description: Result with `updated` flag
           content:
             application/json:
               schema:
@@ -663,15 +848,13 @@ paths:
                   updated:
                     type: boolean
                     example: true
+                  message:
+                    type: string
+                    example: Animal is not available for adoption (already Pending or Adopted).
         '400':
           $ref: '#/components/responses/BadRequest'
 
   # ── Adoption ──────────────────────────────────────────────────────────────────
-  # POST /api/adoption                → authenticated
-  # GET  /api/adoption/my-requests    → authenticated
-  # DELETE /api/adoption/**           → authenticated
-  # GET  /api/adoption/**             → admin
-  # PATCH /api/adoption/**            → admin
 
   /api/adoption:
     post:
@@ -682,10 +865,10 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AdoptionRequest'
+              $ref: '#/components/schemas/AdoptionRequestBody'
       responses:
         '201':
-          description: Application submitted
+          description: Application submitted — returns enriched DTO with user and animal details
           content:
             application/json:
               schema:
@@ -707,7 +890,7 @@ paths:
             enum: [Pending, Approved, Rejected]
       responses:
         '200':
-          description: List of adoption applications
+          description: List of enriched adoption applications
           content:
             application/json:
               schema:
@@ -732,7 +915,7 @@ paths:
             example: 3
       responses:
         '200':
-          description: User's applications
+          description: User's enriched applications
           content:
             application/json:
               schema:
@@ -750,7 +933,7 @@ paths:
         - $ref: '#/components/parameters/IntIdPath'
       responses:
         '200':
-          description: Adoption application
+          description: Enriched adoption application
           content:
             application/json:
               schema:
@@ -783,6 +966,9 @@ paths:
     patch:
       tags: [Adoption]
       summary: 🛡️ Approve or reject an adoption application (admin)
+      description: >
+        When status is `Approved`, the matching animal is automatically set to `Adopted`
+        (first Available or Pending animal whose name contains `petName`, case-insensitive).
       parameters:
         - $ref: '#/components/parameters/IntIdPath'
       requestBody:
@@ -802,7 +988,7 @@ paths:
                   example: Pet already adopted.
       responses:
         '200':
-          description: Updated adoption application
+          description: Updated enriched adoption application
           content:
             application/json:
               schema:
@@ -817,29 +1003,27 @@ paths:
           $ref: '#/components/responses/NotFound'
 
   # ── Rehome ────────────────────────────────────────────────────────────────────
-  # POST /api/rehome                → authenticated
-  # GET  /api/rehome/my-requests   → authenticated
-  # DELETE /api/rehome/**          → authenticated
-  # GET  /api/rehome/**            → admin
-  # PATCH /api/rehome/**           → admin
 
   /api/rehome:
     post:
       tags: [Rehome]
       summary: 🔐 Submit a rehome request
+      description: >
+        Full rehome form. Includes owner info, pet traits, vaccination status,
+        and behavioral details. Status is forced to `Pending` on creation.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RehomeRequest'
+              $ref: '#/components/schemas/RehomeRequestBody'
       responses:
         '201':
           description: Rehome request created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/RehomeRequest'
+                $ref: '#/components/schemas/RehomeRequestDto'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -863,7 +1047,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/RehomeRequest'
+                  $ref: '#/components/schemas/RehomeRequestDto'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -888,7 +1072,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/RehomeRequest'
+                  $ref: '#/components/schemas/RehomeRequestDto'
         '401':
           $ref: '#/components/responses/Unauthorized'
 
@@ -904,7 +1088,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/RehomeRequest'
+                $ref: '#/components/schemas/RehomeRequestDto'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -956,7 +1140,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/RehomeRequest'
+                $ref: '#/components/schemas/RehomeRequestDto'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -967,9 +1151,6 @@ paths:
           $ref: '#/components/responses/NotFound'
 
   # ── Surveys ───────────────────────────────────────────────────────────────────
-  # POST /api/surveys              → authenticated
-  # GET  /api/surveys/my-surveys  → authenticated
-  # GET  /api/surveys/**          → admin
 
   /api/surveys:
     post:
@@ -980,7 +1161,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Survey'
+              $ref: '#/components/schemas/SurveyBody'
       responses:
         '201':
           description: Survey submitted
@@ -1054,11 +1235,6 @@ paths:
           $ref: '#/components/responses/NotFound'
 
   # ── Missing Pets ──────────────────────────────────────────────────────────────
-  # GET  /api/missing-pets/**  → permitAll
-  # POST /api/missing-pets     → permitAll
-  # admin sub-routes           → admin (under /api/admin/** catch-all? No —
-  #   these are /api/missing-pets/admin/... → covered by anyRequest().authenticated
-  #   but admin-specific paths use hasAnyAuthority in controller logic / admin tag)
 
   /api/missing-pets:
     get:
@@ -1067,7 +1243,7 @@ paths:
       security: []
       responses:
         '200':
-          description: Approved missing pet reports
+          description: Approved missing pet reports (status = "approved")
           content:
             application/json:
               schema:
@@ -1127,7 +1303,7 @@ paths:
                   format: binary
       responses:
         '200':
-          description: Report submitted
+          description: Report submitted (initial status is null/pending until admin approves)
           content:
             application/json:
               schema:
@@ -1155,6 +1331,7 @@ paths:
     put:
       tags: [Missing Pets]
       summary: 🔐 Admin update a report via JSON body
+      description: Updates name, species, breed, color, area, address, and details.
       parameters:
         - $ref: '#/components/parameters/LongIdPath'
       requestBody:
@@ -1162,7 +1339,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/MissingPet'
+              $ref: '#/components/schemas/MissingPetUpdateBody'
       responses:
         '200':
           description: Updated report
@@ -1187,7 +1364,7 @@ paths:
   /api/missing-pets/admin/{id}/approve:
     put:
       tags: [Missing Pets]
-      summary: 🔐 Approve a missing pet report
+      summary: 🔐 Approve a missing pet report (sets status to "approved")
       parameters:
         - $ref: '#/components/parameters/LongIdPath'
       responses:
@@ -1203,7 +1380,7 @@ paths:
   /api/missing-pets/admin/{id}/reject:
     put:
       tags: [Missing Pets]
-      summary: 🔐 Reject a missing pet report
+      summary: 🔐 Reject a missing pet report (sets status to "rejected")
       parameters:
         - $ref: '#/components/parameters/LongIdPath'
       responses:
@@ -1265,10 +1442,32 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
+  /api/missing-pets/{id}/photo:
+    get:
+      tags: [Missing Pets]
+      summary: 🔓 Serve a missing pet report photo (bytes, MIME-typed)
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/LongIdPath'
+      responses:
+        '200':
+          description: Photo bytes with correct Content-Type
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /api/missing-pets/{id}/resolve:
     put:
       tags: [Missing Pets]
       summary: 🔐 User marks their report as resolved
+      description: >
+        Only the original reporter (`reporterUserId`) may resolve their own report.
+        Sets `resolvedByUser: true`, `resolvedAt`, and `status: resolved`.
+        Throws 403-equivalent SecurityException if caller is not the reporter.
       parameters:
         - $ref: '#/components/parameters/LongIdPath'
         - name: userId
@@ -1288,13 +1487,11 @@ paths:
           $ref: '#/components/responses/Unauthorized'
 
   # ── Pet Comments ──────────────────────────────────────────────────────────────
-  # GET /api/missing-pets/**  → permitAll (covers comments too)
-  # POST / DELETE             → anyRequest().authenticated()
 
   /api/missing-pets/{petId}/comments:
     get:
       tags: [Pet Comments]
-      summary: 🔓 Get all comments for a missing pet report
+      summary: 🔓 Get all comments for a missing pet report (oldest first)
       security: []
       parameters:
         - name: petId
@@ -1306,7 +1503,7 @@ paths:
             example: 10
       responses:
         '200':
-          description: List of comments
+          description: List of comments (serialized without full pet object)
           content:
             application/json:
               schema:
@@ -1316,7 +1513,11 @@ paths:
 
     post:
       tags: [Pet Comments]
-      summary: 🔐 Add a comment to a missing pet report
+      summary: 🔓 Add a comment to a missing pet report
+      description: >
+        SecurityConfig permits POST `/api/missing-pets/*/comments` without auth.
+        Comments are only allowed on reports with `status = "approved"`.
+      security: []
       parameters:
         - name: petId
           in: path
@@ -1344,7 +1545,7 @@ paths:
   /api/missing-pets/{petId}/comments/{commentId}:
     delete:
       tags: [Pet Comments]
-      summary: 🔐 Delete a comment (admin recommended)
+      summary: 🔐 Delete a comment (authenticated — admin recommended)
       parameters:
         - name: petId
           in: path
@@ -1364,13 +1565,293 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
+  # ── Messages (REST) ───────────────────────────────────────────────────────────
+
+  /api/messages/history:
+    get:
+      tags: [Messages (REST)]
+      summary: 🔐 Get conversation history (oldest first)
+      description: >
+        For regular users, returns their own conversation.
+        For admin, returns the conversation for the specified `userId`.
+        Messages are stored in MongoDB.
+      parameters:
+        - name: userId
+          in: query
+          required: false
+          description: Target user ID (admin only — ignored for regular users)
+          schema:
+            type: integer
+            example: 3
+      responses:
+        '200':
+          description: List of messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/messages/upload:
+    post:
+      tags: [Messages (REST)]
+      summary: 🔐 Upload a message attachment (stored in PostgreSQL as BYTEA)
+      description: >
+        Stores the file in the `message_attachments` table and returns a URL
+        at `/api/messages/attachment/{id}` to reference in a WebSocket message.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                targetUserId:
+                  type: integer
+                  description: Target user (optional, informational)
+                  example: 3
+      responses:
+        '200':
+          description: Attachment uploaded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+                    example: /api/messages/attachment/42
+                  type:
+                    type: string
+                    enum: [image, video, file]
+                    example: image
+                  fileName:
+                    type: string
+                    example: photo.jpg
+                  fileSize:
+                    type: integer
+                    format: int64
+                    example: 204800
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/messages/attachment/{id}:
+    get:
+      tags: [Messages (REST)]
+      summary: 🔐 Serve a message attachment from the database
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+            example: 42
+      responses:
+        '200':
+          description: Attachment bytes — cached 24 h (private)
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/messages/read:
+    post:
+      tags: [Messages (REST)]
+      summary: 🔐 Mark messages as read
+      description: >
+        For users: marks all admin→user messages as read for the caller.
+        For admin: marks all user→admin messages as read for the given `userId`.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: integer
+                  description: Required when caller is admin
+                  example: 3
+      responses:
+        '200':
+          description: Messages marked as read
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/messages/unread-count:
+    get:
+      tags: [Messages (REST)]
+      summary: 🔐 Get unread message count for the caller
+      description: >
+        For users: counts admin messages not yet read by the user.
+        For admin: counts all user messages not yet read by admin across all conversations.
+      responses:
+        '200':
+          description: Unread count
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                    format: int64
+                    example: 5
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/messages/conversations:
+    get:
+      tags: [Messages (REST)]
+      summary: 🛡️ Get conversation summaries for the admin inbox
+      description: >
+        Returns one entry per user with the latest message, timestamp,
+        and unread count. Aggregated via MongoDB pipeline. Admin only.
+      responses:
+        '200':
+          description: Conversation summaries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ConversationSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/messages/conversation/{userId}:
+    delete:
+      tags: [Messages (REST)]
+      summary: 🛡️ Delete all messages in a conversation (admin only)
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 3
+      responses:
+        '200':
+          description: Conversation deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/messages/bot-reply:
+    post:
+      tags: [Messages (REST)]
+      summary: 🔐 Send a bot reply message to the caller's conversation
+      description: >
+        Saves a message with `isBot: true` and `senderRole: admin`.
+        Broadcasts to `/topic/user/{userId}` and `/topic/admin/inbox` via WebSocket.
+        Sender is the first admin user found in the database, or falls back to caller's ID.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content:
+                  type: string
+                  example: Hello! How can I help you today?
+      responses:
+        '200':
+          description: Bot reply sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ── Messages (WebSocket) ──────────────────────────────────────────────────────
+
+  /ws/chat:
+    get:
+      tags: [Messages (WebSocket)]
+      summary: 🔓 SockJS/STOMP endpoint — connect here to join the chat
+      description: >
+        **Connection:** `http://localhost:8080/ws/chat` via SockJS.
+        JWT must be sent on `CONNECT` frame via `Authorization: Bearer <token>` or
+        `token: <token>` STOMP header. The principal is stored in session so
+        subsequent `SEND`/`SUBSCRIBE` frames reuse it automatically.
+
+        **Application destinations (client → server):**
+
+        | Destination | Handler | Description |
+        |---|---|---|
+        | `/app/chat.send` | `@MessageMapping` | Send a user message |
+        | `/app/chat.admin.send` | `@MessageMapping` | Send admin or bot message |
+
+        **Broker destinations (server → client):**
+
+        | Topic | Description |
+        |---|---|
+        | `/topic/user/{userId}` | Real-time messages for a specific user |
+        | `/topic/admin/inbox` | All messages — admin monitors this |
+
+        **ChatMessage payload fields:**
+
+        | Field | Type | Description |
+        |---|---|---|
+        | `content` | string | Message text |
+        | `targetUserId` | integer | Required for `/app/chat.admin.send` |
+        | `attachmentUrl` | string | URL from `/api/messages/upload` |
+        | `attachmentType` | string | `image`, `video`, or `file` |
+        | `isBot` | boolean | `true` to send as bot message |
+
+        **Access control for `/app/chat.admin.send`:**
+        Regular users may only send bot messages (`isBot: true`) targeting themselves.
+        Admins may target any userId.
+      security: []
+      responses:
+        '101':
+          description: WebSocket upgrade (SockJS handles HTTP→WS)
+
   # ── Activity Logs ─────────────────────────────────────────────────────────────
-  # /api/admin/** → hasAnyAuthority("admin","ADMIN")
 
   /api/admin/activity-logs:
     get:
       tags: [Activity Logs]
-      summary: 🛡️ Get recent 50 activity log entries (admin only)
+      summary: 🛡️ Get recent 50 activity log entries (admin only, newest first)
       responses:
         '200':
           description: Recent activity logs
@@ -1388,7 +1869,7 @@ paths:
   /api/admin/activity-logs/by-user:
     get:
       tags: [Activity Logs]
-      summary: 🛡️ Get activity logs for a specific user (admin only)
+      summary: 🛡️ Get activity logs for a specific user (admin only, newest first)
       parameters:
         - name: userId
           in: query
@@ -1411,12 +1892,15 @@ paths:
           $ref: '#/components/responses/Forbidden'
 
   # ── Admin Users ───────────────────────────────────────────────────────────────
-  # /api/admin/** → hasAnyAuthority("admin","ADMIN")
 
   /api/admin/users:
     post:
       tags: [Admin Users]
       summary: 🛡️ Create a user and email auto-generated credentials (admin only)
+      description: >
+        Generates a 12-character random password (guaranteed uppercase, lowercase,
+        digit, and special character) and emails it via Brevo.
+        Sets `status: approved`, `isActive: 1`. Phone must be PH format `09XXXXXXXXX`.
       requestBody:
         required: true
         content:
@@ -1441,6 +1925,14 @@ paths:
                   type: string
                   enum: [user, admin]
                   default: user
+                address:
+                  type: string
+                city:
+                  type: string
+                province:
+                  type: string
+                zip:
+                  type: string
       responses:
         '201':
           description: User created and credentials emailed
@@ -1474,8 +1966,12 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: >
-        JWT issued by /api/auth/login. Also accepted via HttpOnly cookie "jwt".
-        Roles: user | admin. Admin routes require authority "admin" or "ADMIN".
+        JWT issued by `/api/auth/login`, `/api/auth/register`, or `/api/auth/google`.
+        Delivered as HttpOnly cookie `jwt` (set automatically by browser) and also
+        returned in the response body as `token`.
+        Bearer token in `Authorization` header accepted as fallback (used by Axios in dev).
+        Roles stored as JWT claim `role`. Admin routes require authority `admin` or `ADMIN`.
+        Expiry: 86400000 ms (24 h).
 
   parameters:
     IntIdPath:
@@ -1507,14 +2003,14 @@ components:
       name: id
       in: path
       required: true
-      description: Numeric user ID or the literal string "me" (resolves to the caller)
+      description: Numeric user ID or the literal string "me" (resolves to the JWT caller)
       schema:
         type: string
         example: me
 
   responses:
     BadRequest:
-      description: Bad request – validation or missing fields
+      description: Bad request — validation or missing fields
       content:
         application/json:
           schema:
@@ -1524,7 +2020,7 @@ components:
             message: Missing required fields.
 
     Unauthorized:
-      description: Unauthorized – missing or invalid JWT
+      description: Unauthorized — missing or invalid JWT
       content:
         application/json:
           schema:
@@ -1533,7 +2029,7 @@ components:
             error: Unauthorized
 
     Forbidden:
-      description: Forbidden – valid JWT but insufficient role (not admin)
+      description: Forbidden — valid JWT but insufficient role (not admin)
       content:
         application/json:
           schema:
@@ -1584,6 +2080,9 @@ components:
           example: Operation successful.
 
     UserDto:
+      description: >
+        User data object returned by auth and user endpoints.
+        Never includes `password` hash or raw file bytes.
       type: object
       properties:
         id:
@@ -1627,16 +2126,26 @@ components:
           example: national_id.jpg
         hasIdFile:
           type: boolean
+          description: Present in UserController DTO; indicates ID file is stored without sending bytes
           example: true
         photoUrl:
           type: string
+          description: Relative URL to photo endpoint, or empty string if no photo
           example: /api/users/3/photo
         createdAt:
           type: string
           format: date-time
           example: "2024-01-01T00:00:00Z"
+        profileComplete:
+          type: boolean
+          description: False for Google users who have not yet submitted the complete-profile form
+          example: true
 
-    Animal:
+    AnimalDto:
+      description: >
+        Animal response object. Photo is returned as raw base64 (`photoData`) plus
+        MIME type (`photoType`) — NOT a URL. Frontend renders as
+        `data:{photoType};base64,{photoData}`.
       type: object
       properties:
         id:
@@ -1659,15 +2168,35 @@ components:
           example: Healthy
         status:
           type: string
+          enum: [Available, Pending, Adopted]
           example: Available
-        photo:
-          type: string
-          example: uploads/buddy.jpg
         notes:
           type: string
           example: Vaccinated and friendly
+        photoData:
+          type: string
+          description: Base64-encoded photo bytes (no data URI prefix). Null if no photo.
+          example: /9j/4AAQSkZJRgABAQAA...
+        photoType:
+          type: string
+          description: MIME type of the photo
+          example: image/jpeg
 
-    AnimalRequest:
+    AnimalRequestMultipart:
+      description: Animal create/update payload as multipart (photo via file upload)
+      type: object
+      properties:
+        data:
+          description: JSON part containing animal fields (sent as `@RequestPart("data")`)
+          type: string
+          format: binary
+        photo:
+          type: string
+          format: binary
+          description: Optional photo file (JPG, PNG, etc.)
+
+    AnimalRequestJson:
+      description: Animal create/update payload as JSON (photo via base64 fields)
       type: object
       required: [name]
       properties:
@@ -1689,14 +2218,26 @@ components:
         status:
           type: string
           example: Available
-        photo:
-          type: string
-          example: uploads/buddy.jpg
         notes:
           type: string
           example: Friendly and vaccinated
+        photoData:
+          type: string
+          description: >
+            Raw base64-encoded photo (no data URI prefix, e.g. no "data:image/jpeg;base64,").
+            If a data URI prefix is present it is stripped automatically.
+          example: /9j/4AAQSkZJRgABAQAA...
+        photoType:
+          type: string
+          description: MIME type for photoData
+          example: image/jpeg
+        removePhoto:
+          type: boolean
+          description: Set true to explicitly remove the existing photo
+          example: false
 
-    AdoptionRequest:
+    AdoptionRequestBody:
+      description: Request body for submitting an adoption application
       type: object
       required: [petName, name, email, phone, address, reason, userId]
       properties:
@@ -1705,6 +2246,7 @@ components:
           example: Buddy
         name:
           type: string
+          description: Full name of the applicant
           example: Juan Dela Cruz
         email:
           type: string
@@ -1723,11 +2265,18 @@ components:
           example: 3
 
     AdoptionRequestDto:
+      description: >
+        Enriched adoption application returned by all read endpoints.
+        Joined with User and Animal tables for convenience.
+        `animalPhoto` is a ready-to-use data URL (`data:{mime};base64,{bytes}`).
       type: object
       properties:
         id:
           type: integer
           example: 5
+        userId:
+          type: integer
+          example: 3
         petName:
           type: string
           example: Buddy
@@ -1748,24 +2297,64 @@ components:
           example: I want to give Buddy a loving home.
         status:
           type: string
+          enum: [Pending, Approved, Rejected]
           example: Pending
         rejectNote:
           type: string
           example: ""
-        userId:
-          type: integer
-          example: 3
         createdAt:
           type: string
           format: date-time
           example: "2024-01-15T10:30:00Z"
+        userFirstName:
+          type: string
+          example: Juan
+        userLastName:
+          type: string
+          example: Dela Cruz
+        userEmail:
+          type: string
+          example: juan@example.com
+        animalType:
+          type: string
+          example: Dog
+        animalBreed:
+          type: string
+          example: Labrador
+        animalAge:
+          type: string
+          example: 2 years
+        animalHealth:
+          type: string
+          example: Healthy
+        animalPhoto:
+          type: string
+          description: >
+            Computed field — full data URL ready for `<img src>`.
+            Null if no photo is stored. Raw bytes not exposed.
+          example: "data:image/jpeg;base64,/9j/4AAQ..."
 
-    RehomeRequest:
+    RehomeRequestBody:
+      description: Full rehome request form payload
       type: object
       properties:
-        id:
+        userId:
           type: integer
-          example: 2
+          example: 3
+        ownerName:
+          type: string
+          example: Maria Santos
+        contact:
+          type: string
+          description: Owner email
+          example: maria@example.com
+        contactNo:
+          type: string
+          description: Owner phone
+          example: "09181234567"
+        city:
+          type: string
+          example: Quezon City
         petName:
           type: string
           example: Max
@@ -1778,47 +2367,167 @@ components:
         age:
           type: string
           example: 3 years
-        reason:
+        photoBase64:
           type: string
-          example: Moving abroad and cannot bring him.
+          description: Base64-encoded pet photo stored as text in DB
+          example: /9j/4AAQSkZJRgABAQAA...
+        behavior:
+          type: string
+          example: Friendly, Playful
+        behaviorOther:
+          type: string
+        medicalNotes:
+          type: string
+          example: Allergic to certain foods
+        idealHomeDesc:
+          type: string
+          example: A quiet home with no other pets
+        goodWithChildren:
+          type: boolean
+          example: true
+        goodWithPets:
+          type: boolean
+          example: false
+        isHouseTrained:
+          type: boolean
+          example: true
+        isLeashTrained:
+          type: boolean
+          example: false
+        isVaccinated:
+          type: boolean
+          example: true
+        vaccineType:
+          type: string
+          example: Rabies, FVRCP
+
+    RehomeRequestDto:
+      description: Rehome request as returned by the API
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 2
+        userId:
+          type: integer
+          example: 3
+        ownerName:
+          type: string
+          example: Maria Santos
+        contact:
+          type: string
+          example: maria@example.com
+        contactNo:
+          type: string
+          example: "09181234567"
+        city:
+          type: string
+          example: Quezon City
+        petName:
+          type: string
+          example: Max
+        species:
+          type: string
+          example: Cat
+        breed:
+          type: string
+          example: Siamese
+        age:
+          type: string
+          example: 3 years
+        photoBase64:
+          type: string
+        behavior:
+          type: string
+        behaviorOther:
+          type: string
+        medicalNotes:
+          type: string
+        idealHomeDesc:
+          type: string
+        goodWithChildren:
+          type: boolean
+        goodWithPets:
+          type: boolean
+        isHouseTrained:
+          type: boolean
+        isLeashTrained:
+          type: boolean
+        isVaccinated:
+          type: boolean
+        vaccineType:
+          type: string
         status:
           type: string
+          enum: [Pending, Approved, Rejected]
           example: Pending
         rejectNote:
           type: string
           example: ""
-        userId:
-          type: integer
-          example: 3
         createdAt:
           type: string
           format: date-time
           example: "2024-02-01T09:00:00Z"
 
-    Survey:
+    SurveyBody:
+      description: Post-adoption survey request body
       type: object
       properties:
-        id:
+        adoptionId:
           type: integer
-          example: 1
+          example: 5
         userId:
           type: integer
           example: 3
+        adopterName:
+          type: string
+          example: Juan Dela Cruz
         animalName:
           type: string
           example: Buddy
         rating:
           type: integer
+          format: int16
+          minimum: 1
+          maximum: 5
           example: 5
-        feedback:
+        notes:
           type: string
           example: Amazing experience. Buddy is thriving!
-        submittedAt:
+
+    Survey:
+      description: Survey as returned by the API
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        adoptionId:
+          type: integer
+          example: 5
+        userId:
+          type: integer
+          example: 3
+        adopterName:
+          type: string
+          example: Juan Dela Cruz
+        animalName:
+          type: string
+          example: Buddy
+        rating:
+          type: integer
+          format: int16
+          example: 5
+        notes:
+          type: string
+          example: Amazing experience. Buddy is thriving!
+        createdAt:
           type: string
           format: date-time
           example: "2024-03-01T12:00:00Z"
 
     MissingPet:
+      description: Missing or found pet report
       type: object
       properties:
         id:
@@ -1827,6 +2536,7 @@ components:
           example: 10
         type:
           type: string
+          enum: [missing, found]
           example: missing
         name:
           type: string
@@ -1849,6 +2559,11 @@ components:
         details:
           type: string
           example: Last seen near the park wearing a red collar.
+        reportedDate:
+          type: string
+          format: date
+          description: Auto-set on persist (LocalDate)
+          example: "2024-04-01"
         latitude:
           type: number
           format: double
@@ -1859,29 +2574,64 @@ components:
           example: 120.9842
         status:
           type: string
+          enum: [approved, rejected, resolved]
           example: approved
         reporterUserId:
           type: integer
           example: 3
-        createdAt:
+        resolvedByUser:
+          type: boolean
+          example: false
+        resolvedAt:
           type: string
           format: date-time
-          example: "2024-04-01T08:00:00Z"
+          nullable: true
+          example: null
+        photo:
+          type: string
+          description: >
+            Raw byte array (bytea in DB). Not directly exposed in JSON responses.
+            Access the photo via `/api/missing-pets/{id}/photo`.
+          readOnly: true
+        photoType:
+          type: string
+          example: image/jpeg
+
+    MissingPetUpdateBody:
+      description: Fields updatable by admin via JSON body
+      type: object
+      properties:
+        name:
+          type: string
+        species:
+          type: string
+        breed:
+          type: string
+        color:
+          type: string
+        area:
+          type: string
+        address:
+          type: string
+        details:
+          type: string
 
     PetComment:
+      description: Comment on a missing pet report (serialized without lazy pet reference)
       type: object
       properties:
         id:
           type: integer
           format: int64
           example: 1
-        petId:
-          type: integer
-          format: int64
-          example: 10
         userId:
           type: integer
+          nullable: true
+          description: Null if the user account was deleted
           example: 3
+        authorName:
+          type: string
+          example: Maria Santos
         content:
           type: string
           example: I think I saw this dog near SM Mall!
@@ -1897,23 +2647,107 @@ components:
         userId:
           type: integer
           example: 3
+        authorName:
+          type: string
+          example: Maria Santos
         content:
           type: string
           example: I think I saw this dog near SM Mall!
 
     ActivityLog:
+      description: >
+        Audit trail entry created by services via ActivityLogService.
+        Stored in PostgreSQL `activity_logs` table.
       type: object
       properties:
         id:
           type: integer
           example: 100
-        userId:
-          type: integer
-          example: 3
         action:
           type: string
-          example: Submitted adoption request for Buddy
+          description: Short action code (e.g. ADOPTION_REQUEST, ADD_ANIMAL, LOGIN)
+          example: ADOPTION_REQUEST
+        details:
+          type: string
+          description: Human-readable description of the event
+          example: "New adoption request for: Buddy by Juan Dela Cruz"
+        userId:
+          type: integer
+          nullable: true
+          example: 3
+        userName:
+          type: string
+          nullable: true
+          example: Juan Dela Cruz
         createdAt:
           type: string
           format: date-time
           example: "2024-04-03T14:30:00Z"
+
+    MessageResponse:
+      description: Message document from MongoDB
+      type: object
+      properties:
+        id:
+          type: string
+          description: MongoDB ObjectId
+          example: "6642a1b2c3d4e5f6a7b8c9d0"
+        userId:
+          type: integer
+          description: The conversation owner (user side of the admin↔user chat)
+          example: 3
+        senderId:
+          type: integer
+          example: 3
+        senderRole:
+          type: string
+          enum: [user, admin]
+          example: user
+        senderName:
+          type: string
+          example: Juan Dela Cruz
+        content:
+          type: string
+          example: Hello, I have a question about my adoption.
+        isRead:
+          type: boolean
+          example: false
+        isBot:
+          type: boolean
+          example: false
+        createdAt:
+          type: string
+          format: date-time
+          description: ISO-8601 instant (UTC)
+          example: "2024-04-10T08:00:00Z"
+        attachmentUrl:
+          type: string
+          nullable: true
+          example: /api/messages/attachment/42
+        attachmentType:
+          type: string
+          nullable: true
+          enum: [image, video, file]
+          example: image
+
+    ConversationSummary:
+      description: Admin inbox entry — one per user, aggregated via MongoDB pipeline
+      type: object
+      properties:
+        userId:
+          type: integer
+          example: 3
+        userName:
+          type: string
+          example: Juan Dela Cruz
+        lastMessage:
+          type: string
+          example: Hello, I have a question about my adoption.
+        lastMessageAt:
+          type: string
+          format: date-time
+          example: "2024-04-10T08:00:00Z"
+        unreadCount:
+          type: integer
+          format: int64
+          example: 2

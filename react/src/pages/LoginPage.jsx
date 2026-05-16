@@ -161,7 +161,11 @@ export default function LoginPage() {
       if (remember) localStorage.setItem("pawster_email", email.trim());
       else          localStorage.removeItem("pawster_email");
       setLoading(false);
-      setShowLoader(data?.role === "admin" ? "admin" : "user");
+      if (data?.profileComplete === false) {
+  window.location.replace("/complete-profile");
+} else {
+  setShowLoader(data?.role === "admin" ? "admin" : "user");
+}
     } catch (err) {
       setAlert({ type: "error", msg: err.response?.data?.message || "Invalid email or password." });
       setLoading(false);
@@ -174,7 +178,11 @@ export default function LoginPage() {
     try {
       const data = await googleLogin(credentialResponse);
       setLoading(false);
-      setShowLoader(data?.role === "admin" ? "admin" : "user");
+  if (data?.profileComplete === false) {
+  window.location.replace("/complete-profile");
+} else {
+  setShowLoader(data?.role === "admin" ? "admin" : "user");
+}
     } catch (err) {
       setAlert({ type: "error", msg: err.response?.data?.message || "Google sign-in failed. Please try again." });
       setLoading(false);

@@ -14,10 +14,15 @@ function PawsterSpinner() {
 }
 
 const ProtectedRoute = ({ children, requiredRole }) => {
-    const { isAuthenticated, isAdmin, isLoading } = useAuth();
+    const { isAuthenticated, isAdmin, isLoading, isProfileComplete } = useAuth();
 
     if (isLoading) return <PawsterSpinner />;
     if (!isAuthenticated) return <Navigate to="/login" replace />;
+
+    // Google users who signed in but haven't filled in their details
+    // are redirected to complete their profile on every protected page
+    if (!isProfileComplete) return <Navigate to="/complete-profile" replace />;
+
     if (requiredRole === 'admin' && !isAdmin) return <Navigate to="/home" replace />;
 
     return children;

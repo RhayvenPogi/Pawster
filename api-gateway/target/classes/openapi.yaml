@@ -1,0 +1,1428 @@
+openapi: 3.0.3
+
+info:
+  title: PawStar API Gateway
+  description: |
+    Unified API gateway for the PawStar platform — a pet adoption, rehoming, and missing-pet
+    management system.
+
+    ## Authentication
+    Most endpoints require a valid JWT supplied either as:
+    - **Cookie** – `jwt=<token>` (set by the auth service on login), **or**
+    - **Authorization header** – `Bearer <token>`
+
+    The following path prefixes are **public** (no token needed):
+    `/api/auth/*`, `/api/animals/from-rehoming`, `/api/animals/mark-adopted`,
+    `/api/animals/mark-pending`, `/api/missing-pets`, `/api/users`, `/uploads`, `/ws`
+
+    ## Downstream services
+    | Prefix | Upstream |
+    |--------|----------|
+    | `/api/auth/**`, `/api/animals/**`, `/api/adoptions/**`, `/api/users/**`, `/api/admin/**`, `/api/rehome/**`, `/api/missing-pets/**`, `/api/activity-logs/**`, `/api/messages/**`, `/uploads/**` | Spring Boot service (`pawster`) |
+    | `/api/products/**` | PHP service |
+    | `/api/approvals/**`, `/api/notifications/**`, `/api/surveys/**`, `/api/django/**`, `/media/**` | Django service |
+    | `/ws/**` | WebSocket / STOMP service |
+    | `/api/users/*/photo/public/` | Django (photo endpoint) |
+  version: 1.0.0
+  contact:
+    name: PawStar Dev Team
+
+servers:
+  - url: http://localhost:8000
+    description: Local API Gateway (port 8000)
+
+# ─────────────────────────────────────────────
+# Security schemes
+# ─────────────────────────────────────────────
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: jwt
+      description: JWT cookie set by the auth service on successful login.
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Pass the JWT in the Authorization header as `Bearer <token>`.
+
+  schemas:
+    # ── Generic ──────────────────────────────
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      example:
+        message: Operation successful.
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      example:
+        error: UNAUTHORIZED
+        message: JWT token is missing or invalid.
+
+    # ── Auth ─────────────────────────────────
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+
+    RegisterRequest:
+      type: object
+      required: [email, password, name]
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+
+    ForgotPasswordRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+
+    VerifyOtpRequest:
+      type: object
+      required: [email, otp]
+      properties:
+        email:
+          type: string
+          format: email
+        otp:
+          type: string
+
+    ResetPasswordRequest:
+      type: object
+      required: [email, newPassword]
+      properties:
+        email:
+          type: string
+          format: email
+        newPassword:
+          type: string
+          format: password
+
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        roles:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    # ── Animals ──────────────────────────────
+    Animal:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        species:
+          type: string
+          enum: [dog, cat, bird, rabbit, other]
+        breed:
+          type: string
+        age:
+          type: integer
+          description: Age in months.
+        status:
+          type: string
+          enum: [available, pending, adopted, rehoming]
+        description:
+          type: string
+        photoUrl:
+          type: string
+          format: uri
+        createdAt:
+          type: string
+          format: date-time
+
+    # ── Adoptions ────────────────────────────
+    Adoption:
+      type: object
+      properties:
+        id:
+          type: integer
+        animalId:
+          type: integer
+        adopterId:
+          type: integer
+        status:
+          type: string
+          enum: [pending, approved, rejected, completed]
+        createdAt:
+          type: string
+          format: date-time
+
+    # ── Missing Pets ─────────────────────────
+    MissingPet:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        species:
+          type: string
+        lastSeenLocation:
+          type: string
+        lastSeenDate:
+          type: string
+          format: date
+        contactInfo:
+          type: string
+        photoUrl:
+          type: string
+          format: uri
+        resolved:
+          type: boolean
+
+    # ── Products (PHP) ───────────────────────
+    Product:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        price:
+          type: number
+          format: float
+        stock:
+          type: integer
+        description:
+          type: string
+
+    # ── Notifications (Django) ───────────────
+    Notification:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        message:
+          type: string
+        read:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    # ── Surveys (Django) ─────────────────────
+    Survey:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        questions:
+          type: array
+          items:
+            type: object
+
+# ─────────────────────────────────────────────
+# Global security (overridden per-operation for public routes)
+# ─────────────────────────────────────────────
+security:
+  - cookieAuth: []
+  - bearerAuth: []
+
+# ─────────────────────────────────────────────
+# Tags
+# ─────────────────────────────────────────────
+tags:
+  - name: Auth
+    description: Authentication & session management (public).
+  - name: Animals
+    description: Animal listings, rehoming, and status updates.
+  - name: Adoptions
+    description: Adoption applications and approvals.
+  - name: Users
+    description: User profile management.
+  - name: Admin
+    description: Admin-only operations.
+  - name: Rehome
+    description: Pet rehoming submissions.
+  - name: Missing Pets
+    description: Lost & found pet reports (public read).
+  - name: Activity Logs
+    description: Audit / activity log access.
+  - name: Messages
+    description: In-app messaging.
+  - name: Products
+    description: Pet products & shop (PHP service).
+  - name: Notifications
+    description: User notifications (Django service).
+  - name: Approvals
+    description: Content approval workflows (Django service).
+  - name: Surveys
+    description: Adoption surveys (Django service).
+  - name: Media
+    description: Media file access (Django service).
+  - name: WebSocket
+    description: Real-time WebSocket / STOMP endpoint.
+
+# ─────────────────────────────────────────────
+# Paths
+# ─────────────────────────────────────────────
+paths:
+
+  # ════════════════════════════════════════════
+  # AUTH  (Spring Boot — public)
+  # ════════════════════════════════════════════
+  /api/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new user
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User registered successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Login with email & password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful. JWT set in `jwt` cookie.
+          headers:
+            Set-Cookie:
+              description: "`jwt=<token>; HttpOnly; Path=/`"
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          description: Invalid credentials.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout and clear the JWT cookie
+      security: []
+      responses:
+        '200':
+          description: Logged out successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /api/auth/me:
+    get:
+      tags: [Auth]
+      summary: Get the currently authenticated user
+      security: []
+      description: |
+        Returns the user associated with the JWT in the `jwt` cookie (or Authorization header).
+        Listed as public in the gateway so the browser can call it without a preflight credential
+        check, but the auth service itself validates the token.
+      responses:
+        '200':
+          description: Current user info.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          description: Not authenticated.
+
+  /api/auth/forgot-password:
+    post:
+      tags: [Auth]
+      summary: Request a password-reset OTP
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordRequest'
+      responses:
+        '200':
+          description: OTP sent to the provided email address.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /api/auth/verify-otp:
+    post:
+      tags: [Auth]
+      summary: Verify the password-reset OTP
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyOtpRequest'
+      responses:
+        '200':
+          description: OTP verified.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          description: Invalid or expired OTP.
+
+  /api/auth/reset-password:
+    post:
+      tags: [Auth]
+      summary: Reset password after OTP verification
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '200':
+          description: Password reset successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /api/auth/google:
+    get:
+      tags: [Auth]
+      summary: Initiate Google OAuth2 login
+      security: []
+      responses:
+        '302':
+          description: Redirect to Google consent screen.
+
+  # ════════════════════════════════════════════
+  # ANIMALS  (Spring Boot)
+  # ════════════════════════════════════════════
+  /api/animals:
+    get:
+      tags: [Animals]
+      summary: List all animals
+      parameters:
+        - name: species
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Paginated list of animals.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  content:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Animal'
+                  totalElements:
+                    type: integer
+                  totalPages:
+                    type: integer
+
+    post:
+      tags: [Animals]
+      summary: Add a new animal
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [name, species]
+              properties:
+                name:
+                  type: string
+                species:
+                  type: string
+                breed:
+                  type: string
+                age:
+                  type: integer
+                description:
+                  type: string
+                photo:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Animal created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Animal'
+
+  /api/animals/{id}:
+    get:
+      tags: [Animals]
+      summary: Get an animal by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Animal details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Animal'
+        '404':
+          description: Animal not found.
+
+    put:
+      tags: [Animals]
+      summary: Update an animal
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Animal'
+      responses:
+        '200':
+          description: Animal updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Animal'
+
+    delete:
+      tags: [Animals]
+      summary: Delete an animal
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Animal deleted.
+
+  /api/animals/from-rehoming:
+    get:
+      tags: [Animals]
+      summary: List animals sourced from rehoming submissions (public)
+      security: []
+      responses:
+        '200':
+          description: List of rehomed animals.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Animal'
+
+  /api/animals/mark-adopted:
+    patch:
+      tags: [Animals]
+      summary: Mark an animal as adopted (public — called by adoption service)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [animalId]
+              properties:
+                animalId:
+                  type: integer
+      responses:
+        '200':
+          description: Animal marked as adopted.
+
+  /api/animals/mark-pending:
+    patch:
+      tags: [Animals]
+      summary: Mark an animal as pending (public — called by adoption service)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [animalId]
+              properties:
+                animalId:
+                  type: integer
+      responses:
+        '200':
+          description: Animal marked as pending.
+
+  # ════════════════════════════════════════════
+  # ADOPTIONS  (Spring Boot)
+  # ════════════════════════════════════════════
+  /api/adoptions:
+    get:
+      tags: [Adoptions]
+      summary: List adoption applications
+      responses:
+        '200':
+          description: List of adoptions.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Adoption'
+    post:
+      tags: [Adoptions]
+      summary: Submit an adoption application
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [animalId]
+              properties:
+                animalId:
+                  type: integer
+                message:
+                  type: string
+      responses:
+        '201':
+          description: Application submitted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Adoption'
+
+  /api/adoptions/{id}:
+    get:
+      tags: [Adoptions]
+      summary: Get a single adoption application
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Adoption details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Adoption'
+
+    patch:
+      tags: [Adoptions]
+      summary: Update adoption status (approve / reject)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [approved, rejected, completed]
+      responses:
+        '200':
+          description: Status updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Adoption'
+
+  # ════════════════════════════════════════════
+  # USERS  (Spring Boot — public prefix)
+  # ════════════════════════════════════════════
+  /api/users:
+    get:
+      tags: [Users]
+      summary: List users (public — filtered by role on the service layer)
+      security: []
+      responses:
+        '200':
+          description: User list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserResponse'
+
+  /api/users/{id}:
+    get:
+      tags: [Users]
+      summary: Get a user profile
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: User profile.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+
+    put:
+      tags: [Users]
+      summary: Update a user profile
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                photo:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Profile updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+
+    delete:
+      tags: [Users]
+      summary: Delete a user account
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: User deleted.
+
+  /api/users/{id}/photo/public/:
+    get:
+      tags: [Users]
+      summary: Get a user's public profile photo (Django)
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Profile photo.
+          content:
+            image/*:
+              schema:
+                type: string
+                format: binary
+
+  # ════════════════════════════════════════════
+  # ADMIN  (Spring Boot)
+  # ════════════════════════════════════════════
+  /api/admin/users:
+    get:
+      tags: [Admin]
+      summary: List all users (admin)
+      responses:
+        '200':
+          description: Full user list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserResponse'
+
+  /api/admin/users/{id}/roles:
+    patch:
+      tags: [Admin]
+      summary: Update roles for a user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                roles:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Roles updated.
+
+  # ════════════════════════════════════════════
+  # REHOME  (Spring Boot)
+  # ════════════════════════════════════════════
+  /api/rehome:
+    post:
+      tags: [Rehome]
+      summary: Submit a rehoming request
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [name, species, reason]
+              properties:
+                name:
+                  type: string
+                species:
+                  type: string
+                breed:
+                  type: string
+                age:
+                  type: integer
+                reason:
+                  type: string
+                photo:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Rehoming request submitted.
+
+    get:
+      tags: [Rehome]
+      summary: List rehoming requests
+      responses:
+        '200':
+          description: Rehoming requests.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  /api/rehome/{id}:
+    get:
+      tags: [Rehome]
+      summary: Get a rehoming request
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Rehoming request details.
+
+    patch:
+      tags: [Rehome]
+      summary: Update rehoming request status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [pending, approved, rejected]
+      responses:
+        '200':
+          description: Status updated.
+
+  # ════════════════════════════════════════════
+  # MISSING PETS  (Spring Boot — public)
+  # ════════════════════════════════════════════
+  /api/missing-pets:
+    get:
+      tags: [Missing Pets]
+      summary: List missing pet reports (public)
+      security: []
+      responses:
+        '200':
+          description: Missing pet reports.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MissingPet'
+
+    post:
+      tags: [Missing Pets]
+      summary: Report a missing pet
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [name, species, lastSeenLocation, lastSeenDate, contactInfo]
+              properties:
+                name:
+                  type: string
+                species:
+                  type: string
+                lastSeenLocation:
+                  type: string
+                lastSeenDate:
+                  type: string
+                  format: date
+                contactInfo:
+                  type: string
+                photo:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Report submitted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MissingPet'
+
+  /api/missing-pets/{id}:
+    get:
+      tags: [Missing Pets]
+      summary: Get a missing pet report
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Report details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MissingPet'
+
+    patch:
+      tags: [Missing Pets]
+      summary: Update / resolve a missing pet report
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                resolved:
+                  type: boolean
+      responses:
+        '200':
+          description: Report updated.
+
+    delete:
+      tags: [Missing Pets]
+      summary: Delete a missing pet report
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Report deleted.
+
+  # ════════════════════════════════════════════
+  # ACTIVITY LOGS  (Spring Boot)
+  # ════════════════════════════════════════════
+  /api/activity-logs:
+    get:
+      tags: [Activity Logs]
+      summary: Get activity / audit logs
+      parameters:
+        - name: userId
+          in: query
+          schema:
+            type: integer
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Activity log entries.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  # ════════════════════════════════════════════
+  # MESSAGES  (Spring Boot)
+  # ════════════════════════════════════════════
+  /api/messages:
+    get:
+      tags: [Messages]
+      summary: Get conversations / messages for the current user
+      responses:
+        '200':
+          description: Message threads.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+    post:
+      tags: [Messages]
+      summary: Send a message
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [recipientId, content]
+              properties:
+                recipientId:
+                  type: integer
+                content:
+                  type: string
+      responses:
+        '201':
+          description: Message sent.
+
+  /api/messages/{id}:
+    get:
+      tags: [Messages]
+      summary: Get a message thread by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Message thread.
+
+  # ════════════════════════════════════════════
+  # PRODUCTS  (PHP service)
+  # ════════════════════════════════════════════
+  /api/products:
+    get:
+      tags: [Products]
+      summary: List products
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Product list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+
+    post:
+      tags: [Products]
+      summary: Create a product
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Product'
+      responses:
+        '201':
+          description: Product created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+
+  /api/products/{id}:
+    get:
+      tags: [Products]
+      summary: Get a product
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Product details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+
+    put:
+      tags: [Products]
+      summary: Update a product
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Product'
+      responses:
+        '200':
+          description: Product updated.
+
+    delete:
+      tags: [Products]
+      summary: Delete a product
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Product deleted.
+
+  # ════════════════════════════════════════════
+  # APPROVALS  (Django service)
+  # ════════════════════════════════════════════
+  /api/approvals:
+    get:
+      tags: [Approvals]
+      summary: List approval requests
+      responses:
+        '200':
+          description: Approval requests.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  /api/approvals/{id}:
+    patch:
+      tags: [Approvals]
+      summary: Approve or reject a request
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action:
+                  type: string
+                  enum: [approve, reject]
+                note:
+                  type: string
+      responses:
+        '200':
+          description: Decision recorded.
+
+  # ════════════════════════════════════════════
+  # NOTIFICATIONS  (Django service)
+  # ════════════════════════════════════════════
+  /api/notifications:
+    get:
+      tags: [Notifications]
+      summary: Get notifications for the current user
+      responses:
+        '200':
+          description: Notification list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Notification'
+
+  /api/notifications/{id}/read:
+    patch:
+      tags: [Notifications]
+      summary: Mark a notification as read
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Notification marked as read.
+
+  # ════════════════════════════════════════════
+  # SURVEYS  (Django service)
+  # ════════════════════════════════════════════
+  /api/surveys:
+    get:
+      tags: [Surveys]
+      summary: List surveys
+      responses:
+        '200':
+          description: Survey list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Survey'
+
+    post:
+      tags: [Surveys]
+      summary: Create a survey
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Survey'
+      responses:
+        '201':
+          description: Survey created.
+
+  /api/surveys/{id}/submit:
+    post:
+      tags: [Surveys]
+      summary: Submit survey answers
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                answers:
+                  type: array
+                  items:
+                    type: object
+      responses:
+        '200':
+          description: Survey submitted.
+
+  # ════════════════════════════════════════════
+  # MEDIA  (Django service)
+  # ════════════════════════════════════════════
+  /media/{filepath}:
+    get:
+      tags: [Media]
+      summary: Retrieve a media file
+      parameters:
+        - name: filepath
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Media file content.
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+
+  # ════════════════════════════════════════════
+  # UPLOADS  (Spring Boot static files — public)
+  # ════════════════════════════════════════════
+  /uploads/{filepath}:
+    get:
+      tags: [Media]
+      summary: Retrieve an uploaded file (images, documents)
+      security: []
+      parameters:
+        - name: filepath
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Uploaded file.
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+
+  # ════════════════════════════════════════════
+  # WEBSOCKET  (STOMP — auth via STOMP interceptor)
+  # ════════════════════════════════════════════
+  /ws:
+    get:
+      tags: [WebSocket]
+      summary: WebSocket / SockJS upgrade endpoint
+      security: []
+      description: |
+        Upgrade an HTTP connection to WebSocket (or use SockJS fallback).
+        JWT authentication for this endpoint is handled by the STOMP interceptor,
+        **not** by the gateway JWT filter.
+      responses:
+        '101':
+          description: Switching Protocols — WebSocket connection established.
+        '200':
+          description: SockJS info / transport response.

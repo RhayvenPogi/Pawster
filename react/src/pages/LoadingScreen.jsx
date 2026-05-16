@@ -17,14 +17,17 @@ export default function LoadingScreen({ destination = "/home" }) {
     return () => anim.destroy();
   }, []);
 
-  useEffect(() => {
-    if (!destination) return; // display-only mode — parent unmounts when ready
-    const t1 = setTimeout(() => {
-      window.location.replace(destination);
-    }, 1800);
-    const t2 = setTimeout(() => setFading(true), 2000);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
-  }, [destination]);
+useEffect(() => {
+  if (!destination) return;
+  let mounted = true;                          // ← add this
+  const t1 = setTimeout(() => {
+    window.location.replace(destination);
+  }, 1800);
+  const t2 = setTimeout(() => {
+    if (mounted) setFading(true);              // ← guard it
+  }, 1400);                                    // ← also move before t1 fires
+  return () => { mounted = false; clearTimeout(t1); clearTimeout(t2); };
+}, [destination]);
 
   return (
     <div style={{

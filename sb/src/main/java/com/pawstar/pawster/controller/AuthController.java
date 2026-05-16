@@ -1,9 +1,16 @@
+// AuthController.java — FULL FILE
+
 package com.pawstar.pawster.controller;
 
-import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
-import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
-import com.google.api.client.http.javanet.NetHttpTransport;
-import com.google.api.client.json.gson.GsonFactory;
+import java.io.IOException;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
@@ -17,9 +24,20 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
 import com.pawstar.pawster.model.ActivityLog;
 import com.pawstar.pawster.model.User;
 import com.pawstar.pawster.repository.ActivityLogRepository;
@@ -28,15 +46,6 @@ import com.pawstar.pawster.security.JwtUtils;
 import com.pawstar.pawster.service.EmailService;
 
 import jakarta.servlet.http.HttpServletResponse;
-
-import java.io.IOException;
-import java.time.Duration;
-import java.time.LocalDateTime;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -97,7 +106,7 @@ public class AuthController {
             log.setUserId(userId);
             activityLogRepository.save(log);
         } catch (Exception e) {
-            // non-fatal — don't break login if logging fails
+            // non-fatal
         }
     }
 
@@ -122,11 +131,12 @@ public class AuthController {
             addJwtCookie(response, jwt);
             logLogin("Admin", null, "Admin logged in");
             return ResponseEntity.ok(Map.of(
-                    "success",  true,
-                    "message",  "Admin login successful!",
-                    "role",     "admin",
-                    "token",    jwt,
-                    "redirect", "php/admin_dashboard.php"));
+                    "success",         true,
+                    "message",         "Admin login successful!",
+                    "role",            "admin",
+                    "token",           jwt,
+                    "profileComplete", true,
+                    "redirect",        "php/admin_dashboard.php"));
         }
 
         User user = userRepository.findByEmail(email).orElse(null);
@@ -218,6 +228,9 @@ public class AuthController {
                 address.trim(), city.trim(), province.trim(),
                 zip.trim(), fileBytes, contentType,
                 idFile.getOriginalFilename());
+
+        // Normal registration = profile is complete
+        user.setProfileComplete(true);
         userRepository.save(user);
 
         String jwt = jwtUtils.generateToken(user.getEmail(), user.getRole());
@@ -269,6 +282,7 @@ public class AuthController {
         User user = userRepository.findByEmail(email).orElse(null);
 
         if (user == null) {
+            // Brand-new Google user — profileComplete stays false
             user = new User(
                     firstName, lastName, email,
                     /*phone*/      "",
@@ -280,8 +294,10 @@ public class AuthController {
                     /*idFile*/     null,
                     /*idFileType*/ null,
                     /*idFileName*/ null);
+            user.setProfileComplete(false);  // ← must complete profile
             userRepository.save(user);
         }
+        // Existing Google user — profileComplete stays as whatever it was in DB
 
         user.setLastLogin(LocalDateTime.now());
         userRepository.save(user);
@@ -299,6 +315,79 @@ public class AuthController {
         return ResponseEntity.ok(toDtoNoToken(user, redirect, jwt));
     }
 
+    // =========================================================================
+    // PUT /api/auth/complete-profile   ← NEW
+    // =========================================================================
+
+@PutMapping(value = "/complete-profile", consumes = "multipart/form-data")
+public ResponseEntity<?> completeProfile(
+        @RequestParam("phone")    String phone,
+        @RequestParam("address")  String address,
+        @RequestParam("city")     String city,
+        @RequestParam("province") String province,
+        @RequestParam("zip")      String zip,
+        @RequestParam("idFile")   MultipartFile idFile) {
+
+    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+    if (auth == null || !auth.isAuthenticated()
+            || "anonymousUser".equals(auth.getPrincipal())) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(Map.of("success", false, "message", "Not authenticated."));
+    }
+
+    String callerEmail = auth.getName();
+    User user = userRepository.findByEmail(callerEmail).orElse(null);
+    if (user == null)
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(Map.of("success", false, "message", "User not found."));
+
+    phone    = phone    == null ? "" : phone.trim();
+    address  = address  == null ? "" : address.trim();
+    city     = city     == null ? "" : city.trim();
+    province = province == null ? "" : province.trim();
+    zip      = zip      == null ? "" : zip.trim();
+
+    if (phone.isEmpty())    return bad("Phone number is required.");
+    if (address.isEmpty())  return bad("Address is required.");
+    if (city.isEmpty())     return bad("City is required.");
+    if (province.isEmpty()) return bad("Province is required.");
+    if (zip.isEmpty())      return bad("Zip code is required.");
+    if (!phone.matches("^(09\\d{9}|\\+639\\d{9})$"))
+        return bad("Enter a valid PH number (e.g. 09171234567).");
+
+    // ── ID file validation ──────────────────────────────────────────────
+    if (idFile == null || idFile.isEmpty())
+        return bad("A government-issued ID is required.");
+    if (idFile.getSize() > MAX_FILE_SIZE)
+        return bad("File must be under 5 MB.");
+    String contentType = idFile.getContentType();
+    if (contentType == null || !ALLOWED_MIME_TYPES.contains(contentType))
+        return bad("Invalid file type. Allowed: PDF, JPG, PNG.");
+
+    byte[] fileBytes;
+    try {
+        fileBytes = idFile.getBytes();
+    } catch (IOException e) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("success", false, "message", "Failed to read ID file."));
+    }
+
+    user.setPhone(phone);
+    user.setAddress(address);
+    user.setCity(city);
+    user.setProvince(province);
+    user.setZip(zip);
+    user.setIdFile(fileBytes);
+    user.setIdFileType(contentType);
+    user.setIdFileName(idFile.getOriginalFilename());
+    user.setProfileComplete(true);
+    userRepository.save(user);
+
+    Map<String, Object> dto = toDto(user);
+    dto.put("success", true);
+    dto.put("message", "Profile completed successfully!");
+    return ResponseEntity.ok(dto);
+}
     // =========================================================================
     // GET /api/auth/id-file/{userId}
     // =========================================================================
@@ -341,12 +430,13 @@ public class AuthController {
 
         if (ADMIN_EMAIL.equals(email))
             return ResponseEntity.ok(Map.of(
-                    "email",     ADMIN_EMAIL,
-                    "firstName", "Admin",
-                    "lastName",  "",
-                    "role",      "admin",
-                    "status",    "active",
-                    "isActive",  true));
+                    "email",           ADMIN_EMAIL,
+                    "firstName",       "Admin",
+                    "lastName",        "",
+                    "role",            "admin",
+                    "status",          "active",
+                    "isActive",        true,
+                    "profileComplete", true));
 
         return userRepository.findByEmail(email)
                 .map(u -> ResponseEntity.ok((Object) toDto(u)))
@@ -445,22 +535,23 @@ public class AuthController {
 
     private Map<String, Object> toDto(User u) {
         Map<String, Object> dto = new HashMap<>();
-        dto.put("id",          u.getId());
-        dto.put("firstName",   u.getFirstName());
-        dto.put("lastName",    u.getLastName()   != null ? u.getLastName()   : "");
-        dto.put("email",       u.getEmail());
-        dto.put("phone",       u.getPhone()      != null ? u.getPhone()      : "");
-        dto.put("address",     u.getAddress()    != null ? u.getAddress()    : "");
-        dto.put("city",        u.getCity()       != null ? u.getCity()       : "");
-        dto.put("province",    u.getProvince()   != null ? u.getProvince()   : "");
-        dto.put("zip",         u.getZip()        != null ? u.getZip()        : "");
-        dto.put("role",        u.getRole());
-        dto.put("status",      u.getStatus());
-        dto.put("isActive",    u.getIsActive());
-        dto.put("idFileName",  u.getIdFileName() != null ? u.getIdFileName() : "");
-        dto.put("photoUrl",    u.getPhoto()      != null
-                ? "/api/users/" + u.getId() + "/photo" : "");
-        dto.put("createdAt",   u.getCreatedAt());
+        dto.put("id",              u.getId());
+        dto.put("firstName",       u.getFirstName());
+        dto.put("lastName",        u.getLastName()   != null ? u.getLastName()   : "");
+        dto.put("email",           u.getEmail());
+        dto.put("phone",           u.getPhone()      != null ? u.getPhone()      : "");
+        dto.put("address",         u.getAddress()    != null ? u.getAddress()    : "");
+        dto.put("city",            u.getCity()       != null ? u.getCity()       : "");
+        dto.put("province",        u.getProvince()   != null ? u.getProvince()   : "");
+        dto.put("zip",             u.getZip()        != null ? u.getZip()        : "");
+        dto.put("role",            u.getRole());
+        dto.put("status",          u.getStatus());
+        dto.put("isActive",        u.getIsActive());
+        dto.put("idFileName",      u.getIdFileName() != null ? u.getIdFileName() : "");
+        dto.put("photoUrl",        u.getPhoto()      != null
+                                       ? "/api/users/" + u.getId() + "/photo" : "");
+        dto.put("createdAt",       u.getCreatedAt());
+        dto.put("profileComplete", u.isProfileComplete());  // ← included in every response
         return dto;
     }
 

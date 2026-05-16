@@ -1,0 +1,475 @@
+openapi: 3.0.0
+info:
+  title: Pawstar Eureka Server API
+  version: 1.0.0
+  description: |
+    Netflix Eureka Service Registry for the Pawstar microservices platform.
+
+    This server acts as the **service discovery** hub. All other Pawstar
+    microservices register themselves here on startup and use it to locate
+    each other at runtime.
+
+    **Key configuration:**
+    - `eureka.client.register-with-eureka=false` — the server does **not**
+      register itself as a client.
+    - `eureka.client.fetch-registry=false` — the server does **not** cache
+      a local copy of the registry.
+
+    The endpoints documented here are the standard Eureka REST API exposed
+    by Spring Cloud Netflix Eureka Server. They are used by service clients
+    (other Spring Boot microservices) and can also be queried directly for
+    monitoring or administration.
+
+servers:
+  - url: http://localhost:8761
+    description: Eureka Server (default port)
+
+# ── No bearer auth — Eureka endpoints are typically secured at the network
+#    level (VPC / Docker network) rather than with application-level tokens.
+
+paths:
+
+  # ── Registry overview (Eureka dashboard JSON) ────────────────────────────
+  /eureka/apps:
+    get:
+      summary: List all registered applications
+      description: |
+        Returns the full service registry — every application that has
+        successfully registered with this Eureka server, along with all
+        known instances for each application.
+      operationId: listApps
+      parameters:
+        - name: Accept
+          in: header
+          required: false
+          description: Use `application/json` to receive JSON instead of XML.
+          schema:
+            type: string
+            example: application/json
+      responses:
+        '200':
+          description: Full registry snapshot.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationsWrapper'
+            application/xml:
+              schema:
+                type: object
+                description: Same data serialised as Eureka XML.
+
+  /eureka/apps/{appName}:
+    get:
+      summary: Get all instances of a specific application
+      description: Returns every registered instance for the given application name.
+      operationId: getApp
+      parameters:
+        - name: appName
+          in: path
+          required: true
+          description: Application name (case-insensitive, uppercase by convention).
+          schema:
+            type: string
+            example: PAWSTAR-API-GATEWAY
+      responses:
+        '200':
+          description: Application and its instances.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationWrapper'
+        '404':
+          description: Application not found in the registry.
+
+    post:
+      summary: Register a new instance
+      description: |
+        Called by a Eureka client on startup to register itself with the
+        server. Clients (Spring Boot services with `spring-cloud-starter-netflix-eureka-client`)
+        call this automatically — manual calls are rarely needed.
+      operationId: registerInstance
+      parameters:
+        - name: appName
+          in: path
+          required: true
+          schema:
+            type: string
+            example: PAWSTAR-BACKEND
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InstanceRegistration'
+      responses:
+        '204':
+          description: Instance registered successfully.
+        '400':
+          description: Malformed registration payload.
+
+  /eureka/apps/{appName}/{instanceId}:
+    get:
+      summary: Get a specific instance
+      operationId: getInstance
+      parameters:
+        - name: appName
+          in: path
+          required: true
+          schema: { type: string, example: PAWSTAR-BACKEND }
+        - name: instanceId
+          in: path
+          required: true
+          schema: { type: string, example: "pawstar-backend:8080" }
+      responses:
+        '200':
+          description: Instance details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InstanceWrapper'
+        '404':
+          description: Instance not found.
+
+    delete:
+      summary: Deregister an instance
+      description: |
+        Called by a Eureka client on graceful shutdown to remove itself
+        from the registry. Handled automatically by Spring Cloud.
+      operationId: deregisterInstance
+      parameters:
+        - name: appName
+          in: path
+          required: true
+          schema: { type: string, example: PAWSTAR-BACKEND }
+        - name: instanceId
+          in: path
+          required: true
+          schema: { type: string, example: "pawstar-backend:8080" }
+      responses:
+        '200':
+          description: Instance deregistered.
+        '404':
+          description: Instance not found.
+
+    put:
+      summary: Send heartbeat (renew lease)
+      description: |
+        Eureka clients send a heartbeat every 30 seconds (default) to renew
+        their lease. If no heartbeat is received within the eviction timeout
+        (90 s default), the instance is removed from the registry.
+        Spring Cloud handles this automatically.
+      operationId: renewLease
+      parameters:
+        - name: appName
+          in: path
+          required: true
+          schema: { type: string, example: PAWSTAR-BACKEND }
+        - name: instanceId
+          in: path
+          required: true
+          schema: { type: string, example: "pawstar-backend:8080" }
+        - name: status
+          in: query
+          required: false
+          description: Override instance status (e.g. `OUT_OF_SERVICE`).
+          schema:
+            type: string
+            enum: [UP, DOWN, STARTING, OUT_OF_SERVICE, UNKNOWN]
+        - name: lastDirtyTimestamp
+          in: query
+          required: false
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: Lease renewed.
+        '404':
+          description: Instance not found — client should re-register.
+
+  /eureka/apps/{appName}/{instanceId}/status:
+    put:
+      summary: Override instance status
+      description: |
+        Administratively sets the status of an instance (e.g. take it
+        `OUT_OF_SERVICE` for maintenance without restarting it).
+      operationId: overrideStatus
+      parameters:
+        - name: appName
+          in: path
+          required: true
+          schema: { type: string, example: PAWSTAR-BACKEND }
+        - name: instanceId
+          in: path
+          required: true
+          schema: { type: string, example: "pawstar-backend:8080" }
+        - name: value
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [UP, DOWN, STARTING, OUT_OF_SERVICE, UNKNOWN]
+            example: OUT_OF_SERVICE
+      responses:
+        '200':
+          description: Status override applied.
+        '500':
+          description: Failed to update status.
+
+    delete:
+      summary: Remove instance status override
+      description: Clears any administrative status override, returning the instance to its self-reported status.
+      operationId: removeStatusOverride
+      parameters:
+        - name: appName
+          in: path
+          required: true
+          schema: { type: string, example: PAWSTAR-BACKEND }
+        - name: instanceId
+          in: path
+          required: true
+          schema: { type: string, example: "pawstar-backend:8080" }
+        - name: value
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        '200':
+          description: Status override removed.
+
+  /eureka/instances/{instanceId}:
+    get:
+      summary: Look up an instance by ID (across all apps)
+      operationId: getInstanceById
+      parameters:
+        - name: instanceId
+          in: path
+          required: true
+          schema: { type: string, example: "pawstar-backend:8080" }
+      responses:
+        '200':
+          description: Instance details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InstanceWrapper'
+        '404':
+          description: Instance not found.
+
+  # ── Actuator endpoints (Spring Boot default) ─────────────────────────────
+  /actuator/health:
+    get:
+      summary: Application health
+      description: Spring Boot Actuator health endpoint. Returns UP when the Eureka server is running normally.
+      operationId: actuatorHealth
+      responses:
+        '200':
+          description: Health status.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [UP, DOWN, OUT_OF_SERVICE, UNKNOWN]
+                    example: UP
+
+  /actuator/info:
+    get:
+      summary: Application info
+      description: Build and environment information (populated by Spring Boot Actuator).
+      operationId: actuatorInfo
+      responses:
+        '200':
+          description: Info object (contents depend on build configuration).
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+# ── Schemas ────────────────────────────────────────────────────────────────
+components:
+  schemas:
+
+    ApplicationsWrapper:
+      type: object
+      description: Root envelope returned by `GET /eureka/apps`.
+      properties:
+        applications:
+          type: object
+          properties:
+            versions__delta:
+              type: string
+              example: "1"
+            apps__hashcode:
+              type: string
+              example: UP_3_
+            application:
+              type: array
+              items:
+                $ref: '#/components/schemas/Application'
+
+    ApplicationWrapper:
+      type: object
+      properties:
+        application:
+          $ref: '#/components/schemas/Application'
+
+    Application:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Application name (uppercase).
+          example: PAWSTAR-BACKEND
+        instance:
+          type: array
+          items:
+            $ref: '#/components/schemas/Instance'
+
+    InstanceWrapper:
+      type: object
+      properties:
+        instance:
+          $ref: '#/components/schemas/Instance'
+
+    Instance:
+      type: object
+      description: A single registered service instance.
+      properties:
+        instanceId:
+          type: string
+          example: "pawstar-backend:8080"
+        hostName:
+          type: string
+          example: pawstar-backend
+        app:
+          type: string
+          example: PAWSTAR-BACKEND
+        ipAddr:
+          type: string
+          example: 172.18.0.5
+        status:
+          type: string
+          enum: [UP, DOWN, STARTING, OUT_OF_SERVICE, UNKNOWN]
+          example: UP
+        overriddenStatus:
+          type: string
+          enum: [UP, DOWN, STARTING, OUT_OF_SERVICE, UNKNOWN, NONE]
+          example: NONE
+        port:
+          type: object
+          properties:
+            $:
+              type: integer
+              example: 8080
+            "@enabled":
+              type: string
+              example: "true"
+        securePort:
+          type: object
+          properties:
+            $:
+              type: integer
+              example: 443
+            "@enabled":
+              type: string
+              example: "false"
+        countryId:
+          type: integer
+          example: 1
+        dataCenterInfo:
+          type: object
+          properties:
+            "@class":
+              type: string
+              example: com.netflix.appinfo.MyDataCenterInfo
+            name:
+              type: string
+              example: MyOwn
+        leaseInfo:
+          type: object
+          properties:
+            renewalIntervalInSecs:
+              type: integer
+              example: 30
+            durationInSecs:
+              type: integer
+              example: 90
+            registrationTimestamp:
+              type: integer
+              format: int64
+            lastRenewalTimestamp:
+              type: integer
+              format: int64
+            evictionTimestamp:
+              type: integer
+              format: int64
+            serviceUpTimestamp:
+              type: integer
+              format: int64
+        metadata:
+          type: object
+          additionalProperties: { type: string }
+          example: { management.port: "8080" }
+        homePageUrl:
+          type: string
+          example: http://pawstar-backend:8080/
+        statusPageUrl:
+          type: string
+          example: http://pawstar-backend:8080/actuator/info
+        healthCheckUrl:
+          type: string
+          example: http://pawstar-backend:8080/actuator/health
+        vipAddress:
+          type: string
+          example: pawstar-backend
+        secureVipAddress:
+          type: string
+          example: pawstar-backend
+        isCoordinatingDiscoveryServer:
+          type: string
+          example: "false"
+        lastUpdatedTimestamp:
+          type: integer
+          format: int64
+        lastDirtyTimestamp:
+          type: integer
+          format: int64
+        actionType:
+          type: string
+          enum: [ADDED, MODIFIED, DELETED]
+          example: ADDED
+
+    InstanceRegistration:
+      type: object
+      description: Payload sent by a Eureka client when registering.
+      required: [instance]
+      properties:
+        instance:
+          type: object
+          required: [hostName, app, ipAddr, status, port, dataCenterInfo]
+          properties:
+            hostName:    { type: string, example: pawstar-backend }
+            app:         { type: string, example: PAWSTAR-BACKEND }
+            ipAddr:      { type: string, example: 172.18.0.5 }
+            status:
+              type: string
+              enum: [UP, DOWN, STARTING, OUT_OF_SERVICE, UNKNOWN]
+              example: UP
+            port:
+              type: object
+              properties:
+                $: { type: integer, example: 8080 }
+                "@enabled": { type: string, example: "true" }
+            dataCenterInfo:
+              type: object
+              properties:
+                "@class": { type: string, example: com.netflix.appinfo.MyDataCenterInfo }
+                name:     { type: string, example: MyOwn }
+            metadata:
+              type: object
+              additionalProperties: { type: string }
+            homePageUrl:    { type: string, example: "http://pawstar-backend:8080/" }
+            statusPageUrl:  { type: string, example: "http://pawstar-backend:8080/actuator/info" }
+            healthCheckUrl: { type: string, example: "http://pawstar-backend:8080/actuator/health" }

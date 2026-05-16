@@ -4,6 +4,9 @@
  * ADDED: "My History" tab showing all adoption & rehoming requests
  *        with a Download Receipt button per row (jsPDF).
  *        Install: npm install jspdf
+ *
+ * ADDED: "View ID" button in Verification tab opens an in-page modal
+ *        (image or PDF) instead of a new tab.
  */
 
 import { useState, useEffect, useRef } from 'react';
@@ -346,7 +349,6 @@ export default function ProfilePage() {
   const fileRef   = useRef(null);
   const idFileRef = useRef(null);
 
-  // ── TABS — "My History" added as 4th tab ──────────────────────────────────
   const TABS = [
     { id: 'info',     icon: 'fas fa-user',              label: 'Profile Info' },
     { id: 'password', icon: 'fas fa-lock',               label: 'Password'     },
@@ -354,12 +356,13 @@ export default function ProfilePage() {
     { id: 'history',  icon: 'fas fa-clock-rotate-left',  label: 'My History'   },
   ];
 
-  const [tab,       setTab]       = useState('info');
-  const [photoUrl,  setPhotoUrl]  = useState(user?.photoUrl ?? null);
-  const [photoFile, setPhotoFile] = useState(null);
-  const [toast,     setToast]     = useState(null);
-  const [saving,    setSaving]    = useState(false);
-  const [bgLoading, setBgLoading] = useState(false);
+  const [tab,          setTab]          = useState('info');
+  const [photoUrl,     setPhotoUrl]     = useState(user?.photoUrl ?? null);
+  const [photoFile,    setPhotoFile]    = useState(null);
+  const [toast,        setToast]        = useState(null);
+  const [saving,       setSaving]       = useState(false);
+  const [bgLoading,    setBgLoading]    = useState(false);
+  const [idModalOpen,  setIdModalOpen]  = useState(false);   // ← NEW
 
   const [form, setForm] = useState(() => seedForm(user));
   const [pw,     setPw]     = useState({ current: '', newPw: '', confirm: '' });
@@ -478,6 +481,8 @@ export default function ProfilePage() {
         @keyframes toastUp { from{opacity:0;transform:translateY(12px) translateX(-50%)} to{opacity:1;transform:translateY(0) translateX(-50%)} }
         @keyframes spin    { to{transform:rotate(360deg)} }
         @keyframes revealUp{ from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes modalIn { from{opacity:0;transform:scale(0.96) translateY(10px)} to{opacity:1;transform:scale(1) translateY(0)} }
+        @keyframes backdropIn { from{opacity:0} to{opacity:1} }
         *, *::before, *::after { box-sizing: border-box; }
         ::-webkit-scrollbar{width:6px} ::-webkit-scrollbar-track{background:#eddabb} ::-webkit-scrollbar-thumb{background:#b4903a;border-radius:3px}
 
@@ -493,6 +498,10 @@ export default function ProfilePage() {
         .cancel-btn { flex:1; padding:0.82rem; border-radius:11px; font-weight:800; font-size:0.88rem; color:#3a5020; background:rgba(255,248,220,0.75); border:1px solid rgba(180,140,60,0.28); cursor:pointer; font-family:'Nunito',sans-serif; }
         .eye-btn { position:absolute; right:0.75rem; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; color:#9aaa80; font-size:0.78rem; padding:0.2rem; }
         .side-link { display:flex; align-items:center; gap:0.55rem; padding:0.6rem 0.8rem; border-radius:10px; font-size:0.82rem; font-weight:700; text-decoration:none; transition:background 0.15s; border:none; cursor:pointer; font-family:'Nunito',sans-serif; width:100%; text-align:left; }
+        .view-id-btn:hover { background:rgba(28,79,9,0.16) !important; }
+
+        .id-modal-backdrop { animation: backdropIn 0.2s ease both; }
+        .id-modal-card     { animation: modalIn 0.25s cubic-bezier(0.34,1.3,0.64,1) both; }
 
         @media(max-width:700px) { .prof-grid { grid-template-columns:1fr !important } }
         @media(max-width:640px) { .prof-pad  { padding:1.75rem 1rem 4rem !important } .prof-form-grid { grid-template-columns:1fr !important } .prof-form-grid > * { grid-column:auto !important } }
@@ -769,11 +778,36 @@ export default function ProfilePage() {
                         {user?.idFileName ? 'File on record — you may replace it below' : 'Upload a valid government ID to complete verification'}
                       </div>
                     </div>
-                    {user?.status === 'approved' && (
-                      <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: '0.28rem', padding: '0.2rem 0.6rem', borderRadius: 50, fontSize: '0.60rem', fontWeight: 900, textTransform: 'uppercase', background: 'rgba(28,79,9,0.12)', color: '#276010', flexShrink: 0 }}>
-                        <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#5aaa30', display: 'inline-block' }} /> Verified
-                      </span>
-                    )}
+
+                    {/* Right side: Verified badge + View ID button */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
+                      {user?.status === 'approved' && (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.28rem', padding: '0.2rem 0.6rem', borderRadius: 50, fontSize: '0.60rem', fontWeight: 900, textTransform: 'uppercase', background: 'rgba(28,79,9,0.12)', color: '#276010' }}>
+                          <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#5aaa30', display: 'inline-block' }} /> Verified
+                        </span>
+                      )}
+
+                      {/* ── View ID button — opens modal ── */}
+                      {user?.id && user?.idFileName && (
+                        <button
+                          onClick={() => setIdModalOpen(true)}
+                          className="view-id-btn"
+                          style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
+                            padding: '0.38rem 0.8rem', borderRadius: 8,
+                            border: '1px solid rgba(90,170,48,0.40)',
+                            background: 'rgba(28,79,9,0.08)', color: '#1c4f09',
+                            fontSize: '0.73rem', fontWeight: 900, cursor: 'pointer',
+                            fontFamily: "'Nunito',sans-serif",
+                            transition: 'background 0.15s',
+                          }}
+                          title="View your uploaded ID"
+                        >
+                          <i className="fas fa-eye" style={{ fontSize: '0.70rem' }} />
+                          View ID
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   <IdUploadForm
@@ -784,7 +818,7 @@ export default function ProfilePage() {
                 </div>
               )}
 
-              {/* ══ TAB: My History (NEW) ══ */}
+              {/* ══ TAB: My History ══ */}
               {tab === 'history' && (
                 <AppointmentHistoryTab userId={user?.id} />
               )}
@@ -831,7 +865,200 @@ export default function ProfilePage() {
         </div>
       </footer>
 
+      {/* ── ID Viewer Modal ── */}
+      {idModalOpen && user?.id && user?.idFileName && (
+        <IdViewerModal
+          userId={user.id}
+          fileName={user.idFileName}
+          onClose={() => setIdModalOpen(false)}
+        />
+      )}
+
       {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
+    </div>
+  );
+}
+
+/* ─── ID Viewer Modal ─── */
+function IdViewerModal({ userId, fileName, onClose }) {
+  const fileUrl = `${API_BASE}/api/auth/id-file/${userId}`;
+  const isPdf   = fileName?.toLowerCase().endsWith('.pdf');
+
+  useEffect(() => {
+    const handleKey = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handleKey);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', handleKey);
+      document.body.style.overflow = '';
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      className="id-modal-backdrop"
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 99999,
+        background: 'rgba(10,30,5,0.72)',
+        backdropFilter: 'blur(7px)',
+        WebkitBackdropFilter: 'blur(7px)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '1.5rem',
+        fontFamily: "'Nunito',sans-serif",
+      }}
+    >
+      <div
+        className="id-modal-card"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: 'rgba(255,249,228,0.98)',
+          border: '1px solid rgba(180,140,60,0.30)',
+          borderRadius: 22,
+          boxShadow: '0 32px 96px rgba(10,40,5,0.50), 0 0 0 1px rgba(255,255,255,0.12) inset',
+          width: '100%',
+          maxWidth: 780,
+          maxHeight: '92vh',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+      >
+        {/* ── Header ── */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '1rem 1.4rem',
+          borderBottom: '1px solid rgba(180,140,60,0.20)',
+          background: 'rgba(255,252,236,0.95)',
+          flexShrink: 0,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+            <div style={{
+              width: 36, height: 36, borderRadius: 10,
+              background: 'linear-gradient(135deg,rgba(28,79,9,0.14),rgba(90,170,48,0.10))',
+              border: '1px solid rgba(90,170,48,0.28)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <i className="fas fa-id-card" style={{ color: '#1c4f09', fontSize: '0.88rem' }} />
+            </div>
+            <div>
+              <div style={{ fontSize: '0.90rem', fontWeight: 900, color: '#1a4a08', lineHeight: 1.2 }}>
+                Identity Document
+              </div>
+              <div style={{
+                fontSize: '0.65rem', fontWeight: 700, color: '#9aaa80',
+                maxWidth: 340, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+              }}>
+                {fileName}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            {/* Download */}
+            <a
+              href={fileUrl}
+              download={fileName}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
+                padding: '0.44rem 0.9rem', borderRadius: 9,
+                border: '1px solid rgba(90,170,48,0.38)',
+                background: 'rgba(28,79,9,0.08)', color: '#1c4f09',
+                fontSize: '0.74rem', fontWeight: 900, textDecoration: 'none',
+                transition: 'background 0.15s',
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(28,79,9,0.16)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'rgba(28,79,9,0.08)'}
+              title="Download"
+            >
+              <IconDownload size={13} color="#1c4f09" />
+              Download
+            </a>
+
+            {/* Close */}
+            <button
+              onClick={onClose}
+              style={{
+                width: 34, height: 34, borderRadius: 9,
+                border: '1px solid rgba(180,140,60,0.30)',
+                background: 'rgba(255,248,220,0.85)',
+                color: '#6a7a50', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '0.85rem', transition: 'all 0.15s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(192,48,48,0.10)'; e.currentTarget.style.color = '#c03030'; e.currentTarget.style.borderColor = 'rgba(192,48,48,0.28)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,248,220,0.85)'; e.currentTarget.style.color = '#6a7a50'; e.currentTarget.style.borderColor = 'rgba(180,140,60,0.30)'; }}
+              title="Close (Esc)"
+            >
+              <i className="fas fa-xmark" />
+            </button>
+          </div>
+        </div>
+
+        {/* ── Body ── */}
+        <div style={{
+          flex: 1,
+          overflow: 'auto',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '1.5rem',
+          background: 'repeating-linear-gradient(45deg,rgba(180,140,60,0.04) 0px,rgba(180,140,60,0.04) 1px,transparent 1px,transparent 12px)',
+          minHeight: 0,
+        }}>
+          {isPdf ? (
+            <iframe
+              src={fileUrl}
+              title="ID Document"
+              style={{
+                width: '100%',
+                height: '65vh',
+                border: 'none',
+                borderRadius: 14,
+                background: '#fff',
+                boxShadow: '0 8px 40px rgba(0,0,0,0.14)',
+              }}
+            />
+          ) : (
+            <img
+              src={fileUrl}
+              alt="Government ID"
+              style={{
+                maxWidth: '100%',
+                maxHeight: '65vh',
+                objectFit: 'contain',
+                borderRadius: 16,
+                boxShadow: '0 12px 56px rgba(10,40,5,0.26)',
+                border: '1px solid rgba(180,140,60,0.22)',
+              }}
+            />
+          )}
+        </div>
+
+        {/* ── Footer ── */}
+        <div style={{
+          padding: '0.72rem 1.4rem',
+          borderTop: '1px solid rgba(180,140,60,0.18)',
+          background: 'rgba(255,252,236,0.95)',
+          display: 'flex', alignItems: 'center', gap: '0.45rem',
+          flexShrink: 0,
+        }}>
+          <i className="fas fa-lock" style={{ color: '#5aaa30', fontSize: '0.65rem' }} />
+          <span style={{ fontSize: '0.67rem', fontWeight: 700, color: '#9aaa80', flex: 1 }}>
+            Encrypted · visible only to you and authorised Pawster staff
+          </span>
+          <span style={{ fontSize: '0.67rem', fontWeight: 700, color: '#b8c098' }}>
+            Press{' '}
+            <kbd style={{
+              padding: '0.08rem 0.38rem', borderRadius: 4,
+              background: 'rgba(180,140,60,0.14)',
+              border: '1px solid rgba(180,140,60,0.28)',
+              fontFamily: 'monospace', fontSize: '0.63rem', color: '#7a6a40',
+            }}>Esc</kbd>
+            {' '}to close
+          </span>
+        </div>
+      </div>
     </div>
   );
 }

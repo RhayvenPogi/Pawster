@@ -1,159 +1,259 @@
 openapi: 3.0.3
+
 info:
   title: Pawster Django API
-  version: 1.0.0
+  version: 2.0.0
   description: |
     REST API for the Pawster pet adoption platform.
     Handles adoption requests, rehoming requests, follow-up surveys, and in-app notifications.
 
-    **Authentication**: All protected endpoints require a `Bearer` JWT issued by the Spring Boot service.
-    Pass it in the `Authorization` header.
+    ## Authentication
+    All protected endpoints require a `Bearer` JWT issued by the Spring Boot auth service.
+    Pass it in the `Authorization` header: `Authorization: Bearer <token>`
 
-    **Admin endpoints** require the token to carry a role of `ROLE_ADMIN`, `ADMIN`, or `admin`.
+    The JWT is verified using the shared `JWT_SECRET` (HS256). On first sight, Django
+    auto-creates a local `User` row matched by the token's `sub` claim.
+
+    ## Admin access
+    Endpoints marked **(admin)** require the JWT to carry a role of `ROLE_ADMIN`, `ADMIN`,
+    or `admin` in the `roles` claim.
+
+    ## Survey schedule
+    After an adoption is approved, three follow-up surveys are automatically created:
+    `7_day` (due 30 s after adoption), `30_day` (60 s), and `90_day` (90 s).
+    A Celery Beat task runs every 10 s to notify adopters when surveys become due.
 
 servers:
-  - url: http://localhost:8082
-    description: Local development (Docker)
+  - url: http://localhost:8001
+    description: Local development — Django direct
+  - url: http://localhost:8000
+    description: Through API Gateway (recommended)
 
 security:
   - BearerAuth: []
 
+tags:
+  - name: Adoptions
+    description: Submit and manage pet adoption requests.
+  - name: Rehoming
+    description: Submit and manage pet rehoming / rescue-surrender requests.
+  - name: Surveys
+    description: Follow-up surveys sent at 7, 30, and 90 days after adoption approval.
+  - name: Notifications
+    description: In-app notification inbox for adopters.
+  - name: Users
+    description: Public user-photo endpoint.
+  - name: Meta
+    description: OpenAPI schema and documentation UIs.
+
 components:
+
   securitySchemes:
     BearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
+      description: HS256 JWT issued by the Spring Boot auth service.
+
+  parameters:
+    IntId:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer }
+      description: Primary key of the resource.
 
   schemas:
 
-    # ── Adoption ─────────────────────────────────────────────────────────
+    # ── Shared address sub-fields ─────────────────────────────────────────
+    AddressFields:
+      type: object
+      properties:
+        street_address: { type: string, maxLength: 255, default: "" }
+        city:           { type: string, maxLength: 120, default: "" }
+        province:       { type: string, maxLength: 120, default: "" }
+        zip_code:       { type: string, maxLength: 20,  default: "" }
+        address:        { type: string, description: "Raw address fallback.", default: "" }
 
+    # ── AdoptionRequest ───────────────────────────────────────────────────
     AdoptionRequest:
-      type: object
-      properties:
-        id:              { type: integer, readOnly: true }
-        user:            { type: integer, readOnly: true, nullable: true }
-        animal_id:       { type: integer }
-        animal_name:     { type: string, maxLength: 120 }
-        name:            { type: string, maxLength: 200 }
-        phone:           { type: string, maxLength: 30 }
-        email:           { type: string, format: email }
-        address:         { type: string }
-        reason:          { type: string }
-        previous_pet:    { type: boolean, nullable: true }
-        previous_pet_details: { type: string }
-        primary_caregiver:    { type: string, maxLength: 50 }
-        housing:         { type: string, maxLength: 50 }
-        owns_home:       { type: boolean, nullable: true }
-        pet_permission:  { type: boolean, nullable: true }
-        pet_space:       { type: string, maxLength: 60 }
-        household_size:  { type: string, maxLength: 20 }
-        has_children:    { type: boolean, nullable: true }
-        children_ages:   { type: string, maxLength: 50 }
-        has_other_pets:  { type: boolean, nullable: true }
-        other_pets_detail:     { type: string, maxLength: 120 }
-        other_pets_vaccinated: { type: boolean, nullable: true }
-        introduction_plan:     { type: string }
-        exp:             { type: string, maxLength: 50 }
-        alone_hours:     { type: string, maxLength: 30 }
-        backup_care:     { type: string, maxLength: 50 }
-        budget:          { type: string, maxLength: 20 }
-        vet_plan:        { type: string }
-        behavior_response: { type: string, maxLength: 60 }
-        open_to_guidance:  { type: boolean, nullable: true }
-        agree_proper_care: { type: boolean }
-        agree_long_term:   { type: boolean }
-        agree_no_abandon:  { type: boolean }
-        agree_followup:    { type: boolean }
-        status:
-          type: string
-          readOnly: true
-          enum: [Pending, Approved, Rejected]
-          default: Pending
-        reject_note:   { type: string, readOnly: true }
-        decided_by:    { type: integer, readOnly: true, nullable: true }
-        decided_at:    { type: string, format: date-time, readOnly: true, nullable: true }
-        adoption_date: { type: string, format: date-time, readOnly: true, nullable: true }
-        created_at:    { type: string, format: date-time, readOnly: true }
-        updated_at:    { type: string, format: date-time, readOnly: true }
-      required:
-        - animal_id
-        - name
-        - phone
-        - email
-        - address
-        - reason
+      allOf:
+        - $ref: '#/components/schemas/AddressFields'
+        - type: object
+          properties:
+            id:          { type: integer, readOnly: true }
+            user:        { type: integer, readOnly: true, nullable: true, description: "Django user PK of the applicant." }
+            animal_id:   { type: integer }
+            animal_name: { type: string, maxLength: 120 }
+            name:        { type: string, maxLength: 200 }
+            phone:       { type: string, maxLength: 30 }
+            email:       { type: string, format: email }
+            reason:      { type: string }
 
-    # ── Rehoming ──────────────────────────────────────────────────────────
+            previous_pet:         { type: boolean, nullable: true }
+            previous_pet_details: { type: string }
 
+            primary_caregiver: { type: string, maxLength: 50 }
+            housing:           { type: string, maxLength: 50 }
+            owns_home:         { type: boolean, nullable: true }
+            pet_permission:    { type: boolean, nullable: true }
+            pet_space:         { type: string, maxLength: 60 }
+            household_size:    { type: string, maxLength: 20 }
+
+            has_children:  { type: boolean, nullable: true }
+            children_ages: { type: string, maxLength: 50 }
+
+            has_other_pets:        { type: boolean, nullable: true }
+            other_pets_detail:     { type: string, maxLength: 120 }
+            other_pets_vaccinated: { type: boolean, nullable: true }
+
+            introduction_plan: { type: string }
+            exp:               { type: string, maxLength: 50 }
+            alone_hours:       { type: string, maxLength: 30 }
+            backup_care:       { type: string, maxLength: 50 }
+            budget:            { type: string, maxLength: 20 }
+            vet_plan:          { type: string }
+
+            behavior_response: { type: string, maxLength: 60 }
+            open_to_guidance:  { type: boolean, nullable: true }
+
+            agree_proper_care: { type: boolean }
+            agree_long_term:   { type: boolean }
+            agree_no_abandon:  { type: boolean }
+            agree_followup:    { type: boolean }
+
+            status:
+              type: string
+              readOnly: true
+              enum: [Pending, Approved, Rejected]
+              default: Pending
+            reject_note:   { type: string, readOnly: true }
+            decided_by:    { type: integer, readOnly: true, nullable: true }
+            decided_at:    { type: string, format: date-time, readOnly: true, nullable: true }
+            adoption_date: { type: string, format: date-time, readOnly: true, nullable: true }
+            created_at:    { type: string, format: date-time, readOnly: true }
+            updated_at:    { type: string, format: date-time, readOnly: true }
+          required:
+            - animal_id
+            - name
+            - phone
+            - email
+            - reason
+
+    # ── RehomingRequest ───────────────────────────────────────────────────
     RehomingRequest:
-      type: object
-      properties:
-        id:           { type: integer, readOnly: true }
-        user:         { type: integer, readOnly: true, nullable: true }
-        pet_name:     { type: string, maxLength: 120 }
-        species:      { type: string, maxLength: 50 }
-        breed:        { type: string, maxLength: 100 }
-        age:          { type: string, maxLength: 50 }
-        gender:       { type: string, maxLength: 20 }
-        duration_owned: { type: string, maxLength: 30 }
-        is_vaccinated:  { type: boolean, nullable: true }
-        is_neutered:    { type: boolean, nullable: true }
-        medical_notes:  { type: string }
-        behavior:       { type: string, maxLength: 30 }
-        behavior_other: { type: string, maxLength: 100 }
-        has_aggression:     { type: boolean, nullable: true }
-        is_house_trained:   { type: boolean, nullable: true }
-        is_leash_trained:   { type: boolean, nullable: true }
-        good_with_children: { type: boolean, nullable: true }
-        good_with_pets:     { type: boolean, nullable: true }
-        ideal_home_desc:    { type: string }
-        contact:            { type: string, maxLength: 50 }
-        reason:             { type: string, maxLength: 80 }
-        details:            { type: string }
-        tried_alternatives: { type: string }
-        can_provide_food:    { type: boolean, default: false }
-        can_provide_carrier: { type: boolean, default: false }
-        can_provide_records: { type: boolean, default: false }
-        understands_permanent: { type: boolean, default: false }
-        open_to_followup:      { type: boolean, default: true }
-        photo_base64:   { type: string, nullable: true, description: "Base64-encoded pet photo" }
-        vaccine_type:   { type: string, nullable: true }
-        last_vacc_date: { type: string, nullable: true }
-        vacc_clinic:    { type: string, nullable: true }
-        vacc_notes:     { type: string, nullable: true }
-        vacc_photos:
-          type: array
-          items: { type: string }
-          description: "Array of base64-encoded vaccination record photos"
-        status:
-          type: string
-          readOnly: true
-          enum: [Pending, Approved, Rejected]
-          default: Pending
-        reject_note: { type: string, readOnly: true }
-        decided_by:  { type: integer, readOnly: true, nullable: true }
-        decided_at:  { type: string, format: date-time, readOnly: true, nullable: true }
-        created_at:  { type: string, format: date-time, readOnly: true }
-        updated_at:  { type: string, format: date-time, readOnly: true }
-      required:
-        - pet_name
-        - species
-        - age
-        - gender
-        - contact
+      allOf:
+        - $ref: '#/components/schemas/AddressFields'
+        - type: object
+          properties:
+            id:         { type: integer, readOnly: true }
+            user:       { type: integer, readOnly: true, nullable: true }
+            owner_name: { type: string, maxLength: 200, nullable: true, description: "Resolved from JWT if omitted." }
+            photo_url:  { type: string, format: uri, nullable: true }
 
-    # ── Surveys ───────────────────────────────────────────────────────────
+            pet_name: { type: string, maxLength: 120 }
+            species:  { type: string, maxLength: 50 }
+            breed:    { type: string, maxLength: 100 }
+            age:      { type: string, maxLength: 50 }
+            gender:   { type: string, maxLength: 20 }
 
+            duration_owned: { type: string, maxLength: 30 }
+            request_type:
+              type: string
+              enum: [rehome, rescue]
+              default: rehome
+              description: "'rehome' = owner surrender; 'rescue' = found/stray animal."
+            found_location: { type: string, maxLength: 255, default: "" }
+
+            is_vaccinated: { type: boolean, nullable: true }
+            is_neutered:   { type: boolean, nullable: true }
+            medical_notes: { type: string }
+
+            vacc_photos:
+              type: array
+              items: { type: string }
+              nullable: true
+              description: "Array of base64-encoded vaccination record images. Cleared in list responses."
+            vaccine_type:   { type: string, nullable: true }
+            last_vacc_date: { type: string, format: date, nullable: true }
+            vacc_clinic:    { type: string, nullable: true }
+            vacc_notes:     { type: string, nullable: true }
+
+            behavior:       { type: string, maxLength: 30 }
+            behavior_other: { type: string, maxLength: 100 }
+
+            has_aggression:     { type: boolean, nullable: true }
+            is_house_trained:   { type: boolean, nullable: true }
+            is_leash_trained:   { type: boolean, nullable: true }
+            good_with_children: { type: boolean, nullable: true }
+            good_with_pets:     { type: boolean, nullable: true }
+
+            ideal_home_desc:    { type: string }
+            contact:            { type: string, maxLength: 50 }
+
+            reason:             { type: string, maxLength: 80 }
+            details:            { type: string }
+            tried_alternatives: { type: string }
+
+            can_provide_food:      { type: boolean, default: false }
+            can_provide_carrier:   { type: boolean, default: false }
+            can_provide_records:   { type: boolean, default: false }
+            understands_permanent: { type: boolean, default: false }
+            open_to_followup:      { type: boolean, default: true }
+
+            photo_base64:
+              type: string
+              nullable: true
+              description: "Base64-encoded pet photo (may include data: URI prefix). Cleared in list responses."
+
+            status:
+              type: string
+              readOnly: true
+              enum: [Pending, Approved, Rejected]
+              default: Pending
+            reject_note: { type: string, readOnly: true }
+            decided_by:  { type: integer, readOnly: true, nullable: true }
+            decided_at:  { type: string, format: date-time, readOnly: true, nullable: true }
+            created_at:  { type: string, format: date-time, readOnly: true }
+            updated_at:  { type: string, format: date-time, readOnly: true }
+          required:
+            - pet_name
+            - species
+            - age
+            - gender
+            - contact
+
+    # ── RehomingListItem — list view strips base64 blobs ──────────────────
+    RehomingListItem:
+      allOf:
+        - $ref: '#/components/schemas/RehomingRequest'
+        - type: object
+          properties:
+            has_photo:
+              type: boolean
+              description: "True when the original submission included a photo."
+            vacc_photo_count:
+              type: integer
+              description: "Number of vaccination record photos on file."
+            photo_base64:
+              type: string
+              nullable: true
+              description: "Always null in list responses. Use the detail endpoint for actual data."
+            vacc_photos:
+              type: array
+              items: { type: string }
+              nullable: true
+              description: "Always empty in list responses. Use the detail endpoint for actual data."
+
+    # ── FollowUpSurvey ────────────────────────────────────────────────────
     FollowUpSurvey:
       type: object
       properties:
-        id:           { type: integer, readOnly: true }
+        id: { type: integer, readOnly: true }
         survey_type:
           type: string
-          enum: ["30_sec", "60_sec"]
-          description: "30-second or 60-second follow-up"
+          enum: ["7_day", "30_day", "90_day"]
+          description: "Post-adoption check-in schedule."
         status:
           type: string
           enum: [Pending, Completed]
@@ -162,15 +262,19 @@ components:
         submitted_at:  { type: string, format: date-time, nullable: true }
         animal_name:   { type: string, readOnly: true }
         adoption_date: { type: string, format: date-time, readOnly: true, nullable: true }
-        has_response:  { type: boolean, readOnly: true }
+        has_response:
+          type: boolean
+          readOnly: true
+          description: "True when a SurveyResponse already exists for this survey."
 
+    # ── SurveyResponseSubmit ──────────────────────────────────────────────
     SurveyResponseSubmit:
       type: object
-      description: "Payload for submitting a follow-up survey response"
+      description: "Payload for POST /api/surveys/response/ (multipart/form-data)."
       properties:
         survey_id:
           type: integer
-          description: "ID of the FollowUpSurvey to answer"
+          description: "PK of the pending FollowUpSurvey to answer."
         adjustment:
           type: string
           enum: ["Very well", "Moderate", "Struggling"]
@@ -185,41 +289,56 @@ components:
           minimum: 1
           maximum: 5
           default: 5
+        photos:
+          type: array
+          items: { type: string, format: binary }
+          description: "Up to 5 pet photos. Stored as base64 in django_survey_photos."
+          maxItems: 5
       required:
         - survey_id
         - adjustment
         - rating
 
+    # ── SurveyPhoto ───────────────────────────────────────────────────────
+    SurveyPhoto:
+      type: object
+      properties:
+        id:            { type: integer }
+        url:           { type: string, description: "data: URI ready to use as <img src>." }
+        thumbnail_url: { type: string, description: "Same as url (no server-side resize)." }
+        uploaded_at:   { type: string, format: date-time }
+
+    # ── SurveyResponseAdmin ───────────────────────────────────────────────
     SurveyResponseAdmin:
       type: object
       properties:
         id:           { type: integer }
-        survey:       { type: integer }
-        survey_type:  { type: string }
+        survey:       { type: integer, description: "FK to FollowUpSurvey." }
+        survey_type:  { type: string, enum: ["7_day", "30_day", "90_day"] }
         animal_name:  { type: string }
         adopter_name: { type: string }
         adopter_email: { type: string, format: email }
-        adjustment:   { type: string }
+        adjustment:   { type: string, enum: ["Very well", "Moderate", "Struggling"] }
         behavioral_notes: { type: string }
         showing_illness:  { type: boolean }
         vet_visited:      { type: boolean }
         satisfied:        { type: boolean }
         needs_support:    { type: boolean }
         additional_notes: { type: string }
-        rating:           { type: integer }
-        health_flag:      { type: boolean, description: "True when the pet showed illness" }
+        rating:           { type: integer, minimum: 1, maximum: 5 }
+        health_flag:      { type: boolean, description: "Mirror of showing_illness for quick filtering." }
         submitted_at:     { type: string, format: date-time }
+        photos:
+          type: array
+          items: { $ref: '#/components/schemas/SurveyPhoto' }
 
-    # ── Notifications ─────────────────────────────────────────────────────
-
+    # ── Notification ──────────────────────────────────────────────────────
     Notification:
       type: object
       properties:
-        id:
-          type: integer
-          readOnly: true
-        title:  { type: string, maxLength: 200 }
-        body:   { type: string }
+        id:    { type: integer, readOnly: true }
+        title: { type: string, maxLength: 200 }
+        body:  { type: string }
         notif_type:
           type: string
           enum:
@@ -233,8 +352,7 @@ components:
         is_read:    { type: boolean, default: false }
         created_at: { type: string, format: date-time, readOnly: true }
 
-    # ── Common responses ──────────────────────────────────────────────────
-
+    # ── Common ────────────────────────────────────────────────────────────
     SuccessMessage:
       type: object
       properties:
@@ -252,27 +370,34 @@ components:
       type: object
       required: [reason]
       properties:
-        reason: { type: string, description: "Rejection reason (required)" }
+        reason: { type: string, description: "Rejection reason. Required — request fails with 400 if blank." }
+
+    UserPhotoResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        photo:   { type: string, description: "Photo URL or base64 data: URI resolved from the user's profile." }
 
   responses:
     Unauthorized:
-      description: Missing or invalid JWT
+      description: Missing or invalid JWT.
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorResponse' }
     Forbidden:
-      description: Admin role required
+      description: Admin role required.
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorResponse' }
     NotFound:
-      description: Resource not found
+      description: Resource not found.
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorResponse' }
 
-# ── Paths ─────────────────────────────────────────────────────────────────────
-
+# ─────────────────────────────────────────────────────────────
+# Paths
+# ─────────────────────────────────────────────────────────────
 paths:
 
   # ════════════════════════════════════════════════════
@@ -283,7 +408,9 @@ paths:
     post:
       tags: [Adoptions]
       summary: Submit an adoption request
-      description: Authenticated user submits a new adoption request. Also notifies Spring Boot to mark the animal as Pending.
+      description: |
+        Authenticated user submits a new adoption application.
+        On success, calls Spring Boot `POST /api/animals/mark-pending` (best-effort, silent on failure).
       requestBody:
         required: true
         content:
@@ -291,7 +418,7 @@ paths:
             schema: { $ref: '#/components/schemas/AdoptionRequest' }
       responses:
         "201":
-          description: Adoption request submitted successfully
+          description: Request submitted.
           content:
             application/json:
               schema:
@@ -301,7 +428,7 @@ paths:
                   id:      { type: integer }
                   message: { type: string, example: "Adoption request submitted." }
         "400":
-          description: Validation errors
+          description: Validation error.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
@@ -317,10 +444,10 @@ paths:
           schema:
             type: string
             enum: [Pending, Approved, Rejected]
-          description: Filter by status
+          description: Filter by status.
       responses:
         "200":
-          description: List of adoption requests
+          description: All adoption requests.
           content:
             application/json:
               schema:
@@ -333,21 +460,61 @@ paths:
         "401": { $ref: '#/components/responses/Unauthorized' }
         "403": { $ref: '#/components/responses/Forbidden' }
 
+  /api/approvals/adoptions/user/:
+    get:
+      tags: [Adoptions]
+      summary: Get the current user's adoption requests
+      responses:
+        "200":
+          description: The caller's adoption requests, newest first.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/AdoptionRequest' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+  /api/approvals/adoptions/{id}/:
+    get:
+      tags: [Adoptions]
+      summary: Get a single adoption request (admin)
+      parameters:
+        - { $ref: '#/components/parameters/IntId' }
+      responses:
+        "200":
+          description: Adoption request detail.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:    { $ref: '#/components/schemas/AdoptionRequest' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+        "404": { $ref: '#/components/responses/NotFound' }
+
   /api/approvals/adoptions/{id}/approve/:
     post:
       tags: [Adoptions]
       summary: Approve an adoption request (admin)
       description: |
-        Sets status to Approved, records adoption_date, notifies Spring Boot to mark the animal as Adopted,
-        schedules follow-up surveys via Celery, and sends approval email + in-app notification.
+        Sets `status → Approved`, records `adoption_date = now()`.
+
+        Side-effects (all best-effort, silent on failure):
+        - Spring Boot `POST /api/animals/mark-adopted`.
+        - Celery creates 3 follow-up surveys (7_day / 30_day / 90_day).
+        - In-app `adoption_approved` notification for the adopter.
+        - Approval email via Brevo.
       parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: integer }
+        - { $ref: '#/components/parameters/IntId' }
       responses:
         "200":
-          description: Adoption approved
+          description: Adoption approved.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/SuccessMessage' }
@@ -359,11 +526,11 @@ paths:
     post:
       tags: [Adoptions]
       summary: Reject an adoption request (admin)
+      description: |
+        Sets `status → Rejected`, stores reason in `reject_note`.
+        Side-effects: in-app `adoption_rejected` notification + rejection email via Brevo.
       parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: integer }
+        - { $ref: '#/components/parameters/IntId' }
       requestBody:
         required: true
         content:
@@ -371,12 +538,12 @@ paths:
             schema: { $ref: '#/components/schemas/RejectBody' }
       responses:
         "200":
-          description: Adoption rejected
+          description: Adoption rejected.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/SuccessMessage' }
         "400":
-          description: Rejection reason missing
+          description: Rejection reason missing.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
@@ -389,14 +556,11 @@ paths:
       tags: [Adoptions]
       summary: Update an adoption request (admin)
       description: |
-        Admin can edit adoption request fields. Status, decided_by, and decided_at
-        cannot be changed via this endpoint — use approve/reject for that.
+        Edits any field **except** `status`, `decided_by`, and `decided_at`
+        (those are stripped server-side — use approve/reject endpoints).
         Sends an update notification email to the applicant.
       parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: integer }
+        - { $ref: '#/components/parameters/IntId' }
       requestBody:
         required: true
         content:
@@ -404,7 +568,7 @@ paths:
             schema: { $ref: '#/components/schemas/AdoptionRequest' }
       responses:
         "200":
-          description: Adoption request updated
+          description: Request updated.
           content:
             application/json:
               schema:
@@ -414,7 +578,7 @@ paths:
                   message: { type: string }
                   data:    { $ref: '#/components/schemas/AdoptionRequest' }
         "400":
-          description: Validation errors
+          description: Validation error.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
@@ -426,15 +590,11 @@ paths:
     delete:
       tags: [Adoptions]
       summary: Delete an adoption request (admin)
-      description: Permanently deletes an adoption request record.
       parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: integer }
+        - { $ref: '#/components/parameters/IntId' }
       responses:
         "200":
-          description: Adoption request deleted
+          description: Request deleted.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/SuccessMessage' }
@@ -449,7 +609,10 @@ paths:
   /api/approvals/rehoming/:
     post:
       tags: [Rehoming]
-      summary: Submit a rehoming request
+      summary: Submit a rehoming / rescue request
+      description: |
+        `owner_name` is resolved from the JWT (`first_name + last_name` or `username`) if not supplied.
+        Use `request_type: rescue` for found/stray animals; include `found_location` in that case.
       requestBody:
         required: true
         content:
@@ -457,7 +620,7 @@ paths:
             schema: { $ref: '#/components/schemas/RehomingRequest' }
       responses:
         "201":
-          description: Rehoming request submitted
+          description: Request submitted.
           content:
             application/json:
               schema:
@@ -467,7 +630,7 @@ paths:
                   id:      { type: integer }
                   message: { type: string }
         "400":
-          description: Validation errors
+          description: Validation error.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
@@ -477,6 +640,10 @@ paths:
     get:
       tags: [Rehoming]
       summary: List all rehoming requests (admin)
+      description: |
+        `photo_base64` is set to `null` and `vacc_photos` to `[]` in this response for performance.
+        `has_photo` (bool) and `vacc_photo_count` (int) are added instead.
+        Use the detail endpoint `GET /api/approvals/rehoming/{id}/` to retrieve full base64 data.
       parameters:
         - in: query
           name: status
@@ -485,7 +652,26 @@ paths:
             enum: [Pending, Approved, Rejected]
       responses:
         "200":
-          description: List of rehoming requests
+          description: Rehoming requests (photos stripped).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/RehomingListItem' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+
+  /api/approvals/rehoming/user/:
+    get:
+      tags: [Rehoming]
+      summary: Get the current user's rehoming requests
+      responses:
+        "200":
+          description: The caller's rehoming requests, newest first.
           content:
             application/json:
               schema:
@@ -496,23 +682,44 @@ paths:
                     type: array
                     items: { $ref: '#/components/schemas/RehomingRequest' }
         "401": { $ref: '#/components/responses/Unauthorized' }
+
+  /api/approvals/rehoming/{id}/:
+    get:
+      tags: [Rehoming]
+      summary: Get a single rehoming request with full photo data (admin)
+      parameters:
+        - { $ref: '#/components/parameters/IntId' }
+      responses:
+        "200":
+          description: Full rehoming request including base64 photos.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:    { $ref: '#/components/schemas/RehomingRequest' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
         "403": { $ref: '#/components/responses/Forbidden' }
+        "404": { $ref: '#/components/responses/NotFound' }
 
   /api/approvals/rehoming/{id}/approve/:
     post:
       tags: [Rehoming]
       summary: Approve a rehoming request (admin)
       description: |
-        Sets status to Approved, posts the pet to Spring Boot as a new Available animal,
-        sends an approval email, and creates an in-app notification.
+        Sets `status → Approved`.
+
+        Side-effects (best-effort, silent on failure):
+        - `POST /api/animals/from-rehoming` to Spring Boot — creates an `Available` animal
+          record including the base64 photo (extracted from `photo_base64` or `photo_url`).
+        - In-app `rehoming_approved` notification.
+        - Approval email via Brevo.
       parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: integer }
+        - { $ref: '#/components/parameters/IntId' }
       responses:
         "200":
-          description: Rehoming approved
+          description: Rehoming approved and pet added to listings.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/SuccessMessage' }
@@ -525,10 +732,7 @@ paths:
       tags: [Rehoming]
       summary: Reject a rehoming request (admin)
       parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: integer }
+        - { $ref: '#/components/parameters/IntId' }
       requestBody:
         required: true
         content:
@@ -536,12 +740,12 @@ paths:
             schema: { $ref: '#/components/schemas/RejectBody' }
       responses:
         "200":
-          description: Rehoming rejected
+          description: Rehoming rejected.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/SuccessMessage' }
         "400":
-          description: Rejection reason missing
+          description: Rejection reason missing.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
@@ -554,14 +758,10 @@ paths:
       tags: [Rehoming]
       summary: Update a rehoming request (admin)
       description: |
-        Admin can edit rehoming request fields. Status, decided_by, and decided_at
-        cannot be changed via this endpoint — use approve/reject for that.
+        `status`, `decided_by`, and `decided_at` are stripped server-side.
         Sends an update notification email to the submitter.
       parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: integer }
+        - { $ref: '#/components/parameters/IntId' }
       requestBody:
         required: true
         content:
@@ -569,7 +769,7 @@ paths:
             schema: { $ref: '#/components/schemas/RehomingRequest' }
       responses:
         "200":
-          description: Rehoming request updated
+          description: Request updated.
           content:
             application/json:
               schema:
@@ -579,7 +779,7 @@ paths:
                   message: { type: string }
                   data:    { $ref: '#/components/schemas/RehomingRequest' }
         "400":
-          description: Validation errors
+          description: Validation error.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
@@ -591,15 +791,11 @@ paths:
     delete:
       tags: [Rehoming]
       summary: Delete a rehoming request (admin)
-      description: Permanently deletes a rehoming request record.
       parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: integer }
+        - { $ref: '#/components/parameters/IntId' }
       responses:
         "200":
-          description: Rehoming request deleted
+          description: Request deleted.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/SuccessMessage' }
@@ -614,11 +810,18 @@ paths:
   /api/surveys/user/:
     get:
       tags: [Surveys]
-      summary: Get current user's follow-up surveys
-      description: Returns pending and completed surveys for the authenticated adopter.
+      summary: Get the current user's follow-up surveys
+      description: Returns pending and completed surveys. Optionally filter by type.
+      parameters:
+        - in: query
+          name: type
+          schema:
+            type: string
+            enum: ["7_day", "30_day", "90_day"]
+          description: Filter by survey type.
       responses:
         "200":
-          description: Survey lists
+          description: Survey lists.
           content:
             application/json:
               schema:
@@ -639,16 +842,19 @@ paths:
       tags: [Surveys]
       summary: Submit a follow-up survey response
       description: |
-        Submit answers for a pending FollowUpSurvey. Marks the survey as Completed.
-        Duplicate submissions are blocked (OneToOne constraint).
+        Accepts `multipart/form-data`. Include up to **5** photo files under the key `photos`.
+
+        - Marks the survey `Completed` and sets `submitted_at`.
+        - Photos are base64-encoded and persisted to `django_survey_photos`.
+        - Duplicate submissions are blocked by a OneToOne DB constraint.
       requestBody:
         required: true
         content:
-          application/json:
+          multipart/form-data:
             schema: { $ref: '#/components/schemas/SurveyResponseSubmit' }
       responses:
         "201":
-          description: Response submitted
+          description: Response submitted.
           content:
             application/json:
               schema:
@@ -657,7 +863,7 @@ paths:
                   success: { type: boolean }
                   message: { type: string, example: "Thank you for your feedback! 🐾" }
         "400":
-          description: Validation errors or survey already completed
+          description: Validation error or survey already completed.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
@@ -666,23 +872,22 @@ paths:
   /api/surveys/admin/:
     get:
       tags: [Surveys]
-      summary: List all survey responses (admin)
+      summary: List all submitted survey responses with photos (admin)
       parameters:
         - in: query
           name: survey_type
           schema:
             type: string
-            enum: ["30_sec", "60_sec"]
-          description: Filter by survey type
+            enum: ["7_day", "30_day", "90_day"]
         - in: query
           name: health_flag
           schema:
             type: string
             enum: ["true"]
-          description: Pass `true` to return only responses where the pet showed illness
+          description: Pass `true` to return only responses where `showing_illness` is true.
       responses:
         "200":
-          description: All survey responses
+          description: All survey responses.
           content:
             application/json:
               schema:
@@ -699,16 +904,16 @@ paths:
   /api/surveys/admin/pending/:
     get:
       tags: [Surveys]
-      summary: List pending (unanswered) surveys (admin)
+      summary: List unanswered surveys (admin)
       parameters:
         - in: query
           name: survey_type
           schema:
             type: string
-            enum: ["30_sec", "60_sec"]
+            enum: ["7_day", "30_day", "90_day"]
       responses:
         "200":
-          description: Pending surveys
+          description: Pending surveys.
           content:
             application/json:
               schema:
@@ -730,17 +935,19 @@ paths:
     get:
       tags: [Notifications]
       summary: List notifications for the current user
-      description: Returns the 40 most recent notifications plus unread count.
+      description: Returns the 40 most recent notifications plus the total unread count.
       responses:
         "200":
-          description: Notification list
+          description: Notification list.
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  success:      { type: boolean }
-                  unread_count: { type: integer }
+                  success:
+                    type: boolean
+                  unread_count:
+                    type: integer
                   data:
                     type: array
                     items: { $ref: '#/components/schemas/Notification' }
@@ -750,10 +957,10 @@ paths:
     get:
       tags: [Notifications]
       summary: Get unread notification count
-      description: Lightweight endpoint polled by the NotificationBell component every 60 seconds.
+      description: Lightweight endpoint. Polled by the NotificationBell component every 60 s.
       responses:
         "200":
-          description: Unread count
+          description: Unread count.
           content:
             application/json:
               schema:
@@ -768,13 +975,10 @@ paths:
       tags: [Notifications]
       summary: Mark a single notification as read
       parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: integer }
+        - { $ref: '#/components/parameters/IntId' }
       responses:
         "200":
-          description: Marked as read
+          description: Marked as read.
           content:
             application/json:
               schema:
@@ -790,22 +994,82 @@ paths:
       summary: Mark all notifications as read
       responses:
         "200":
-          description: All notifications marked read
+          description: All notifications marked read.
           content:
             application/json:
               schema:
                 type: object
                 properties:
                   success: { type: boolean }
-                  marked:  { type: integer, description: "Number of notifications updated" }
+                  marked:  { type: integer, description: "Number of notifications updated." }
         "401": { $ref: '#/components/responses/Unauthorized' }
 
-tags:
-  - name: Adoptions
-    description: Submit and manage pet adoption requests
-  - name: Rehoming
-    description: Submit and manage pet rehoming requests
-  - name: Surveys
-    description: Follow-up surveys sent 30 and 60 seconds after adoption approval
-  - name: Notifications
-    description: In-app notification inbox for adopters
+  # ════════════════════════════════════════════════════
+  # USERS  (view lives in apps/approvals/views.py)
+  # ════════════════════════════════════════════════════
+
+  /api/users/{id}/photo/public/:
+    get:
+      tags: [Users]
+      summary: Get a user's public profile photo
+      security: []
+      description: |
+        No JWT required. Resolves the photo from `profile.photo`, `profile.photo_base64`,
+        `profile.avatar`, or equivalent user-level attributes (first non-null wins).
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+          description: Django user PK.
+      responses:
+        "200":
+          description: Photo found.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserPhotoResponse' }
+        "404":
+          description: User not found or no photo on file.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  # ════════════════════════════════════════════════════
+  # OpenAPI / Docs  (drf-spectacular)
+  # ════════════════════════════════════════════════════
+
+  /api/schema/:
+    get:
+      tags: [Meta]
+      summary: Download the auto-generated OpenAPI schema (drf-spectacular)
+      security: []
+      responses:
+        "200":
+          description: OpenAPI 3.x YAML schema.
+          content:
+            application/vnd.oai.openapi:
+              schema: { type: string }
+
+  /api/docs/:
+    get:
+      tags: [Meta]
+      summary: Swagger UI
+      security: []
+      responses:
+        "200":
+          description: Interactive Swagger UI HTML page.
+          content:
+            text/html:
+              schema: { type: string }
+
+  /api/redoc/:
+    get:
+      tags: [Meta]
+      summary: ReDoc UI
+      security: []
+      responses:
+        "200":
+          description: ReDoc HTML page.
+          content:
+            text/html:
+              schema: { type: string }
