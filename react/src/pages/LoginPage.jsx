@@ -129,6 +129,7 @@ export default function LoginPage() {
   const [loading, setLoading]   = useState(false);
   const [leaving, setLeaving]   = useState(false);
   const [showLoader, setShowLoader] = useState(null);
+  const [lockCountdown, setLockCountdown] = useState(0);
 
   usePageTitle("Sign in");
 
@@ -162,14 +163,38 @@ export default function LoginPage() {
       else          localStorage.removeItem("pawster_email");
       setLoading(false);
       if (data?.profileComplete === false) {
-  window.location.replace("/complete-profile");
-} else {
-  setShowLoader(data?.role === "admin" ? "admin" : "user");
-}
+        window.location.replace("/complete-profile");
+      } else {
+        setShowLoader(data?.role === "admin" ? "admin" : "user");
+      }
     } catch (err) {
-      setAlert({ type: "error", msg: err.response?.data?.message || "Invalid email or password." });
+      const res    = err.response?.data;
+      const status = err.response?.status;
+
+      if (status === 429 || res?.locked) {
+        if (res?.permanentlyLocked) {
+          setAlert({ type: "error", msg: res.message || "Account permanently locked. Contact support." });
+        } else {
+          setAlert({ type: "locked", msg: res.message || "Account temporarily locked.", lockSeconds: res.lockSeconds || 60 });
+          startLockCountdown(res.lockSeconds || 60);
+        }
+      } else {
+        const attemptsLeft = res?.attemptCount != null ? (10 - res.attemptCount) : null;
+        const base = res?.message || "Invalid email or password.";
+        setAlert({ type: "error", msg: attemptsLeft != null ? `${base} (${attemptsLeft} attempt(s) left)` : base });
+      }
       setLoading(false);
     }
+  }
+
+  function startLockCountdown(seconds) {
+    setLockCountdown(seconds);
+    const interval = setInterval(() => {
+      setLockCountdown(prev => {
+        if (prev <= 1) { clearInterval(interval); setAlert({ type: "", msg: "" }); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
   }
 
   async function handleGoogleSuccess(credentialResponse) {
@@ -335,16 +360,42 @@ export default function LoginPage() {
           {/* Alert */}
           {alert.msg && (
             <div
-              className={`rounded-[10px] px-4 py-3 text-[0.84rem] font-bold mb-4 flex items-center gap-2
+              className={`rounded-[10px] px-4 py-3 text-[0.84rem] font-bold mb-4 flex items-start gap-2
                 ${alert.type === "success"
                   ? "bg-[rgba(230,245,220,0.9)] text-[#276010] border border-[#90d060] border-l-4 border-l-[#5aaa30]"
+                  : alert.type === "locked"
+                  ? "bg-[rgba(255,243,205,0.95)] text-[#7a4f00] border border-[#f0c040] border-l-4 border-l-[#d4880a]"
                   : "bg-[rgba(253,232,232,0.9)] text-[#b83030] border border-[#f0a0a0] border-l-4 border-l-[#d04040]"
                 }`}
             >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
-              </svg>
-              {alert.msg}
+              {alert.type === "locked" ? (
+                <svg className="shrink-0 mt-[1px]" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+              ) : (
+                <svg className="shrink-0 mt-[1px]" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+              )}
+              <div className="flex-1">
+                <div>{alert.msg}</div>
+                {alert.type === "locked" && lockCountdown > 0 && (
+                  <div className="mt-1 flex items-center gap-2">
+                    <div className="flex-1 h-1.5 rounded-full bg-[rgba(212,136,10,0.20)] overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-[#d4880a] transition-all duration-1000"
+                        style={{ width: `${(lockCountdown / (alert.lockSeconds || lockCountdown)) * 100}%` }}
+                      />
+                    </div>
+                    <span className="text-[0.75rem] font-black tabular-nums whitespace-nowrap">
+                      {lockCountdown}s
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

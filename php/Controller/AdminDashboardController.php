@@ -51,6 +51,7 @@ class AdminDashboardController
                 'update_user_status' => $this->updateUserStatus(),
                 'get_id_file'        => $this->getIdFile(),
                 'get_activity'       => $this->getActivity(),
+                'log_activity'       => $this->logActivityAction(),
                 'get_chart_data'     => $this->getChartData(),
                 'get_dashboard_stats'=> $this->stats(),   // alias
                 'update_profile'     => $this->updateProfile(),
@@ -537,6 +538,15 @@ class AdminDashboardController
             ->query("SELECT * FROM activity_logs ORDER BY created_at DESC LIMIT 200")
             ->fetchAll();
         $this->ok($rows);
+    }
+
+    private function logActivityAction(): void
+    {
+        $action  = $this->body('action_type', 'Download');
+        $details = $this->body('details',     '');
+
+        $this->logActivity($action, $details, $this->adminId());
+        $this->ok(null, 'Logged.');
     }
 
     // ── Profile ───────────────────────────────────────────────────────────────

@@ -19,10 +19,18 @@ export async function phpApi(action, data = {}, file = null) {
   }
   if (file instanceof File) form.append("photo", file);
 
+  const token =
+    localStorage.getItem("pawster_token") ||
+    localStorage.getItem("token") ||
+    localStorage.getItem("authToken") ||
+    sessionStorage.getItem("token") ||
+    "";
+
   const res = await fetch(`/php/admin/dashboard`, {
     method: "POST",
     body: form,
-    credentials: "include",  // ✅ browser sends cookie automatically
+    credentials: "include",
+    ...(token ? { headers: { Authorization: `Bearer ${token}` } } : {}),
   });
   return res.json();
 }

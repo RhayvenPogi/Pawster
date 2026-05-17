@@ -5,6 +5,17 @@ export default defineConfig({
   plugins: [react()],
   define: {
     global: 'globalThis',
+    // Docker-injected env vars (no react/src/.env file needed)
+    'import.meta.env.VITE_API_BASE_URL':
+      JSON.stringify(process.env.VITE_API_BASE_URL),
+    'import.meta.env.VITE_DJANGO_API_URL':
+      JSON.stringify(process.env.VITE_DJANGO_API_URL),
+    'import.meta.env.VITE_PHP_API_URL':
+      JSON.stringify(process.env.VITE_PHP_API_URL),
+    'import.meta.env.VITE_OLLAMA_URL':
+      JSON.stringify(process.env.VITE_OLLAMA_URL),
+    'import.meta.env.VITE_GOOGLE_CLIENT_ID':
+      JSON.stringify(process.env.VITE_GOOGLE_CLIENT_ID),
   },
   server: {
     host: true,
@@ -39,3 +50,4 @@ export default defineConfig({
     }
   }
 })
+

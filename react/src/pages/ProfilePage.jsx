@@ -168,6 +168,22 @@ function DownloadReceiptBtn({ record }) {
     setBusy(true);
     await new Promise(r => setTimeout(r, 180));
     downloadAppointmentPDF(record, 'user');
+    // Log to activity via Spring Boot
+    try {
+      const token = getTokenLocal();
+      const res = await fetch(`/api/activity-logs`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({
+          action:   "Download",
+          details:  `Receipt PDF downloaded by user for ${record._type || "request"} #${record.id} — ${record.animal_name || record.pet_name || ""}`,
+        }),
+      });
+      const text = await res.text();
+      console.log(">>> activity-log status:", res.status, "body:", text);
+    } catch (err) {
+      console.error(">>> activity-log FAILED:", err);
+    }
     setBusy(false);
   };
 

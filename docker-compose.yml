@@ -145,9 +145,11 @@ services:
       - DB_PASSWORD=${POSTGRES_PASSWORD}
       - DB_NAME=${POSTGRES_DB}
       - JWT_SECRET=${JWT_SECRET}
+      - CORS_ORIGIN=${CORS_ORIGIN}   # ← add this line
     volumes:
       - ./php:/var/www/html
       - php_vendor:/var/www/html/vendor
+
 
   # ── Django ────────────────────────────────────────────────────────────────
   django:

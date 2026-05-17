@@ -58,18 +58,11 @@ export default function ActivityPanel({ show }) {
       .finally(() => setLoading(false));
   };
 
-  // Fire on mount AND whenever the panel becomes visible again.
-  const didMount = useRef(false);
   useEffect(() => {
-    if (!didMount.current) { didMount.current = true; load(); return; }
-    if (show) load();
-  }, [show]);
-
-  useEffect(() => {
-    if (!show) return;
-    const id = setInterval(load, 30_000);
+    load();
+    const id = setInterval(load, 5_000);
     return () => clearInterval(id);
-  }, [show]);
+  }, []);
 
   // ── Derived counts (always from raw `logs`, never from filtered slice) ──────
   const todayStr      = new Date().toDateString();
@@ -110,9 +103,37 @@ export default function ActivityPanel({ show }) {
                        : "—",
     };
     await new Promise(r => setTimeout(r, 200));
-    downloadAppointmentPDF(appt, "admin");
+  downloadAppointmentPDF(appt, "admin");
+
+  try {
+    const form = new FormData();
+    form.append("action", "log_activity");
+    form.append("action_type", "Download");
+    form.append("details", `Receipt PDF downloaded for appointment #${appt.id} — ${appt.petName} (${appt.ownerName})`);
+
+    const token =
+      localStorage.getItem("pawster_token") ||
+      localStorage.getItem("token") ||
+      localStorage.getItem("authToken") ||
+      sessionStorage.getItem("token") || "";
+
+    const raw = await fetch(`/php/admin/dashboard`, {
+      method: "POST",
+      body: form,
+      credentials: "include",
+      ...(token ? { headers: { Authorization: `Bearer ${token}` } } : {}),
+    });
+
+    const text = await raw.text();
+    console.log("log_activity status:", raw.status);
+    console.log("log_activity raw response:", text);
+  } catch (err) {
+    console.error("log_activity error:", err);
+  } finally {
     setDownloading(null);
-  };
+    load();
+  }
+};
 
   return (
     <div className="flex flex-col gap-5">
@@ -201,7 +222,7 @@ export default function ActivityPanel({ show }) {
             <Table headers={["Time", "Action", "User", "Details", "Receipt"]} empty="No activity yet.">
               {paged.map((a, i) => {
                 const cfg       = ACTION_CONFIG[a.action] || { color: "amber" };
-                const isAppt    = a.appointment_id || a.action === "Approve";
+                const isAppt    = a.appointment_id || a.action === "Approve" || a.action === "Download";
                 const isLoading = downloading === a.id;
                 return (
                   <Tr key={i}>
@@ -253,7 +274,7 @@ export default function ActivityPanel({ show }) {
           <div className="flex flex-col gap-3 md:hidden">
             {paged.map((a, i) => {
               const cfg       = ACTION_CONFIG[a.action] || { color: "amber" };
-              const isAppt    = a.appointment_id || a.action === "Approve";
+              const isAppt    = a.appointment_id || a.action === "Approve" || a.action === "Download";
               const isLoading = downloading === a.id;
               return (
                 <div key={i}

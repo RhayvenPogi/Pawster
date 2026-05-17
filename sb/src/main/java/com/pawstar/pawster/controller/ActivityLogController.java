@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/admin/activity-logs")
+@RequestMapping("/api/activity-logs")
 public class ActivityLogController {
 
     @Autowired
@@ -24,5 +24,14 @@ public class ActivityLogController {
     @GetMapping("/by-user")
     public List<ActivityLog> getByUser(@RequestParam Integer userId) {
         return activityLogService.getByUser(userId);
+    }
+
+    // POST /api/admin/activity-logs — log any action
+    @PostMapping
+    public java.util.Map<String, Object> log(@RequestBody java.util.Map<String, String> body) {
+        String action  = body.getOrDefault("action",  "Download");
+        String details = body.getOrDefault("details", "");
+        activityLogService.log(action, details, null, "User");
+        return java.util.Map.of("success", true);
     }
 }

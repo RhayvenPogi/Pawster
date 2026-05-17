@@ -36,6 +36,182 @@ function StepIndicator({ step }) {
   );
 }
 
+// ── LOCKED ACCOUNTS PANEL ─────────────────────────────────────────────────────
+function LockedAccountsPanel() {
+  const [accounts, setAccounts] = useState([]);
+  const [loading,  setLoading]  = useState(true);
+  const [unlocking, setUnlocking] = useState(null);
+  const [msg, setMsg] = useState({ type: "", text: "" });
+
+  const DJANGO  = import.meta.env.VITE_DJANGO_API ?? "http://localhost:8000";
+  const token   = localStorage.getItem("pawster_token") || localStorage.getItem("token") || "";
+  const headers = { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+
+  const fetchLocked = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res  = await fetch(`${DJANGO}/api/admin/login-attempts/locked`, { headers });
+      const data = await res.json();
+      setAccounts(data.data || []);
+    } catch {
+      setMsg({ type: "error", text: "Failed to load locked accounts." });
+    }
+    setLoading(false);
+  }, []);
+
+  const unlock = async (email) => {
+    setUnlocking(email);
+    try {
+      const res  = await fetch(`${DJANGO}/api/admin/login-attempts/unlock`, {
+        method: "POST", headers, body: JSON.stringify({ email })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setMsg({ type: "success", text: `Account unlocked: ${email}` });
+        fetchLocked();
+      } else {
+        setMsg({ type: "error", text: data.message || "Unlock failed." });
+      }
+    } catch {
+      setMsg({ type: "error", text: "Network error." });
+    }
+    setUnlocking(null);
+    setTimeout(() => setMsg({ type: "", text: "" }), 4000);
+  };
+
+  useEffect(() => { fetchLocked(); }, [fetchLocked]);
+
+  return (
+    <div className="rounded-2xl overflow-hidden" style={{ border: "1.5px solid rgba(180,140,60,0.28)", background: "rgba(255,252,235,0.92)" }}>
+
+      {/* Header */}
+      <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1.5px solid rgba(180,140,60,0.22)" }}>
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "rgba(176,48,96,0.12)" }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#b03060" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+          </div>
+          <div>
+            <div className="font-extrabold text-sm" style={{ color: "#1a4a08" }}>Permanently Locked Accounts</div>
+            <div className="text-[0.70rem] font-bold" style={{ color: "#6a7a50" }}>
+              {accounts.length} account(s) require admin attention
+            </div>
+          </div>
+        </div>
+        <button
+          onClick={fetchLocked}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer"
+          style={{ background: "rgba(255,250,232,0.78)", border: "1.5px solid rgba(180,140,60,0.28)", color: "#6a7a50" }}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="23 4 23 10 17 10" />
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+          </svg>
+          Refresh
+        </button>
+      </div>
+
+      {/* Status message */}
+      {msg.text && (
+        <div className={`mx-5 mt-3 px-4 py-2 rounded-xl text-xs font-bold ${
+          msg.type === "success"
+            ? "bg-[rgba(90,170,48,0.12)] text-[#1c4f09] border border-[rgba(90,170,48,0.28)]"
+            : "bg-[rgba(192,48,48,0.10)] text-[#c03030] border border-[rgba(192,48,48,0.22)]"
+        }`}>
+          {msg.text}
+        </div>
+      )}
+
+      {/* Table */}
+      <div className="overflow-x-auto">
+        {loading ? (
+          <div className="flex items-center justify-center py-12 gap-2 text-sm font-bold" style={{ color: "#6a7a50" }}>
+            <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="23 4 23 10 17 10" />
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+            </svg>
+            Loading...
+          </div>
+        ) : accounts.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 gap-2">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#6a7a50" strokeWidth="1.5">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+              <polyline points="22 4 12 14.01 9 11.01" />
+            </svg>
+            <span className="text-sm font-bold" style={{ color: "#6a7a50" }}>No permanently locked accounts</span>
+          </div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr style={{ borderBottom: "1.5px solid rgba(180,140,60,0.22)" }}>
+                {["Email", "Attempts", "Last Attempt", "Status", "Action"].map(h => (
+                  <th key={h} className="text-left px-5 py-3 text-[0.70rem] font-black uppercase tracking-wider" style={{ color: "#6a7a50" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {accounts.map((a, i) => (
+                <tr
+                  key={a.id}
+                  style={{ borderBottom: i < accounts.length - 1 ? "1px solid rgba(180,140,60,0.13)" : "none" }}
+                  className="transition-colors duration-100 hover:bg-[rgba(90,170,48,0.04)]"
+                >
+                  <td className="px-5 py-3 font-semibold" style={{ color: "#1a4a08" }}>{a.email}</td>
+                  <td className="px-5 py-3">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-black" style={{ background: "rgba(176,48,96,0.12)", color: "#b03060" }}>
+                      {a.attemptCount}
+                    </span>
+                  </td>
+                  <td className="px-5 py-3 text-xs font-semibold" style={{ color: "#6a7a50" }}>
+                    {a.lastAttemptAt ? new Date(a.lastAttemptAt).toLocaleString() : "—"}
+                  </td>
+                  <td className="px-5 py-3">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black" style={{ background: "rgba(176,48,96,0.12)", color: "#b03060" }}>
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                      </svg>
+                      Permanently Locked
+                    </span>
+                  </td>
+                  <td className="px-5 py-3">
+                    <button
+                      onClick={() => unlock(a.email)}
+                      disabled={unlocking === a.email}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-extrabold text-white transition-all duration-150 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                      style={{ background: "#1c4f09", boxShadow: "0 2px 8px rgba(28,79,9,0.20)" }}
+                    >
+                      {unlocking === a.email ? (
+                        <>
+                          <svg className="animate-spin" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <polyline points="23 4 23 10 17 10" />
+                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                          </svg>
+                          Unlocking...
+                        </>
+                      ) : (
+                        <>
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                            <path d="M7 11V7a5 5 0 0 1 9.9-1" />
+                          </svg>
+                          Unlock
+                        </>
+                      )}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function UsersPanel({ show: isVisible }) {
   const [users, setUsers]         = useState([]);
   const [loading, setLoading]     = useState(false);
@@ -47,6 +223,7 @@ export default function UsersPanel({ show: isVisible }) {
   const [errs, setErrs]           = useState({});
   const [idPreview, setIdPreview] = useState(null);
   const [step, setStep]           = useState(1);
+  const [activeTab, setActiveTab] = useState("users");
   const { show: toast }           = useToast();
 
   usePageTitle("User Management");
@@ -253,18 +430,63 @@ export default function UsersPanel({ show: isVisible }) {
         title="User Management"
         subtitle="Manage all registered accounts"
         action={
-          <button
-            onClick={openAdd}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-black text-white transition-all hover:shadow-lg hover:opacity-90"
-            style={{ background: "#1c4f09" }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Add User
-          </button>
+          activeTab === "users" ? (
+            <button
+              onClick={openAdd}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-black text-white transition-all hover:shadow-lg hover:opacity-90"
+              style={{ background: "#1c4f09" }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add User
+            </button>
+          ) : null
         }
       />
 
+      {/* ── Tabs ──────────────────────────────────────────────────────────── */}
+      <div className="flex gap-1 p-1 rounded-xl w-fit" style={{ background: "rgba(180,140,60,0.10)", border: "1.5px solid rgba(180,140,60,0.22)" }}>
+        {[
+          {
+            id: "users", label: "All Users",
+            icon: (
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+            )
+          },
+          {
+            id: "locked", label: "Locked Accounts",
+            icon: (
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+            )
+          },
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-extrabold transition-all duration-150 cursor-pointer border-none"
+            style={{
+              background: activeTab === tab.id ? "#1c4f09"               : "transparent",
+              color:      activeTab === tab.id ? "#ffffff"               : "#6a7a50",
+              boxShadow:  activeTab === tab.id ? "0 2px 8px rgba(28,79,9,0.20)" : "none",
+            }}
+          >
+            {tab.icon}
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Locked Accounts Tab ───────────────────────────────────────────── */}
+      {activeTab === "locked" && <LockedAccountsPanel />}
+
       {/* ── Filters ───────────────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row flex-wrap gap-3 items-stretch sm:items-end">
+      <div className={`flex flex-col sm:flex-row flex-wrap gap-3 items-stretch sm:items-end ${activeTab !== "users" ? "hidden" : ""}`}>
         <div className="w-full sm:w-[360px]">
           <SearchBar value={search} onChange={setSearch} placeholder="Search users…" />
         </div>
@@ -279,15 +501,15 @@ export default function UsersPanel({ show: isVisible }) {
       </div>
 
       {/* ── Table (desktop) / Cards (mobile) ──────────────────────────────── */}
-      {loading ? (
+      {activeTab === "users" && loading ? (
         <div className="flex items-center justify-center py-20">
           <div className="w-8 h-8 rounded-full border-2 border-green-600 border-t-transparent animate-spin" />
         </div>
-      ) : filtered.length === 0 ? (
+      ) : activeTab === "users" && filtered.length === 0 ? (
         <div className="text-center py-16 text-sm font-semibold" style={{ color: "#9aaa80" }}>
           No users found.
         </div>
-      ) : (
+      ) : activeTab === "users" ? (
         <>
           {/* ── Desktop table ── */}
           <div className="hidden md:block">
@@ -497,7 +719,7 @@ export default function UsersPanel({ show: isVisible }) {
             </div>
           )}
         </>
-      )}
+      ) : null}
 
       {/* ── Add / Edit Modal ─────────────────────────────────────────────────── */}
       <Modal

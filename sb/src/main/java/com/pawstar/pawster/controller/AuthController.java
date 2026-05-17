@@ -44,15 +44,14 @@ import com.pawstar.pawster.repository.ActivityLogRepository;
 import com.pawstar.pawster.repository.UserRepository;
 import com.pawstar.pawster.security.JwtUtils;
 import com.pawstar.pawster.service.EmailService;
+import com.pawstar.pawster.service.LoginAttemptService;
+import com.pawstar.pawster.model.LoginAttempt;
 
 import jakarta.servlet.http.HttpServletResponse;
 
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
-
-    private static final String ADMIN_EMAIL    = "admin@pawster.com";
-    private static final String ADMIN_PASSWORD = "admin123";
 
     private static final List<String> ALLOWED_MIME_TYPES =
             List.of("image/jpeg", "image/png", "application/pdf");
@@ -70,6 +69,7 @@ public class AuthController {
     @Autowired private JwtUtils               jwtUtils;
     @Autowired private EmailService           emailService;
     @Autowired private ActivityLogRepository  activityLogRepository;
+    @Autowired private LoginAttemptService    loginAttemptService;
 
     // ── Cookie helpers ────────────────────────────────────────────────────────
 
@@ -125,40 +125,40 @@ public class AuthController {
         if (email.isEmpty() || password.isEmpty())
             return bad("Please enter both email and password.");
 
-        // Static admin shortcut
-        if (ADMIN_EMAIL.equals(email) && ADMIN_PASSWORD.equals(password)) {
-            String jwt = jwtUtils.generateToken(ADMIN_EMAIL, "admin");
-            addJwtCookie(response, jwt);
-            logLogin("Admin", null, "Admin logged in");
-            return ResponseEntity.ok(Map.of(
-                    "success",         true,
-                    "message",         "Admin login successful!",
-                    "role",            "admin",
-                    "token",           jwt,
-                    "profileComplete", true,
-                    "redirect",        "php/admin_dashboard.php"));
+        
+
+        // ── Rate-limit check ──────────────────────────────────────────────────
+        LoginAttempt existingLock = loginAttemptService.checkLock(email);
+        if (existingLock != null) {
+            return buildLockResponse(existingLock);
         }
 
+        // ── Credential verification ───────────────────────────────────────────
         User user = userRepository.findByEmail(email).orElse(null);
-        if (user == null)
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("success", false,
-                            "message", "No account found with this email."));
+        if (user == null) {
+            // Record failure even for unknown emails to prevent enumeration abuse
+            LoginAttempt attempt = loginAttemptService.recordFailure(email);
+            return buildFailureResponse(attempt, "No account found with this email.");
+        }
 
-        if (!encoder.matches(password, user.getPassword()))
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("success", false, "message", "Invalid password."));
-
-        user.setLastLogin(LocalDateTime.now());
-        userRepository.save(user);
+        if (!encoder.matches(password, user.getPassword())) {
+            LoginAttempt attempt = loginAttemptService.recordFailure(email);
+            return buildFailureResponse(attempt, "Invalid password.");
+        }
 
         try {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(email, password));
         } catch (BadCredentialsException e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("success", false, "message", "Authentication failed."));
+            LoginAttempt attempt = loginAttemptService.recordFailure(email);
+            return buildFailureResponse(attempt, "Authentication failed.");
         }
+
+        // ── Success — clear rate-limit counter ────────────────────────────────
+        loginAttemptService.resetAttempts(email);
+
+        user.setLastLogin(LocalDateTime.now());
+        userRepository.save(user);
 
         String jwt      = jwtUtils.generateToken(user.getEmail(), user.getRole());
         String redirect = "admin".equals(user.getRole())
@@ -171,6 +171,69 @@ public class AuthController {
             user.getId(),
             user.getRole() + " logged in");
         return ResponseEntity.ok(toDtoNoToken(user, redirect, jwt));
+    }
+
+    // ── Rate-limit response builders ──────────────────────────────────────────
+
+    private ResponseEntity<?> buildLockResponse(LoginAttempt attempt) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("success",            false);
+        body.put("locked",             true);
+        body.put("permanentlyLocked",  attempt.isPermanentlyLocked());
+        body.put("attemptCount",       attempt.getAttemptCount());
+
+        if (attempt.isPermanentlyLocked()) {
+            body.put("message",
+                "Your account has been permanently locked due to too many failed login attempts. "
+              + "Please contact support.");
+            body.put("lockType", "permanent");
+        } else {
+            java.time.Duration remaining = java.time.Duration.between(
+                LocalDateTime.now(), attempt.getLockedUntil());
+            long seconds = Math.max(0, remaining.getSeconds());
+            body.put("lockedUntil",    attempt.getLockedUntil().toString());
+            body.put("lockSeconds",    seconds);
+            body.put("lockType",       "temporary");
+            body.put("message",
+                "Account temporarily locked. Please wait " + formatDuration(seconds)
+              + " before trying again.");
+        }
+
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(body);
+    }
+
+    private ResponseEntity<?> buildFailureResponse(LoginAttempt attempt, String baseMessage) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("success",       false);
+        body.put("attemptCount",  attempt.getAttemptCount());
+
+        if (attempt.isPermanentlyLocked()) {
+            body.put("locked",           true);
+            body.put("permanentlyLocked",true);
+            body.put("lockType",         "permanent");
+            body.put("message",
+                "Your account has been permanently locked due to too many failed login attempts. "
+              + "Please contact support.");
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(body);
+        }
+
+        if (attempt.getLockedUntil() != null
+                && LocalDateTime.now().isBefore(attempt.getLockedUntil())) {
+            return buildLockResponse(attempt);
+        }
+
+        int count = attempt.getAttemptCount();
+        int remaining = 10 - count;
+        body.put("locked",  false);
+        body.put("message", baseMessage + " Warning: " + remaining
+            + " attempt(s) remaining before further lockout.");
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(body);
+    }
+
+    private String formatDuration(long totalSeconds) {
+        if (totalSeconds < 60)   return totalSeconds + " second(s)";
+        if (totalSeconds < 3600) return (totalSeconds / 60) + " minute(s)";
+        return (totalSeconds / 3600) + " hour(s)";
     }
 
     // =========================================================================
@@ -428,15 +491,7 @@ public ResponseEntity<?> completeProfile(
 
         String email = auth.getName();
 
-        if (ADMIN_EMAIL.equals(email))
-            return ResponseEntity.ok(Map.of(
-                    "email",           ADMIN_EMAIL,
-                    "firstName",       "Admin",
-                    "lastName",        "",
-                    "role",            "admin",
-                    "status",          "active",
-                    "isActive",        true,
-                    "profileComplete", true));
+        
 
         return userRepository.findByEmail(email)
                 .map(u -> ResponseEntity.ok((Object) toDto(u)))

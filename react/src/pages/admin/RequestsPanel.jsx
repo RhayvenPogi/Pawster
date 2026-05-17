@@ -577,6 +577,18 @@ function DownloadPDFButton({ record, type }) {
     } catch {
       try { await downloadAppointmentPDF({ ...record, _type: isAdoption ? "Adoption" : "Rehoming" }, "admin"); } catch {}
     }
+    // Log to activity via Spring Boot
+    try {
+      const token = getToken();
+      await fetch(`/api/activity-logs`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({
+          action:  "Download",
+          details: `Receipt PDF downloaded for ${isAdoption ? "adoption" : "rehoming"} request #${record.id}`,
+        }),
+      });
+    } catch { /* non-critical */ }
     setBusy(false);
   };
 
