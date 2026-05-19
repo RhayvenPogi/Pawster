@@ -1,6 +1,8 @@
 // AuthController.java — FULL FILE
 
+
 package com.pawstar.pawster.controller;
+
 
 import java.io.IOException;
 import java.time.Duration;
@@ -10,6 +12,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -34,6 +37,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.http.javanet.NetHttpTransport;
@@ -45,23 +49,30 @@ import com.pawstar.pawster.repository.UserRepository;
 import com.pawstar.pawster.security.JwtUtils;
 import com.pawstar.pawster.service.EmailService;
 import com.pawstar.pawster.service.LoginAttemptService;
+import com.pawstar.pawster.service.PendingOtpStore;
 import com.pawstar.pawster.model.LoginAttempt;
 
+
 import jakarta.servlet.http.HttpServletResponse;
+
 
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
 
+
     private static final List<String> ALLOWED_MIME_TYPES =
             List.of("image/jpeg", "image/png", "application/pdf");
     private static final long MAX_FILE_SIZE = 5L * 1024 * 1024;
 
+
     @Value("${jwt.expiration}")
     private int jwtExpirationMs;
 
+
     @Value("${google.client.id:placeholder}")
     private String googleClientId;
+
 
     @Autowired private AuthenticationManager  authenticationManager;
     @Autowired private UserRepository         userRepository;
@@ -70,8 +81,11 @@ public class AuthController {
     @Autowired private EmailService           emailService;
     @Autowired private ActivityLogRepository  activityLogRepository;
     @Autowired private LoginAttemptService    loginAttemptService;
+    @Autowired private PendingOtpStore        pendingOtpStore;
+
 
     // ── Cookie helpers ────────────────────────────────────────────────────────
+
 
     private void addJwtCookie(HttpServletResponse response, String token) {
         ResponseCookie cookie = ResponseCookie.from("jwt", token)
@@ -84,6 +98,7 @@ public class AuthController {
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 
+
     private void clearJwtCookie(HttpServletResponse response) {
         ResponseCookie cookie = ResponseCookie.from("jwt", "")
                 .httpOnly(true)
@@ -95,7 +110,9 @@ public class AuthController {
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 
+
     // ── Activity log helper ───────────────────────────────────────────────────
+
 
     private void logLogin(String userName, Integer userId, String details) {
         try {
@@ -110,6 +127,7 @@ public class AuthController {
         }
     }
 
+
     // =========================================================================
     // POST /api/auth/login
     // =========================================================================
@@ -119,19 +137,24 @@ public class AuthController {
             @RequestParam("password") String password,
             HttpServletResponse response) {
 
+
         email    = email    == null ? "" : email.trim();
         password = password == null ? "" : password;
+
 
         if (email.isEmpty() || password.isEmpty())
             return bad("Please enter both email and password.");
 
-        
+
+       
+
 
         // ── Rate-limit check ──────────────────────────────────────────────────
         LoginAttempt existingLock = loginAttemptService.checkLock(email);
         if (existingLock != null) {
             return buildLockResponse(existingLock);
         }
+
 
         // ── Credential verification ───────────────────────────────────────────
         User user = userRepository.findByEmail(email).orElse(null);
@@ -141,10 +164,12 @@ public class AuthController {
             return buildFailureResponse(attempt, "No account found with this email.");
         }
 
+
         if (!encoder.matches(password, user.getPassword())) {
             LoginAttempt attempt = loginAttemptService.recordFailure(email);
             return buildFailureResponse(attempt, "Invalid password.");
         }
+
 
         try {
             authenticationManager.authenticate(
@@ -154,16 +179,20 @@ public class AuthController {
             return buildFailureResponse(attempt, "Authentication failed.");
         }
 
+
         // ── Success — clear rate-limit counter ────────────────────────────────
         loginAttemptService.resetAttempts(email);
 
+
         user.setLastLogin(LocalDateTime.now());
         userRepository.save(user);
+
 
         String jwt      = jwtUtils.generateToken(user.getEmail(), user.getRole());
         String redirect = "admin".equals(user.getRole())
                 ? "php/admin_dashboard.php"
                 : "php/index.php";
+
 
         addJwtCookie(response, jwt);
         logLogin(
@@ -173,7 +202,9 @@ public class AuthController {
         return ResponseEntity.ok(toDtoNoToken(user, redirect, jwt));
     }
 
+
     // ── Rate-limit response builders ──────────────────────────────────────────
+
 
     private ResponseEntity<?> buildLockResponse(LoginAttempt attempt) {
         Map<String, Object> body = new HashMap<>();
@@ -181,6 +212,7 @@ public class AuthController {
         body.put("locked",             true);
         body.put("permanentlyLocked",  attempt.isPermanentlyLocked());
         body.put("attemptCount",       attempt.getAttemptCount());
+
 
         if (attempt.isPermanentlyLocked()) {
             body.put("message",
@@ -199,13 +231,16 @@ public class AuthController {
               + " before trying again.");
         }
 
+
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(body);
     }
+
 
     private ResponseEntity<?> buildFailureResponse(LoginAttempt attempt, String baseMessage) {
         Map<String, Object> body = new HashMap<>();
         body.put("success",       false);
         body.put("attemptCount",  attempt.getAttemptCount());
+
 
         if (attempt.isPermanentlyLocked()) {
             body.put("locked",           true);
@@ -217,10 +252,12 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(body);
         }
 
+
         if (attempt.getLockedUntil() != null
                 && LocalDateTime.now().isBefore(attempt.getLockedUntil())) {
             return buildLockResponse(attempt);
         }
+
 
         int count = attempt.getAttemptCount();
         int remaining = 10 - count;
@@ -230,11 +267,13 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(body);
     }
 
+
     private String formatDuration(long totalSeconds) {
         if (totalSeconds < 60)   return totalSeconds + " second(s)";
         if (totalSeconds < 3600) return (totalSeconds / 60) + " minute(s)";
         return (totalSeconds / 3600) + " hour(s)";
     }
+
 
     // =========================================================================
     // POST /api/auth/register
@@ -253,29 +292,37 @@ public class AuthController {
             @RequestParam("idFile")    MultipartFile idFile,
             HttpServletResponse response) {
 
+
         if (isBlank(firstName) || isBlank(lastName) || isBlank(email) ||
                 isBlank(phone) || isBlank(password) || isBlank(address) ||
                 isBlank(city)  || isBlank(province)  || isBlank(zip))
             return bad("All required fields must be filled.");
 
+
         if (!email.trim().matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"))
             return bad("Invalid email format.");
+
 
         if (password.length() < 8)
             return bad("Password must be at least 8 characters long.");
 
+
         if (userRepository.findByEmail(email.trim()).isPresent())
             return bad("Email already registered.");
+
 
         if (idFile == null || idFile.isEmpty())
             return bad("ID file is required.");
 
+
         if (idFile.getSize() > MAX_FILE_SIZE)
             return bad("File must be under 5MB.");
+
 
         String contentType = idFile.getContentType();
         if (contentType == null || !ALLOWED_MIME_TYPES.contains(contentType))
             return bad("Invalid file type. Allowed: PDF, JPG, PNG.");
+
 
         byte[] fileBytes;
         try {
@@ -285,6 +332,7 @@ public class AuthController {
                     .body(Map.of("success", false, "message", "Failed to read ID file."));
         }
 
+
         User user = new User(
                 firstName.trim(), lastName.trim(), email.trim(),
                 phone.trim(), encoder.encode(password),
@@ -292,12 +340,15 @@ public class AuthController {
                 zip.trim(), fileBytes, contentType,
                 idFile.getOriginalFilename());
 
+
         // Normal registration = profile is complete
         user.setProfileComplete(true);
         userRepository.save(user);
 
+
         String jwt = jwtUtils.generateToken(user.getEmail(), user.getRole());
         addJwtCookie(response, jwt);
+
 
         Map<String, Object> dto = toDto(user);
         dto.put("success", true);
@@ -305,6 +356,7 @@ public class AuthController {
         dto.put("token",   jwt);
         return ResponseEntity.ok(dto);
     }
+
 
     // =========================================================================
     // POST /api/auth/google
@@ -314,9 +366,11 @@ public class AuthController {
             @RequestBody Map<String, String> request,
             HttpServletResponse response) {
 
+
         String idTokenString = request.get("token");
         if (isBlank(idTokenString))
             return bad("Google ID token is required.");
+
 
         GoogleIdToken idToken;
         try {
@@ -330,19 +384,24 @@ public class AuthController {
                     .body(Map.of("success", false, "message", "Token verification failed."));
         }
 
+
         if (idToken == null)
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("success", false, "message", "Invalid Google ID token."));
+
 
         GoogleIdToken.Payload payload = idToken.getPayload();
         String email     = payload.getEmail();
         String firstName = (String) payload.get("given_name");
         String lastName  = (String) payload.get("family_name");
 
+
         if (isBlank(firstName)) firstName = email.split("@")[0];
         if (isBlank(lastName))  lastName  = "";
 
+
         User user = userRepository.findByEmail(email).orElse(null);
+
 
         if (user == null) {
             // Brand-new Google user — profileComplete stays false
@@ -362,13 +421,16 @@ public class AuthController {
         }
         // Existing Google user — profileComplete stays as whatever it was in DB
 
+
         user.setLastLogin(LocalDateTime.now());
         userRepository.save(user);
+
 
         String jwt      = jwtUtils.generateToken(user.getEmail(), user.getRole());
         String redirect = "admin".equals(user.getRole())
                 ? "php/admin_dashboard.php"
                 : "php/index.php";
+
 
         addJwtCookie(response, jwt);
         logLogin(
@@ -378,9 +440,11 @@ public class AuthController {
         return ResponseEntity.ok(toDtoNoToken(user, redirect, jwt));
     }
 
+
     // =========================================================================
     // PUT /api/auth/complete-profile   ← NEW
     // =========================================================================
+
 
 @PutMapping(value = "/complete-profile", consumes = "multipart/form-data")
 public ResponseEntity<?> completeProfile(
@@ -391,6 +455,7 @@ public ResponseEntity<?> completeProfile(
         @RequestParam("zip")      String zip,
         @RequestParam("idFile")   MultipartFile idFile) {
 
+
     Authentication auth = SecurityContextHolder.getContext().getAuthentication();
     if (auth == null || !auth.isAuthenticated()
             || "anonymousUser".equals(auth.getPrincipal())) {
@@ -398,17 +463,20 @@ public ResponseEntity<?> completeProfile(
                 .body(Map.of("success", false, "message", "Not authenticated."));
     }
 
+
     String callerEmail = auth.getName();
     User user = userRepository.findByEmail(callerEmail).orElse(null);
     if (user == null)
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(Map.of("success", false, "message", "User not found."));
 
+
     phone    = phone    == null ? "" : phone.trim();
     address  = address  == null ? "" : address.trim();
     city     = city     == null ? "" : city.trim();
     province = province == null ? "" : province.trim();
     zip      = zip      == null ? "" : zip.trim();
+
 
     if (phone.isEmpty())    return bad("Phone number is required.");
     if (address.isEmpty())  return bad("Address is required.");
@@ -417,6 +485,7 @@ public ResponseEntity<?> completeProfile(
     if (zip.isEmpty())      return bad("Zip code is required.");
     if (!phone.matches("^(09\\d{9}|\\+639\\d{9})$"))
         return bad("Enter a valid PH number (e.g. 09171234567).");
+
 
     // ── ID file validation ──────────────────────────────────────────────
     if (idFile == null || idFile.isEmpty())
@@ -427,6 +496,7 @@ public ResponseEntity<?> completeProfile(
     if (contentType == null || !ALLOWED_MIME_TYPES.contains(contentType))
         return bad("Invalid file type. Allowed: PDF, JPG, PNG.");
 
+
     byte[] fileBytes;
     try {
         fileBytes = idFile.getBytes();
@@ -434,6 +504,7 @@ public ResponseEntity<?> completeProfile(
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(Map.of("success", false, "message", "Failed to read ID file."));
     }
+
 
     user.setPhone(phone);
     user.setAddress(address);
@@ -445,6 +516,7 @@ public ResponseEntity<?> completeProfile(
     user.setIdFileName(idFile.getOriginalFilename());
     user.setProfileComplete(true);
     userRepository.save(user);
+
 
     Map<String, Object> dto = toDto(user);
     dto.put("success", true);
@@ -460,8 +532,10 @@ public ResponseEntity<?> completeProfile(
         if (user == null || user.getIdFile() == null)
             return ResponseEntity.notFound().build();
 
+
         String mime     = user.getIdFileType()  != null ? user.getIdFileType()  : "application/octet-stream";
         String filename = user.getIdFileName() != null ? user.getIdFileName() : "id_file";
+
 
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(mime))
@@ -469,6 +543,7 @@ public ResponseEntity<?> completeProfile(
                         "inline; filename=\"" + filename + "\"")
                 .body(user.getIdFile());
     }
+
 
     // =========================================================================
     // POST /api/auth/logout
@@ -478,6 +553,7 @@ public ResponseEntity<?> completeProfile(
         clearJwtCookie(response);
         return ResponseEntity.ok(Map.of("success", true, "message", "Logged out"));
     }
+
 
     // =========================================================================
     // GET /api/auth/me
@@ -489,14 +565,18 @@ public ResponseEntity<?> completeProfile(
                 || "anonymousUser".equals(auth.getPrincipal()))
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
 
+
         String email = auth.getName();
 
-        
+
+       
+
 
         return userRepository.findByEmail(email)
                 .map(u -> ResponseEntity.ok((Object) toDto(u)))
                 .orElse(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
     }
+
 
     // =========================================================================
     // POST /api/auth/forgot-password
@@ -506,8 +586,9 @@ public ResponseEntity<?> completeProfile(
         String email = body.get("email");
         if (isBlank(email)) return bad("Email is required.");
 
+
         userRepository.findByEmail(email.trim()).ifPresent(user -> {
-            String otp = String.format("%06d", new java.util.Random().nextInt(999999));
+            String otp = generateOtp();
             user.setResetOtp(otp);
             user.setResetOtpExpiresAt(LocalDateTime.now().plusMinutes(10));
             user.setResetOtpVerified(false);
@@ -515,9 +596,11 @@ public ResponseEntity<?> completeProfile(
             emailService.sendOtpEmail(email.trim(), otp);
         });
 
+
         return ResponseEntity.ok(Map.of("success", true,
                 "message", "If that email exists, an OTP has been sent."));
     }
+
 
     // =========================================================================
     // POST /api/auth/verify-otp
@@ -529,10 +612,12 @@ public ResponseEntity<?> completeProfile(
         if (isBlank(email) || isBlank(otp))
             return bad("Email and OTP are required.");
 
+
         User user = userRepository.findByEmail(email.trim()).orElse(null);
         if (user == null || !otp.equals(user.getResetOtp()))
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("success", false, "message", "Invalid OTP."));
+
 
         if (user.getResetOtpExpiresAt().isBefore(LocalDateTime.now())) {
             user.setResetOtp(null);
@@ -543,10 +628,12 @@ public ResponseEntity<?> completeProfile(
                             "message", "OTP has expired. Please request a new one."));
         }
 
+
         user.setResetOtpVerified(true);
         userRepository.save(user);
         return ResponseEntity.ok(Map.of("success", true, "message", "OTP verified."));
     }
+
 
     // =========================================================================
     // POST /api/auth/reset-password
@@ -560,10 +647,12 @@ public ResponseEntity<?> completeProfile(
         if (newPassword.length() < 8)
             return bad("Password must be at least 8 characters.");
 
+
         User user = userRepository.findByEmail(email.trim()).orElse(null);
         if (user == null || !user.isResetOtpVerified())
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("success", false, "message", "OTP not verified."));
+
 
         user.setPassword(encoder.encode(newPassword));
         user.setResetOtp(null);
@@ -571,22 +660,127 @@ public ResponseEntity<?> completeProfile(
         user.setResetOtpVerified(false);
         userRepository.save(user);
 
+
         return ResponseEntity.ok(Map.of("success", true,
                 "message", "Password reset successfully."));
     }
+
+
+    // =========================================================================
+    // POST /api/auth/send-email-otp
+    // =========================================================================
+    @PostMapping("/send-email-otp")
+    public ResponseEntity<?> sendEmailOtp(@RequestBody Map<String, String> body) {
+        String email     = body.get("email");
+        String firstName = body.get("firstName");
+
+
+        if (isBlank(email))     return bad("Email is required.");
+        if (isBlank(firstName)) firstName = "there";
+
+
+        email     = email.trim().toLowerCase();
+        firstName = firstName.trim();
+
+
+        String otp = generateOtp();
+        pendingOtpStore.save(email, otp, firstName);
+
+
+        try {
+            emailService.sendVerificationEmail(email, firstName, otp);
+        } catch (Exception e) {
+            System.err.println("⚠️ Failed to send OTP to " + email + ": " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(Map.of("success", false,
+                                 "message", "Could not send verification email. Please try again."));
+        }
+
+
+        return ResponseEntity.ok(Map.of("success", true, "message", "Verification code sent."));
+    }
+
+
+    // =========================================================================
+    // POST /api/auth/verify-email-otp
+    // =========================================================================
+    @PostMapping("/verify-email-otp")
+    public ResponseEntity<?> verifyEmailOtp(@RequestBody Map<String, String> body) {
+        String email = body.get("email");
+        String otp   = body.get("otp");
+
+
+        if (isBlank(email) || isBlank(otp))
+            return bad("Email and code are required.");
+
+
+        if (!pendingOtpStore.verify(email.trim().toLowerCase(), otp.trim()))
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("success", false,
+                                 "message", "Invalid or expired verification code."));
+
+
+        return ResponseEntity.ok(Map.of("success", true, "verified", true));
+    }
+
+
+    // =========================================================================
+    // POST /api/auth/resend-email-otp
+    // =========================================================================
+    @PostMapping("/resend-email-otp")
+    public ResponseEntity<?> resendEmailOtp(@RequestBody Map<String, String> body) {
+        String email     = body.get("email");
+        String firstName = body.get("firstName");
+
+
+        if (isBlank(email)) return bad("Email is required.");
+
+
+        email = email.trim().toLowerCase();
+
+
+        if (isBlank(firstName)) firstName = pendingOtpStore.getFirstName(email);
+        else firstName = firstName.trim();
+
+
+        String otp = generateOtp();
+        pendingOtpStore.save(email, otp, firstName);
+
+
+        try {
+            emailService.sendVerificationEmail(email, firstName, otp);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(Map.of("success", false,
+                                 "message", "Could not resend verification email. Please try again."));
+        }
+
+
+        return ResponseEntity.ok(Map.of("success", true, "message", "A new code has been sent."));
+    }
+
 
     // =========================================================================
     // Helpers
     // =========================================================================
 
+
     private boolean isBlank(String s) {
         return s == null || s.trim().isEmpty();
     }
+
+
+    private String generateOtp() {
+        int code = new java.security.SecureRandom().nextInt(900_000) + 100_000;
+        return String.valueOf(code);
+    }
+
 
     private ResponseEntity<?> bad(String message) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(Map.of("success", false, "message", message));
     }
+
 
     private Map<String, Object> toDto(User u) {
         Map<String, Object> dto = new HashMap<>();
@@ -610,6 +804,7 @@ public ResponseEntity<?> completeProfile(
         return dto;
     }
 
+
     private Map<String, Object> toDtoNoToken(User u, String redirect, String jwt) {
         Map<String, Object> dto = toDto(u);
         dto.put("success",  true);
@@ -619,3 +814,4 @@ public ResponseEntity<?> completeProfile(
         return dto;
     }
 }
+

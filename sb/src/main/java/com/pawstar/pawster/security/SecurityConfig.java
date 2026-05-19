@@ -1,5 +1,6 @@
 package com.pawstar.pawster.security;
 
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -18,23 +19,29 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+
 import jakarta.servlet.http.HttpServletResponse;
+
 
 import java.util.Arrays;
 import java.util.List;
+
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
+
         @Autowired
         private JwtAuthenticationFilter jwtAuthFilter;
+
 
         @Bean
         public AuthenticationManager authenticationManager(
                         AuthenticationConfiguration authConfig) throws Exception {
                 return authConfig.getAuthenticationManager();
         }
+
 
         @Bean
         public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -45,32 +52,46 @@ public class SecurityConfig {
                                                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                                 .authorizeHttpRequests(auth -> auth
 
+
                                                 // ── Public auth endpoints ──────────────────────────────────
-                                                .requestMatchers(
+                                                .requestMatchers(HttpMethod.POST,
                                                                 "/api/auth/login",
                                                                 "/api/auth/register",
                                                                 "/api/auth/logout",
-                                                                "/api/auth/me",
                                                                 "/api/auth/forgot-password",
                                                                 "/api/auth/verify-otp",
                                                                 "/api/auth/reset-password",
-                                                                "/api/auth/google", 
-                                                                "/api/auth/complete-profile", 
+                                                                "/api/auth/google",
+                                                                "/api/auth/send-email-otp",
+                                                                "/api/auth/verify-email-otp",
+                                                                "/api/auth/resend-email-otp")
+                                                .permitAll()
+                                                .requestMatchers(HttpMethod.GET,
+                                                                "/api/auth/me")
+                                                .permitAll()
+                                                .requestMatchers(HttpMethod.PUT,
+                                                                "/api/auth/complete-profile")
+                                                .permitAll()
+                                                .requestMatchers(
                                                                 "/swagger-ui.html",
                                                                 "/error")
                                                 .permitAll()
 
+
                                                 // ── WebSocket handshake endpoints ──────────────────────────
                                                 .requestMatchers("/ws/**").permitAll()
 
+
                                                 // ── Animals: anyone can browse ─────────────────────────────
                                                 .requestMatchers(HttpMethod.GET, "/api/animals/**").permitAll()
+
 
                                                 // ── Animals: specific POST routes that must be permitAll ───
                                                 .requestMatchers(HttpMethod.POST, "/api/animals/from-rehoming").permitAll()
                                                 .requestMatchers(HttpMethod.POST, "/api/animals/mark-adopted").permitAll()
                                                 .requestMatchers(HttpMethod.POST, "/api/animals/mark-pending").permitAll()
                                                 .requestMatchers(HttpMethod.POST, "/api/animals").permitAll()
+
 
                                                 // ── Animals: wildcard write rules (admin only) ─────────────
                                                 .requestMatchers(HttpMethod.POST, "/api/animals/**")
@@ -79,6 +100,7 @@ public class SecurityConfig {
                                                 .hasAnyAuthority("admin", "ADMIN")
                                                 .requestMatchers(HttpMethod.DELETE, "/api/animals/**")
                                                 .hasAnyAuthority("admin", "ADMIN")
+
 
                                                 // ── Adoption ──────────────────────────────────────────────
                                                 .requestMatchers(HttpMethod.POST, "/api/adoption").authenticated()
@@ -90,6 +112,7 @@ public class SecurityConfig {
                                                 .requestMatchers(HttpMethod.PATCH, "/api/adoption/**")
                                                 .hasAnyAuthority("admin", "ADMIN")
 
+
                                                 // ── Rehome ────────────────────────────────────────────────
                                                 .requestMatchers(HttpMethod.POST, "/api/rehome").authenticated()
                                                 .requestMatchers(HttpMethod.GET, "/api/rehome/my-requests")
@@ -100,6 +123,7 @@ public class SecurityConfig {
                                                 .requestMatchers(HttpMethod.PATCH, "/api/rehome/**")
                                                 .hasAnyAuthority("admin", "ADMIN")
 
+
                                                 // ── Surveys ───────────────────────────────────────────────
                                                 .requestMatchers(HttpMethod.POST, "/api/surveys").authenticated()
                                                 .requestMatchers(HttpMethod.GET, "/api/surveys/my-surveys")
@@ -107,24 +131,31 @@ public class SecurityConfig {
                                                 .requestMatchers(HttpMethod.GET, "/api/surveys/**")
                                                 .hasAnyAuthority("admin", "ADMIN")
 
+
                                                 // ── Admin-only routes ──────────────────────────────────────
                                                 .requestMatchers("/api/admin/**").hasAnyAuthority("admin", "ADMIN")
+
 
                                                 // ── Static uploads (public) ────────────────────────────────
                                                 .requestMatchers("/uploads/**").permitAll()
 
+
                                                 // ── Messages REST endpoints (all authenticated) ────────────
                                                 .requestMatchers("/api/messages/**").authenticated()
+
 
                                                 // ── Missing Pets ──────────────────────────────────────────
                                                 .requestMatchers(HttpMethod.GET, "/api/missing-pets/**").permitAll()
                                                 .requestMatchers(HttpMethod.POST, "/api/missing-pets").permitAll()
                                                 .requestMatchers(HttpMethod.POST, "/api/missing-pets/*/comments").permitAll()
 
+
                                                 // ── User photo: public read ────────────────────────────────
                                                 .requestMatchers("/api/users/*/photo/public").permitAll()
 
+
                                                 .anyRequest().authenticated())
+
 
                                 .exceptionHandling(ex -> ex
                                                 .authenticationEntryPoint((req, res, e) -> {
@@ -138,25 +169,31 @@ public class SecurityConfig {
                                                         res.getWriter().write("{\"error\":\"Forbidden\"}");
                                                 }));
 
+
                 http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
                 return http.build();
         }
+
 
         @Bean
         public PasswordEncoder passwordEncoder() {
                 return new BCryptPasswordEncoder();
         }
 
+
         @Bean
         public CorsConfigurationSource corsConfigurationSource() {
                 CorsConfiguration config = new CorsConfiguration();
+
 
                 config.setAllowedOrigins(List.of(
                                 "http://localhost:3000",
                                 "http://localhost:5173"));
 
+
                 config.setAllowedMethods(Arrays.asList(
                                 "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+
 
                 config.setAllowedHeaders(Arrays.asList(
                                 "Authorization",
@@ -164,11 +201,14 @@ public class SecurityConfig {
                                 "Content-Type",
                                 "Accept"));
 
+
                 config.setAllowCredentials(true);
                 config.setMaxAge(3600L);
+
 
                 UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
                 source.registerCorsConfiguration("/**", config);
                 return source;
         }
 }
+

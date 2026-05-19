@@ -1,34 +1,64 @@
 package com.pawstar.pawster.service;
 
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+
 
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 
+
 @Service
 public class EmailService {
+
 
     @Value("${BREVO_API_KEY}")
     private String brevoApiKey;
 
+
     @Value("${app.base-url}")
     private String baseUrl;
 
+
     private static final String LOGO_URL = "https://i.imgur.com/qVRCfX7.png";
 
+
     private final HttpClient httpClient = HttpClient.newHttpClient();
+
+
+    // ── Public send methods ─────────────────────────────────────────────────
+
 
     public void sendOtpEmail(String toEmail, String otp) {
         sendEmail(toEmail, "Pawster — Your Password Reset PIN", buildOtpHtml(otp));
     }
 
+
+    /**
+     * Sends a 6-digit email verification OTP during registration.
+     * Subject and body are distinct from the password-reset OTP so users
+     * aren't confused by two different "PIN" emails.
+     */
+    public void sendVerificationEmail(String toEmail, String firstName, String otp) {
+        sendEmail(
+            toEmail,
+            "Pawster — Verify Your Email Address",
+            buildVerificationHtml(firstName, otp)
+        );
+    }
+
+
     public void sendWelcomeEmail(String toEmail, String firstName, String role, String plainPassword) {
         String roleLabel = "admin".equalsIgnoreCase(role) ? "Administrator" : "User";
         sendEmail(toEmail, "Welcome to Pawster — Your Account is Ready!", buildWelcomeHtml(firstName, roleLabel, toEmail, plainPassword));
     }
+
+
+    // ── Core sender ─────────────────────────────────────────────────────────
+
 
     private void sendEmail(String to, String subject, String html) {
         try {
@@ -39,6 +69,7 @@ public class EmailService {
                 + "\"htmlContent\":\"" + escapeJson(html) + "\""
                 + "}";
 
+
             HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create("https://api.brevo.com/v3/smtp/email"))
                 .header("api-key", brevoApiKey)
@@ -46,7 +77,9 @@ public class EmailService {
                 .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
                 .build();
 
+
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
 
             if (response.statusCode() >= 200 && response.statusCode() < 300) {
                 System.out.println("✅ Email sent to " + to + " | status: " + response.statusCode());
@@ -59,6 +92,10 @@ public class EmailService {
         }
     }
 
+
+    // ── Helpers ─────────────────────────────────────────────────────────────
+
+
     private String escapeJson(String s) {
         return s.replace("\\", "\\\\")
                 .replace("\"", "\\\"")
@@ -67,38 +104,82 @@ public class EmailService {
                 .replace("\t", "\\t");
     }
 
-    private String buildOtpHtml(String otp) {
-        StringBuilder digits = new StringBuilder();
+
+    // ── HTML builders ────────────────────────────────────────────────────────
+
+
+    private String digitBoxes(String otp) {
+        StringBuilder sb = new StringBuilder();
         for (char c : otp.toCharArray()) {
-            digits.append("<span style=\"display:inline-block;width:48px;height:56px;line-height:56px;"
+            sb.append("<span style=\"display:inline-block;width:48px;height:56px;line-height:56px;"
                 + "text-align:center;background:#fff;border:2px solid #1c4f09;"
                 + "border-radius:10px;font-size:28px;font-weight:900;color:#1c4f09;margin:4px;\">"
                 + c + "</span>");
         }
-        return "<div style=\"font-family:Arial,sans-serif;max-width:520px;margin:0 auto;"
-            + "background:#fffdf5;border:1.5px solid #e8d8a0;border-radius:16px;overflow:hidden;\">"
-            + "<div style=\"background:#1c4f09;padding:28px 32px;text-align:center;\">"
+        return sb.toString();
+    }
+
+
+    private String header() {
+        return "<div style=\"background:#1c4f09;padding:28px 32px;text-align:center;\">"
             + "<img src=\"" + LOGO_URL + "\" alt=\"Pawster\" style=\"height:64px;width:auto;margin-bottom:10px;\" />"
             + "<h1 style=\"margin:0;color:#fff;font-size:26px;font-weight:900;\">Pawster</h1>"
             + "<p style=\"margin:6px 0 0;color:#a8d890;font-size:13px;\">Every Pet Deserves Love</p>"
-            + "</div><div style=\"padding:32px;\">"
+            + "</div>";
+    }
+
+
+    private String footer(String note) {
+        return "<div style=\"background:#f5f0e0;padding:16px 32px;text-align:center;\">"
+            + "<p style=\"font-size:11px;color:#9a8a60;margin:0;\">" + note + "</p>"
+            + "</div>";
+    }
+
+
+    /** Registration email-verification OTP */
+    private String buildVerificationHtml(String firstName, String otp) {
+        return "<div style=\"font-family:Arial,sans-serif;max-width:520px;margin:0 auto;"
+            + "background:#fffdf5;border:1.5px solid #e8d8a0;border-radius:16px;overflow:hidden;\">"
+            + header()
+            + "<div style=\"padding:32px;\">"
+            + "<h2 style=\"color:#1a4a08;margin-top:0;\">Hi " + firstName + "! Verify your email 👋</h2>"
+            + "<p style=\"color:#3a5020;font-size:14px;line-height:1.6;\">"
+            + "Thanks for joining Pawster! Enter the code below to confirm your email address.<br/>"
+            + "The code expires in <strong>10 minutes</strong>.</p>"
+            + "<div style=\"background:#f0f7e8;border:1.5px solid #b0d890;border-radius:12px;"
+            + "padding:28px;text-align:center;margin:24px 0;\">"
+            + "<p style=\"font-weight:700;color:#3a5020;margin:0 0 12px;\">Your verification code</p>"
+            + "<div>" + digitBoxes(otp) + "</div>"
+            + "</div>"
+            + "<p style=\"color:#5a7a40;font-size:13px;\">If you didn't create a Pawster account, you can safely ignore this email.</p>"
+            + "</div>"
+            + footer("Do not share this code with anyone. Pawster will never ask for it.")
+            + "</div>";
+    }
+
+
+    /** Password-reset OTP (unchanged) */
+    private String buildOtpHtml(String otp) {
+        return "<div style=\"font-family:Arial,sans-serif;max-width:520px;margin:0 auto;"
+            + "background:#fffdf5;border:1.5px solid #e8d8a0;border-radius:16px;overflow:hidden;\">"
+            + header()
+            + "<div style=\"padding:32px;\">"
             + "<h2 style=\"color:#1a4a08;\">Password Reset Request</h2>"
             + "<p style=\"color:#3a5020;font-size:14px;\">Use the PIN below. Valid for <strong>10 minutes</strong>.</p>"
             + "<div style=\"background:#f0f7e8;border:1.5px solid #b0d890;border-radius:12px;padding:28px;text-align:center;\">"
             + "<p style=\"font-weight:700;color:#3a5020;\">Your One-Time PIN</p>"
-            + "<div>" + digits + "</div></div></div>"
-            + "<div style=\"background:#f5f0e0;padding:16px 32px;text-align:center;\">"
-            + "<p style=\"font-size:11px;color:#9a8a60;\">Do not share this PIN with anyone.</p>"
-            + "</div></div>";
+            + "<div>" + digitBoxes(otp) + "</div></div></div>"
+            + footer("Do not share this PIN with anyone.")
+            + "</div>";
     }
 
+
+    /** Admin-created account welcome email (unchanged) */
     private String buildWelcomeHtml(String firstName, String roleLabel, String email, String password) {
         return "<div style=\"font-family:Arial,sans-serif;max-width:520px;margin:0 auto;"
             + "background:#fffdf5;border:1.5px solid #e8d8a0;border-radius:16px;overflow:hidden;\">"
-            + "<div style=\"background:#1c4f09;padding:28px 32px;text-align:center;\">"
-            + "<img src=\"" + LOGO_URL + "\" alt=\"Pawster\" style=\"height:64px;width:auto;margin-bottom:10px;\" />"
-            + "<h1 style=\"margin:0;color:#fff;font-size:26px;font-weight:900;\">Pawster</h1>"
-            + "</div><div style=\"padding:32px;\">"
+            + header()
+            + "<div style=\"padding:32px;\">"
             + "<h2 style=\"color:#1a4a08;\">Welcome, " + firstName + "! 👋</h2>"
             + "<p>Your account has been created as <strong>" + roleLabel + "</strong>.</p>"
             + "<p>Email: <strong>" + email + "</strong></p>"
@@ -108,3 +189,4 @@ public class EmailService {
             + "</div></div>";
     }
 }
+

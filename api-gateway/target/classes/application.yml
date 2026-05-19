@@ -55,7 +55,7 @@ spring:
             - Path=/api/users/*/photo/public/
 
         - id: springboot-service
-          uri: lb://pawster
+          uri: http://sb:8080
           predicates:
             - Path=/api/auth/**, /api/animals/**, /api/adoptions/**, /api/users/**, /api/admin/**, /api/rehome/**, /api/missing-pets/**, /api/activity-logs/**, /api/messages/**, /uploads/**
 

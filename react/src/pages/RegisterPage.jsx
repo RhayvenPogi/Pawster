@@ -3,6 +3,7 @@ import { useAuth } from "../hooks/useAuth";
 import logo from "../images/logo.png";
 import Dogs from "../images/Dogs.png";
 import { usePageTitle } from "../hooks/usePageTitle";
+import api from "../config/axios";
 
 // ── Philippine Zip Code Database (PHLPost) ─────────────────────────────────
 const PHL_ZIP_DB = [
@@ -111,6 +112,241 @@ function PawSVG({ style }) {
   );
 }
 
+function PreTermsOtpModal({ email, firstName, onVerified, onClose }) {
+  const [otp, setOtp]             = useState(["", "", "", "", "", ""]);
+  const [error, setError]         = useState("");
+  const [resendMsg, setResendMsg] = useState("");
+  const [loading, setLoading]     = useState(false);
+  const [resending, setResending] = useState(false);
+  const [countdown, setCountdown] = useState(60);
+  const [closing, setClosing]     = useState(false);
+  const inputs = useRef([]);
+  const timerRef = useRef(null);
+  const close = (cb) => { setClosing(true); setTimeout(cb, 220); };
+
+  useEffect(() => {
+    startCountdown();
+    return () => clearInterval(timerRef.current);
+  }, []);
+
+  function startCountdown() {
+    clearInterval(timerRef.current);
+    setCountdown(60);
+    timerRef.current = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) { clearInterval(timerRef.current); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+  }
+
+  function handleChange(val, idx) {
+    if (!/^\d*$/.test(val)) return;
+    const next = [...otp]; next[idx] = val.slice(-1); setOtp(next);
+    setError("");
+    if (val && idx < 5) inputs.current[idx + 1]?.focus();
+  }
+
+  function handleKeyDown(e, idx) {
+    if (e.key === "Backspace" && !otp[idx] && idx > 0) inputs.current[idx - 1]?.focus();
+    if (e.key === "ArrowLeft"  && idx > 0) inputs.current[idx - 1]?.focus();
+    if (e.key === "ArrowRight" && idx < 5) inputs.current[idx + 1]?.focus();
+  }
+
+  function handlePaste(e) {
+    const paste = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    if (paste.length === 6) { setOtp(paste.split("")); inputs.current[5]?.focus(); }
+    e.preventDefault();
+  }
+
+  async function handleVerify(e) {
+    e.preventDefault();
+    const code = otp.join("");
+    if (code.length < 6) { setError("Please enter all 6 digits."); return; }
+    setLoading(true);
+    try {
+      await api.post("/api/auth/verify-email-otp", { email, otp: code });
+      close(onVerified);
+    } catch (err) {
+      setError(err?.response?.data?.message || "Invalid or expired code. Please try again.");
+      setOtp(["", "", "", "", "", ""]);
+      inputs.current[0]?.focus();
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleResend() {
+    if (countdown > 0) return;
+    setResending(true); setResendMsg(""); setError("");
+    try {
+      await api.post("/api/auth/resend-email-otp", { email, firstName });
+      setResendMsg("A new code has been sent to your email.");
+      setOtp(["", "", "", "", "", ""]);
+      inputs.current[0]?.focus();
+      startCountdown();
+    } catch (err) {
+      setResendMsg(err?.response?.data?.message || "Failed to resend. Please try again.");
+    } finally {
+      setResending(false);
+    }
+  }
+
+  const filled = otp.join("").length === 6;
+
+  return (
+    <div
+      className="fixed inset-0 z-[10000] flex items-center justify-center p-6 backdrop-blur-md"
+      style={{
+        background: "rgba(20,35,15,0.55)",
+        animation: closing ? "modalFadeIn .22s ease reverse both" : "modalFadeIn .22s ease",
+      }}
+      onClick={e => { if (e.target === e.currentTarget) close(onClose); }}
+    >
+      <div
+        className="bg-white rounded-[24px] w-full max-w-[480px] overflow-hidden flex flex-col"
+        style={{
+          boxShadow: "0 24px 64px rgba(28,79,9,0.22)",
+          animation: closing ? "modalSlideDown .22s ease both" : "modalSlideUp .26s cubic-bezier(.34,1.3,.64,1)",
+        }}
+      >
+        {/* Header */}
+        <div
+          className="flex items-center gap-3 px-6 py-5 flex-shrink-0"
+          style={{ background: "linear-gradient(135deg,#1c4f09,#2a6e10)" }}
+        >
+          <div className="w-11 h-11 rounded-[12px] flex items-center justify-center flex-shrink-0"
+            style={{ background: "rgba(255,255,255,0.15)" }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="4" width="20" height="16" rx="3"/><path d="M2 7l10 7 10-7"/>
+            </svg>
+          </div>
+          <div className="flex-1">
+            <h2 className="text-[1.05rem] font-black text-white leading-tight">Verify Your Email</h2>
+            <p className="text-[0.76rem] font-bold text-white/70 mt-[1px]">
+              Check your inbox for the code
+            </p>
+          </div>
+          <button
+            onClick={() => close(onClose)}
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-[1.3rem] leading-none border-none"
+            style={{ background: "rgba(255,255,255,0.15)" }}
+          >×</button>
+        </div>
+
+        {/* Body */}
+        <div className="px-6 py-6">
+          {/* Sent-to badge */}
+          <div
+            className="flex items-center gap-3 rounded-[12px] px-4 py-3 mb-5"
+            style={{ background: "rgba(230,245,220,0.70)", border: "1.5px solid rgba(90,170,48,0.30)" }}
+          >
+            <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+              style={{ background: "linear-gradient(135deg,#1c4f09,#2a6e10)" }}>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="4" width="20" height="16" rx="3"/><path d="M2 7l10 7 10-7"/>
+              </svg>
+            </div>
+            <div className="min-w-0">
+              <p className="text-[0.72rem] font-bold text-[#4a7a28] uppercase tracking-wide">Code sent to</p>
+              <p className="text-[0.88rem] font-black text-[#1c4f09] truncate">{email}</p>
+            </div>
+          </div>
+
+          {/* Error / resend messages */}
+          {error && (
+            <div className="rounded-[10px] px-4 py-[0.65rem] text-[0.83rem] font-bold mb-4 flex items-center gap-2 bg-[rgba(253,232,232,0.9)] text-[#b83030] border border-[#f0a0a0] border-l-4 border-l-[#d04040]">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              {error}
+            </div>
+          )}
+          {resendMsg && (
+            <div className="rounded-[10px] px-4 py-[0.65rem] text-[0.83rem] font-bold mb-4 bg-[rgba(230,245,220,0.9)] text-[#276010] border border-[#90d060] border-l-4 border-l-[#5aaa30]">
+              {resendMsg}
+            </div>
+          )}
+
+          {/* OTP boxes */}
+          <p className="text-[0.80rem] font-bold text-[#5a7a40] mb-3 text-center">
+            Enter the 6-digit code below
+          </p>
+          <div className="flex gap-[0.5rem] justify-center mb-2" onPaste={handlePaste}>
+            {otp.map((digit, i) => (
+              <input
+                key={i}
+                ref={el => inputs.current[i] = el}
+                type="text"
+                inputMode="numeric"
+                maxLength={1}
+                value={digit}
+                onChange={e => handleChange(e.target.value, i)}
+                onKeyDown={e => handleKeyDown(e, i)}
+                style={{
+                  width: 50, height: 58, textAlign: "center",
+                  fontSize: "1.45rem", fontWeight: 900,
+                  fontFamily: "'Nunito',sans-serif",
+                  color: "#1a4a08",
+                  background: digit ? "rgba(240,252,232,0.9)" : "rgba(255,250,232,0.65)",
+                  border: `2px solid ${digit ? "#1c4f09" : "#5aaa30"}`,
+                  borderRadius: 10, outline: "none",
+                  transition: "border-color 0.18s,box-shadow 0.18s,background 0.18s",
+                  caretColor: "#1c4f09",
+                }}
+                onFocus={e => { e.target.style.borderColor="#1c4f09"; e.target.style.boxShadow="0 0 0 3px rgba(28,79,9,0.12)"; e.target.style.background="rgba(255,255,240,0.92)"; }}
+                onBlur={e  => { e.target.style.borderColor=digit?"#1c4f09":"#5aaa30"; e.target.style.boxShadow="none"; e.target.style.background=digit?"rgba(240,252,232,0.9)":"rgba(255,250,232,0.65)"; }}
+              />
+            ))}
+          </div>
+
+          {/* Resend row */}
+          <div className="flex items-center justify-center gap-2 mb-5 mt-2">
+            <span className="text-[0.78rem] font-bold text-[#6a7a50]">Didn't receive it?</span>
+            {countdown > 0 ? (
+              <span className="text-[0.78rem] font-bold text-[#a09060]">
+                Resend in <span className="font-black text-[#c87820] tabular-nums">{countdown}s</span>
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={handleResend}
+                disabled={resending}
+                className="bg-transparent border-none text-[0.78rem] font-black text-[#c87820] italic cursor-pointer p-0"
+                style={{ opacity: resending ? 0.6 : 1 }}
+              >
+                {resending ? "Sending…" : "Resend Code"}
+              </button>
+            )}
+          </div>
+
+          {/* Verify button */}
+          <button
+            onClick={handleVerify}
+            disabled={loading || !filled}
+            className="block w-full py-[0.88rem] text-white border-none rounded-[13px] text-[1rem] font-black transition-all duration-[180ms]"
+            style={{
+              background: filled ? "linear-gradient(135deg,#1c4f09,#2a6e10)" : "rgba(180,180,160,0.40)",
+              boxShadow: filled ? "0 4px 16px rgba(28,79,9,0.25)" : "none",
+              opacity: loading ? 0.65 : 1,
+              cursor: loading || !filled ? "not-allowed" : "pointer",
+            }}
+          >
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="spin-anim"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                Verifying…
+              </span>
+            ) : "Verify & Continue →"}
+          </button>
+
+          <p className="text-center text-[0.74rem] font-bold text-[#8a9a70] mt-3">
+            Check your spam folder if you don't see it.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function TermsModal({ onAccept, onDecline, onClose }) {
   const [closing, setClosing] = useState(false);
   const close = (cb) => { setClosing(true); setTimeout(cb, 220); };
@@ -129,7 +365,6 @@ function TermsModal({ onAccept, onDecline, onClose }) {
           boxShadow:"0 24px 64px rgba(60,100,30,0.18)",
           animation: closing ? "modalSlideDown .22s ease both" : "modalSlideUp .26s cubic-bezier(.34,1.3,.64,1)",
         }}>
-        {/* Header */}
         <div className="flex items-center gap-[0.9rem] px-[1.6rem] py-[1.4rem] border-b border-[#e8f0e2] flex-shrink-0"
           style={{ background:"linear-gradient(135deg,#f4faf0,#edf7e5)" }}>
           <div className="w-12 h-12 bg-white rounded-[12px] flex items-center justify-center flex-shrink-0"
@@ -146,7 +381,6 @@ function TermsModal({ onAccept, onDecline, onClose }) {
           </div>
           <button onClick={()=>close(onClose)} className="ml-auto bg-none border-none text-[1.6rem] text-[#6a8a58] px-[0.4rem] py-[0.2rem] rounded-lg leading-none">&times;</button>
         </div>
-        {/* Body */}
         <div className="overflow-y-auto px-[1.6rem] py-[1.4rem]" style={{ maxHeight:"420px" }}>
           {[
               ["1. Proper Use", "You agree to use PAWSTER responsibly and only for its intended purpose — connecting animals in need with caring adopters. Provide accurate, honest information at all times. Use the platform solely for adoption and rescue purposes. Treat other users and rescue staff with respect. Accounts found to be misused may be suspended or permanently removed."],
@@ -165,7 +399,6 @@ function TermsModal({ onAccept, onDecline, onClose }) {
             </div>
           ))}
         </div>
-        {/* Footer */}
         <div className="flex gap-3 px-[1.6rem] py-[1.1rem] border-t border-[#e8f0e2] bg-[#fafdf8] flex-shrink-0">
           <button onClick={onDecline} className="flex-1 py-[0.7rem] border-2 border-[#c8ddb8] bg-white text-[#5a7a48] text-[0.9rem] font-bold rounded-[10px]">Decline</button>
           <button onClick={onAccept} className="flex-[2] py-[0.7rem] border-none text-white text-[0.9rem] font-black rounded-[10px]"
@@ -309,7 +542,6 @@ function MapPickerModal({ onClose, onConfirm }) {
           boxShadow:"0 28px 72px rgba(28,79,9,0.22)",
           animation: closing ? "modalSlideDown .22s ease both" : "modalSlideUp .28s cubic-bezier(.34,1.3,.64,1)",
         }}>
-        {/* Header */}
         <div className="flex items-center gap-3 px-[1.4rem] py-[1.1rem] flex-shrink-0"
           style={{ background:"linear-gradient(135deg,#1c4f09,#2a6e10)" }}>
           <div className="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center flex-shrink-0"
@@ -323,7 +555,6 @@ function MapPickerModal({ onClose, onConfirm }) {
           <button onClick={()=>close(onClose)} className="ml-auto w-8 h-8 rounded-lg flex items-center justify-center text-white text-[1.2rem] border-none"
             style={{ background:"rgba(255,255,255,0.15)" }}>×</button>
         </div>
-        {/* Map */}
         <div className="relative flex-1 min-h-[340px]">
           <div ref={mapRef} className="w-full h-full min-h-[340px]" />
           {!picked && !loading && (
@@ -352,7 +583,6 @@ function MapPickerModal({ onClose, onConfirm }) {
             )}
           </div>
         )}
-        {/* Footer */}
         <div className="flex gap-3 px-[1.4rem] py-[0.9rem] flex-shrink-0 border-t border-[rgba(180,150,80,0.22)]"
           style={{ background:"rgba(255,250,228,0.9)" }}>
           <button onClick={()=>close(onClose)} className="flex-1 py-[0.7rem] border-2 border-[rgba(28,79,9,0.3)] bg-transparent text-[#1c4f09] text-[0.9rem] font-black rounded-[10px]">Cancel</button>
@@ -367,32 +597,41 @@ function MapPickerModal({ onClose, onConfirm }) {
   );
 }
 
+// ── Updated Stepper: now 4 steps ────────────────────────────────────────────
 function Stepper({ current }) {
-  const steps = ["Personal Info","Location","Verification"];
+  const steps = ["Personal Info", "Location", "Verification"];
   return (
     <div className="flex items-center mb-6">
-      {steps.map((label,i) => {
-        const n=i+1, done=n<current, active=n===current;
+      {steps.map((label, i) => {
+        const n = i + 1, done = n < current, active = n === current;
         return (
           <div key={n} className="contents">
             <div className="flex flex-col items-center gap-[0.3rem] min-w-0">
               <div
                 className="w-9 h-9 rounded-full flex items-center justify-center font-black text-[0.88rem] transition-all duration-300"
                 style={{
-                  border:`2.5px solid ${done||active?"#1c4f09":"rgba(180,150,80,0.35)"}`,
-                  background:done?"#1c4f09":active?"rgba(28,79,9,0.10)":"rgba(255,248,225,0.60)",
-                  color:done?"#fff":active?"#1c4f09":"#a09060",
-                  boxShadow:active?"0 0 0 4px rgba(28,79,9,0.12)":"none",
+                  border: `2.5px solid ${done || active ? "#1c4f09" : "rgba(180,150,80,0.35)"}`,
+                  background: done ? "#1c4f09" : active ? "rgba(28,79,9,0.10)" : "rgba(255,248,225,0.60)",
+                  color: done ? "#fff" : active ? "#1c4f09" : "#a09060",
+                  boxShadow: active ? "0 0 0 4px rgba(28,79,9,0.12)" : "none",
                 }}
               >
-                {done ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg> : n}
+                {done
+                  ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  : n}
               </div>
-              <span className="text-[0.67rem] font-black text-center whitespace-nowrap tracking-[0.02em]"
-                style={{ color:active?"#1c4f09":done?"#4a7a28":"#a09060" }}>{label}</span>
+              <span
+                className="text-[0.60rem] font-black text-center whitespace-nowrap tracking-[0.02em]"
+                style={{ color: active ? "#1c4f09" : done ? "#4a7a28" : "#a09060" }}
+              >
+                {label}
+              </span>
             </div>
-            {i < 2 && (
-              <div className="flex-1 h-[2px] mx-[6px] mb-[18px] rounded-[2px] transition-colors duration-300 min-w-[20px]"
-                style={{ background:done?"#1c4f09":"rgba(180,150,80,0.28)" }} />
+            {i < steps.length - 1 && (
+              <div
+                className="flex-1 h-[2px] mx-[4px] mb-[18px] rounded-[2px] transition-colors duration-300 min-w-[12px]"
+                style={{ background: done ? "#1c4f09" : "rgba(180,150,80,0.28)" }}
+              />
             )}
           </div>
         );
@@ -474,6 +713,240 @@ function ZipField({ city, value, onChange, onSelect, error }) {
   );
 }
 
+// ── Email OTP Verification Step (Step 4) ───────────────────────────────────
+function EmailVerifyStep({ email, onVerified, stepClass }) {
+  const [otp, setOtp]           = useState(["", "", "", "", "", ""]);
+  const [error, setError]       = useState("");
+  const [resendMsg, setResendMsg] = useState("");
+  const [loading, setLoading]   = useState(false);
+  const [resending, setResending] = useState(false);
+  const [countdown, setCountdown] = useState(60);
+  const inputs = useRef([]);
+  const timerRef = useRef(null);
+
+  // Start countdown on mount
+  useEffect(() => {
+    startCountdown();
+    return () => clearInterval(timerRef.current);
+  }, []);
+
+  function startCountdown() {
+    clearInterval(timerRef.current);
+    setCountdown(60);
+    timerRef.current = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) { clearInterval(timerRef.current); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+  }
+
+  function handleChange(val, idx) {
+    if (!/^\d*$/.test(val)) return;
+    const next = [...otp];
+    next[idx] = val.slice(-1);
+    setOtp(next);
+    setError("");
+    if (val && idx < 5) inputs.current[idx + 1]?.focus();
+  }
+
+  function handleKeyDown(e, idx) {
+    if (e.key === "Backspace" && !otp[idx] && idx > 0) inputs.current[idx - 1]?.focus();
+    if (e.key === "ArrowLeft"  && idx > 0) inputs.current[idx - 1]?.focus();
+    if (e.key === "ArrowRight" && idx < 5) inputs.current[idx + 1]?.focus();
+  }
+
+  function handlePaste(e) {
+    const paste = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    if (paste.length === 6) { setOtp(paste.split("")); inputs.current[5]?.focus(); }
+    e.preventDefault();
+  }
+
+  async function handleVerify(e) {
+    e.preventDefault();
+    const code = otp.join("");
+    if (code.length < 6) { setError("Please enter all 6 digits."); return; }
+    setLoading(true);
+    try {
+      await api.post("/api/auth/verify-email-otp", { email, otp: code });
+      onVerified();
+    } catch (err) {
+      const msg = err?.response?.data?.message || "Invalid or expired code. Please try again.";
+      setError(msg);
+      setOtp(["", "", "", "", "", ""]);
+      inputs.current[0]?.focus();
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleResend() {
+    if (countdown > 0) return;
+    setResending(true);
+    setResendMsg("");
+    setError("");
+    try {
+      await api.post("/api/auth/resend-email-otp", { email });
+      setResendMsg("A new code has been sent to your email.");
+      setOtp(["", "", "", "", "", ""]);
+      inputs.current[0]?.focus();
+      startCountdown();
+    } catch (err) {
+      setResendMsg(err?.response?.data?.message || "Failed to resend code. Please try again.");
+    } finally {
+      setResending(false);
+    }
+  }
+
+  return (
+    <div className={stepClass}>
+      {/* Header illustration */}
+      <div className="flex flex-col items-center mb-5">
+        <div
+          className="w-16 h-16 rounded-[18px] flex items-center justify-center mb-3"
+          style={{ background: "linear-gradient(135deg,#1c4f09,#2a6e10)", boxShadow: "0 6px 20px rgba(28,79,9,0.30)" }}
+        >
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="2" y="4" width="20" height="16" rx="3"/>
+            <path d="M2 7l10 7 10-7"/>
+          </svg>
+        </div>
+        <p className="text-[0.88rem] font-bold text-[#3a6020] text-center leading-[1.55]">
+          We've sent a 6-digit code to<br />
+          <strong className="text-[#1c4f09]">{email}</strong>
+        </p>
+      </div>
+
+      {/* Error / resend messages */}
+      {error && (
+        <div className="rounded-[10px] px-[0.9rem] py-[0.65rem] text-[0.83rem] font-bold mb-3 flex items-center gap-2 bg-[rgba(253,232,232,0.9)] text-[#b83030] border border-[#f0a0a0] border-l-4 border-l-[#d04040]">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          {error}
+        </div>
+      )}
+      {resendMsg && (
+        <div className="rounded-[10px] px-[0.9rem] py-[0.65rem] text-[0.83rem] font-bold mb-3 bg-[rgba(230,245,220,0.9)] text-[#276010] border border-[#90d060] border-l-4 border-l-[#5aaa30]">
+          {resendMsg}
+        </div>
+      )}
+
+      {/* OTP Inputs */}
+      <div className="flex gap-[0.55rem] justify-center mb-4" onPaste={handlePaste}>
+        {otp.map((digit, i) => (
+          <input
+            key={i}
+            ref={el => inputs.current[i] = el}
+            type="text"
+            inputMode="numeric"
+            maxLength={1}
+            value={digit}
+            onChange={e => handleChange(e.target.value, i)}
+            onKeyDown={e => handleKeyDown(e, i)}
+            style={{
+              width: 52, height: 60, textAlign: "center",
+              fontSize: "1.5rem", fontWeight: 900,
+              fontFamily: "'Nunito',sans-serif",
+              color: "#1a4a08",
+              background: digit ? "rgba(240,252,232,0.9)" : "rgba(255,250,232,0.65)",
+              border: `2px solid ${digit ? "#1c4f09" : "#5aaa30"}`,
+              borderRadius: 10, outline: "none",
+              transition: "border-color 0.18s,box-shadow 0.18s,background 0.18s",
+              caretColor: "#1c4f09",
+            }}
+            onFocus={e => { e.target.style.borderColor="#1c4f09"; e.target.style.boxShadow="0 0 0 3px rgba(28,79,9,0.12)"; e.target.style.background="rgba(255,255,240,0.92)"; }}
+            onBlur={e  => { e.target.style.borderColor=digit?"#1c4f09":"#5aaa30"; e.target.style.boxShadow="none"; e.target.style.background=digit?"rgba(240,252,232,0.9)":"rgba(255,250,232,0.65)"; }}
+          />
+        ))}
+      </div>
+
+      {/* Resend row */}
+      <div className="flex items-center justify-center gap-2 mb-5">
+        <span className="text-[0.80rem] font-bold text-[#6a7a50]">Didn't receive it?</span>
+        {countdown > 0 ? (
+          <span className="text-[0.80rem] font-bold text-[#a09060]">
+            Resend in <span className="font-black text-[#c87820] tabular-nums">{countdown}s</span>
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={handleResend}
+            disabled={resending}
+            className="bg-transparent border-none text-[0.80rem] font-black text-[#c87820] italic cursor-pointer p-0"
+            style={{ opacity: resending ? 0.6 : 1 }}
+          >
+            {resending ? "Sending…" : "Resend Code"}
+          </button>
+        )}
+      </div>
+
+      {/* Verify button */}
+      <button
+        onClick={handleVerify}
+        disabled={loading || otp.join("").length < 6}
+        className="btn-primary block w-full py-[0.88rem] text-white border-none rounded-[12px] text-[1rem] font-black transition-all duration-[180ms]"
+        style={{
+          background: otp.join("").length === 6
+            ? "linear-gradient(135deg,#1c4f09,#2a6e10)"
+            : "rgba(180,180,160,0.45)",
+          boxShadow: otp.join("").length === 6 ? "0 4px 16px rgba(28,79,9,0.25)" : "none",
+          opacity: loading ? 0.65 : 1,
+          cursor: loading || otp.join("").length < 6 ? "not-allowed" : "pointer",
+        }}
+      >
+        {loading ? (
+          <span className="flex items-center justify-center gap-2">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="spin-anim"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+            Verifying…
+          </span>
+        ) : "Verify Email →"}
+      </button>
+
+      <p className="text-center text-[0.78rem] font-bold text-[#8a9a70] mt-3 leading-[1.5]">
+        Check your spam folder if you don't see it in your inbox.
+      </p>
+    </div>
+  );
+}
+
+// ── Registration Success Modal ──────────────────────────────────────────────
+function SuccessModal({ onRedirect }) {
+  const [count, setCount] = useState(4);
+  useEffect(() => {
+    const t = setInterval(() => setCount(c => {
+      if (c <= 1) { clearInterval(t); onRedirect(); return 0; }
+      return c - 1;
+    }), 1000);
+    return () => clearInterval(t);
+  }, [onRedirect]);
+
+  return (
+    <div className="fixed inset-0 z-[30000] flex items-center justify-center p-6 backdrop-blur-md"
+      style={{ background: "rgba(20,35,15,0.55)", animation: "modalFadeIn .22s ease" }}>
+      <div className="bg-white rounded-[24px] w-full max-w-[440px] p-[2.6rem] text-center flex flex-col items-center"
+        style={{ boxShadow: "0 24px 64px rgba(60,100,30,0.22)", animation: "modalSlideUp .28s cubic-bezier(.34,1.3,.64,1)" }}>
+        {/* Animated check circle */}
+        <div className="w-20 h-20 rounded-full flex items-center justify-center mb-5"
+          style={{ background: "linear-gradient(135deg,#22a045,#1c8a38)", boxShadow: "0 8px 24px rgba(34,160,69,0.35)" }}>
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </div>
+        <h2 className="font-black text-[#1a4a08] text-[1.9rem] mb-2">You're in!</h2>
+        <p className="text-[0.92rem] font-semibold text-[#3a6020] leading-[1.6] mb-1">
+          Your email has been verified and your account is ready.
+        </p>
+        <p className="text-[0.85rem] font-bold text-[#6a7a50] mb-4">
+          Redirecting to login in <span className="font-black text-[#d97020] tabular-nums">{count}s</span>…
+        </p>
+        <div className="flex items-center gap-2 text-[0.78rem] font-bold text-[#8a9a70]">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#5aaa30" strokeWidth="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          Your ID is under review — we'll notify you soon.
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Page ───────────────────────────────────────────────────────────────
 export default function RegisterPage() {
   const { register }              = useAuth();
@@ -482,9 +955,12 @@ export default function RegisterPage() {
   const [exiting, setExiting]     = useState(false);
   const [leaving, setLeaving]     = useState(false);
   const [showTerms, setShowTerms] = useState(false);
-  const [pendingSubmit, setPendingSubmit] = useState(false);
+  const [showPreTermsOtp, setShowPreTermsOtp] = useState(false);
+  const [pendingEmail, setPendingEmail]       = useState("");
+  const [showSuccess, setShowSuccess]         = useState(false);
   const [alert, setAlert]         = useState({ type:"",msg:"" });
   const [loading, setLoading]     = useState(false);
+ 
   const [form, setForm]           = useState({
     firstName:"", lastName:"", email:"", phone:"", password:"", confirmPassword:"",
     address:"", city:"", province:"", zip:"",
@@ -547,32 +1023,64 @@ export default function RegisterPage() {
     setTimeout(() => { setStep(next); setExiting(false); }, 180);
   }
 
+  // Register account → on success move to Step 4 (email OTP)
   async function doRegister() {
     setLoading(true);
-    const fd=new FormData();
-    fd.append("firstName",form.firstName.trim()); fd.append("lastName",form.lastName.trim());
-    fd.append("email",form.email.trim()); fd.append("phone",form.phone.trim());
-    fd.append("password",form.password); fd.append("address",form.address.trim());
-    fd.append("city",form.city.trim()); fd.append("province",form.province.trim());
-    fd.append("zip",form.zip.trim()); fd.append("idFile",idFile);
-    try { await register(fd); }
-    catch(err) { setAlert({ type:"error", msg:err.response?.data?.message||"An error occurred during registration." }); setLoading(false); }
+    const fd = new FormData();
+    fd.append("firstName", form.firstName.trim());
+    fd.append("lastName",  form.lastName.trim());
+    fd.append("email",     form.email.trim());
+    fd.append("phone",     form.phone.trim());
+    fd.append("password",  form.password);
+    fd.append("address",   form.address.trim());
+    fd.append("city",      form.city.trim());
+    fd.append("province",  form.province.trim());
+    fd.append("zip",       form.zip.trim());
+    fd.append("idFile",    idFile);
+    try {
+      await register(fd);
+      await api.post("/api/auth/send-email-otp", {
+        email:     form.email.trim(),
+        firstName: form.firstName.trim(),
+      });
+      setLoading(false);
+      setShowSuccess(true);
+    } catch (err) {
+      setAlert({ type:"error", msg: err.response?.data?.message || "An error occurred during registration." });
+      setLoading(false);
+    }
   }
 
-  function handleSubmit() {
-    setAlert({type:"",msg:""});
+  async function handleSubmit() {
+    setAlert({ type: "", msg: "" });
     if (!idFile) { setUploadLabel("⚠ Please upload a government-issued ID."); return; }
-    setPendingSubmit(true); setShowTerms(true);
+    setLoading(true);
+    try {
+      await api.post("/api/auth/send-email-otp", { email: form.email.trim() });
+      setPendingEmail(form.email.trim());
+      setShowPreTermsOtp(true);
+    } catch (err) {
+      setAlert({
+        type: "error",
+        msg: err?.response?.data?.message || "Failed to send verification email. Please try again.",
+      });
+    } finally {
+      setLoading(false);
+    }
   }
 
-  async function handleTermsAccept() { setTermsAccepted(true); setShowTerms(false); setPendingSubmit(false); await doRegister(); }
-  function handleTermsDecline() { setTermsAccepted(false); setPendingSubmit(false); setShowTerms(false); }
+  async function handleTermsAccept() { setTermsAccepted(true); setShowTerms(false); await doRegister(); }
+  function handleTermsDecline() { setTermsAccepted(false); setShowTerms(false); }
 
   function handleMapConfirm(loc) {
     const safeZip = loc.zip || "";
     setForm(f=>({ ...f, address:loc.street||f.address, city:loc.city||f.city, province:loc.province||f.province, zip:safeZip }));
     setErrors(v=>({...v,address:"",city:"",province:"",zip:""}));
     setShowMap(false);
+  }
+
+  function handleEmailVerified() {
+    setShowSuccess(true);
   }
 
   const stepClass = exiting
@@ -610,13 +1118,13 @@ export default function RegisterPage() {
         @keyframes stepExitFwd{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(-36px)}}
         @keyframes stepExitBwd{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(36px)}}
         @keyframes pageFadeOut{from{opacity:1}to{opacity:0}}
+        @keyframes spin{to{transform:rotate(360deg)}}
         .step-enter-fwd { animation: stepEnterFwd 0.30s cubic-bezier(0.22,1,0.36,1) both; }
         .step-enter-bwd { animation: stepEnterBwd 0.30s cubic-bezier(0.22,1,0.36,1) both; }
         .step-exit-fwd  { animation: stepExitFwd  0.18s ease both; }
         .step-exit-bwd  { animation: stepExitBwd  0.18s ease both; }
         .page-exit { animation: pageFadeOut 0.22s ease both; }
         .spin-anim { animation: spin 0.8s linear infinite; }
-        @keyframes spin{to{transform:rotate(360deg)}}
         .card-anim { animation: cardIn 0.4s cubic-bezier(0.22,1,0.36,1) both; }
         .field-input:focus { border-color:#1c4f09 !important; border-left-color:#1c4f09 !important; background:rgba(255,252,238,0.78) !important; box-shadow:0 0 0 3px rgba(28,79,9,0.09) !important; }
         .field-input::placeholder { color:#b0a07a; font-style:italic; font-weight:600; }
@@ -627,8 +1135,17 @@ export default function RegisterPage() {
       `}</style>
 
       <MeshBackground />
+      {showPreTermsOtp && (
+        <PreTermsOtpModal
+          email={pendingEmail}
+          firstName={form.firstName.trim()}
+          onVerified={() => { setShowPreTermsOtp(false); setShowTerms(true); }}
+          onClose={() => setShowPreTermsOtp(false)}
+        />
+      )}
       {showTerms && <TermsModal onAccept={handleTermsAccept} onDecline={handleTermsDecline} onClose={handleTermsDecline} />}
-      {showMap   && <MapPickerModal onClose={()=>setShowMap(false)} onConfirm={handleMapConfirm} />}
+      {showMap     && <MapPickerModal onClose={()=>setShowMap(false)} onConfirm={handleMapConfirm} />}
+      {showSuccess && <SuccessModal onRedirect={() => navigate("/login")} />}
 
       {/* Nav */}
       <nav className="fixed top-0 right-0 z-[300] flex items-center gap-3 px-4 md:px-[1.6rem] py-[0.85rem]">
@@ -643,30 +1160,32 @@ export default function RegisterPage() {
       {/* Page wrapper */}
       <div className={`relative z-10 flex items-center justify-center min-h-screen w-full max-w-[1920px] mx-auto px-4 md:px-[6vw] gap-[2vw] ${leaving ? "page-exit" : ""}`}>
 
-        {/* Left Panel */}
-        <div className="hidden lg:block flex-1 relative h-screen max-h-[1200px] overflow-visible">
-          <div className="absolute inset-0 z-[5] pointer-events-none">
-            {pawData.map((p,i)=>(
-              <PawSVG key={i} style={{ position:"absolute",top:p.top,left:p.left,bottom:p.bottom,width:p.width,height:p.width,fill:p.fill,transform:`rotate(${p.rotate}deg)` }}/>
-            ))}
+        {/* Left Panel — hide on step 4 for a focused feel */}
+        {step < 4 && (
+          <div className="hidden lg:block flex-1 relative h-screen max-h-[1200px] overflow-visible">
+            <div className="absolute inset-0 z-[5] pointer-events-none">
+              {pawData.map((p,i)=>(
+                <PawSVG key={i} style={{ position:"absolute",top:p.top,left:p.left,bottom:p.bottom,width:p.width,height:p.width,fill:p.fill,transform:`rotate(${p.rotate}deg)` }}/>
+              ))}
+            </div>
+            <img src={Dogs} alt="Pawster Dogs Mascot"
+              className="absolute bottom-0 left-[-1%] z-10 w-auto object-contain"
+              style={{ height:"82vh", maxHeight:760, filter:"drop-shadow(0 10px 28px rgba(0,0,0,0.16))" }}/>
+            <div className="absolute top-[4%] left-[15%] z-20 text-center max-w-[560px]">
+              <h1 className="font-black text-[#1a4a08] uppercase leading-[0.95] tracking-tight"
+                style={{ fontSize:"clamp(3rem,3.8vw,4.8rem)", textShadow:"0 2px 14px rgba(255,255,255,0.22)" }}>
+                Welcome to<br/>Pawster!
+              </h1>
+              <p className="mt-4 font-bold text-[#2a5010] leading-[1.62] max-w-[420px] mx-auto"
+                style={{ fontSize:"clamp(0.88rem,1vw,1.05rem)", textShadow:"0 1px 6px rgba(255,255,255,0.32)" }}>
+                Join our community and start making a difference in rescued animals' lives.
+              </p>
+            </div>
           </div>
-          <img src={Dogs} alt="Pawster Dogs Mascot"
-            className="absolute bottom-0 left-[-1%] z-10 w-auto object-contain"
-            style={{ height:"82vh", maxHeight:760, filter:"drop-shadow(0 10px 28px rgba(0,0,0,0.16))" }}/>
-          <div className="absolute top-[4%] left-[15%] z-20 text-center max-w-[560px]">
-            <h1 className="font-black text-[#1a4a08] uppercase leading-[0.95] tracking-tight"
-              style={{ fontSize:"clamp(3rem,3.8vw,4.8rem)", textShadow:"0 2px 14px rgba(255,255,255,0.22)" }}>
-              Welcome to<br/>Pawster!
-            </h1>
-            <p className="mt-4 font-bold text-[#2a5010] leading-[1.62] max-w-[420px] mx-auto"
-              style={{ fontSize:"clamp(0.88rem,1vw,1.05rem)", textShadow:"0 1px 6px rgba(255,255,255,0.32)" }}>
-              Join our community and start making a difference in rescued animals' lives.
-            </p>
-          </div>
-        </div>
+        )}
 
         {/* Register card */}
-        <div className="card-anim w-full max-w-[500px] lg:w-[500px] lg:min-w-[460px] lg:flex-shrink-0 lg:mr-[3vw] lg:mt-[3vh] mt-16 lg:mt-0 flex flex-col justify-center px-5 py-6 md:px-[2.4rem] md:py-8 rounded-[28px] overflow-hidden backdrop-blur-xl"
+        <div className={`card-anim w-full max-w-[500px] lg:w-[500px] lg:min-w-[460px] lg:flex-shrink-0 lg:mr-[3vw] lg:mt-[3vh] mt-16 lg:mt-0 flex flex-col justify-center px-5 py-6 md:px-[2.4rem] md:py-8 rounded-[28px] overflow-hidden backdrop-blur-xl ${step === 4 ? "lg:mx-auto" : ""}`}
           style={{ background:"rgba(255,248,225,0.42)", border:"1.5px solid rgba(255,238,190,0.55)", boxShadow:"0 12px 48px rgba(160,105,30,0.15),0 2px 12px rgba(0,0,0,0.07)", maxHeight:"92vh" }}>
 
           {/* Mobile-only logo */}
@@ -675,10 +1194,14 @@ export default function RegisterPage() {
             <p className="text-[0.75rem] font-bold text-[#2a5010] text-center uppercase tracking-wide">Welcome to Pawster!</p>
           </div>
 
-          <div className="text-center mb-[1.4rem]">
-            <h2 className="font-black text-[#1a4a08] leading-[1.05] mb-[0.35rem]"
-              style={{ fontSize:"clamp(1.7rem,2.2vw,2.4rem)" }}>Create Your Account</h2>
-            <p className="text-[0.84rem] font-semibold text-[#5a7a40] leading-[1.5]">Join our community and start making a difference</p>
+          <div className="text-center mb-[1.1rem]">
+            <h2 className="font-black text-[#1a4a08] leading-[1.05] mb-[0.3rem]"
+              style={{ fontSize:"clamp(1.6rem,2.2vw,2.3rem)" }}>
+              Create Your Account
+            </h2>
+            <p className="text-[0.82rem] font-semibold text-[#5a7a40] leading-[1.5]">
+              Join our community and start making a difference
+            </p>
           </div>
 
           <Stepper current={step} />
@@ -693,7 +1216,7 @@ export default function RegisterPage() {
             </div>
           )}
 
-          {/* ── Step 1 ── */}
+          {/* ── Step 1: Personal Info ── */}
           {step===1 && (
             <div className={stepClass}>
               <div className="flex gap-[0.9rem]">
@@ -715,7 +1238,7 @@ export default function RegisterPage() {
             </div>
           )}
 
-          {/* ── Step 2 ── */}
+          {/* ── Step 2: Location ── */}
           {step===2 && (
             <div className={stepClass}>
               <div className="mb-[0.95rem] flex flex-col">
@@ -763,7 +1286,7 @@ export default function RegisterPage() {
             </div>
           )}
 
-          {/* ── Step 3 ── */}
+          {/* ── Step 3: ID Upload + Terms ── */}
           {step===3 && (
             <div className={stepClass}>
               <div className="mb-4">
@@ -807,16 +1330,28 @@ export default function RegisterPage() {
                 </div>
               </div>
 
+              {/* Email verification notice */}
+              <div className="flex items-start gap-[0.55rem] rounded-[10px] px-[0.95rem] py-[0.8rem] mb-[0.8rem] border border-[rgba(28,79,9,0.22)]"
+                style={{ background:"rgba(240,252,232,0.60)" }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1c4f09" strokeWidth="2.2" className="flex-shrink-0 mt-[1px]">
+                  <rect x="2" y="4" width="20" height="16" rx="3"/><path d="M2 7l10 7 10-7"/>
+                </svg>
+                <p className="text-[0.79rem] font-bold text-[#3a6020] leading-[1.55]">
+                  After submitting, we'll send a <strong>6-digit verification code</strong> to{" "}
+                  <strong className="text-[#1c4f09]">{form.email || "your email"}</strong>{" "}
+                  to confirm your account.
+                </p>
+              </div>
+
               <div className="flex items-start gap-[0.55rem] rounded-[10px] px-[0.95rem] py-[0.8rem] mb-[1.1rem] border border-[rgba(90,170,48,0.28)]"
                 style={{ background:"rgba(230,245,220,0.55)" }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5aaa30" strokeWidth="2.2" className="flex-shrink-0 mt-[1px]"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                 <p className="text-[0.79rem] font-bold text-[#3a6020] leading-[1.55]">
                   By clicking <strong>Submit</strong>, you'll be asked to review and accept our{" "}
-                  <button onClick={()=>{ setPendingSubmit(false); setShowTerms(true); }}
+                  <button onClick={()=>setShowTerms(true)}
                     className="bg-transparent border-none text-[#c87820] font-black text-[0.79rem] underline p-0 cursor-pointer">
                     Terms of Service &amp; Privacy Policy
-                  </button>
-                  {" "}before your account is created.
+                  </button>.
                   {termsAccepted && <span className="text-[#2a7010] font-black ml-[0.35rem]">✓ Accepted</span>}
                 </p>
               </div>
@@ -839,6 +1374,8 @@ export default function RegisterPage() {
             </div>
           )}
 
+         
+
           <p className="text-center text-[0.85rem] font-bold text-[#4a6030] mt-4">
             Already have an account?{" "}
             <button onClick={()=>navigate("/login")} className="bg-transparent border-none text-[#c87820] italic font-extrabold cursor-pointer text-[0.85rem]">Log in here!</button>
@@ -848,3 +1385,4 @@ export default function RegisterPage() {
     </>
   );
 }
+

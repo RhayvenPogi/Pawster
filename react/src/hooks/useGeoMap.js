@@ -9,7 +9,7 @@ export const REGION1_CENTER = [16.5, 120.4];
 export const REGION1_ZOOM   = 8;
 const GEO_CACHE_KEY  = "pawster_geo_cache_v5"; // bumped → old cache auto-ignored
 const USER_PINS_KEY  = "pawster_user_pins_v7";
-const PET_PINS_KEY   = "pawster_pet_pins_v5";  // bumped → forces fresh geocode
+const PET_PINS_KEY   = "pawster_pet_pins_v6";  // bumped → fixes approval cache bug
 const CACHE_TTL_MS   = 10 * 60 * 1000;
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
@@ -417,24 +417,26 @@ export async function fetchAndGeocodePets() {
   const cachedPetPins = loadPinCache(PET_PINS_KEY);
   const cached = cachedPetPins?.data || [];
 
-  if (!petCacheHasNewIds(cached, approved)) {
-    return cached;
+  const approvedIds = new Set(approved.map(p => String(p.id)));
+  const prunedCache = cached.filter(p => approvedIds.has(String(p.id)));
+  const prunedIds = new Set(prunedCache.map(p => String(p.id)));
+  const needsGeo = approved.filter(p => !prunedIds.has(String(p.id)));
+
+  if (needsGeo.length === 0 && prunedCache.length === cached.length) {
+    return prunedCache;
   }
 
-  const cachedMap = new Map(cached.map(p => [String(p.id), p]));
-  const needsGeo = approved.filter(p => !cachedMap.has(String(p.id)));
-  const alreadyGeo = approved
-    .filter(p => cachedMap.has(String(p.id)))
-    .map(p => cachedMap.get(String(p.id)));
-
-  if (needsGeo.length === 0) return alreadyGeo;
+  if (needsGeo.length === 0) {
+    savePinCache(PET_PINS_KEY, prunedCache);
+    return prunedCache;
+  }
 
   const geoResults = await geocodeBatch(needsGeo, geocodePet, () => {});
   const newlyGeocoded = needsGeo
     .map((pet, i) => geoResults[i]?.inRegion ? { ...pet, _geo: geoResults[i] } : null)
     .filter(Boolean);
 
-  const all = [...alreadyGeo, ...newlyGeocoded];
+  const all = [...prunedCache, ...newlyGeocoded];
   savePinCache(PET_PINS_KEY, all);
   return all;
 }

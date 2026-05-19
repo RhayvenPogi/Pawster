@@ -69,13 +69,8 @@ export const useAuth = () => {
             headers: { 'Content-Type': 'multipart/form-data' },
         });
 
-        setUser(null);
-        localStorage.removeItem('pawster_token');
-        localStorage.removeItem('pawster_user');
-
-        navigate('/login');
         return data;
-    }, [navigate]);
+    }, []);
 
     // ── Logout ────────────────────────────────────────────────────────────────
     const logout = useCallback(async () => {

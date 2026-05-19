@@ -579,7 +579,7 @@ export default function MissingPets() {
                       <FLabel required>City / Municipality</FLabel>
                       <input
                         className={`mp-field${formErrs.area ? ' mp-field-err' : ''}`}
-                        placeholder="e.g. Laoag City, Vigan City"
+                        placeholder="e.g. Session Road, Baguio City"
                         value={form.area}
                         onChange={e => updateField('area', e.target.value)}
                       />

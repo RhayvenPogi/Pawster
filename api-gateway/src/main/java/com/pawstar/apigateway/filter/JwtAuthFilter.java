@@ -33,7 +33,11 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         "/api/auth/forgot-password",
         "/api/auth/verify-otp",
         "/api/auth/reset-password",
-        "/api/auth/google",        // ← add this
+        "/api/auth/google",
+        "/api/auth/send-email-otp",
+        "/api/auth/verify-email-otp",
+        "/api/auth/resend-email-otp",
+        "/api/auth/complete-profile",
         "/api/animals/from-rehoming",
         "/api/animals/mark-adopted",
         "/api/animals/mark-pending",
@@ -41,7 +45,6 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         "/api/users",
         "/uploads",
         "/ws");
-
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         ServerHttpRequest request = exchange.getRequest();

@@ -5,6 +5,7 @@ import { useAuth } from "../hooks/useAuth";
 import logo from "../images/logo.png";
 import { usePageTitle } from "../hooks/usePageTitle";
 
+
 import LoadingScreen from "./LoadingScreen";
 import DashboardPanel from "./admin/DashboardPanel";
 import AnimalsPanel from "./admin/AnimalsPanel";
@@ -17,6 +18,7 @@ import ProfilePanel from "./admin/ProfilePanel";
 import MissingPetsPanel from "./admin/MissingPetsPanel";
 import AnalyticsPanel from "./admin/AnalyticsPanel";
 import AdminMessagingPanel from "./admin/AdminMessagingPanel";
+
 
 const NAV = [
   {
@@ -81,15 +83,17 @@ const NAV = [
   },
 ];
 
+
 const ICO_COLORS = {
-  "ico-blue":   { bg: "rgba(32,96,160,0.12)",  color: "#2060a0" },
-  "ico-green":  { bg: "rgba(90,170,48,0.14)",  color: "#1c4f09" },
-  "ico-orange": { bg: "rgba(180,90,34,0.14)",  color: "#B45A22" },
-  "ico-amber":  { bg: "rgba(212,136,10,0.14)", color: "#d4880a" },
-  "ico-teal":   { bg: "rgba(26,138,106,0.14)", color: "#1a8a6a" },
+  "ico-blue": { bg: "rgba(32,96,160,0.12)", color: "#2060a0" },
+  "ico-green": { bg: "rgba(90,170,48,0.14)", color: "#1c4f09" },
+  "ico-orange": { bg: "rgba(180,90,34,0.14)", color: "#B45A22" },
+  "ico-amber": { bg: "rgba(212,136,10,0.14)", color: "#d4880a" },
+  "ico-teal": { bg: "rgba(26,138,106,0.14)", color: "#1a8a6a" },
   "ico-purple": { bg: "rgba(122,61,192,0.14)", color: "#7a3dc0" },
-  "ico-rose":   { bg: "rgba(176,48,96,0.14)",  color: "#b03060" },
+  "ico-rose": { bg: "rgba(176,48,96,0.14)", color: "#b03060" },
 };
+
 
 function isDeleted(item) {
   if (!item) return false;
@@ -101,10 +105,12 @@ function isDeleted(item) {
   return false;
 }
 
+
 function filterActive(arr) {
   if (!Array.isArray(arr)) return [];
   return arr.filter(item => !isDeleted(item));
 }
+
 
 function normalizeUser(authUser) {
   if (!authUser) return null;
@@ -116,6 +122,19 @@ function normalizeUser(authUser) {
     return { ...authUser, id: authUser.email };
   }
 }
+
+
+// ── MOBILE DETECTION ───────────────────────────────────────────────────────────
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return isMobile;
+}
+
 
 // ── MESH BACKGROUND ────────────────────────────────────────────────────────────
 function MeshBackground() {
@@ -144,6 +163,7 @@ function MeshBackground() {
     </div>
   );
 }
+
 
 // ── SVG ICONS ──────────────────────────────────────────────────────────────────
 function FaIcon({ name, size = 14, color = "currentColor" }) {
@@ -290,8 +310,10 @@ function FaIcon({ name, size = 14, color = "currentColor" }) {
     ),
   };
 
+
   return icons[name] ?? null;
 }
+
 
 // ── PROFILE MODAL ──────────────────────────────────────────────────────────────
 function ProfileModal({ user, onClose, onUserUpdate, defaultTab = "profile" }) {
@@ -312,10 +334,12 @@ function ProfileModal({ user, onClose, onUserUpdate, defaultTab = "profile" }) {
   const [pendingFile, setPendingFile] = useState(null);
   const fileRef = useRef(null);
 
+
   const showMsg = (type, text) => {
     setMsg({ type, text });
     setTimeout(() => setMsg({ type: "", text: "" }), 3500);
   };
+
 
   const getStrength = (p) => {
     if (!p) return { w: "0%", color: "#ddd", label: "" };
@@ -325,6 +349,7 @@ function ProfileModal({ user, onClose, onUserUpdate, defaultTab = "profile" }) {
     return { w: "75%", color: "#5aaa30", label: "Good" };
   };
   const str = getStrength(newPass);
+
 
   const saveProfile = async () => {
     if (!fname.trim() || !email.trim()) return showMsg("error", "Name and email are required.");
@@ -336,6 +361,7 @@ function ProfileModal({ user, onClose, onUserUpdate, defaultTab = "profile" }) {
     } catch { showMsg("error", "Network error."); }
     setSaving(false);
   };
+
 
   const changePassword = async () => {
     if (!current || !newPass || !confirm) return showMsg("error", "All fields are required.");
@@ -350,6 +376,7 @@ function ProfileModal({ user, onClose, onUserUpdate, defaultTab = "profile" }) {
     setSaving(false);
   };
 
+
   const previewPhoto = (e) => {
     const f = e.target.files[0]; if (!f) return;
     setPendingFile(f);
@@ -357,6 +384,7 @@ function ProfileModal({ user, onClose, onUserUpdate, defaultTab = "profile" }) {
     reader.onload = ev => setPhotoSrc(ev.target.result);
     reader.readAsDataURL(f);
   };
+
 
   const uploadPhoto = async () => {
     if (!pendingFile) return;
@@ -378,14 +406,17 @@ function ProfileModal({ user, onClose, onUserUpdate, defaultTab = "profile" }) {
     } catch { showMsg("error", "Upload error."); }
   };
 
+
   const tabs = [
     { id: "profile", label: "Personal Info", icon: "👤" },
     { id: "photo", label: "Photo", icon: "📷" },
     { id: "security", label: "Security", icon: "🔒" },
   ];
 
+
   const inputCls = "w-full px-3 py-2.5 rounded-lg text-sm font-semibold text-[#1a2e0a] outline-none transition-all duration-150 border border-[rgba(180,140,60,0.28)] bg-[rgba(255,250,232,0.78)] focus:border-[#5aaa30] focus:ring-2 focus:ring-[rgba(90,170,48,0.12)]";
   const labelCls = "block text-[0.72rem] font-black uppercase tracking-wider text-[#6a7a50] mb-1";
+
 
   return (
     <div onClick={e => { if (e.target === e.currentTarget) onClose(); }} className="fixed inset-0 z-[600] flex items-center justify-center p-4 backdrop-blur-md" style={{ background: "rgba(100,70,20,0.22)" }}>
@@ -495,14 +526,26 @@ function ProfileModal({ user, onClose, onUserUpdate, defaultTab = "profile" }) {
   );
 }
 
+
 // ── SIDEBAR ────────────────────────────────────────────────────────────────────
-function Sidebar({ active, onNav, stats, user, collapsed, onToggle, onLogout }) {
+function Sidebar({ active, onNav, onNavMobile, stats, user, collapsed, onToggle, onLogout }) {
   const avatarSrc = user?.avatar || "";
   const [hovered, setHovered] = useState(null);
+
+
+  const handleNav = (id) => {
+    if (onNavMobile) {
+      onNavMobile(id);
+    } else {
+      onNav(id);
+    }
+  };
+
 
   return (
     <aside className="fixed left-0 top-0 z-[200] h-screen flex flex-col overflow-hidden transition-all duration-300"
       style={{ width: collapsed ? 64 : 252, background: "rgba(255,248,220,0.90)", backdropFilter: "blur(22px)", borderRight: "1.5px solid rgba(90,170,48,0.45)", boxShadow: "4px 0 24px rgba(100,70,20,0.10)", transitionTimingFunction: "cubic-bezier(0.4,0,0.2,1)" }}>
+
 
       {/* Logo */}
       <div className="flex items-center gap-2.5 px-3.5 shrink-0 overflow-hidden h-16" style={{ borderBottom: "1.5px solid rgba(180,140,60,0.28)" }}>
@@ -517,6 +560,7 @@ function Sidebar({ active, onNav, stats, user, collapsed, onToggle, onLogout }) 
           <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className={`transition-transform duration-300 ${collapsed ? "rotate-180" : ""}`}><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" /></svg>
         </button>
       </div>
+
 
       {/* User info */}
       <div className={`flex items-center gap-2.5 px-3.5 py-3 shrink-0 ${collapsed ? "justify-center" : ""}`} style={{ background: "rgba(90,170,48,0.07)", borderBottom: "1.5px solid rgba(180,140,60,0.28)" }}>
@@ -533,6 +577,7 @@ function Sidebar({ active, onNav, stats, user, collapsed, onToggle, onLogout }) 
         )}
       </div>
 
+
       {/* Nav items */}
       <nav className="flex-1 overflow-y-auto px-2.5 py-2" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(180,140,60,0.28) transparent" }}>
         {NAV.map(group => (
@@ -541,22 +586,23 @@ function Sidebar({ active, onNav, stats, user, collapsed, onToggle, onLogout }) 
               <div className="text-[0.61rem] font-black uppercase tracking-widest text-[#6a7a50] px-2 pt-3 pb-1">{group.group}</div>
             )}
             {group.items.map(item => {
-              const isActive  = active === item.id;
+              const isActive = active === item.id;
               const isHovered = hovered === item.id;
-              const ico       = ICO_COLORS[item.ico] || ICO_COLORS["ico-blue"];
-              const count     = item.badge ? (stats[item.badge] ?? 0) : 0;
+              const ico = ICO_COLORS[item.ico] || ICO_COLORS["ico-blue"];
+              const count = item.badge ? (stats[item.badge] ?? 0) : 0;
               const highlight = isActive || isHovered;
+
 
               return (
                 <button
                   key={item.id}
-                  onClick={() => onNav(item.id)}
+                  onClick={() => handleNav(item.id)}
                   onMouseEnter={() => setHovered(item.id)}
                   onMouseLeave={() => setHovered(null)}
                   className={`w-full flex items-center gap-2 mb-0.5 rounded-xl text-[0.855rem] font-bold whitespace-nowrap transition-all duration-150 cursor-pointer border-none ${collapsed ? "p-2.5 justify-center" : "py-2 px-2.5"} ${highlight ? "text-[#1a4a08]" : "text-[#3a5020]"}`}
                   style={{
                     background: highlight ? "rgba(90,170,48,0.17)" : "transparent",
-                    border:     highlight ? "1.5px solid rgba(90,170,48,0.30)" : "1.5px solid transparent",
+                    border: highlight ? "1.5px solid rgba(90,170,48,0.30)" : "1.5px solid transparent",
                   }}
                 >
                   <div
@@ -571,7 +617,7 @@ function Sidebar({ active, onNav, stats, user, collapsed, onToggle, onLogout }) 
                       className="text-[0.63rem] font-black px-2 py-0.5 rounded-full"
                       style={{
                         background: item.badgeWarn ? "rgba(180,90,34,0.15)" : (isActive ? "rgba(90,170,48,0.20)" : "rgba(180,140,60,0.14)"),
-                        color:      item.badgeWarn ? "#B45A22"               : (isActive ? "#1c4f09"              : "#6a7a50"),
+                        color: item.badgeWarn ? "#B45A22" : (isActive ? "#1c4f09" : "#6a7a50"),
                       }}
                     >
                       {count}
@@ -590,6 +636,7 @@ function Sidebar({ active, onNav, stats, user, collapsed, onToggle, onLogout }) 
   );
 }
 
+
 // ── MESSAGING BUTTON (topbar) ─────────────────────────────────────────────────
 function MessagingButton({ unreadCount, isActive, onClick }) {
   return (
@@ -599,8 +646,8 @@ function MessagingButton({ unreadCount, isActive, onClick }) {
       className="relative flex items-center justify-center w-9 h-9 rounded-xl transition-all duration-150 cursor-pointer border-none"
       style={{
         background: isActive ? "rgba(26,138,106,0.18)" : "rgba(255,250,232,0.78)",
-        border:     isActive ? "1.5px solid rgba(26,138,106,0.45)" : "1.5px solid rgba(180,140,60,0.28)",
-        color:      isActive ? "#1a8a6a" : "#6a7a50",
+        border: isActive ? "1.5px solid rgba(26,138,106,0.45)" : "1.5px solid rgba(180,140,60,0.28)",
+        color: isActive ? "#1a8a6a" : "#6a7a50",
       }}
     >
       <FaIcon name="comments" size={16} color="currentColor" />
@@ -616,10 +663,13 @@ function MessagingButton({ unreadCount, isActive, onClick }) {
   );
 }
 
+
 // ── TOPBAR ─────────────────────────────────────────────────────────────────────
-function Topbar({ panel, user, onRefresh, onToggle, collapsed, onNav, onOpenProfile, onLogout, unreadMessages }) {
+function Topbar({ panel, user, onRefresh, onToggle, collapsed, onNav,
+  onOpenProfile, onLogout, unreadMessages, isMobile }) {
   const [profileOpen, setProfileOpen] = useState(false);
   const avatarSrc = user?.avatar || "";
+
 
   return (
     <header
@@ -629,6 +679,7 @@ function Topbar({ panel, user, onRefresh, onToggle, collapsed, onNav, onOpenProf
       <button onClick={onToggle} className="p-1.5 rounded-lg text-[#6a7a50] hover:bg-[rgba(90,170,48,0.12)] hover:text-[#1a4a08] transition-all duration-200 border-none bg-transparent cursor-pointer">
         <FaIcon name="bars" size={18} color="currentColor" />
       </button>
+
 
       <div className="flex items-center gap-2">
         {/* Refresh */}
@@ -641,14 +692,19 @@ function Topbar({ panel, user, onRefresh, onToggle, collapsed, onNav, onOpenProf
           <FaIcon name="rotate-right" size={14} color="currentColor" />
         </button>
 
-        {/* View Site */}
+
+        {/* View Site — hide on mobile when sidebar is expanded */}
         <button
           onClick={() => window.open("/home", "_blank")}
           className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold text-[#1c4f09] hover:bg-[#1c4f09] hover:text-white transition-all duration-150 cursor-pointer"
           style={{ background: "rgba(90,170,48,0.13)", border: "1.5px solid rgba(90,170,48,0.35)" }}
         >
-          <FaIcon name="external-link-alt" size={13} color="currentColor" /> View Site
+          <FaIcon name="external-link-alt" size={13} color="currentColor" />
+          {!(isMobile && !collapsed) && " View Site"}
         </button>
+
+
+
 
         {/* Messages */}
         <MessagingButton
@@ -656,6 +712,7 @@ function Topbar({ panel, user, onRefresh, onToggle, collapsed, onNav, onOpenProf
           isActive={panel === "messaging"}
           onClick={() => onNav("messaging")}
         />
+
 
         {/* Profile dropdown */}
         <div className="relative">
@@ -673,6 +730,7 @@ function Topbar({ panel, user, onRefresh, onToggle, collapsed, onNav, onOpenProf
             </div>
             <svg width="10" height="10" viewBox="0 0 24 24" fill="#6a7a50" className={`transition-transform duration-200 ${profileOpen ? "rotate-180" : ""}`}><path d="M7 10l5 5 5-5z" /></svg>
           </div>
+
 
           {profileOpen && (
             <div className="fade-up absolute top-[calc(100%+8px)] right-0 z-[999] rounded-2xl p-2 min-w-[230px] shadow-2xl" style={{ background: "rgba(255,252,235,0.98)", border: "1.5px solid rgba(180,140,60,0.28)" }}>
@@ -701,65 +759,81 @@ function Topbar({ panel, user, onRefresh, onToggle, collapsed, onNav, onOpenProf
   );
 }
 
+
 // ── ADMIN DASHBOARD ────────────────────────────────────────────────────────────
 export default function AdminDashboard() {
   const { user: authUser, logout } = useAuth();
   const normalizedAuthUser = normalizeUser(authUser);
+  const isMobile = useIsMobile();
 
-  const [user, setUser]           = useState(normalizedAuthUser ?? null);
-  const [panel, setPanel]         = useState("overview");
-  const [collapsed, setCollapsed] = useState(false);
-  const [stats, setStats]         = useState({
-    animals:           0,
-    adoptions:         0,
-    rehome:            0,
-    users:             0,
+
+  const [user, setUser] = useState(normalizedAuthUser ?? null);
+  const [panel, setPanel] = useState("overview");
+  const [collapsed, setCollapsed] = useState(() => window.innerWidth < 768);
+  const [stats, setStats] = useState({
+    animals: 0,
+    adoptions: 0,
+    rehome: 0,
+    users: 0,
     pending_adoptions: 0,
-    pending_rehome:    0,
-    surveys:           0,
-    health_healthy:    0,
-    health_care:       0,
-    health_treatment:  0,
-    missing_pets:      0,
-    activity_today:    0,
-    total_records:     0,
-    unread_messages:   0,
+    pending_rehome: 0,
+    surveys: 0,
+    health_healthy: 0,
+    health_care: 0,
+    health_treatment: 0,
+    missing_pets: 0,
+    activity_today: 0,
+    total_records: 0,
+    unread_messages: 0,
   });
-  const [ready, setReady]               = useState(false);
-  const [refreshKey, setRefreshKey]     = useState(0);
-  const { toasts, show: toast }         = useToast();
+  const [ready, setReady] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const { toasts, show: toast } = useToast();
   const [profileModal, setProfileModal] = useState({ open: false, tab: "profile" });
 
+
   usePageTitle("Admin Dashboard");
+
+
+  // Sync collapsed state when viewport crosses mobile breakpoint
+  useEffect(() => {
+    if (isMobile) setCollapsed(true);
+  }, [isMobile]);
+
 
   useEffect(() => {
     if (authUser) setUser(normalizeUser(authUser));
   }, [authUser]);
 
+
   const fetchStats = useCallback(async () => {
     try {
       const DJANGO = import.meta.env.VITE_DJANGO_API ?? "http://localhost:8000";
-      const token  =
+      const token =
         localStorage.getItem("pawster_token") ||
-        localStorage.getItem("token")         ||
-        localStorage.getItem("authToken")     ||
-        sessionStorage.getItem("token")       || "";
+        localStorage.getItem("token") ||
+        localStorage.getItem("authToken") ||
+        sessionStorage.getItem("token") || "";
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
 
       const [phpRes, mpRes, adoptionRes, rehomeRes] = await Promise.all([
         phpApi("stats"),
         fetch("/api/missing-pets"),
         fetch(`${DJANGO}/api/approvals/adoptions/admin/`, { headers }),
-        fetch(`${DJANGO}/api/approvals/rehoming/admin/`,  { headers }),
+        fetch(`${DJANGO}/api/approvals/rehoming/admin/`, { headers }),
       ]);
 
+
       const phpData = phpRes.success ? (phpRes.data || {}) : {};
+
 
       let missingCount = phpData.missing_pets ?? 0;
       if (mpRes.ok) {
         const mpData = await mpRes.json();
         if (Array.isArray(mpData)) missingCount = filterActive(mpData).length;
       }
+
 
       let adoptionCount = phpData.pending_adoptions ?? 0;
       if (adoptionRes.ok) {
@@ -768,6 +842,7 @@ export default function AdminDashboard() {
         if (Array.isArray(arr)) adoptionCount = filterActive(arr).filter(r => r.status === "Pending").length;
       }
 
+
       let rehomeCount = phpData.pending_rehome ?? 0;
       if (rehomeRes.ok) {
         const rehomeData = await rehomeRes.json();
@@ -775,17 +850,19 @@ export default function AdminDashboard() {
         if (Array.isArray(arr)) rehomeCount = filterActive(arr).filter(r => r.status === "Pending").length;
       }
 
+
       setStats(prev => ({
         ...prev,
         ...phpData,
-        missing_pets:      missingCount,
+        missing_pets: missingCount,
         pending_adoptions: adoptionCount,
-        pending_rehome:    rehomeCount,
+        pending_rehome: rehomeCount,
       }));
     } catch (err) {
       console.error("Failed to fetch stats:", err);
     }
   }, []);
+
 
   useEffect(() => {
     const MIN_DISPLAY = 2800;
@@ -800,22 +877,35 @@ export default function AdminDashboard() {
       }
     });
   }, [fetchStats, refreshKey]);
+
+
   useEffect(() => {
     const interval = setInterval(fetchStats, 5_000);
     return () => clearInterval(interval);
   }, [fetchStats]);
 
+
   const handleUnreadChange = useCallback((count) => {
     setStats(prev => ({ ...prev, unread_messages: count }));
   }, []);
 
+
+  // Mobile-aware nav handler: collapses sidebar after navigation on mobile
+  const handleNavMobile = useCallback((id) => {
+    setPanel(id);
+    if (isMobile) setCollapsed(true);
+  }, [isMobile]);
+
+
   if (!user) return null;
   if (!ready) return <LoadingScreen destination="" />;
+
 
   const refresh = () => {
     setRefreshKey(k => k + 1);
     toast("Dashboard refreshed", "success");
   };
+
 
   const updateUser = (updates) => {
     setUser(u => {
@@ -825,7 +915,9 @@ export default function AdminDashboard() {
     });
   };
 
+
   const sidebarWidth = collapsed ? 64 : 252;
+
 
   return (
     <div className="font-['Nunito',sans-serif] text-[#1a2e0a]" style={{ animation: "pageFadeIn 0.6s ease both" }}>
@@ -833,6 +925,7 @@ export default function AdminDashboard() {
       <Sidebar
         active={panel}
         onNav={setPanel}
+        onNavMobile={handleNavMobile}
         stats={stats}
         user={user}
         collapsed={collapsed}
@@ -844,6 +937,7 @@ export default function AdminDashboard() {
         user={user}
         onRefresh={refresh}
         onToggle={() => setCollapsed(c => !c)}
+        isMobile={isMobile}
         collapsed={collapsed}
         onNav={setPanel}
         onLogout={logout}
@@ -859,22 +953,24 @@ export default function AdminDashboard() {
           <AdminMessagingPanel user={normalizedAuthUser} onUnreadChange={handleUnreadChange} />
         </div>
 
+
         {panel !== "messaging" && (
           <div className="p-6">
-            {panel === "overview"    && <DashboardPanel   stats={stats} onNav={setPanel} user={user} onStatsChange={fetchStats} />}
-            {panel === "analytics"   && <AnalyticsPanel   show={panel === "analytics"} />}
-            {panel === "animals"     && <AnimalsPanel     show onStatsChange={fetchStats} />}
-            {panel === "adoptions"   && <RequestsPanel    type="adoptions" show onStatsChange={fetchStats} />}
-            {panel === "rehome"      && <RequestsPanel    type="rehoming"    show onStatsChange={fetchStats} />}
-            {panel === "surveys"     && <SurveysPanel     show onStatsChange={fetchStats} />}
+            {panel === "overview" && <DashboardPanel stats={stats} onNav={setPanel} user={user} onStatsChange={fetchStats} />}
+            {panel === "analytics" && <AnalyticsPanel show={panel === "analytics"} />}
+            {panel === "animals" && <AnimalsPanel show onStatsChange={fetchStats} />}
+            {panel === "adoptions" && <RequestsPanel type="adoptions" show onStatsChange={fetchStats} />}
+            {panel === "rehome" && <RequestsPanel type="rehoming" show onStatsChange={fetchStats} />}
+            {panel === "surveys" && <SurveysPanel show onStatsChange={fetchStats} />}
             {panel === "missingpets" && <MissingPetsPanel show onStatsChange={fetchStats} />}
-            {panel === "users"    && <UsersPanel    show onStatsChange={fetchStats} />}
+            {panel === "users" && <UsersPanel show onStatsChange={fetchStats} />}
             {panel === "activity" && <ActivityPanel show onStatsChange={fetchStats} />}
-            {panel === "map"      && <GeoMapPanel   show user={user} onStatsChange={fetchStats} />}
-            {panel === "profile"  && <ProfilePanel  user={user} onUserUpdate={updateUser} onStatsChange={fetchStats} />}
+            {panel === "map" && <GeoMapPanel show user={user} onStatsChange={fetchStats} />}
+            {panel === "profile" && <ProfilePanel user={user} onUserUpdate={updateUser} onStatsChange={fetchStats} />}
           </div>
         )}
       </main>
+
 
       {profileModal.open && (
         <ProfileModal
@@ -888,3 +984,4 @@ export default function AdminDashboard() {
     </div>
   );
 }
+
